@@ -125,6 +125,14 @@ def _win_kernel() -> Any:
     kernel.GetFileInformationByHandle.restype = wintypes.BOOL
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel.CloseHandle.restype = wintypes.BOOL
+    kernel.ReadFile.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+        wintypes.LPVOID,
+    ]
+    kernel.ReadFile.restype = wintypes.BOOL
     kernel.WriteFile.argtypes = [
         wintypes.HANDLE,
         wintypes.LPCVOID,
@@ -241,6 +249,31 @@ def _win_identity(handle: int) -> WindowsIdentity:
         (int(information.size_high) << 32) | int(information.size_low),
         (int(information.write_time.high) << 32) | int(information.write_time.low),
     )
+
+
+def _same_windows_object(first: WindowsIdentity, second: WindowsIdentity) -> bool:
+    """Compare immutable Win32 object identity, not mutable file metadata."""
+    return first.volume == second.volume and first.index == second.index
+
+
+def _win_read(handle: int) -> bytes:
+    """Read an already-open Win32 file without reopening its pathname."""
+    kernel = _win_kernel()
+    chunks: list[bytes] = []
+    while True:
+        buffer = ctypes.create_string_buffer(1_048_576)
+        read = wintypes.DWORD()
+        if not kernel.ReadFile(
+            handle,
+            buffer,
+            len(buffer),
+            ctypes.byref(read),
+            None,
+        ):
+            raise _win_error("filesystem content could not be read")
+        if read.value == 0:
+            return b"".join(chunks)
+        chunks.append(buffer.raw[: read.value])
 
 
 def _win_write(handle: int, content: bytes) -> None:
@@ -415,7 +448,7 @@ class WindowsWorkspaceAnchor:
         current_path = self.workspace
         current = -1
         try:
-            if _win_identity(self._root) != self._root_identity:
+            if not _same_windows_object(_win_identity(self._root), self._root_identity):
                 raise OSError("workspace root changed")
             parts = _safe_parts(relative)
             for part in parts:
@@ -435,7 +468,7 @@ class WindowsWorkspaceAnchor:
         if len(parts) == 1:
             parent_path = self.workspace
             parent = _win_open(parent_path, directory=True)
-            if _win_identity(parent) != self._root_identity:
+            if not _same_windows_object(_win_identity(parent), self._root_identity):
                 _win_close(parent)
                 raise OSError("workspace root changed")
             return parent_path, parent, parts[0]
@@ -451,7 +484,7 @@ class WindowsWorkspaceAnchor:
         handle = _win_open(path, directory=False, lock_name=False)
         try:
             before = _win_identity(handle)
-            content = path.read_bytes()
+            content = _win_read(handle)
             after = _win_identity(handle)
             if before != after or len(content) != after.size:
                 raise OSError("workspace file changed while it was read")
@@ -473,7 +506,7 @@ class WindowsWorkspaceAnchor:
         current = -1
         try:
             _path, current, _name = self._parent(relative)
-            return _win_identity(current) == _win_identity(parent)
+            return _same_windows_object(_win_identity(current), _win_identity(parent))
         except OSError:
             return False
         finally:
@@ -699,7 +732,7 @@ def windows_publish_receipt(
         receipts = _win_open(receipts_path, directory=True)
         current_root = _win_open(workspace, directory=True)
         try:
-            if _win_identity(current_root) != root_identity:
+            if not _same_windows_object(_win_identity(current_root), root_identity):
                 raise OSError("receipt destination changed during publication")
         finally:
             _win_close(current_root)
