@@ -22,7 +22,7 @@
 When this PR lands, the welcome interview is mechanically wired to profile
 deployment: the assistant records the interview answers from design brief §6.1
 (kind of work, key people, current efforts, source locations, privacy needs,
-operating cadence) into `System/profile.yaml`, then runs
+operating cadence, spend preference) into `System/profile.yaml`, then runs
 `apparatus profile apply`, which idempotently re-runs the PR-11 overlay engine
 and additionally seeds starter records from the answers — one `Memory/People/`
 page per named person or organization and one `Goals/` record per current
@@ -133,8 +133,10 @@ setup becomes real workspace state, not just a conversation.
 
 ## Dependencies
 
-PR-11 (init and profile overlay engine) and PR-12 (memory verbs, PII labeler,
-credential floor) must have landed, matching `docs/plan/README.md`.
+PR-11 (init and profile overlay engine), PR-12 (memory verbs, PII labeler,
+credential floor), and PR-27 (model and spend guidance — defines the `spend`
+profile key this interview writes) must have landed, matching
+`docs/plan/README.md`.
 
 ## Open decisions
 
