@@ -631,7 +631,11 @@ class WindowsWorkspaceAnchor:
             if original_identity != expected_identity or original != expected_content:
                 raise OSError("Memory record changed after sweep planning")
             replacement_handle = _win_open(
-                temporary_path, directory=False, create=True, lock_name=False
+                temporary_path,
+                directory=False,
+                create=True,
+                lock_name=False,
+                share_existing_write=True,
             )
             _win_write(replacement_handle, replacement)
             replacement_identity = _win_identity(replacement_handle)

@@ -27,6 +27,7 @@ jobs:
         run: >-
           uv run pytest
           packages/apparatus-core/tests/test_credentials.py
+          packages/apparatus-core/tests/test_fs_transactions.py
           packages/apparatus-core/tests/test_labeler.py
           packages/apparatus-core/tests/test_receipts.py::test_write_receipt_is_parseable_and_collision_safe
           packages/apparatus-core/tests/test_receipts.py::test_write_receipt_preserves_caller_fields_in_frontmatter
