@@ -44,7 +44,7 @@ on every commit.
 | 06 | [Policy overlays and egress-gate spec](PR-06-policy-overlays-egress-spec.md) | 1 | ✅ landed | 04 |
 | 07 | [Instruction canon, shims, first dogfood](PR-07-shims-first-dogfood.md) | 1 | in progress — pr-07-shims-first-dogfood | 05, 06 |
 | 08 | [CLI skeleton and doctor](PR-08-cli-skeleton-doctor.md) | 2 | in progress — pr-08-cli-skeleton-doctor | 07 |
-| 09 | [check — validators](PR-09-check.md) | 2 | ready | 08 |
+| 09 | [check — validators](PR-09-check.md) | 2 | in progress — pr-09-check | 08 |
 | 10 | [snapshot and restore](PR-10-snapshot-restore.md) | 2 | ready | 08 |
 | 11 | [init and profile overlay engine](PR-11-init-profiles.md) | 2 | ready | 09, 10 |
 | 12 | [Memory verbs, PII labeler, credential floor](PR-12-memory-labeler.md) | 2 | ready | 09 |
