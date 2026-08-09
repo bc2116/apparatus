@@ -70,7 +70,6 @@ if os.name == "nt":  # pragma: no cover - exercised by the Windows CI job
     _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
     _FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
     _FILE_FLAG_WRITE_THROUGH = 0x80000000
-    _REPLACEFILE_WRITE_THROUGH = 0x00000001
     _FILE_DISPOSITION_INFO = 4
 
     class _FileTime(ctypes.Structure):
@@ -317,11 +316,13 @@ def _win_delete_handle(handle: int) -> None:
 
 
 def _win_replace(target: Path, replacement: Path, backup: Path | None) -> None:
+    # ReplaceFileW's write-through flag is unsupported. Each replacement is
+    # already flushed through its writer before this atomic publication.
     if not _win_kernel().ReplaceFileW(
         str(target),
         str(replacement),
         None if backup is None else str(backup),
-        _REPLACEFILE_WRITE_THROUGH,
+        0,
         None,
         None,
     ):
@@ -493,14 +494,11 @@ class WindowsWorkspaceAnchor:
         _win_close(handle)
 
     @staticmethod
-    def _read_locked(
-        path: Path, *, share_existing_write: bool = False
-    ) -> tuple[bytes, WindowsIdentity, int]:
+    def _read_locked(path: Path) -> tuple[bytes, WindowsIdentity, int]:
         handle = _win_open(
             path,
             directory=False,
             lock_name=False,
-            share_existing_write=share_existing_write,
         )
         try:
             before = _win_identity(handle)
@@ -538,14 +536,23 @@ class WindowsWorkspaceAnchor:
         del mode
         parent_path, parent, name = self._parent(relative)
         path = parent_path / name
-        handle = -1
+        handle = verification = -1
+        identity: WindowsIdentity | None = None
+        current: bytes | None = None
+        owned: WindowsOwnedFile | None = None
         try:
             handle = _win_open(path, directory=False, create=True, lock_name=False)
             _win_write(handle, content)
             identity = _win_identity(handle)
+            _win_close(handle)
+            handle = -1
+            current, current_identity, verification = self._read_locked(path)
+            if current_identity != identity or current != content:
+                raise OSError("Memory record changed during creation")
             owned = WindowsOwnedFile(
-                Path(relative), parent, path, identity, content, handle
+                Path(relative), parent, path, identity, content, verification
             )
+            verification = -1
             if not self._parent_is_current(Path(relative), parent):
                 self.unlink_owned(owned)
                 raise OSError("Memory destination detached during creation")
@@ -557,6 +564,30 @@ class WindowsWorkspaceAnchor:
                 except OSError:
                     pass
                 _win_close(handle)
+            elif verification >= 0:
+                try:
+                    if (
+                        identity is not None
+                        and current == content
+                        and _win_identity(verification) == identity
+                    ):
+                        _win_delete_handle(verification)
+                except OSError:
+                    pass
+                _win_close(verification)
+            elif identity is not None:
+                cleanup = -1
+                try:
+                    current, current_identity, cleanup = self._read_locked(path)
+                    if current_identity == identity and current == content:
+                        _win_delete_handle(cleanup)
+                except OSError:
+                    pass
+                finally:
+                    _win_close(cleanup)
+            if owned is not None:
+                owned.close()
+                parent = -1
             _win_close(parent)
             raise
 
@@ -576,12 +607,10 @@ class WindowsWorkspaceAnchor:
         path: Path,
         identity: WindowsIdentity,
         content: bytes,
-        *,
-        share_existing_write: bool = False,
     ) -> bool:
         try:
             current, current_identity, handle = WindowsWorkspaceAnchor._read_locked(
-                path, share_existing_write=share_existing_write
+                path
             )
             _win_close(handle)
         except OSError:
@@ -592,12 +621,7 @@ class WindowsWorkspaceAnchor:
         return (
             owned.handle >= 0
             and _win_identity(owned.handle) == owned.identity
-            and self._matches_path(
-                owned.path,
-                owned.identity,
-                owned.content,
-                share_existing_write=True,
-            )
+            and self._matches_path(owned.path, owned.identity, owned.content)
         )
 
     def unlink_owned(self, owned: WindowsOwnedFile) -> None:
@@ -606,6 +630,51 @@ class WindowsWorkspaceAnchor:
         _win_delete_handle(owned.handle)
         _win_close(owned.handle)
         owned.handle = -1
+
+    def _discard_created_file(
+        self,
+        path: Path,
+        handle: int,
+        identity: WindowsIdentity | None,
+        content: bytes,
+    ) -> None:
+        """Delete only the invocation-owned temporary object, if still exact."""
+        if handle >= 0:
+            try:
+                _win_delete_handle(handle)
+            except OSError:
+                pass
+            finally:
+                _win_close(handle)
+            return
+        if identity is None:
+            return
+        verification = -1
+        try:
+            current, current_identity, verification = self._read_locked(path)
+            if current_identity == identity and current == content:
+                _win_delete_handle(verification)
+        except OSError:
+            pass
+        finally:
+            _win_close(verification)
+
+    def _restore_exact_backup(
+        self,
+        target_path: Path,
+        target_identity: WindowsIdentity,
+        target_content: bytes,
+        backup_path: Path,
+        backup_identity: WindowsIdentity,
+        backup_content: bytes,
+    ) -> bool:
+        """Restore only when both published target and backup remain exact."""
+        if not self._matches_path(
+            target_path, target_identity, target_content
+        ) or not self._matches_path(backup_path, backup_identity, backup_content):
+            return False
+        _win_replace(target_path, backup_path, None)
+        return True
 
     def replace_if_unchanged(
         self,
@@ -619,7 +688,8 @@ class WindowsWorkspaceAnchor:
         target_path = parent_path / name
         temporary_path = parent_path / f".apparatus-memory-{secrets.token_hex(16)}.tmp"
         backup_path = parent_path / f".apparatus-memory-{secrets.token_hex(16)}.bak"
-        original_handle = replacement_handle = -1
+        original_handle = replacement_handle = published_handle = -1
+        replacement_identity: WindowsIdentity | None = None
         backup_parent = -1
         target_owned: WindowsOwnedFile | None = None
         backup_owned: WindowsOwnedFile | None = None
@@ -635,23 +705,26 @@ class WindowsWorkspaceAnchor:
                 directory=False,
                 create=True,
                 lock_name=False,
-                share_existing_write=True,
             )
             _win_write(replacement_handle, replacement)
             replacement_identity = _win_identity(replacement_handle)
+            # ReplaceFileW opens its replacement name with no sharing. Capture
+            # the exact file first, then release this invocation-owned writer.
+            _win_close(replacement_handle)
+            replacement_handle = -1
             if not self._parent_is_current(relative_path, parent):
                 raise OSError("Memory destination detached before replacement")
             _win_replace(target_path, temporary_path, backup_path)
             replaced = True
+            # Deny subsequent writers while this retained handle verifies and
+            # owns the exact object that ReplaceFileW published at the target.
+            published, published_identity, published_handle = self._read_locked(
+                target_path
+            )
             if (
-                _win_identity(replacement_handle) != replacement_identity
+                published_identity != replacement_identity
+                or published != replacement
                 or _win_identity(original_handle) != expected_identity
-                or not self._matches_path(
-                    target_path,
-                    replacement_identity,
-                    replacement,
-                    share_existing_write=True,
-                )
                 or not self._matches_path(
                     backup_path, expected_identity, expected_content
                 )
@@ -663,9 +736,9 @@ class WindowsWorkspaceAnchor:
                 target_path,
                 replacement_identity,
                 replacement,
-                replacement_handle,
+                published_handle,
             )
-            replacement_handle = -1
+            published_handle = -1
             backup_parent = _win_open(parent_path, directory=True)
             backup_owned = WindowsOwnedFile(
                 relative_path,
@@ -689,23 +762,33 @@ class WindowsWorkspaceAnchor:
             return transaction
         except Exception:
             _win_close(original_handle)
-            _win_close(replacement_handle)
+            _win_close(published_handle)
             _win_close(backup_parent)
+            for owned in (target_owned, backup_owned):
+                if owned is not None and owned.handle >= 0:
+                    _win_close(owned.handle)
+                    owned.handle = -1
             if replaced:
+                _win_close(replacement_handle)
                 try:
-                    if self._matches_path(
-                        target_path, replacement_identity, replacement
-                    ):
-                        _win_replace(target_path, backup_path, None)
-                except (OSError, UnboundLocalError):
-                    pass
-            else:
-                try:
-                    handle = _win_open(temporary_path, directory=False)
-                    _win_delete_handle(handle)
-                    _win_close(handle)
+                    if replacement_identity is not None:
+                        self._restore_exact_backup(
+                            target_path,
+                            replacement_identity,
+                            replacement,
+                            backup_path,
+                            expected_identity,
+                            expected_content,
+                        )
                 except OSError:
                     pass
+            else:
+                self._discard_created_file(
+                    temporary_path,
+                    replacement_handle,
+                    replacement_identity,
+                    replacement,
+                )
             if target_owned is not None:
                 target_owned.close()
                 parent = -1
