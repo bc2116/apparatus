@@ -1,0 +1,1 @@
+The deliberately fictional delimited value is 000-12-3456.

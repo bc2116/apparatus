@@ -18,6 +18,7 @@ ap = "apparatus_core.cli:main"
 check = "apparatus_core.commands.check:register"
 doctor = "apparatus_core.commands.doctor:register"
 init = "apparatus_core.commands.init:register"
+memory = "apparatus_core.commands.memory:register"
 restore = "apparatus_core.commands.restore:register"
 snapshot = "apparatus_core.commands.snapshot:register"
 
