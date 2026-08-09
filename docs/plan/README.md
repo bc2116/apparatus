@@ -10,10 +10,17 @@ execute in a cold session with nothing but this repository checked out.
    ADRs in `docs/adr/`.
 2. Open this table, pick the lowest-numbered PR whose status is **ready** and
    whose dependencies have landed.
-3. Read its prompt file completely. Branch `pr-XX-short-slug`.
+3. Read its prompt file completely. Branch `pr-XX-short-slug` (a dedicated
+   git worktree is the recommended shape for parallel work).
 4. Implement exactly that scope. Keep `uv run pytest` green; update conformance
    fixtures only as the prompt directs.
-5. Update this table's status column in the same PR.
+5. In the same PR, set this table's row for your PR to `✅ landed`. The change
+   reaches `main` only when the PR merges, so the table stays correct on
+   `main` at all times — a row must never read `in progress` after its PR has
+   merged.
+6. Ship it: push the branch, open a GitHub PR, wait for CI, and merge — never
+   merge locally into `main`. After verifying the merge commit on remote
+   `main`, delete the branch and remove the worktree it lived in.
 
 Governing rules: one PR per branch; fixtures are the executable spec and are
 never loosened to pass; dogfooding starts the moment PR-07 lands; DCO sign-off
@@ -42,9 +49,9 @@ on every commit.
 | 04 | [Record schemas v1](PR-04-record-schemas.md) | 1 | ✅ landed | 03 |
 | 05 | [Starter procedures](PR-05-starter-procedures.md) | 1 | ✅ landed | 04 |
 | 06 | [Policy overlays and egress-gate spec](PR-06-policy-overlays-egress-spec.md) | 1 | ✅ landed | 04 |
-| 07 | [Instruction canon, shims, first dogfood](PR-07-shims-first-dogfood.md) | 1 | in progress — pr-07-shims-first-dogfood | 05, 06 |
-| 08 | [CLI skeleton and doctor](PR-08-cli-skeleton-doctor.md) | 2 | in progress — pr-08-cli-skeleton-doctor | 07 |
-| 09 | [check — validators](PR-09-check.md) | 2 | in progress — pr-09-check | 08 |
+| 07 | [Instruction canon, shims, first dogfood](PR-07-shims-first-dogfood.md) | 1 | ✅ landed | 05, 06 |
+| 08 | [CLI skeleton and doctor](PR-08-cli-skeleton-doctor.md) | 2 | ✅ landed | 07 |
+| 09 | [check — validators](PR-09-check.md) | 2 | ✅ landed | 08 |
 | 10 | [snapshot and restore](PR-10-snapshot-restore.md) | 2 | ready | 08 |
 | 11 | [init and profile overlay engine](PR-11-init-profiles.md) | 2 | ready | 09, 10 |
 | 12 | [Memory verbs, PII labeler, credential floor](PR-12-memory-labeler.md) | 2 | ready | 09 |

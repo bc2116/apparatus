@@ -20,6 +20,9 @@ files are shims that point here — the same pattern Apparatus ships to its user
 
 - Work is pre-cut into focused PRs. Execute exactly one PR per branch, named
   `pr-XX-short-slug`.
+- Delivery is branch → push → GitHub PR → CI green → merge. Never merge
+  locally into `main`. After the merge is verified on remote `main`, delete
+  the branch and remove its worktree.
 - Prompt files are self-contained. If a required detail is missing, check the
   design brief and ADRs before deciding anything. If it is genuinely undecided,
   choose the smallest reversible default and record the question under "Open
@@ -46,5 +49,6 @@ files are shims that point here — the same pattern Apparatus ships to its user
 1. Deliverables exist at the paths the prompt file specifies.
 2. Acceptance criteria verified — state how in the PR description.
 3. `uv run pytest` green.
-4. Status table in `docs/plan/README.md` updated.
+4. Your PR's row in the `docs/plan/README.md` status table set to `✅ landed`
+   in this same PR — never left as `in progress`.
 5. Focused diff; nothing outside the PR's scope.
