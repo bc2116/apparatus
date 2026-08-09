@@ -59,7 +59,7 @@ normative in `docs/spec/records.md`, machine-readable in
 | `System/README.md` | now | Explains the machinery folder to a curious human. |
 | `System/profile.yaml` | now (unconfigured) | The profile: interview answers, privacy mode, selected procedures. |
 | `System/procedures/` | PR-05 | Procedure records the assistant follows. |
-| `System/policy/` | PR-06 | Active policy overlay (standard or private mode). |
+| `System/policy/` | now (PR-06) | Both policy overlays ship; `System/profile.yaml`'s `privacy_mode` selects the active one. |
 | `System/receipts/` | PR-09+ | One record per machinery event: checks, redactions, snapshots, egress decisions. |
 | `System/machine-report.md` | PR-08 | Environment capabilities, written by `doctor`/the bootstrapper. |
 | Workspace instruction canon and shims | PR-07 | `AGENTS.md` canon at workspace root plus app shims (ADR-0003). |

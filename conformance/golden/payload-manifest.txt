@@ -10,5 +10,7 @@ Memory/Facts/.gitkeep
 Memory/People/.gitkeep
 Projects/.gitkeep
 System/README.md
+System/policy/private.md
+System/policy/standard.md
 System/profile.yaml
 Welcome.md
