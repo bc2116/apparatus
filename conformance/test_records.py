@@ -16,6 +16,13 @@ EXPECTED_SHIPPED_PROCEDURES = {
     "weekly-review.md",
     "welcome.md",
 }
+EXPECTED_SHARE_STEPS = {
+    "produce-deliverable.md": {7, 9},
+    "research-and-summarize.md": {7},
+    "review-against-checklist.md": {7},
+    "weekly-review.md": {7},
+    "welcome.md": {8},
+}
 
 
 def _golden_files() -> list[tuple[str, Path]]:
@@ -81,6 +88,21 @@ def test_shipped_starter_procedures_are_valid():
             failures.append(f"{path.relative_to(REPO_ROOT)}: {problems}")
 
     assert not failures, "\n".join(failures)
+
+
+def test_shipped_starter_procedures_declare_share_shaped_steps():
+    found = {}
+    for path in sorted(SHIPPED_PROCEDURES.iterdir()):
+        if not path.is_file():
+            continue
+        _data, body = records.parse_record(path.read_text(encoding="utf-8"))
+        found[path.name] = {
+            int(match.group(1))
+            for line in body.splitlines()
+            if (match := re.match(r"^(\d+)\. \[share\] ", line))
+        }
+
+    assert found == EXPECTED_SHARE_STEPS
 
 
 def test_missing_required_field_is_a_problem():

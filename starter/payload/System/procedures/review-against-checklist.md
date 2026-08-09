@@ -20,13 +20,14 @@ intent: Use when the user wants a draft or deliverable checked item by item agai
    draft or deliverable being reviewed, and do not present an edited file as
    though it were the original.
 6. Make changes only when the user asks. Save the revised work as a draft in
-   `Projects/` until the user accepts it. Keep any email, update, or submission
-   as a draft there and hand it to the user; the assistant never sends, posts,
-   or submits anything itself.
-7. Take a snapshot using the workspace's snapshot command if it is available
+   `Projects/` until the user accepts it.
+7. [share] If there is an email, update, or submission, keep it as a draft in
+   `Projects/` and hand it to the user; the assistant never sends, posts, or
+   submits anything itself.
+8. Take a snapshot using the workspace's snapshot command if it is available
    and approved. If snapshots are unavailable, tell the user plainly and
    continue.
-8. Create `System/receipts/` if it is absent, then write a snapshot receipt
+9. Create `System/receipts/` if it is absent, then write a snapshot receipt
    named `YYYY-MM-DD-HHMMSS-snapshot.md` using the current UTC time. If that
    name exists, append `-2`, `-3`, and so on before `.md`. Include
    `schema: apparatus/receipt@v0`, `event: snapshot`, the UTC `timestamp`, and

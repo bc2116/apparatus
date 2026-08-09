@@ -270,9 +270,12 @@ is the intended flagship first pack because it proves the pack interface.
 
 ## 14. Open questions
 
-- `System/` visibility: hide via editor settings (`files.exclude`) or keep
-  visible? Hiding may also hide it from some apps' context/search features —
-  needs testing during Phase 1 dogfood (PR-07).
+- `System/` visibility: keep it visible by default and ship no editor hiding
+  setting. In the PR-07 files-only dogfood, two headless AI apps found the
+  profile, active policy, and procedures with `System/` visible and showed no
+  confusion. This resolves the payload default. Headless runs could not test
+  editor clutter or whether UI-level hiding preserves assistant access, so a
+  future optional hiding treatment would require separate evidence.
 - Egress residuals: `docs/spec/egress.md` fixes the v1 trigger taxonomy and
   `[share]` declaration. Chat display is not egress in v1 except when handing
   off a send-intent draft; whether broader chat display should ever trigger the

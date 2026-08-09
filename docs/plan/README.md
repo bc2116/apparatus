@@ -22,7 +22,10 @@ on every commit.
 ## Phases
 
 - **Phase 0 — birth:** repository skeleton, decisions, this plan. *(landed at bootstrap)*
-- **Phase 1 — protocol on files:** the workspace works as pure files in ≥ 2 AI apps, before any CLI exists.
+- **Phase 1 — protocol on files:** the workspace works as pure files in ≥ 2 AI
+  apps, before any CLI exists. PR-07 exercised this files-only exit in two AI
+  apps; this records evidence for the gate, not that every Phase 1 PR has
+  landed.
 - **Phase 2 — CLI v1:** `apparatus` verbs in dependency order; deterministic checks and snapshots.
 - **Phase 3 — Library:** ingest, local index, grounded recall with citations.
 - **Phase 4 — onboarding and egress:** interview → profile deployment; the egress gate; welcome end-to-end; ignore rules; first-run feature selection.
@@ -39,7 +42,7 @@ on every commit.
 | 04 | [Record schemas v1](PR-04-record-schemas.md) | 1 | ✅ landed | 03 |
 | 05 | [Starter procedures](PR-05-starter-procedures.md) | 1 | ✅ landed | 04 |
 | 06 | [Policy overlays and egress-gate spec](PR-06-policy-overlays-egress-spec.md) | 1 | ✅ landed | 04 |
-| 07 | [Instruction canon, shims, first dogfood](PR-07-shims-first-dogfood.md) | 1 | ready | 05, 06 |
+| 07 | [Instruction canon, shims, first dogfood](PR-07-shims-first-dogfood.md) | 1 | in progress — pr-07-shims-first-dogfood | 05, 06 |
 | 08 | [CLI skeleton and doctor](PR-08-cli-skeleton-doctor.md) | 2 | ready | 07 |
 | 09 | [check — validators](PR-09-check.md) | 2 | ready | 08 |
 | 10 | [snapshot and restore](PR-10-snapshot-restore.md) | 2 | ready | 08 |

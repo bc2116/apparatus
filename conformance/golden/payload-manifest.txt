@@ -2,6 +2,10 @@
 # relative to starter/payload/. Normative source: docs/spec/workspace.md.
 # Change deliberately, never to silence a failure. Lines starting with #
 # and blank lines are ignored.
+.cursor/rules/apparatus.mdc
+.github/copilot-instructions.md
+AGENTS.md
+CLAUDE.md
 Decisions/.gitkeep
 Deliverables/.gitkeep
 Goals/.gitkeep
