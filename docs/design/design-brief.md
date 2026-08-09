@@ -209,9 +209,11 @@ Decision record: ADR-0005. Summary:
 - **Monorepo** (this repository): `packages/` (uv workspace; core plus packs as
   sibling packages), `starter/` (payload + profiles), `installer/`,
   `conformance/` (golden fixtures = executable spec), `docs/`.
-- **Plugin CLI:** `apparatus-core` ships lean; packs register subcommands via
-  Python entry points. A verb exists only when its pack is installed — no
-  dormant features in the shipped binary.
+- **Plugin CLI:** `apparatus-core` ships lean and owns the `apparatus` command
+  (installed with a convenience alias `ap`; documentation always writes
+  `apparatus`). Packs register subcommands via Python entry points. A verb
+  exists only when its pack is installed — no dormant features in the shipped
+  binary.
 - **Packs extend core primitives** (Library, Memory, procedures, snapshots) and
   never fork them. A pack ships a package (code/verbs) plus a workspace overlay
   (procedures, policy additions), and must pass core conformance plus its own.

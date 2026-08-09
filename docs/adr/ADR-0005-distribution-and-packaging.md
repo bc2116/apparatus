@@ -21,7 +21,11 @@ deliverable to these same users without tier branding.
 2. **Plugin CLI.** `apparatus-core` ships lean and owns the `apparatus`
    command. Packs register subcommands via Python entry points; a verb exists
    on a machine only when its pack is installed. No dormant capability code in
-   shipped binaries — better for security review, size, and honesty.
+   shipped binaries — better for security review, size, and honesty. The
+   command installs under two names pointing at the same entry point:
+   `apparatus` (canonical — the only form used in documentation, procedures,
+   and receipts) and `ap` (a typing convenience for humans; `ap.exe` on
+   Windows). Nothing may depend on the alias.
 3. **Bootstrapper, user-scope first.** The installer (signed exe on Windows,
    signed pkg on macOS) installs in user scope by default: uv → uv-managed
    Python → portable git → `apparatus-core` → workspace creation at the default
