@@ -15,6 +15,7 @@ apparatus = "apparatus_core.cli:main"
 ap = "apparatus_core.cli:main"
 
 [project.entry-points."apparatus.commands"]
+check = "apparatus_core.commands.check:register"
 doctor = "apparatus_core.commands.doctor:register"
 
 [project.urls]
