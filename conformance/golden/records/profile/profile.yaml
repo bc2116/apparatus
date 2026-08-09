@@ -1,0 +1,5 @@
+schema: apparatus/profile@v0
+status: configured
+privacy_mode: standard
+work_types: [quality, writing]
+review_day: friday

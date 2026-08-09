@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{ name = "Bryan Conn", email = "bc2116@gmail.com" }]
+# PyYAML is the one dependency the state format demands (ADR-0002): YAML
+# frontmatter and profile.yaml, read strictly via yaml.safe_load.
+dependencies = ["pyyaml>=6.0"]
 
 [project.urls]
 Repository = "https://github.com/bc2116/apparatus"

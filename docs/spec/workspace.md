@@ -48,8 +48,9 @@ Apparatus/
 ## State format
 
 Per ADR-0002: Markdown with YAML frontmatter, one record per file, kebab-case
-filenames. `System/profile.yaml` is plain YAML. Record schemas land in PR-04;
-until then the payload ships structure, not records.
+filenames. `System/profile.yaml` is plain YAML. The seven record schemas are
+normative in `docs/spec/records.md`, machine-readable in
+`apparatus_core.records`, and pinned by `conformance/golden/records/`.
 
 ## `System/` planned contents
 
