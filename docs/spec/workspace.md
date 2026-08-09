@@ -58,9 +58,9 @@ normative in `docs/spec/records.md`, machine-readable in
 |---|---|---|
 | `System/README.md` | now | Explains the machinery folder to a curious human. |
 | `System/profile.yaml` | now (unconfigured) | The profile: interview answers, privacy mode, selected procedures. |
-| `System/procedures/` | PR-05 | Procedure records the assistant follows. |
+| `System/procedures/` | now (PR-05) | Five starter procedure records: `welcome.md`, `produce-deliverable.md`, `research-and-summarize.md`, `review-against-checklist.md`, and `weekly-review.md`. |
 | `System/policy/` | PR-06 | Active policy overlay (standard or private mode). |
-| `System/receipts/` | PR-09+ | One record per machinery event: checks, redactions, snapshots, egress decisions. |
+| `System/receipts/` | now (PR-05); PR-09 machinery | The assistant writes receipts from the first procedure run; CLI machinery also writes them from PR-09. |
 | `System/machine-report.md` | PR-08 | Environment capabilities, written by `doctor`/the bootstrapper. |
 | Workspace instruction canon and shims | PR-07 | `AGENTS.md` canon at workspace root plus app shims (ADR-0003). |
 

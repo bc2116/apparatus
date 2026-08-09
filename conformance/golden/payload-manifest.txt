@@ -10,5 +10,10 @@ Memory/Facts/.gitkeep
 Memory/People/.gitkeep
 Projects/.gitkeep
 System/README.md
+System/procedures/produce-deliverable.md
+System/procedures/research-and-summarize.md
+System/procedures/review-against-checklist.md
+System/procedures/weekly-review.md
+System/procedures/welcome.md
 System/profile.yaml
 Welcome.md
