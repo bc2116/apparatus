@@ -58,7 +58,7 @@ setup becomes real workspace state, not just a conversation.
   plain-language location strings), keeping the existing `status`,
   `privacy_mode`, `work_types`, and `review_day` fields.
 - `starter/payload/System/procedures/welcome.md` (filename as landed in
-  PR-05) — update the welcome procedure to the wired flow: ask the six
+  PR-05) — update the welcome procedure to the wired flow: ask the seven
   interview questions, write answers to `System/profile.yaml`, set
   `status: configured`, run `apparatus profile apply`, then confirm the seeded
   records with `apparatus check`. Vocabulary per ADR-0001 throughout.
