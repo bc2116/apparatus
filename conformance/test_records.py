@@ -1,0 +1,162 @@
+from pathlib import Path
+
+import yaml
+
+from apparatus_core import records
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+GOLDEN = REPO_ROOT / "conformance" / "golden" / "records"
+SHIPPED_PROFILE = REPO_ROOT / "starter" / "payload" / "System" / "profile.yaml"
+
+
+def _golden_files() -> list[tuple[str, Path]]:
+    found = [
+        (kind_dir.name, path)
+        for kind_dir in sorted(GOLDEN.iterdir())
+        if kind_dir.is_dir()
+        for path in sorted(kind_dir.iterdir())
+        if path.is_file()
+    ]
+    assert found, "no golden records found"
+    return found
+
+
+def test_every_kind_has_at_least_one_golden_example():
+    kinds = {kind for kind, _ in _golden_files()}
+    assert kinds == set(records.SCHEMAS), (
+        f"golden coverage mismatch: missing {set(records.SCHEMAS) - kinds}, "
+        f"unexpected {kinds - set(records.SCHEMAS)}"
+    )
+
+
+def test_golden_records_are_valid():
+    failures = []
+    for kind, path in _golden_files():
+        text = path.read_text(encoding="utf-8")
+        if records.SCHEMAS[kind].markdown_body:
+            data, _body = records.parse_record(text)
+        else:
+            data = yaml.safe_load(text)
+        problems = records.validate(kind, data, filename=path.name)
+        if problems:
+            failures.append(f"{path.relative_to(REPO_ROOT)}: {problems}")
+    assert not failures, "\n".join(failures)
+
+
+def test_shipped_payload_profile_is_valid():
+    data = yaml.safe_load(SHIPPED_PROFILE.read_text(encoding="utf-8"))
+    problems = records.validate("profile", data, filename=SHIPPED_PROFILE.name)
+    assert not problems, problems
+
+
+def test_missing_required_field_is_a_problem():
+    data, _ = records.parse_record(
+        (GOLDEN / "goal" / "finish-quarterly-quality-report.md").read_text(encoding="utf-8")
+    )
+    del data["done-when"]
+    assert any("done-when" in p for p in records.validate("goal", data))
+
+
+def test_bad_enum_value_is_a_problem():
+    assert any(
+        "status" in p
+        for p in records.validate(
+            "goal",
+            {
+                "schema": "apparatus/goal@v0",
+                "title": "t",
+                "owner": "o",
+                "status": "someday",
+                "done-when": "d",
+                "next-action": "n",
+            },
+        )
+    )
+
+
+def test_receipt_event_enum_is_pinned_to_the_ten_v1_values():
+    assert records.RECEIPT_EVENTS == (
+        "check",
+        "redaction",
+        "snapshot",
+        "restore",
+        "init",
+        "egress",
+        "library-ingest",
+        "recall",
+        "profile-apply",
+        "backup-export",
+    )
+
+
+def test_receipt_filename_rules():
+    ok = records.validate(
+        "receipt",
+        {
+            "schema": "apparatus/receipt@v0",
+            "event": "snapshot",
+            "timestamp": "2026-08-09T14:15:30Z",
+            "summary": "s",
+        },
+        filename="2026-08-09-141530-snapshot.md",
+    )
+    assert ok == []
+    base = {
+        "schema": "apparatus/receipt@v0",
+        "event": "snapshot",
+        "timestamp": "2026-08-09T14:15:30Z",
+        "summary": "s",
+    }
+    for suffix in ("-2", "-9", "-10", "-19", "-20", "-100"):
+        assert (
+            records.validate("receipt", base, filename=f"2026-08-09-141530-snapshot{suffix}.md")
+            == []
+        ), f"legal collision suffix rejected: {suffix}"
+    for bad_suffix in ("-0", "-1", "-02"):
+        assert records.validate(
+            "receipt", base, filename=f"2026-08-09-141530-snapshot{bad_suffix}.md"
+        ), f"illegal collision suffix accepted: {bad_suffix}"
+    wrong_event = records.validate(
+        "receipt",
+        {
+            "schema": "apparatus/receipt@v0",
+            "event": "check",
+            "timestamp": "2026-08-09T14:15:30Z",
+            "summary": "s",
+        },
+        filename="2026-08-09-141530-snapshot.md",
+    )
+    assert any("must equal the event field" in p for p in wrong_event)
+    uppercase = records.validate(
+        "receipt",
+        {
+            "schema": "apparatus/receipt@v0",
+            "event": "check",
+            "timestamp": "2026-08-09T14:15:30Z",
+            "summary": "s",
+        },
+        filename="2026-08-09T141530Z-check.md",
+    )
+    assert any("violates the rule" in p for p in uppercase)
+
+
+def test_profile_key_set_is_closed():
+    data = yaml.safe_load(SHIPPED_PROFILE.read_text(encoding="utf-8"))
+    data["nickname"] = "buddy"
+    assert any("closed" in p for p in records.validate("profile", data))
+
+
+def test_profile_review_day_key_must_be_present_even_when_null():
+    data = yaml.safe_load(SHIPPED_PROFILE.read_text(encoding="utf-8"))
+    assert data["review_day"] is None and records.validate("profile", data) == []
+    del data["review_day"]
+    assert any("review_day" in p for p in records.validate("profile", data))
+
+
+def test_kebab_filename_rule():
+    data = {"schema": "apparatus/fact@v0", "title": "t"}
+    assert records.validate("fact", data, filename="ok-name-2.md") == []
+    assert any(
+        "violates the rule" in p
+        for p in records.validate("fact", data, filename="Not_Kebab.md")
+    )

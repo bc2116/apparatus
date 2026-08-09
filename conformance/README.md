@@ -21,6 +21,7 @@ python3 conformance/payload_check.py
 | Fixture | Pins | Since |
 |---|---|---|
 | `golden/payload-manifest.txt` | The exact file set of `starter/payload/` against `docs/spec/workspace.md` | PR-03 |
+| `golden/records/` | One valid example per record kind against `docs/spec/records.md` and `apparatus_core.records` | PR-04 |
 
 ## The rule
 
