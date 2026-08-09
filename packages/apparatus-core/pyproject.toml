@@ -10,6 +10,13 @@ authors = [{ name = "Bryan Conn", email = "bc2116@gmail.com" }]
 # frontmatter and profile.yaml, read strictly via yaml.safe_load.
 dependencies = ["pyyaml>=6.0"]
 
+[project.scripts]
+apparatus = "apparatus_core.cli:main"
+ap = "apparatus_core.cli:main"
+
+[project.entry-points."apparatus.commands"]
+doctor = "apparatus_core.commands.doctor:register"
+
 [project.urls]
 Repository = "https://github.com/bc2116/apparatus"
 
