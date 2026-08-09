@@ -1,0 +1,5 @@
+Fictional encrypted material follows.
+-----BEGIN ENCRYPTED PRIVATE KEY-----
+SAMPLEENCRYPTEDFIXTUREONLY
+-----END ENCRYPTED PRIVATE KEY-----
+Fictional encrypted material ends.

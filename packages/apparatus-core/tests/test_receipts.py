@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 
 import pytest
-
-from apparatus_core import records
-from apparatus_core import receipts
+from apparatus_core import receipts, records
 
 
 def _clock():
@@ -69,3 +68,167 @@ def test_write_receipt_requires_a_known_event_and_summary(tmp_path):
         receipts.write_receipt(tmp_path, "other", {"summary": "No."})
     with pytest.raises(ValueError, match="non-empty summary"):
         receipts.write_receipt(tmp_path, "check", {})
+
+
+def test_failed_atomic_publication_removes_its_exact_partial(tmp_path, monkeypatch):
+    original = receipts._write_complete
+
+    def fail_after_partial(descriptor, content):
+        os.write(descriptor, content[:12])
+        raise OSError("fictional write failure")
+
+    monkeypatch.setattr(receipts, "_write_complete", fail_after_partial)
+    with pytest.raises(OSError):
+        receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
+    receipt_dir = tmp_path / "System/receipts"
+    assert receipt_dir.is_dir()
+    assert list(receipt_dir.iterdir()) == []
+    monkeypatch.setattr(receipts, "_write_complete", original)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX create/open race probe")
+def test_failed_receipt_never_deletes_a_preopen_substituted_directory(
+    tmp_path, monkeypatch
+):
+    original_open_directory = receipts._open_directory
+    original_write = receipts._write_complete
+    substituted = False
+
+    def substitute_before_return(parent, name, *, create):
+        nonlocal substituted
+        descriptor, created = original_open_directory(parent, name, create=create)
+        if name == "receipts" and created and not substituted:
+            substituted = True
+            os.close(descriptor)
+            os.rename(
+                "receipts",
+                "held-receipts",
+                src_dir_fd=parent,
+                dst_dir_fd=parent,
+            )
+            os.mkdir("receipts", 0o700, dir_fd=parent)
+            replacement = os.open(
+                "receipts", os.O_RDONLY | os.O_DIRECTORY, dir_fd=parent
+            )
+            try:
+                sentinel = os.open(
+                    "concurrent-sentinel",
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                    dir_fd=replacement,
+                )
+                os.close(sentinel)
+            finally:
+                os.close(replacement)
+            descriptor = os.open(
+                "receipts", os.O_RDONLY | os.O_DIRECTORY, dir_fd=parent
+            )
+        return descriptor, created
+
+    def fail_write(descriptor, content):
+        original_write(descriptor, content)
+        raise OSError("fictional publication failure")
+
+    monkeypatch.setattr(receipts, "_open_directory", substitute_before_return)
+    monkeypatch.setattr(receipts, "_write_complete", fail_write)
+    with pytest.raises(OSError):
+        receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
+    system = tmp_path / "System"
+    assert (system / "receipts/concurrent-sentinel").is_file()
+    assert (system / "held-receipts").is_dir()
+    assert list((system / "held-receipts").iterdir()) == []
+
+
+def test_receipt_publication_does_not_follow_a_swapped_ancestor(tmp_path, monkeypatch):
+    system = tmp_path / "System"
+    target = system / "receipts"
+    target.mkdir(parents=True)
+    held = system / "held-receipts"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    original = receipts._write_complete
+
+    def swap_then_write(descriptor, content):
+        target.rename(held)
+        target.symlink_to(outside, target_is_directory=True)
+        original(descriptor, content)
+
+    monkeypatch.setattr(receipts, "_write_complete", swap_then_write)
+    with pytest.raises(OSError, match="destination changed"):
+        receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
+    assert list(outside.iterdir()) == []
+    assert list(held.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX directory-handle race probe")
+def test_failed_receipt_cleanup_keeps_a_substituted_created_directory(
+    tmp_path, monkeypatch
+):
+    target = tmp_path / "System/receipts"
+    held = tmp_path / "System/held-receipts"
+    original = receipts._write_complete
+
+    def substitute_then_fail(descriptor, content):
+        target.rename(held)
+        target.mkdir()
+        (target / "concurrent-sentinel").write_bytes(b"concurrent")
+        original(descriptor, content)
+        raise OSError("fictional post-write failure")
+
+    monkeypatch.setattr(receipts, "_write_complete", substitute_then_fail)
+    with pytest.raises(OSError):
+        receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
+    assert (target / "concurrent-sentinel").read_bytes() == b"concurrent"
+    assert list(held.iterdir()) == []
+
+
+def test_receipt_collision_with_a_symlink_retries_without_following_it(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(receipts, "_utcnow", _clock)
+    receipt_dir = tmp_path / "System/receipts"
+    receipt_dir.mkdir(parents=True)
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside sentinel", encoding="utf-8")
+    first = receipt_dir / "2026-08-09-141530-check.md"
+    first.symlink_to(outside)
+    written = receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
+    assert written.name == "2026-08-09-141530-check-2.md"
+    assert outside.read_text(encoding="utf-8") == "outside sentinel"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX hard-link race probe")
+def test_receipt_does_not_delete_a_substituted_final_entry(tmp_path, monkeypatch):
+    monkeypatch.setattr(receipts, "_utcnow", _clock)
+    receipt_dir = tmp_path / "System/receipts"
+    receipt_dir.mkdir(parents=True)
+    held = receipt_dir / "held-owned-link"
+    substituted = b"concurrent receipt sentinel"
+    original = receipts._link_at
+
+    def substitute_after_link(parent, source, target):
+        original(parent, source, target)
+        os.rename(
+            target,
+            held.name,
+            src_dir_fd=parent,
+            dst_dir_fd=parent,
+        )
+        descriptor = os.open(
+            target,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+            dir_fd=parent,
+        )
+        try:
+            os.write(descriptor, substituted)
+        finally:
+            os.close(descriptor)
+
+    monkeypatch.setattr(receipts, "_link_at", substitute_after_link)
+    with pytest.raises(OSError, match="destination changed"):
+        receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
+    final = receipt_dir / "2026-08-09-141530-check.md"
+    assert final.read_bytes() == substituted
+    assert held.is_file()
+    assert not list(receipt_dir.glob(".apparatus-receipt-*.tmp"))

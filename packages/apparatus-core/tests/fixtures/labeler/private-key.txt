@@ -1,0 +1,5 @@
+Fictional material follows.
+-----BEGIN PRIVATE KEY-----
+SAMPLEFIXTUREONLY
+-----END PRIVATE KEY-----
+Fictional material ends.
