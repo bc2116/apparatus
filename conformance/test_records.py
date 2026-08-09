@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import yaml
@@ -7,6 +8,14 @@ from apparatus_core import records
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = REPO_ROOT / "conformance" / "golden" / "records"
 SHIPPED_PROFILE = REPO_ROOT / "starter" / "payload" / "System" / "profile.yaml"
+SHIPPED_PROCEDURES = REPO_ROOT / "starter" / "payload" / "System" / "procedures"
+EXPECTED_SHIPPED_PROCEDURES = {
+    "produce-deliverable.md",
+    "research-and-summarize.md",
+    "review-against-checklist.md",
+    "weekly-review.md",
+    "welcome.md",
+}
 
 
 def _golden_files() -> list[tuple[str, Path]]:
@@ -47,6 +56,31 @@ def test_shipped_payload_profile_is_valid():
     data = yaml.safe_load(SHIPPED_PROFILE.read_text(encoding="utf-8"))
     problems = records.validate("profile", data, filename=SHIPPED_PROFILE.name)
     assert not problems, problems
+
+
+def test_shipped_starter_procedures_are_valid():
+    paths = sorted(path for path in SHIPPED_PROCEDURES.iterdir() if path.is_file())
+    assert {path.name for path in paths} == EXPECTED_SHIPPED_PROCEDURES
+
+    failures = []
+    for path in paths:
+        try:
+            data, body = records.parse_record(path.read_text(encoding="utf-8"))
+        except ValueError as error:
+            failures.append(f"{path.relative_to(REPO_ROOT)}: {error}")
+            continue
+        problems = records.validate("procedure", data, filename=path.name)
+        step_numbers = [
+            int(match.group(1))
+            for line in body.splitlines()
+            if (match := re.match(r"^(\d+)\. ", line))
+        ]
+        if not step_numbers or step_numbers != list(range(1, len(step_numbers) + 1)):
+            problems.append("body must contain consecutively numbered steps starting at 1")
+        if problems:
+            failures.append(f"{path.relative_to(REPO_ROOT)}: {problems}")
+
+    assert not failures, "\n".join(failures)
 
 
 def test_missing_required_field_is_a_problem():
