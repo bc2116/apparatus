@@ -43,7 +43,7 @@ on every commit.
 | 08 | [CLI skeleton and doctor](PR-08-cli-skeleton-doctor.md) | 2 | ready | 07 |
 | 09 | [check — validators](PR-09-check.md) | 2 | ready | 08 |
 | 10 | [snapshot and restore](PR-10-snapshot-restore.md) | 2 | ready | 08 |
-| 11 | [init and profile overlay engine](PR-11-init-profiles.md) | 2 | ready | 09 |
+| 11 | [init and profile overlay engine](PR-11-init-profiles.md) | 2 | ready | 09, 10 |
 | 12 | [Memory verbs, PII labeler, credential floor](PR-12-memory-labeler.md) | 2 | ready | 09 |
 | 13 | [render — canon to shims](PR-13-render.md) | 2 | ready | 09 |
 | 14 | [Library ingest and text extraction](PR-14-library-ingest.md) | 3 | ready | 09 |
@@ -57,6 +57,23 @@ on every commit.
 | 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | ready | 21 |
 | 23 | [Code-signing and IT one-pager](PR-23-signing-it-onepager.md) | 5 | ready | 22 |
 | 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
+| 25 | [Snapshot export (backup) v1](PR-25-snapshot-export.md) | 4 | ready | 10 |
+| 26 | [Installer wrapper and signed artifacts](PR-26-installer-wrapper.md) | 5 | ready | 22, 23 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`.
+
+## Post-alpha (deliberately not in this plan)
+
+Two commitments from the design brief and ADRs are real but sequenced after
+alpha. They are listed here so no promise is silently unowned:
+
+- **Pack delivery** — the `apparatus add <pack>` verb and the installer's
+  capability catalog on re-run (ADR-0005 §5; design brief §9). Waiting on the
+  first real pack; the plugin registry (PR-08) is the enabling substrate, so
+  this is additive when it starts.
+- **Developer adopt-into-existing-repo entry path** — the secondary-audience
+  entry from design brief §2: the same protocol delivered with developer
+  vocabulary into a repository the developer already has. Nothing in core may
+  exist only for developers; this path is docs and tooling on top of the
+  certified core.

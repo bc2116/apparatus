@@ -70,7 +70,7 @@ until then the payload ships structure, not records.
 - Never inside folders redirected into a sync engine (OneDrive Documents/
   Desktop redirection and similar): live state inside file sync causes
   conflicts and corruption. Backup is a deliberate, one-way snapshot export to
-  synced storage (PR-10).
+  synced storage (PR-25).
 - Installers and docs detect and steer away from redirected locations (PR-22).
 
 ## Placeholders

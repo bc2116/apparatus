@@ -116,9 +116,10 @@ Apparatus/
    procedures, policy, and templates — recorded in `System/profile.yaml` and
    re-runnable at any time ("re-run my setup interview").
 2. **Chief-of-staff, draft-only.** Goals with verification oracles, decision
-   records, open-loop tracking, weekly review, daily planning support, and
-   drafting (emails, updates) — with a constitutional rule that the assistant
-   never sends, publishes, or submits anything itself.
+   records, open-loop tracking, weekly review, planning support through the
+   five starter procedures and ordinary conversation, and drafting (emails,
+   updates) — with a constitutional rule that the assistant never sends,
+   publishes, or submits anything itself.
 3. **Memory with People.** One page per person/organization (role, context,
    commitments, history) and one page per durable fact. Remembering names is a
    feature, not a violation (see §7).
@@ -202,7 +203,8 @@ Decision record: ADR-0005. Summary:
   ships with the installer.
 - Packs install two ways, same packages underneath: the bootstrapper re-run
   shows a capability catalog (checkboxes, no tiers), and the assistant can run
-  `apparatus add <pack>` in-session with the user's click-approval.
+  `apparatus add <pack>` in-session with the user's click-approval (post-alpha;
+  tracked in the development plan's post-alpha section).
 
 ## 10. Architecture
 
@@ -246,6 +248,8 @@ is the intended flagship first pack because it proves the pack interface.
 
 - The job statement holds in a timed test with a first-time user.
 - Certification matrix: ≥ 3 AI apps certified on the same payload at alpha.
+  Recorded certification runs may include failures; the metric is met when
+  three apps reach certified status, over multiple runs if needed.
 - Zero terminal commands typed by the human across onboarding and first
   deliverable.
 - An implementation session (any capable model) can pick up any planned PR cold

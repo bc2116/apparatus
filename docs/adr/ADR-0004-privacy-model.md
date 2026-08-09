@@ -52,3 +52,8 @@ construction, not by their own vigilance.
   metadata day-to-day and surface only at egress.
 - The IT one-pager documents this model honestly, including exactly what the
   credential floor blocks and where receipts live.
+- Deterministic labeling cannot recognize arbitrary personal names in free
+  text; v1 therefore treats every `Memory/People/` record as structurally
+  labeled person data, the egress gate exact-matches names and emails drawn
+  from those records against outbound content, and broader name detection is
+  a documented limitation.
