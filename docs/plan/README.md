@@ -38,7 +38,7 @@ on every commit.
 | 03 | Workspace spec, universal starter payload, first conformance fixture | 1 | ✅ landed (bootstrap) | 01 |
 | 04 | [Record schemas v1](PR-04-record-schemas.md) | 1 | ✅ landed | 03 |
 | 05 | [Starter procedures](PR-05-starter-procedures.md) | 1 | ✅ landed | 04 |
-| 06 | [Policy overlays and egress-gate spec](PR-06-policy-overlays-egress-spec.md) | 1 | ready | 04 |
+| 06 | [Policy overlays and egress-gate spec](PR-06-policy-overlays-egress-spec.md) | 1 | ✅ landed | 04 |
 | 07 | [Instruction canon, shims, first dogfood](PR-07-shims-first-dogfood.md) | 1 | ready | 05, 06 |
 | 08 | [CLI skeleton and doctor](PR-08-cli-skeleton-doctor.md) | 2 | ready | 07 |
 | 09 | [check — validators](PR-09-check.md) | 2 | ready | 08 |

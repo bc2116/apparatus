@@ -10,6 +10,8 @@ Memory/Facts/.gitkeep
 Memory/People/.gitkeep
 Projects/.gitkeep
 System/README.md
+System/policy/private.md
+System/policy/standard.md
 System/procedures/produce-deliverable.md
 System/procedures/research-and-summarize.md
 System/procedures/review-against-checklist.md

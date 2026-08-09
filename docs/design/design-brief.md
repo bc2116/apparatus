@@ -260,8 +260,11 @@ is the intended flagship first pack because it proves the pack interface.
 - `System/` visibility: hide via editor settings (`files.exclude`) or keep
   visible? Hiding may also hide it from some apps' context/search features —
   needs testing during Phase 1 dogfood (PR-07).
-- Egress trigger taxonomy: the precise, enforceable list of "share-shaped"
-  actions and how procedures declare them (PR-06/PR-18).
+- Egress residuals: `docs/spec/egress.md` fixes the v1 trigger taxonomy and
+  `[share]` declaration. Chat display is not egress in v1 except when handing
+  off a send-intent draft; whether broader chat display should ever trigger the
+  check remains open. Declared clipboard steps count as exports in v1; how
+  PR-18 tooling can observe other clipboard activity remains open.
 - The word "procedure": validate against real information workers; candidate
   alternatives ("playbook", "routine") — decide before beta, changing later is
   costly (ADR-0001 governs today).
