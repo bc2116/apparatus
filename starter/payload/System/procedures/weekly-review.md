@@ -21,13 +21,14 @@ intent: Use on the chosen review day or whenever the user asks to review the wee
    active goals and open loops. Agree the priorities with the user, then update
    affected goal statuses and next actions.
 6. Save a weekly plan in the appropriate folder in `Projects/` if the user
-   wants one. Keep any email, update, or submission about the plan as a draft in
-   `Projects/` and hand it to the user; the assistant never sends, posts, or
-   submits anything itself.
-7. Take a snapshot using the workspace's snapshot command if it is available
+   wants one.
+7. [share] If there is an email, update, or submission about the plan, keep it
+   as a draft in `Projects/` and hand it to the user; the assistant never sends,
+   posts, or submits anything itself.
+8. Take a snapshot using the workspace's snapshot command if it is available
    and approved. If snapshots are unavailable, tell the user plainly and
    continue.
-8. Create `System/receipts/` if it is absent, then write a snapshot receipt
+9. Create `System/receipts/` if it is absent, then write a snapshot receipt
    named `YYYY-MM-DD-HHMMSS-snapshot.md` using the current UTC time. If that
    name exists, append `-2`, `-3`, and so on before `.md`. Include
    `schema: apparatus/receipt@v0`, `event: snapshot`, the UTC `timestamp`, and

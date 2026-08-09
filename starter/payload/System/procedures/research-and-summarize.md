@@ -21,8 +21,8 @@ intent: Use when the user wants a source-grounded answer or summary from the Lib
 6. Show the user the summary and correct any source or reasoning problem they
    identify. When the user agrees it is finished, file the finished version in
    `Deliverables/` and update any related goal.
-7. Keep any email, update, or submission that would carry the summary outside
-   the workspace as a draft in `Projects/` and hand it to the user; the
+7. [share] If an email, update, or submission would carry the summary outside
+   the workspace, keep it as a draft in `Projects/` and hand it to the user; the
    assistant never sends, posts, or submits anything itself.
 8. Take a snapshot using the workspace's snapshot command if it is available
    and approved. If snapshots are unavailable, tell the user plainly and

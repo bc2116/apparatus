@@ -62,7 +62,7 @@ normative in `docs/spec/records.md`, machine-readable in
 | `System/policy/` | now (PR-06) | Both policy overlays ship; `System/profile.yaml`'s `privacy_mode` selects the active one. |
 | `System/receipts/` | now (PR-05); PR-09 machinery | The assistant writes receipts from the first procedure run; CLI machinery also writes them from PR-09. |
 | `System/machine-report.md` | PR-08 | Environment capabilities, written by `doctor`/the bootstrapper. |
-| Workspace instruction canon and shims | PR-07 | `AGENTS.md` canon at workspace root plus app shims (ADR-0003). |
+| Workspace instruction canon and shims | now (PR-07) | `AGENTS.md` canon at the workspace root plus `CLAUDE.md`, `.cursor/rules/apparatus.mdc`, and `.github/copilot-instructions.md` shims (ADR-0003). |
 
 ## Placement on disk
 
@@ -83,6 +83,9 @@ contain real content.
 
 ## Open questions (tracked in design brief §14)
 
-- Whether to hide `System/` via editor workspace settings: hiding reduces
-  clutter but may also hide it from some apps' context/search features. Test
-  during the PR-07 dogfood and record the outcome here.
+- Keep `System/` visible by default and ship no editor workspace setting that
+  hides it. In the PR-07 files-only dogfood, two headless AI apps found the
+  profile, active policy, and procedures with `System/` visible and showed no
+  confusion. Headless runs could not test visual editor clutter or prove that
+  editor hiding preserves assistant access, so any future optional UI-only
+  hiding treatment needs separate evidence.

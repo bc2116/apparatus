@@ -45,13 +45,14 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
    provided. In private mode, do not save labeled personal details; explain
    when that choice prevents a requested people record from being written.
 7. Tell the user setup is complete and that they can change it at any time by
-   saying "re-run my setup interview." Keep any email, update, or submission
-   as a draft in `Projects/` and hand it to the user; the assistant never sends,
-   posts, or submits anything itself.
-8. Take a snapshot using the workspace's snapshot command if it is available
+   saying "re-run my setup interview."
+8. [share] If there is an email, update, or submission, keep it as a draft in
+   `Projects/` and hand it to the user; the assistant never sends, posts, or
+   submits anything itself.
+9. Take a snapshot using the workspace's snapshot command if it is available
    and approved. If snapshots are unavailable, tell the user plainly and
    continue.
-9. Create `System/receipts/` if it is absent, then write a snapshot receipt
+10. Create `System/receipts/` if it is absent, then write a snapshot receipt
    named `YYYY-MM-DD-HHMMSS-snapshot.md` using the current UTC time. If that
    name exists, append `-2`, `-3`, and so on before `.md`. Include
    `schema: apparatus/receipt@v0`, `event: snapshot`, the UTC `timestamp`, and
