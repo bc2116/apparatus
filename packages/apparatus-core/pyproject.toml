@@ -17,6 +17,8 @@ ap = "apparatus_core.cli:main"
 [project.entry-points."apparatus.commands"]
 check = "apparatus_core.commands.check:register"
 doctor = "apparatus_core.commands.doctor:register"
+restore = "apparatus_core.commands.restore:register"
+snapshot = "apparatus_core.commands.snapshot:register"
 
 [project.urls]
 Repository = "https://github.com/bc2116/apparatus"

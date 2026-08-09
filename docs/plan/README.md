@@ -52,7 +52,7 @@ on every commit.
 | 07 | [Instruction canon, shims, first dogfood](PR-07-shims-first-dogfood.md) | 1 | ✅ landed | 05, 06 |
 | 08 | [CLI skeleton and doctor](PR-08-cli-skeleton-doctor.md) | 2 | ✅ landed | 07 |
 | 09 | [check — validators](PR-09-check.md) | 2 | ✅ landed | 08 |
-| 10 | [snapshot and restore](PR-10-snapshot-restore.md) | 2 | ready | 08 |
+| 10 | [snapshot and restore](PR-10-snapshot-restore.md) | 2 | ✅ landed | 08 |
 | 11 | [init and profile overlay engine](PR-11-init-profiles.md) | 2 | ready | 09, 10 |
 | 12 | [Memory verbs, PII labeler, credential floor](PR-12-memory-labeler.md) | 2 | ready | 09 |
 | 13 | [render — canon to shims](PR-13-render.md) | 2 | ready | 09 |
