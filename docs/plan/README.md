@@ -25,7 +25,7 @@ on every commit.
 - **Phase 1 — protocol on files:** the workspace works as pure files in ≥ 2 AI apps, before any CLI exists.
 - **Phase 2 — CLI v1:** `apparatus` verbs in dependency order; deterministic checks and snapshots.
 - **Phase 3 — Library:** ingest, local index, grounded recall with citations.
-- **Phase 4 — onboarding and egress:** interview → profile deployment; the egress gate; welcome end-to-end.
+- **Phase 4 — onboarding and egress:** interview → profile deployment; the egress gate; welcome end-to-end; ignore rules; first-run feature selection.
 - **Phase 5 — packaging:** payload builder, release pipeline, bootstrapper, signing, IT one-pager.
 - **Phase 6 — certification:** the same payload certified across AI apps; quickstarts; support matrix.
 
@@ -49,7 +49,7 @@ on every commit.
 | 14 | [Library ingest and text extraction](PR-14-library-ingest.md) | 3 | ready | 09 |
 | 15 | [Library local search index](PR-15-library-index.md) | 3 | ready | 14 |
 | 16 | [recall with citations](PR-16-recall.md) | 3 | ready | 15 |
-| 17 | [Interview wired to profile deployment](PR-17-interview-profiles.md) | 4 | ready | 11, 12 |
+| 17 | [Interview wired to profile deployment](PR-17-interview-profiles.md) | 4 | ready | 11, 12, 27 |
 | 18 | [Egress gate v1](PR-18-egress-gate.md) | 4 | ready | 12 |
 | 19 | [Welcome flow end-to-end](PR-19-welcome-e2e.md) | 4 | ready | 17, 18, 16 |
 | 20 | [Universal payload builder](PR-20-payload-builder.md) | 5 | ready | 13, 19 |
@@ -59,9 +59,39 @@ on every commit.
 | 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
 | 25 | [Snapshot export (backup) v1](PR-25-snapshot-export.md) | 4 | ready | 10 |
 | 26 | [Installer wrapper and signed artifacts](PR-26-installer-wrapper.md) | 5 | ready | 22, 23 |
+| 27 | [Model and spend guidance v1](PR-27-model-spend-guidance.md) | 1 | ready | 04 |
+| 28 | [Workspace ignore rules v1](PR-28-workspace-ignore-rules.md) | 4 | ready | 09, 14, 15, 16 |
+| 29 | [First-run feature selection](PR-29-first-run-feature-selection.md) | 4 | ready | 17, 27, 28 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`.
+
+## Execution guidance: model capability and effort
+
+Expressed in capability tiers, never model names, so it stays true as models
+change — the same abstraction PR-27 ships to users. Map tiers to whatever
+your provider currently offers: **frontier** = its most capable reasoning
+model, **strong** = its main workhorse, **fast** = small or
+latency-optimized.
+
+- **Frontier tier, high effort:** PR-05, 06, 07, 12, 18, 22 —
+  design-sensitive surfaces: product voice, the safety spec and gates, the
+  hostile-environment installer. (PR-04 belonged to this class and has
+  landed.)
+- **Strong tier, medium-high effort:** PR-08–11, 13–17, 20, 21, 25–29 —
+  well-specified implementation work; the prompts carry checkable acceptance
+  criteria precisely so this tier can land them. Run PR-19 at high effort
+  (integration debugging).
+- **Strong tier, writing-focused:** PR-23, 24 — user-facing prose is the
+  deliverable; review for tone as well as substance.
+- **Fast tier: never**, for any planned PR. These prompts are cut for
+  one-session execution by a capable model, not for decomposition into
+  micro-tasks.
+- **Budget-limited pattern:** a strong-tier session implements; a
+  frontier-tier session reviews the diff against the prompt's acceptance
+  criteria and the ADRs. Verification catches the failure class that matters
+  here (invented scope, contract violations) at a fraction of authorship
+  cost.
 
 ## Post-alpha (deliberately not in this plan)
 

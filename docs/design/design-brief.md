@@ -110,9 +110,11 @@ Apparatus/
 ## 6. Day-1 capabilities
 
 1. **Welcome interview → profile.** On first contact the assistant runs a short
-   professional interview (~6 questions): kind of work; key people/customers to
-   remember; current efforts; where source documents live; privacy needs;
-   operating cadence. Answers deploy a **profile** — a file overlay selecting
+   professional interview (about seven questions): kind of work; key
+   people/customers to remember; current efforts; where source documents live;
+   privacy needs; operating cadence; spend preference (how much model
+   capability and cost to apply). A short feature-selection step follows (see
+   item 8). Answers deploy a **profile** — a file overlay selecting
    procedures, policy, and templates — recorded in `System/profile.yaml` and
    re-runnable at any time ("re-run my setup interview").
 2. **Chief-of-staff, draft-only.** Goals with verification oracles, decision
@@ -135,6 +137,17 @@ Apparatus/
    `Deliverables/`, goal updated), research and summarize (facts separated from
    recommendations, uncertainty stated), review against a checklist, weekly
    review.
+7. **Model and spend guidance.** A user-owned spend dial (frugal, balanced,
+   thorough) plus workspace guidance mapping work roles to model capability
+   tiers and effort — expressed abstractly so it survives model churn, with
+   concrete model names confined to a dated, replaceable roster. The
+   assistant applies the guidance within whatever AI app is running;
+   Apparatus never selects or switches models itself.
+8. **Ignore rules and feature selection.** Gitignore-style rules
+   (`System/ignore`) make chosen paths invisible to the Library machinery
+   without ever weakening the egress gate or credential floor; first-run
+   setup presents each core feature with a plain-language default and the
+   explicit promise that everything can be enabled or disabled later.
 
 ## 7. Privacy and safety model
 
