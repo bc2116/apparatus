@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Any
 
 _RENAME_EXCHANGE = 0x2
+_FILE_SHARE_READ = 0x00000001
+_FILE_SHARE_WRITE = 0x00000002
+_FILE_SHARE_DELETE = 0x00000004
 
 
 def exchange_names(parent: int, first: str, second: str) -> None:
@@ -59,9 +62,6 @@ if os.name == "nt":  # pragma: no cover - exercised by the Windows CI job
     _GENERIC_WRITE = 0x40000000
     _DELETE = 0x00010000
     _FILE_READ_ATTRIBUTES = 0x0080
-    _FILE_SHARE_READ = 0x00000001
-    _FILE_SHARE_WRITE = 0x00000002
-    _FILE_SHARE_DELETE = 0x00000004
     _CREATE_NEW = 1
     _OPEN_EXISTING = 3
     _FILE_ATTRIBUTE_DIRECTORY = 0x00000010
@@ -191,6 +191,7 @@ def _win_open(
     create: bool = False,
     lock_name: bool = True,
     delete_access: bool = False,
+    share_existing_write: bool = False,
 ) -> int:
     kernel = _win_kernel()
     access = _GENERIC_READ
@@ -198,13 +199,11 @@ def _win_open(
         access |= _DELETE
     if create:
         access |= _GENERIC_WRITE
-    sharing = _FILE_SHARE_READ
-    if directory:
-        # Directory contents remain writable while the directory's own name is
-        # locked against rename/delete.
-        sharing |= _FILE_SHARE_WRITE
-    if not lock_name:
-        sharing |= _FILE_SHARE_DELETE
+    sharing = _win_share_mode(
+        directory=directory,
+        lock_name=lock_name,
+        share_existing_write=share_existing_write,
+    )
     flags = _FILE_FLAG_OPEN_REPARSE_POINT
     if directory:
         flags |= _FILE_FLAG_BACKUP_SEMANTICS
@@ -254,6 +253,20 @@ def _win_identity(handle: int) -> WindowsIdentity:
 def _same_windows_object(first: WindowsIdentity, second: WindowsIdentity) -> bool:
     """Compare immutable Win32 object identity, not mutable file metadata."""
     return first.volume == second.volume and first.index == second.index
+
+
+def _win_share_mode(
+    *, directory: bool, lock_name: bool, share_existing_write: bool
+) -> int:
+    """Return the Win32 share mask used for one retained or alias handle."""
+    sharing = _FILE_SHARE_READ
+    if directory or share_existing_write:
+        # Directories remain writable while their own names are locked. File
+        # aliases opt in only while an invocation-owned writer already exists.
+        sharing |= _FILE_SHARE_WRITE
+    if not lock_name:
+        sharing |= _FILE_SHARE_DELETE
+    return sharing
 
 
 def _win_read(handle: int) -> bytes:
@@ -480,8 +493,15 @@ class WindowsWorkspaceAnchor:
         _win_close(handle)
 
     @staticmethod
-    def _read_locked(path: Path) -> tuple[bytes, WindowsIdentity, int]:
-        handle = _win_open(path, directory=False, lock_name=False)
+    def _read_locked(
+        path: Path, *, share_existing_write: bool = False
+    ) -> tuple[bytes, WindowsIdentity, int]:
+        handle = _win_open(
+            path,
+            directory=False,
+            lock_name=False,
+            share_existing_write=share_existing_write,
+        )
         try:
             before = _win_identity(handle)
             content = _win_read(handle)
@@ -552,10 +572,16 @@ class WindowsWorkspaceAnchor:
             raise
 
     @staticmethod
-    def _matches_path(path: Path, identity: WindowsIdentity, content: bytes) -> bool:
+    def _matches_path(
+        path: Path,
+        identity: WindowsIdentity,
+        content: bytes,
+        *,
+        share_existing_write: bool = False,
+    ) -> bool:
         try:
             current, current_identity, handle = WindowsWorkspaceAnchor._read_locked(
-                path
+                path, share_existing_write=share_existing_write
             )
             _win_close(handle)
         except OSError:
@@ -566,7 +592,12 @@ class WindowsWorkspaceAnchor:
         return (
             owned.handle >= 0
             and _win_identity(owned.handle) == owned.identity
-            and self._matches_path(owned.path, owned.identity, owned.content)
+            and self._matches_path(
+                owned.path,
+                owned.identity,
+                owned.content,
+                share_existing_write=True,
+            )
         )
 
     def unlink_owned(self, owned: WindowsOwnedFile) -> None:
@@ -612,7 +643,10 @@ class WindowsWorkspaceAnchor:
                 _win_identity(replacement_handle) != replacement_identity
                 or _win_identity(original_handle) != expected_identity
                 or not self._matches_path(
-                    target_path, replacement_identity, replacement
+                    target_path,
+                    replacement_identity,
+                    replacement,
+                    share_existing_write=True,
                 )
                 or not self._matches_path(
                     backup_path, expected_identity, expected_content
@@ -753,7 +787,12 @@ def windows_publish_receipt(
                 if getattr(error, "winerror", error.errno) in {80, 183}:
                     continue
                 raise
-            final = _win_open(final_path, directory=False, lock_name=False)
+            final = _win_open(
+                final_path,
+                directory=False,
+                lock_name=False,
+                share_existing_write=True,
+            )
             try:
                 if _win_identity(final) != temporary_identity:
                     raise OSError("receipt identity changed during publication")
