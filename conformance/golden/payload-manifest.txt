@@ -1,0 +1,14 @@
+# Golden manifest: the exact file set of the universal starter payload,
+# relative to starter/payload/. Normative source: docs/spec/workspace.md.
+# Change deliberately, never to silence a failure. Lines starting with #
+# and blank lines are ignored.
+Decisions/.gitkeep
+Deliverables/.gitkeep
+Goals/.gitkeep
+Library/.gitkeep
+Memory/Facts/.gitkeep
+Memory/People/.gitkeep
+Projects/.gitkeep
+System/README.md
+System/profile.yaml
+Welcome.md

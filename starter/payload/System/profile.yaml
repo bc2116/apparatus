@@ -1,0 +1,7 @@
+# Apparatus profile — created by the welcome interview.
+# To change anything here, tell your assistant: "re-run my setup interview".
+schema: apparatus/profile@v0
+status: unconfigured        # becomes "configured" after the welcome interview
+privacy_mode: standard      # standard = label, don't block · private = strict
+work_types: []              # e.g. analysis, quality, project-management, writing, support
+review_day: null            # weekly review day, set during the interview
