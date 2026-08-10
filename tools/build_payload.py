@@ -7,16 +7,17 @@ import argparse
 from collections.abc import Mapping
 from datetime import datetime, timezone
 import hashlib
+import io
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
-import shutil
 import stat
 import sys
 import tempfile
 import unicodedata
 import zipfile
 
+from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.render import RenderError, is_reparse_path, render_workspace
 
 
@@ -86,9 +87,19 @@ def reject_portable_collisions(paths: tuple[str, ...]) -> None:
     seen: dict[tuple[str, ...], str] = {}
     for path in paths:
         key = _portable_key(path)
-        if key in seen:
+        conflict = next(
+            (
+                original
+                for other, original in seen.items()
+                if key == other
+                or key[: len(other)] == other
+                or other[: len(key)] == key
+            ),
+            None,
+        )
+        if conflict is not None:
             raise PayloadBuildError(
-                f"archive paths {seen[key]!r} and {path!r} conflict on a supported platform"
+                f"archive paths {conflict!r} and {path!r} conflict on a supported platform"
             )
         seen[key] = path
 
@@ -131,54 +142,92 @@ def _is_ignored(name: str) -> bool:
     return folded == "__pycache__" or folded in IGNORED_FILE_NAMES
 
 
+def _stat_identity(value: os.stat_result) -> tuple[int, int, int, int]:
+    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns
+
+
 def _source_files(root: Path, archive_root: str) -> tuple[tuple[Path, str], ...]:
-    """Enumerate regular source files without following links or reparse points."""
+    """Enumerate source files through a retained, no-follow parent anchor."""
     if is_reparse_path(root):
         raise PayloadBuildError(f"starter {archive_root} tree must not be a symbolic link")
     if not root.is_dir():
         raise PayloadBuildError(f"starter {archive_root} tree is missing")
+    try:
+        root = root.parent.resolve(strict=True) / root.name
+        with WorkspaceAnchor(root.parent) as anchor:
+            return _anchored_source_files(anchor, root, archive_root)
+    except OSError as error:
+        raise PayloadBuildError(
+            f"could not safely enumerate starter {archive_root} tree"
+        ) from error
 
+
+def _anchored_source_files(
+    anchor: WorkspaceAnchor, root: Path, archive_root: str
+) -> tuple[tuple[Path, str], ...]:
+    anchored_root = Path(root.name)
+    relative_files = anchor.list_files(anchored_root)
     files: list[tuple[Path, str]] = []
-    stack = [root]
-    while stack:
-        directory = stack.pop()
-        try:
-            entries = tuple(os.scandir(directory))
-        except OSError as error:
-            raise PayloadBuildError(f"could not read starter {archive_root} tree") from error
-        for entry in entries:
-            if _is_ignored(entry.name):
-                continue
-            path = Path(entry.path)
-            relative = path.relative_to(root).as_posix()
-            archive_path = validate_archive_path(f"{archive_root}/{relative}")
-            try:
-                status = entry.stat(follow_symlinks=False)
-            except OSError as error:
-                raise PayloadBuildError(f"could not inspect starter path {archive_path!r}") from error
-            if is_reparse_path(path):
-                raise PayloadBuildError(f"starter path {archive_path!r} must not be a symbolic link")
-            if stat.S_ISDIR(status.st_mode):
-                stack.append(path)
-            elif stat.S_ISREG(status.st_mode):
-                files.append((path, archive_path))
-            else:
-                raise PayloadBuildError(f"starter path {archive_path!r} must be a regular file")
-
+    for anchored_path in relative_files:
+        relative = anchored_path.relative_to(anchored_root)
+        if any(_is_ignored(part) for part in relative.parts):
+            continue
+        archive_path = validate_archive_path(f"{archive_root}/{relative.as_posix()}")
+        files.append((root / relative, archive_path))
     files.sort(key=lambda item: item[1])
     reject_portable_collisions(tuple(archive_path for _source, archive_path in files))
     return tuple(files)
 
 
 def _copy_tree(source: Path, destination: Path, archive_root: str) -> None:
-    for source_file, archive_path in _source_files(source, archive_root):
+    for archive_path, content in _capture_source_files(source, archive_root):
         relative = PurePosixPath(archive_path).relative_to(archive_root)
         target = destination.joinpath(*relative.parts)
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source_file, target, follow_symlinks=False)
+            target.write_bytes(content)
         except OSError as error:
             raise PayloadBuildError(f"could not stage starter path {archive_path!r}") from error
+
+
+def _capture_source_files(root: Path, archive_root: str) -> tuple[tuple[str, bytes], ...]:
+    """Capture enumerated regular files through retained, no-follow ownership."""
+    if is_reparse_path(root):
+        raise PayloadBuildError(f"starter {archive_root} tree must not be a symbolic link")
+    if not root.is_dir():
+        raise PayloadBuildError(f"starter {archive_root} tree is missing")
+    try:
+        root = root.parent.resolve(strict=True) / root.name
+        with WorkspaceAnchor(root.parent) as anchor:
+            enumerated = _anchored_source_files(anchor, root, archive_root)
+            captured: list[tuple[str, bytes]] = []
+            for source, archive_path in enumerated:
+                relative = source.relative_to(root)
+                before = os.lstat(source)
+                owned = anchor.capture_file(Path(root.name) / relative)
+                try:
+                    identity = owned.identity
+                    after = os.lstat(source)
+                    posix_identity_matches = not hasattr(identity, "device") or (
+                        identity.device,
+                        identity.inode,
+                    ) == (before.st_dev, before.st_ino)
+                    if (
+                        not stat.S_ISREG(before.st_mode)
+                        or is_reparse_path(source)
+                        or _stat_identity(before) != _stat_identity(after)
+                        or not posix_identity_matches
+                        or len(owned.content) != before.st_size
+                    ):
+                        raise OSError("starter source changed while it was captured")
+                    captured.append((archive_path, owned.content))
+                finally:
+                    owned.close()
+            if not anchor.root_is_current():
+                raise OSError("starter source tree changed while it was captured")
+            return tuple(captured)
+    except OSError as error:
+        raise PayloadBuildError(f"could not safely capture starter {archive_root} tree") from error
 
 
 def archive_timestamp(environ: Mapping[str, str] = os.environ) -> tuple[int, ...]:
@@ -211,6 +260,13 @@ def _zip_info(path: str, timestamp: tuple[int, ...]) -> zipfile.ZipInfo:
     return info
 
 
+def _same_directory(requested: Path, canonical: Path) -> bool:
+    try:
+        return not is_reparse_path(requested) and os.path.samefile(requested, canonical)
+    except OSError:
+        return False
+
+
 def _write_archive(
     output: Path,
     files: tuple[tuple[str, bytes], ...],
@@ -220,26 +276,55 @@ def _write_archive(
     entries = tuple(sorted(files, key=lambda item: item[0]))
     manifest = _manifest(version, entries)
     archive_entries = tuple(sorted((*entries, ("manifest.txt", manifest)), key=lambda item: item[0]))
-    temporary: Path | None = None
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            prefix=f".{output.name}.", suffix=".tmp", dir=output.parent, delete=False
-        ) as handle:
-            temporary = Path(handle.name)
-        with zipfile.ZipFile(temporary, "w") as archive:
+        publication_parent = output.parent.resolve(strict=True)
+        if not _same_directory(output.parent, publication_parent):
+            raise OSError("payload output directory is not a stable regular directory")
+        serialized = io.BytesIO()
+        with zipfile.ZipFile(serialized, "w") as archive:
             for path, content in archive_entries:
                 archive.writestr(_zip_info(path, timestamp), content)
-        os.replace(temporary, output)
-        temporary = None
+        content = serialized.getvalue()
+        with WorkspaceAnchor(publication_parent) as anchor:
+            try:
+                current = anchor.capture_file(output.name)
+            except FileNotFoundError:
+                created = anchor.create_file(output.name, content, mode=0o644)
+                try:
+                    if not (
+                        anchor.matches_owned(created)
+                        and _same_directory(output.parent, publication_parent)
+                    ):
+                        try:
+                            anchor.unlink_owned(created)
+                        except OSError:
+                            pass
+                        raise OSError("payload archive changed during publication")
+                finally:
+                    created.close()
+            else:
+                try:
+                    transaction = anchor.replace_if_unchanged(
+                        output.name,
+                        current.identity,
+                        current.content,
+                        content,
+                    )
+                    try:
+                        transaction.validate_commit()
+                        if not _same_directory(output.parent, publication_parent):
+                            raise OSError("payload output directory changed during publication")
+                        transaction.commit()
+                    except Exception:
+                        transaction.rollback()
+                        raise
+                    finally:
+                        transaction.close()
+                finally:
+                    current.close()
     except (OSError, ValueError, zipfile.BadZipFile) as error:
         raise PayloadBuildError(f"could not write payload archive to {output}") from error
-    finally:
-        if temporary is not None:
-            try:
-                temporary.unlink()
-            except OSError:
-                pass
 
 
 def build_payload(
@@ -255,9 +340,6 @@ def build_payload(
     )
     payload_source = repo_root / "starter" / "payload"
     profiles_source = repo_root / "starter" / "profiles"
-    _source_files(payload_source, "payload")
-    _source_files(profiles_source, "profiles")
-
     with tempfile.TemporaryDirectory(prefix="apparatus-payload-") as temporary_name:
         stage = Path(temporary_name)
         staged_payload = stage / "payload"
@@ -272,10 +354,9 @@ def build_payload(
             raise PayloadBuildError(f"could not render staged payload shims: {error}") from error
 
         drift = tuple(sorted(f"payload/{target}" for target in rendered.written))
-        staged_files = _source_files(staged_payload, "payload") + _source_files(
-            staged_profiles, "profiles"
-        )
-        archive_files = tuple((path, source.read_bytes()) for source, path in staged_files)
+        archive_files = _capture_source_files(
+            staged_payload, "payload"
+        ) + _capture_source_files(staged_profiles, "profiles")
         output = output_directory / f"apparatus-payload-{selected_version}.zip"
         _write_archive(output, archive_files, selected_version, archive_timestamp(environ))
     return output, drift

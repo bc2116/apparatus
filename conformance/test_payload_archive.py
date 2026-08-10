@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import os
 from pathlib import Path
 import shutil
 import stat
@@ -133,6 +134,23 @@ def test_archive_paths_reject_portable_name_collisions():
         builder.reject_portable_collisions(("payload/Name.md", "payload/name.md"))
 
 
+@pytest.mark.parametrize(
+    ("parent", "child"),
+    (
+        ("payload/Library", "payload/library/source.md"),
+        (
+            "payload/Cafe\N{COMBINING ACUTE ACCENT}",
+            "payload/CAF\N{LATIN SMALL LETTER E WITH ACUTE}/source.md",
+        ),
+    ),
+)
+def test_archive_paths_reject_portable_file_directory_aliases(parent, child):
+    with pytest.raises(
+        builder.PayloadBuildError, match="conflict on a supported platform"
+    ):
+        builder.reject_portable_collisions((parent, child))
+
+
 def test_source_tree_filters_os_metadata_and_python_caches(tmp_path):
     source = tmp_path / "payload"
     source.mkdir()
@@ -156,9 +174,127 @@ def test_source_tree_rejects_links_without_reading_their_targets(tmp_path):
     except (OSError, NotImplementedError):
         pytest.skip("symbolic links are unavailable on this host")
 
-    with pytest.raises(builder.PayloadBuildError, match="must not be a symbolic link"):
+    with pytest.raises(builder.PayloadBuildError, match="safely enumerate"):
         builder._source_files(source, "payload")
     assert outside.read_text(encoding="utf-8") == "outside sentinel"
+
+
+def test_source_capture_rejects_file_replacement_without_publishing(
+    monkeypatch, tmp_path, capsys
+):
+    repo = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "starter", repo / "starter")
+    source = repo / "starter" / "payload" / "Welcome.md"
+    outside = tmp_path / "outside.txt"
+    sentinel = b"outside file sentinel"
+    outside.write_bytes(sentinel)
+    original = builder._anchored_source_files
+    swapped = False
+
+    def enumerate_then_swap(anchor, root, archive_root):
+        nonlocal swapped
+        result = original(anchor, root, archive_root)
+        if archive_root == "payload" and not swapped:
+            swapped = True
+            source.unlink()
+            source.symlink_to(outside)
+        return result
+
+    monkeypatch.setattr(builder, "_anchored_source_files", enumerate_then_swap)
+    output = tmp_path / "out"
+    original_build = builder.build_payload
+    monkeypatch.setattr(
+        builder,
+        "build_payload",
+        lambda out, version=None: original_build(out, version=version, repo_root=repo),
+    )
+    assert builder.main(["--out", str(output), "--version", "source-race"]) == 2
+
+    assert not output.exists()
+    assert outside.read_bytes() == sentinel
+    assert "could not safely capture starter payload tree" in capsys.readouterr().err
+
+
+def test_source_capture_rejects_directory_replacement_before_descent(
+    monkeypatch, tmp_path, capsys
+):
+    repo = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "starter", repo / "starter")
+    library = repo / "starter" / "payload" / "Library"
+    outside = tmp_path / "outside-library"
+    outside.mkdir()
+    sentinel = outside / ".gitkeep"
+    sentinel.write_bytes(b"outside directory sentinel")
+    original = builder.WorkspaceAnchor.list_files
+    swapped = False
+
+    def swap_then_list(anchor, relative, **kwargs):
+        nonlocal swapped
+        if Path(relative).name == "payload" and not swapped:
+            swapped = True
+            library.rename(library.with_name("Library-detached"))
+            library.symlink_to(outside, target_is_directory=True)
+        return original(anchor, relative, **kwargs)
+
+    monkeypatch.setattr(builder.WorkspaceAnchor, "list_files", swap_then_list)
+    output = tmp_path / "out"
+    original_build = builder.build_payload
+    monkeypatch.setattr(
+        builder,
+        "build_payload",
+        lambda out, version=None: original_build(out, version=version, repo_root=repo),
+    )
+    assert builder.main(["--out", str(output), "--version", "directory-race"]) == 2
+
+    assert not output.exists()
+    assert sentinel.read_bytes() == b"outside directory sentinel"
+    assert "could not safely capture starter payload tree" in capsys.readouterr().err
+
+
+def test_publication_failure_preserves_destination_and_unowned_paths(
+    monkeypatch, tmp_path, capsys
+):
+    output = tmp_path / "out"
+    output.mkdir()
+    destination = output / "apparatus-payload-publish-race.zip"
+    prior = b"prior destination"
+    destination.write_bytes(prior)
+    outside = tmp_path / "outside.txt"
+    sentinel = b"outside sentinel"
+    outside.write_bytes(sentinel)
+    attacker_path = output / ".attacker.tmp"
+    try:
+        attacker_path.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symbolic links are unavailable on this host")
+
+    def reject_replacement(*_args, **_kwargs):
+        raise OSError("owned publication temporary was replaced")
+
+    monkeypatch.setattr(
+        builder.WorkspaceAnchor, "replace_if_unchanged", reject_replacement
+    )
+    assert builder.main(["--out", str(output), "--version", "publish-race"]) == 2
+
+    assert destination.read_bytes() == prior
+    assert not os.path.islink(destination)
+    assert outside.read_bytes() == sentinel
+    assert os.path.islink(attacker_path)
+    assert "could not write payload archive" in capsys.readouterr().err
+
+
+def test_builder_conditionally_replaces_an_existing_archive(tmp_path):
+    output = tmp_path / "out"
+    output.mkdir()
+    destination = output / "apparatus-payload-existing.zip"
+    destination.write_bytes(b"prior destination")
+
+    archive, _drift = builder.build_payload(output, version="existing")
+
+    assert archive == destination
+    with zipfile.ZipFile(destination) as built:
+        assert built.testzip() is None
+        assert "manifest.txt" in built.namelist()
 
 
 def test_missing_starter_tree_and_invalid_version_fail_clearly(tmp_path):
