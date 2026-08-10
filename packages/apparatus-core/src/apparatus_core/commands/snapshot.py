@@ -48,7 +48,7 @@ def run(
     *,
     available: Callable[[], bool] = git_available,
     take: Callable[..., Any] = take_snapshot,
-    write: Callable[[str | Path, str, dict[str, str]], Path] = write_receipt,
+    write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
     update_report: Callable[[str | Path], bool] = mark_snapshots_unavailable,
 ) -> int:
     """Save a workspace snapshot or report the unavailable capability honestly."""

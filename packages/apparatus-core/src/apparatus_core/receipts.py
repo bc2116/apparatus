@@ -7,6 +7,7 @@ import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -85,6 +86,91 @@ def prepare_receipt(
         microsecond=0
     )
     return instant, _render(event, _timestamp(instant), fields).encode("utf-8")
+
+
+_INVOCATION_SEAL = object()
+
+
+class ReceiptInvocation:
+    """Opaque one-use intent for one exact rendered receipt publication."""
+
+    __slots__ = (
+        "_workspace",
+        "_event",
+        "_instant",
+        "_content",
+        "_content_digest",
+        "_used",
+        "_claimed",
+    )
+
+    def __init__(
+        self,
+        workspace: Path,
+        event: str,
+        instant: datetime,
+        content: bytes,
+        seal: object,
+    ):
+        if seal is not _INVOCATION_SEAL:
+            raise TypeError(
+                "receipt invocations are created by prepare_receipt_invocation"
+            )
+        self._workspace = workspace
+        self._event = event
+        self._instant = instant
+        self._content = content
+        self._content_digest = sha256(content).digest()
+        self._used = False
+        self._claimed = False
+
+    def _consume(
+        self,
+        workspace: Path,
+        event: str,
+        fields: Mapping[str, Any],
+        seal: object,
+    ) -> bytes:
+        if seal is not _INVOCATION_SEAL:
+            raise TypeError("receipt invocation cannot be consumed here")
+        if self._used:
+            raise OSError("receipt invocation freshness was already consumed")
+        _instant, rendered = prepare_receipt(event, fields, now=self._instant)
+        if (
+            workspace != self._workspace
+            or event != self._event
+            or sha256(rendered).digest() != self._content_digest
+            or rendered != self._content
+        ):
+            raise OSError("receipt invocation does not match the requested receipt")
+        self._used = True
+        return self._content
+
+    def _claim(self, seal: object) -> None:
+        if seal is not _INVOCATION_SEAL:
+            raise TypeError("receipt invocation cannot be claimed here")
+        if not self._used:
+            raise OSError("receipt invocation was not published")
+        if self._claimed:
+            raise OSError("receipt invocation was already claimed")
+        self._claimed = True
+
+
+def prepare_receipt_invocation(
+    workspace: str | Path,
+    event: str,
+    fields: Mapping[str, Any],
+) -> ReceiptInvocation:
+    """Prepare one fresh intent bound to exact rendered receipt bytes."""
+    instant, content = prepare_receipt(event, fields)
+    workspace_path = Path(os.path.abspath(os.fspath(workspace)))
+    return ReceiptInvocation(
+        workspace_path,
+        event,
+        instant,
+        content,
+        _INVOCATION_SEAL,
+    )
 
 
 def _directory_flags() -> int:
@@ -329,12 +415,13 @@ _PUBLICATION_SEAL = object()
 class ReceiptPublication:
     """Opaque, live proof that one exact receipt was newly published."""
 
-    __slots__ = ("_handle", "_active", "_claimed")
+    __slots__ = ("_handle", "_invocation", "_active", "_claimed")
 
-    def __init__(self, handle: Any, seal: object):
+    def __init__(self, handle: Any, invocation: ReceiptInvocation, seal: object):
         if seal is not _PUBLICATION_SEAL:
-            raise TypeError("receipt publications are created by publish_receipt")
+            raise TypeError("receipt publications are created by write_receipt")
         self._handle = handle
+        self._invocation = invocation
         self._active = True
         self._claimed = False
 
@@ -346,17 +433,28 @@ class ReceiptPublication:
     def claimed(self) -> bool:
         return self._claimed
 
-    def claim(self, workspace: str | Path, event: str) -> None:
+    @property
+    def content_digest(self) -> str:
+        return self._invocation._content_digest.hex()
+
+    def is_bound_to(self, invocation: ReceiptInvocation) -> bool:
+        """Return whether this proof came from the exact prepared invocation."""
+        return (
+            self._invocation is invocation
+            and self._handle.workspace == invocation._workspace
+            and self._handle.event == invocation._event
+            and sha256(self._handle.content).digest() == invocation._content_digest
+        )
+
+    def claim(self, invocation: ReceiptInvocation) -> None:
         if not self._active:
             raise OSError("receipt publication proof is no longer active")
         if self._claimed:
             raise OSError("receipt publication proof was already claimed")
-        expected = Path(os.path.abspath(os.fspath(workspace)))
-        if expected != self._handle.workspace:
-            raise OSError("receipt publication belongs to another workspace")
-        if event != self._handle.event:
-            raise OSError("receipt publication belongs to another event")
+        if not self.is_bound_to(invocation):
+            raise OSError("receipt publication belongs to another invocation")
         self._handle.validate()
+        invocation._claim(_INVOCATION_SEAL)
         self._claimed = True
 
     def validate(self) -> None:
@@ -473,21 +571,49 @@ def _publish_receipt_handle(
                 os.close(descriptor)
 
 
-def write_receipt(workspace: str | Path, event: str, fields: Mapping[str, Any]) -> Path:
-    """Atomically publish one unique receipt and return its workspace path."""
-    now, content = prepare_receipt(event, fields)
+def write_receipt(
+    workspace: str | Path,
+    event: str,
+    fields: Mapping[str, Any],
+    *,
+    invocation: ReceiptInvocation | None = None,
+) -> ReceiptPublication:
+    """Publish one receipt and return its invocation-bound ownership proof.
+
+    Ordinary callers receive an already committed proof and retain the familiar
+    durable-write behavior. Transactional callers prepare and pass an explicit
+    invocation; their proof stays live until they commit or roll it back.
+    """
     workspace_path = Path(os.path.abspath(os.fspath(workspace)))
+    retained = invocation is not None
+    prepared = invocation or prepare_receipt_invocation(
+        workspace_path, event, fields
+    )
+    content = prepared._consume(
+        workspace_path,
+        event,
+        fields,
+        _INVOCATION_SEAL,
+    )
     try:
         if workspace_path.is_symlink() or not workspace_path.is_dir():
             raise OSError("workspace is not a safe directory")
         publication = ReceiptPublication(
-            _publish_receipt_handle(workspace_path, event, now, content),
+            _publish_receipt_handle(
+                workspace_path,
+                event,
+                prepared._instant,
+                content,
+            ),
+            prepared,
             _PUBLICATION_SEAL,
         )
-        path = publication.path
+        if retained:
+            return publication
         try:
+            publication.claim(prepared)
             publication.commit()
-            return path
+            return publication
         except Exception:
             try:
                 publication.rollback()
@@ -496,25 +622,5 @@ def write_receipt(workspace: str | Path, event: str, fields: Mapping[str, Any]) 
             raise
         finally:
             publication.close()
-    except (NotImplementedError, TypeError) as error:
-        raise OSError("safe receipt publication is unavailable") from error
-
-
-def publish_receipt(
-    workspace: str | Path, event: str, fields: Mapping[str, Any]
-) -> ReceiptPublication:
-    """Publish one receipt and retain exact ownership until commit or rollback."""
-    if event not in records.RECEIPT_EVENTS:
-        raise ValueError(f"unknown receipt event: {event!r}")
-    now = _utcnow()
-    content = _render(event, _timestamp(now), fields).encode("utf-8")
-    workspace_path = Path(os.path.abspath(os.fspath(workspace)))
-    try:
-        if workspace_path.is_symlink() or not workspace_path.is_dir():
-            raise OSError("workspace is not a safe directory")
-        return ReceiptPublication(
-            _publish_receipt_handle(workspace_path, event, now, content),
-            _PUBLICATION_SEAL,
-        )
     except (NotImplementedError, TypeError) as error:
         raise OSError("safe receipt publication is unavailable") from error

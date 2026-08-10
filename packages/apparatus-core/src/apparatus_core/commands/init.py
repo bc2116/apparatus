@@ -155,7 +155,7 @@ def run(
     *,
     available: Callable[[], bool] = git_available,
     detect: Callable[..., dict[str, Any]] = detect_sync_redirection,
-    write: Callable[[str | Path, str, dict[str, str]], Path] = write_receipt,
+    write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
     take: Callable[..., Any] = take_snapshot,
     update_report: Callable[[str | Path], bool] = mark_snapshots_unavailable,
 ) -> int:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from hashlib import sha256
 import importlib.metadata
 import os
 from io import StringIO
@@ -11,7 +12,7 @@ import pytest
 from apparatus_core import records
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import check, init, memory, profile
-from apparatus_core.receipts import publish_receipt
+from apparatus_core.receipts import prepare_receipt_invocation, write_receipt
 from apparatus_core.render import render_workspace
 
 
@@ -72,6 +73,10 @@ def _whole_tree(root: Path) -> tuple[tuple[str, str, bytes | None], ...]:
         else:
             result.append((relative.as_posix(), "directory", None))
     return tuple(result)
+
+
+def _receipt_names(root: Path) -> tuple[str, ...]:
+    return tuple(sorted(path.name for path in (root / "System/receipts").iterdir()))
 
 
 def test_fresh_apply_seeds_records_and_writes_a_valid_receipt(tmp_path):
@@ -289,7 +294,7 @@ def test_partial_receipt_failure_removes_the_owned_redaction_receipt(tmp_path):
         calls += 1
         if calls == 2:
             raise OSError("injected second receipt failure")
-        return publish_receipt(*args, **kwargs)
+        return write_receipt(*args, **kwargs)
 
     assert profile.run(
         _args(workspace, candidate_stdin=True),
@@ -340,19 +345,123 @@ def test_outside_receipt_path_is_never_treated_as_publication_ownership(tmp_path
 def test_stale_publication_proof_is_never_reclaimed(tmp_path):
     workspace = _init_workspace(tmp_path / "workspace")
     _write_profile(workspace)
-    stale = publish_receipt(
+    stale = write_receipt(
         workspace,
         "profile-apply",
         {"summary": "Pre-existing receipt sentinel."},
     )
-    stale.commit()
-    stale.close()
     before = _whole_tree(workspace)
 
     def stale_writer(*_args, **_kwargs):
         return stale
 
     assert profile.run(_args(workspace), write=stale_writer) == 2
+    assert _whole_tree(workspace) == before
+
+
+def test_live_same_workspace_event_and_content_substitution_is_not_reclaimed(
+    tmp_path,
+):
+    workspace = _init_workspace(tmp_path / "workspace")
+    _write_profile(workspace)
+    observed: dict[str, object] = {}
+
+    def unrelated_live_writer(target, event, fields, *, invocation):
+        del invocation
+        unrelated = prepare_receipt_invocation(target, event, fields)
+        publication = write_receipt(
+            target,
+            event,
+            fields,
+            invocation=unrelated,
+        )
+        observed.update(
+            invocation=unrelated,
+            publication=publication,
+            digest=publication.content_digest,
+            receipts=_receipt_names(workspace),
+            tree=_tree_without_receipts(workspace),
+        )
+        return publication
+
+    assert profile.run(_args(workspace), write=unrelated_live_writer) == 2
+    publication = observed["publication"]
+    invocation = observed["invocation"]
+    assert _tree_without_receipts(workspace) == observed["tree"]
+    assert _receipt_names(workspace) == observed["receipts"]
+    assert publication.content_digest == observed["digest"]
+    publication.validate()
+    publication.claim(invocation)
+    publication.commit()
+    publication.close()
+    assert sha256(publication.path.read_bytes()).hexdigest() == observed["digest"]
+
+
+@pytest.mark.parametrize(
+    "substitution",
+    ("wrong-event", "wrong-content", "other-workspace"),
+)
+def test_live_foreign_capabilities_are_rejected_without_modification(
+    tmp_path,
+    substitution,
+):
+    workspace = _init_workspace(tmp_path / "workspace")
+    _write_profile(workspace)
+    other = _init_workspace(tmp_path / "other-workspace")
+    target = other if substitution == "other-workspace" else workspace
+    event = "redaction" if substitution == "wrong-event" else "profile-apply"
+    fields = {
+        "summary": (
+            "Wrong rendered content."
+            if substitution == "wrong-content"
+            else "Unrelated live receipt."
+        )
+    }
+    invocation = prepare_receipt_invocation(target, event, fields)
+    publication = write_receipt(
+        target,
+        event,
+        fields,
+        invocation=invocation,
+    )
+    before_workspace = _tree_without_receipts(workspace)
+    before_other = _tree_without_receipts(other)
+    workspace_receipts = _receipt_names(workspace)
+    other_receipts = _receipt_names(other)
+    receipt_digest = publication.content_digest
+
+    def foreign_writer(*_args, **_kwargs):
+        return publication
+
+    assert profile.run(_args(workspace), write=foreign_writer) == 2
+    assert _tree_without_receipts(workspace) == before_workspace
+    assert _tree_without_receipts(other) == before_other
+    assert _receipt_names(workspace) == workspace_receipts
+    assert _receipt_names(other) == other_receipts
+    assert publication.content_digest == receipt_digest
+    publication.validate()
+    publication.claim(invocation)
+    publication.commit()
+    publication.close()
+    assert sha256(publication.path.read_bytes()).hexdigest() == receipt_digest
+
+
+def test_reused_current_invocation_is_rejected_and_rolled_back(tmp_path):
+    workspace = _init_workspace(tmp_path / "workspace")
+    _write_profile(workspace)
+    before = _whole_tree(workspace)
+
+    def reused_writer(target, event, fields, *, invocation):
+        publication = write_receipt(
+            target,
+            event,
+            fields,
+            invocation=invocation,
+        )
+        publication.claim(invocation)
+        return publication
+
+    assert profile.run(_args(workspace), write=reused_writer) == 2
     assert _whole_tree(workspace) == before
 
 
@@ -365,7 +474,7 @@ def test_receipt_substitution_after_return_restores_exact_prior_tree(tmp_path):
     before = _whole_tree(workspace)
 
     def substituted_writer(*args, **kwargs):
-        publication = publish_receipt(*args, **kwargs)
+        publication = write_receipt(*args, **kwargs)
         held = publication.path.with_name("temporary-name-swap")
         publication.path.rename(held)
         sentinel.rename(publication.path)
@@ -396,7 +505,7 @@ def test_first_owned_receipt_is_removed_when_second_publication_fails(tmp_path):
         calls += 1
         if calls == 2:
             raise OSError("injected second publication failure")
-        return publish_receipt(*args, **kwargs)
+        return write_receipt(*args, **kwargs)
 
     assert profile.run(
         _args(workspace, candidate_stdin=True),

@@ -19,10 +19,10 @@ def test_write_receipt_is_parseable_and_collision_safe(tmp_path, monkeypatch):
     second = receipts.write_receipt(
         tmp_path, "check", {"summary": "Check passed.", "body": "Finding codes: none."}
     )
-    assert first.name == "2026-08-09-141530-check.md"
-    assert second.name == "2026-08-09-141530-check-2.md"
-    data, body = records.parse_record(first.read_text(encoding="utf-8"))
-    assert records.validate("receipt", data, filename=first.name) == []
+    assert first.path.name == "2026-08-09-141530-check.md"
+    assert second.path.name == "2026-08-09-141530-check-2.md"
+    data, body = records.parse_record(first.path.read_text(encoding="utf-8"))
+    assert records.validate("receipt", data, filename=first.path.name) == []
     assert data["timestamp"] == "2026-08-09T14:15:30Z"
     assert body == "Finding codes: none."
 
@@ -41,7 +41,7 @@ def test_write_receipt_preserves_caller_fields_in_frontmatter(tmp_path, monkeypa
             "outcome": "success",
         },
     )
-    data, body = records.parse_record(path.read_text(encoding="utf-8"))
+    data, body = records.parse_record(path.path.read_text(encoding="utf-8"))
     assert data == {
         "schema": "apparatus/receipt@v0",
         "event": "snapshot",
@@ -53,6 +53,79 @@ def test_write_receipt_preserves_caller_fields_in_frontmatter(tmp_path, monkeypa
         "outcome": "success",
     }
     assert body == "Snapshot details."
+
+
+def test_explicit_invocation_binds_digest_and_rolls_back_only_its_receipt(tmp_path):
+    fields = {"summary": "Check passed.", "body": "Finding codes: none.\n"}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path,
+        "check",
+        fields,
+        invocation=invocation,
+    )
+    path = publication.path
+    expected_digest = receipts.sha256(path.read_bytes()).hexdigest()
+
+    assert publication.content_digest == expected_digest
+    assert publication.is_bound_to(invocation)
+    publication.claim(invocation)
+    publication.rollback()
+    publication.close()
+
+    assert not path.exists()
+    assert not list((tmp_path / "System/receipts").iterdir())
+
+
+@pytest.mark.parametrize("mismatch", ("event", "content", "workspace"))
+def test_invocation_rejects_wrong_binding_before_publication(tmp_path, mismatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    other = tmp_path / "other"
+    other.mkdir()
+    fields = {"summary": "Expected check receipt."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    target = other if mismatch == "workspace" else workspace
+    event = "snapshot" if mismatch == "event" else "check"
+    supplied = (
+        {"summary": "Substituted check receipt."}
+        if mismatch == "content"
+        else fields
+    )
+
+    with pytest.raises(OSError, match="does not match"):
+        receipts.write_receipt(
+            target,
+            event,
+            supplied,
+            invocation=invocation,
+        )
+
+    assert not (workspace / "System/receipts").exists()
+    assert not (other / "System/receipts").exists()
+
+
+def test_invocation_freshness_is_consumed_once(tmp_path):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path,
+        "check",
+        fields,
+        invocation=invocation,
+    )
+    try:
+        with pytest.raises(OSError, match="freshness was already consumed"):
+            receipts.write_receipt(
+                tmp_path,
+                "check",
+                fields,
+                invocation=invocation,
+            )
+    finally:
+        publication.claim(invocation)
+        publication.rollback()
+        publication.close()
 
 
 @pytest.mark.parametrize("protected", ["schema", "event", "timestamp"])
@@ -193,7 +266,7 @@ def test_receipt_collision_with_a_symlink_retries_without_following_it(
     first = receipt_dir / "2026-08-09-141530-check.md"
     first.symlink_to(outside)
     written = receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
-    assert written.name == "2026-08-09-141530-check-2.md"
+    assert written.path.name == "2026-08-09-141530-check-2.md"
     assert outside.read_text(encoding="utf-8") == "outside sentinel"
 
 

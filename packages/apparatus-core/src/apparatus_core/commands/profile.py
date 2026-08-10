@@ -33,7 +33,12 @@ from apparatus_core.payload import (
     resolve_payload,
     resolve_profiles_manifest,
 )
-from apparatus_core.receipts import ReceiptPublication, publish_receipt
+from apparatus_core.receipts import (
+    ReceiptInvocation,
+    ReceiptPublication,
+    prepare_receipt_invocation,
+    write_receipt,
+)
 
 
 class ProfileCommandError(ValueError):
@@ -201,37 +206,40 @@ def _receipt_fields(
     }
 
 
-ReceiptPublisher = Callable[
-    [str | Path, str, dict[str, Any]], ReceiptPublication
-]
+ReceiptPublisher = Callable[..., object]
 
 
 def _accept_publication(
-    value: object, workspace: Path, event: str
+    value: object, invocation: ReceiptInvocation
 ) -> ReceiptPublication:
-    if not isinstance(value, ReceiptPublication):
+    if not isinstance(value, ReceiptPublication) or not value.is_bound_to(invocation):
         raise ProfileCommandError(
             "receipt writer did not return exact publication ownership"
         )
-    was_claimed = value.claimed
     try:
-        value.claim(workspace, event)
+        value.claim(invocation)
     except OSError as error:
-        if not was_claimed:
-            try:
-                value.path.relative_to(workspace)
-            except ValueError:
-                pass
-            else:
-                try:
-                    value.rollback()
-                except OSError:
-                    pass
+        try:
+            value.rollback()
+        except OSError:
+            pass
+        finally:
             value.close()
         raise ProfileCommandError(
             "receipt writer did not return exact publication ownership"
         ) from error
     return value
+
+
+def _publish_owned(
+    write: ReceiptPublisher,
+    workspace: Path,
+    event: str,
+    fields: dict[str, Any],
+) -> ReceiptPublication:
+    invocation = prepare_receipt_invocation(workspace, event, fields)
+    value = write(workspace, event, fields, invocation=invocation)
+    return _accept_publication(value, invocation)
 
 
 def _remove_receipts(owned: list[ReceiptPublication]) -> bool:
@@ -255,12 +263,22 @@ def _write_required_receipts(
     owned: list[ReceiptPublication] = []
     try:
         if findings:
-            result = write(
-                anchor.workspace, "redaction", memory._receipt_fields(findings)
+            owned.append(
+                _publish_owned(
+                    write,
+                    anchor.workspace,
+                    "redaction",
+                    memory._receipt_fields(findings),
+                )
             )
-            owned.append(_accept_publication(result, anchor.workspace, "redaction"))
-        result = write(anchor.workspace, "profile-apply", fields)
-        owned.append(_accept_publication(result, anchor.workspace, "profile-apply"))
+        owned.append(
+            _publish_owned(
+                write,
+                anchor.workspace,
+                "profile-apply",
+                fields,
+            )
+        )
         return owned
     except Exception as error:
         if not _remove_receipts(owned):
@@ -349,7 +367,6 @@ def _apply_changes(
     seed_plan: _SeedPlan,
     receipts: list[ReceiptPublication],
     profile: dict[str, Any],
-    write: ReceiptPublisher,
 ) -> None:
     replacements: list[Any] = []
     created: list[Any] = []
@@ -357,12 +374,12 @@ def _apply_changes(
     commit_phase = False
 
     def tracked_seed_receipt(
-        workspace: str | Path, event: str, fields: dict[str, Any]
-    ) -> Path:
-        result = write(workspace, event, fields)
-        publication = _accept_publication(result, anchor.workspace, event)
-        receipts.append(publication)
-        return publication.path
+        _workspace: str | Path,
+        _event: str,
+        _fields: dict[str, Any],
+        **_kwargs: object,
+    ) -> object:
+        raise ProfileCommandError("a profile seed bypassed credential sanitization")
 
     try:
         if rendered_profile != original_profile:
@@ -444,7 +461,7 @@ def _apply_changes(
 def run(
     args: argparse.Namespace,
     *,
-    write: ReceiptPublisher = publish_receipt,
+    write: ReceiptPublisher = write_receipt,
     input_stream: TextIO | None = None,
 ) -> int:
     """Validate and receipt a complete apply before committing its mutations."""
@@ -500,7 +517,6 @@ def run(
                 seeds,
                 receipts,
                 profile,
-                write,
             )
     except (PayloadError, ManifestError, ProfileCommandError) as error:
         print(f"profile: {error}")
