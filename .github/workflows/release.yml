@@ -82,13 +82,32 @@ jobs:
         run: |
           import os
           import re
+          import stat
           from pathlib import Path
 
           package_dir = Path("dist/packages")
-          if package_dir.is_symlink() or not package_dir.is_dir():
+          try:
+              package_dir_stat = package_dir.stat(follow_symlinks=False)
+          except OSError as error:
+              raise SystemExit(f"cannot inspect dist/packages: {error}") from error
+          reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+          if (
+              not stat.S_ISDIR(package_dir_stat.st_mode)
+              or getattr(package_dir_stat, "st_file_attributes", 0) & reparse_flag
+          ):
               raise SystemExit("dist/packages must be a real directory")
           entries = sorted(package_dir.iterdir())
-          if any(entry.is_symlink() or not entry.is_file() for entry in entries):
+          try:
+              entry_stats = {
+                  entry: entry.stat(follow_symlinks=False) for entry in entries
+              }
+          except OSError as error:
+              raise SystemExit(f"cannot inspect a distribution entry: {error}") from error
+          if any(
+              not stat.S_ISREG(entry_stat.st_mode)
+              or getattr(entry_stat, "st_file_attributes", 0) & reparse_flag
+              for entry_stat in entry_stats.values()
+          ):
               raise SystemExit("dist/packages may contain only regular distribution files")
           sdist_pattern = re.compile(r"apparatus_core-[A-Za-z0-9][A-Za-z0-9._+]*\.tar\.gz")
           wheel_pattern = re.compile(
@@ -97,7 +116,13 @@ jobs:
           )
           sdists = [entry for entry in entries if sdist_pattern.fullmatch(entry.name)]
           wheels = [entry for entry in entries if wheel_pattern.fullmatch(entry.name)]
-          if len(entries) != 2 or len(sdists) != 1 or len(wheels) != 1:
+          metadata = [entry for entry in entries if entry.name == ".gitignore"]
+          recognized = {*sdists, *wheels, *metadata}
+          if len(recognized) != len(entries):
+              raise SystemExit("dist/packages contains an unexpected entry")
+          if metadata and metadata[0].read_bytes() != b"*":
+              raise SystemExit("dist/packages/.gitignore has unexpected content")
+          if len(sdists) != 1 or len(wheels) != 1:
               raise SystemExit(
                   "apparatus-core build must produce exactly one sdist and one wheel"
               )

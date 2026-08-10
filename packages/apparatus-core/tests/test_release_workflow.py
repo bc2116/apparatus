@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import os
+import shutil
 import subprocess
 import sys
 
@@ -231,14 +232,44 @@ def _run_distribution_resolver(temporary_path: Path, names: tuple[str, ...]) -> 
     return output.read_text(encoding="utf-8")
 
 
-def test_distribution_resolver_uses_normalized_prerelease_filenames(tmp_path: Path) -> None:
-    output = _run_distribution_resolver(
-        tmp_path,
-        (
-            "apparatus_core-1.0.0rc1.tar.gz",
-            "apparatus_core-1.0.0rc1-py3-none-any.whl",
-        ),
+def _run_real_build_and_resolver(temporary_path: Path, *, version: str | None = None) -> str:
+    source = REPOSITORY_ROOT / "packages" / "apparatus-core"
+    if version is not None:
+        copied_source = temporary_path / "apparatus-core"
+        shutil.copytree(source, copied_source)
+        pyproject = copied_source / "pyproject.toml"
+        text = pyproject.read_text(encoding="utf-8")
+        text = text.replace('version = "0.0.1"', f'version = "{version}"', 1)
+        pyproject.write_text(text, encoding="utf-8")
+        source = copied_source
+    package_dir = temporary_path / "dist" / "packages"
+    subprocess.run(
+        ["uv", "build", str(source), "--out-dir", str(package_dir)],
+        cwd=temporary_path,
+        check=True,
     )
+    assert (package_dir / ".gitignore").read_bytes() == b"*"
+    output = temporary_path / "github-output"
+    subprocess.run(
+        [sys.executable, "-c", _distribution_resolver_script()],
+        cwd=temporary_path,
+        env={**os.environ, "GITHUB_OUTPUT": str(output)},
+        check=True,
+    )
+    return output.read_text(encoding="utf-8")
+
+
+def test_distribution_resolver_accepts_current_real_uv_build(tmp_path: Path) -> None:
+    output = _run_real_build_and_resolver(tmp_path)
+
+    assert output == (
+        "sdist_name=apparatus_core-0.0.1.tar.gz\n"
+        "wheel_name=apparatus_core-0.0.1-py3-none-any.whl\n"
+    )
+
+
+def test_distribution_resolver_uses_normalized_real_prerelease_build(tmp_path: Path) -> None:
+    output = _run_real_build_and_resolver(tmp_path, version="1.0.0-rc1")
 
     assert output == (
         "sdist_name=apparatus_core-1.0.0rc1.tar.gz\n"
@@ -277,3 +308,55 @@ def test_distribution_resolver_rejects_missing_or_ambiguous_files(tmp_path: Path
     )
     assert ambiguous.returncode != 0
     assert "exactly one sdist and one wheel" in ambiguous.stderr
+
+
+def test_distribution_resolver_rejects_unexpected_entry_or_metadata_content(
+    tmp_path: Path,
+) -> None:
+    package_dir = tmp_path / "dist" / "packages"
+    package_dir.mkdir(parents=True)
+    for name in (
+        "apparatus_core-1.0.0.tar.gz",
+        "apparatus_core-1.0.0-py3-none-any.whl",
+    ):
+        (package_dir / name).write_text("distribution", encoding="utf-8")
+    output = tmp_path / "github-output"
+    environment = {**os.environ, "GITHUB_OUTPUT": str(output)}
+
+    unexpected = package_dir / "unexpected.txt"
+    unexpected.write_text("unexpected", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-c", _distribution_resolver_script()],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "unexpected entry" in result.stderr
+    unexpected.unlink()
+
+    (package_dir / ".gitignore").write_text("*.whl", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-c", _distribution_resolver_script()],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert ".gitignore has unexpected content" in result.stderr
+
+    (package_dir / ".gitignore").unlink()
+    metadata_target = tmp_path / "metadata-target"
+    metadata_target.write_text("*", encoding="utf-8")
+    (package_dir / ".gitignore").symlink_to(metadata_target)
+    result = subprocess.run(
+        [sys.executable, "-c", _distribution_resolver_script()],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "only regular distribution files" in result.stderr
