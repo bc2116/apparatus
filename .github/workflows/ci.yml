@@ -29,6 +29,7 @@ jobs:
           packages/apparatus-core/tests/test_credentials.py
           packages/apparatus-core/tests/test_fs_transactions.py
           packages/apparatus-core/tests/test_labeler.py
+          packages/apparatus-core/tests/test_render.py
           packages/apparatus-core/tests/test_receipts.py::test_write_receipt_is_parseable_and_collision_safe
           packages/apparatus-core/tests/test_receipts.py::test_write_receipt_preserves_caller_fields_in_frontmatter
           packages/apparatus-core/tests/test_memory_commands.py::test_standard_fact_scans_title_and_body_writes_labels_redaction_receipt_and_checks_clean

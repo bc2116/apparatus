@@ -1,0 +1,8 @@
+---
+# $header
+# Edit $canon_path, then run apparatus render.
+# Canon SHA-256: $canon_digest.
+alwaysApply: true
+---
+
+Read and follow `AGENTS.md` at the workspace root.

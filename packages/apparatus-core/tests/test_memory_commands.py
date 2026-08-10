@@ -10,6 +10,7 @@ from apparatus_core.check import check_workspace
 from apparatus_core.commands import memory
 from apparatus_core.labeler import split_record_exact
 from apparatus_core.receipts import write_receipt
+from apparatus_core.render import render_workspace
 
 
 def _workspace(path: Path, mode: str = "standard") -> Path:
@@ -34,6 +35,8 @@ def _workspace(path: Path, mode: str = "standard") -> Path:
         "review_day: null\n",
         encoding="utf-8",
     )
+    (path / "AGENTS.md").write_text("# Test workspace canon\n", encoding="utf-8")
+    render_workspace(path)
     return path
 
 

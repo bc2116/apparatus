@@ -1,3 +1,4 @@
+from apparatus_core.render import rendered_shims
 from payload_check import PAYLOAD_DIR, diff
 
 
@@ -7,19 +8,7 @@ CREDENTIAL_FLOOR = (
 )
 
 CANON = PAYLOAD_DIR / "AGENTS.md"
-SHIMS = {
-    PAYLOAD_DIR / "CLAUDE.md": "# Apparatus\n\n@AGENTS.md\n",
-    PAYLOAD_DIR / ".cursor" / "rules" / "apparatus.mdc": (
-        "---\n"
-        "alwaysApply: true\n"
-        "---\n"
-        "\n"
-        "Read and follow `AGENTS.md` at the workspace root.\n"
-    ),
-    PAYLOAD_DIR / ".github" / "copilot-instructions.md": (
-        "Read and follow `AGENTS.md` at the workspace root.\n"
-    ),
-}
+SHIMS = tuple(rendered_shims(PAYLOAD_DIR))
 
 
 def normalized(path) -> str:
@@ -78,14 +67,14 @@ def test_workspace_instruction_canon_covers_the_required_contract():
 
 
 def test_workspace_instruction_shims_are_exact_minimal_pointers():
-    for path, expected in SHIMS.items():
-        assert path.read_text(encoding="utf-8") == expected
+    for shim in SHIMS:
+        assert (PAYLOAD_DIR / shim.target).read_bytes() == shim.content
 
 
 def test_workspace_instruction_files_do_not_name_ai_app_brands():
     brand_names = ("claude", "cursor", "copilot")
 
-    for path in (CANON, *SHIMS):
+    for path in (CANON, *(PAYLOAD_DIR / shim.target for shim in SHIMS)):
         text = path.read_text(encoding="utf-8").lower()
         assert not any(brand in text for brand in brand_names)
 
