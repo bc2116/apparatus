@@ -99,6 +99,12 @@ PR-09 (check), PR-14 (Library ingest), PR-15 (Library index), PR-16
 
 ## Open decisions
 
+- **Directory-match descendant semantics.** Blocking review cycle 2 exposed an
+  ambiguity between ingest pruning and cache-path matching. The smallest
+  privacy-safe default is: any supported pattern that matches a directory hides
+  that directory and every descendant; trailing `/` means directory-only
+  matching but is not required for descendant exclusion once a directory
+  matches. This remains the documented subset, not full gitignore parity.
 - **Receipt reporting for read-only search.** The receipt event enum is closed
   and Library search deliberately has no receipt. Smallest reversible default:
   existing receipt-producing verbs record count and provenance in their

@@ -78,21 +78,32 @@ class IgnoreRules:
             raise IgnoreRulesError(message)
         return self
 
-    def classification(self, path: str | Path) -> str | None:
-        """Return ``built-in`` or ``user`` when a relative path is ignored."""
+    def classification(
+        self, path: str | Path, *, is_directory: bool = False
+    ) -> str | None:
+        """Return the rule class hiding a relative file or directory path."""
         value = Path(path).as_posix().lstrip("/")
         parts = tuple(part for part in value.split("/") if part and part != ".")
         if not parts:
             return None
         if any(part == ".git" for part in parts) or parts[-1] in _BUILT_IN_BASENAMES:
             return "built-in"
-        if any(_matches(pattern, parts) for pattern in self.patterns):
+        if any(
+            _matches(pattern, parts, is_directory=is_directory)
+            for pattern in self.patterns
+        ):
             return "user"
+        for boundary in range(1, len(parts)):
+            if any(
+                _matches(pattern, parts[:boundary], is_directory=True)
+                for pattern in self.patterns
+            ):
+                return "user"
         return None
 
-    def matches(self, path: str | Path) -> bool:
+    def matches(self, path: str | Path, *, is_directory: bool = False) -> bool:
         """Whether a workspace-relative path is hidden from workspace machinery."""
-        return self.classification(path) is not None
+        return self.classification(path, is_directory=is_directory) is not None
 
     def report(self, *, built_in_paths: int = 0, user_paths: int = 0) -> IgnoreReport:
         return IgnoreReport(
@@ -257,20 +268,20 @@ def _read_regular_file(system: Path, path: Path) -> bytes:
         os.close(root)
 
 
-def _matches(pattern: str, parts: tuple[str, ...]) -> bool:
+def _matches(
+    pattern: str, parts: tuple[str, ...], *, is_directory: bool
+) -> bool:
     anchored = pattern.startswith("/")
     pattern = pattern.lstrip("/")
-    directory = pattern.endswith("/")
+    directory_only = pattern.endswith("/")
     pattern = pattern.rstrip("/")
-    if not pattern:
+    if not pattern or (directory_only and not is_directory):
         return False
     pattern_parts = tuple(part for part in pattern.split("/") if part)
     if len(pattern_parts) == 1 and not anchored:
-        return any(fnmatchcase(part, pattern_parts[0]) for part in parts)
+        return fnmatchcase(parts[-1], pattern_parts[0])
     candidate = "/".join(parts)
     expression = _glob_expression("/".join(pattern_parts))
-    if directory:
-        return bool(re.fullmatch(expression + r"(?:/.*)?", candidate))
     return bool(re.fullmatch(expression, candidate))
 
 

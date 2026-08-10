@@ -246,6 +246,71 @@ def test_cli_rebuild_keeps_ignored_extractions_out_of_search(monkeypatch, tmp_pa
     assert index.search(cache, "beta") == []
 
 
+@pytest.mark.parametrize("rebuild", [False, True])
+@pytest.mark.parametrize(
+    ("pattern", "expected_skipped"),
+    [
+        ("Library/private", 1),
+        ("/Library/private", 1),
+        ("Library/*", 2),
+    ],
+)
+def test_directory_patterns_prune_cache_for_refresh_and_cli_rebuild(
+    monkeypatch, tmp_path, capsys, pattern, expected_skipped, rebuild
+):
+    workspace = _workspace(tmp_path / "workspace")
+    monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "home"))
+    private = workspace / "Library/private"
+    private.mkdir()
+    (private / "secret.txt").write_text(
+        "cobalt directory sentinel", encoding="utf-8"
+    )
+    (private / "second.txt").write_text(
+        "cobalt second private sentinel", encoding="utf-8"
+    )
+    (workspace / "Library/visible.txt").write_text(
+        "ordinary visible fixture", encoding="utf-8"
+    )
+    cache = ingest_library(workspace).cache
+    index.refresh(cache, workspace)
+    assert index.search(cache, "cobalt")
+    (workspace / "System/ignore").write_text(f"{pattern}\n", encoding="utf-8")
+
+    private_cache = cache / "extractions/private"
+    original_scandir = index.os.scandir
+    original_read = index._read_private_file
+
+    def reject_private_directory(path):
+        if Path(path) == private_cache:
+            raise AssertionError("ignored extraction directory was traversed")
+        return original_scandir(path)
+
+    def reject_private_record(path):
+        if private_cache in Path(path).parents:
+            raise AssertionError("ignored extraction record was opened")
+        return original_read(path)
+
+    monkeypatch.setattr(index.os, "scandir", reject_private_directory)
+    monkeypatch.setattr(index, "_read_private_file", reject_private_record)
+
+    assert library.run_search(
+        argparse.Namespace(
+            workspace=str(workspace),
+            query="cobalt",
+            limit=5,
+            as_json=True,
+            rebuild=rebuild,
+        )
+    ) == 0
+
+    captured = capsys.readouterr()
+    assert json.loads(captured.out) == []
+    assert f"skipped {expected_skipped} path(s)" in captured.err
+    assert f"built-in=0, user={expected_skipped}" in captured.err
+    assert "System/ignore (1 user pattern(s))" in captured.err
+    assert index.search(cache, "cobalt") == []
+
+
 def test_invalid_ignore_stops_search_before_extraction_reads(monkeypatch, tmp_path, capsys):
     workspace, _cache = _prepared(monkeypatch, tmp_path)
     (workspace / "System/ignore").write_bytes(b"\xff")

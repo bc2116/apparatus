@@ -307,12 +307,13 @@ def search(cache: Path, query: str, limit: int = 5) -> list[SearchHit]:
     return hits
 
 
-def has_extractions(cache: Path) -> bool:
-    """Whether PR-14 has produced at least one extraction record."""
+def has_extractions(cache: Path, rules: IgnoreRules) -> bool:
+    """Whether the cache has a visible or ignored extraction boundary."""
     extractions = cache / "extractions"
     if not extractions.is_dir() or is_reparse_path(extractions):
         return False
-    return any(extractions.rglob("*.json"))
+    records, built_in_ignored, user_ignored = _record_paths(extractions, rules)
+    return bool(records or built_in_ignored or user_ignored)
 
 
 def _database(cache: Path) -> sqlite3.Connection:
@@ -635,9 +636,10 @@ def _extracted_sources(
     if not extractions.is_dir() or is_reparse_path(extractions):
         return {}, rules.report()
     sources: dict[str, tuple[str, str, str]] = {}
-    built_in_ignored = 0
-    user_ignored = 0
-    for record_path in _record_paths(extractions):
+    record_paths, built_in_ignored, user_ignored = _record_paths(
+        extractions, rules
+    )
+    for record_path in record_paths:
         relative = record_path.relative_to(extractions).as_posix()[:-5]
         text_path = record_path.with_suffix(".txt")
         try:
@@ -645,13 +647,6 @@ def _extracted_sources(
         except (OSError, ValueError):
             continue
         if not _is_extracted_record(record, relative, text_path):
-            continue
-        classification = rules.classification(str(record["source_path"]))
-        if classification is not None:
-            if classification == "built-in":
-                built_in_ignored += 1
-            else:
-                user_ignored += 1
             continue
         try:
             sources[record["source_path"]] = (
@@ -796,9 +791,20 @@ def _remove_owned_lock(lock: Path, identity: tuple[int, int] | None) -> None:
         pass
 
 
-def _record_paths(extractions: Path) -> list[Path]:
+def _record_paths(
+    extractions: Path, rules: IgnoreRules
+) -> tuple[list[Path], int, int]:
     """Walk cache records without following links, junctions, or special files."""
     records: list[Path] = []
+    built_in_ignored = 0
+    user_ignored = 0
+
+    def count(classification: str) -> None:
+        nonlocal built_in_ignored, user_ignored
+        if classification == "built-in":
+            built_in_ignored += 1
+        else:
+            user_ignored += 1
 
     def visit(directory: Path) -> None:
         try:
@@ -814,14 +820,26 @@ def _record_paths(extractions: Path) -> list[Path]:
             if is_reparse_path(child):
                 raise IndexError("Library extraction cache must not contain symbolic links")
             if stat.S_ISDIR(status.st_mode):
+                relative = child.relative_to(extractions).as_posix()
+                classification = rules.classification(
+                    "Library/" + relative, is_directory=True
+                )
+                if classification is not None:
+                    count(classification)
+                    continue
                 visit(child)
             elif child.name.endswith(".json"):
                 if not _private_regular(status):
                     raise IndexError("Library extraction record is not a private regular file")
+                relative = child.relative_to(extractions).as_posix()[:-5]
+                classification = rules.classification("Library/" + relative)
+                if classification is not None:
+                    count(classification)
+                    continue
                 records.append(child)
 
     visit(extractions)
-    return records
+    return records, built_in_ignored, user_ignored
 
 
 def _private_path(path: Path) -> bool:

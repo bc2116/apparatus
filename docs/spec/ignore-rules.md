@@ -43,7 +43,10 @@ gitignore compatibility:
 - `?` matches one character within one path component.
 - `**` matches across directory components.
 - A pattern without `/` matches a filename or directory name at any depth.
-- A trailing `/` matches that directory and everything below it.
+- Any supported pattern that matches a directory hides that directory and every
+  descendant.
+- A trailing `/` means directory-only matching, but is not required for
+  descendant exclusion once a directory matches.
 - A leading `/` is accepted as an explicit workspace-root anchor.
 
 Negation (`!`), escapes (`\\`), and character classes (`[...]`) are not

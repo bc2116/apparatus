@@ -30,6 +30,26 @@ def test_supported_workspace_relative_patterns_and_builtin_defaults(tmp_path):
     assert not rules.matches("Library/visible.txt")
 
 
+@pytest.mark.parametrize(
+    "pattern", ["Library/private", "/Library/private", "Library/*"]
+)
+def test_any_pattern_matching_a_directory_hides_its_descendants(
+    tmp_path, pattern
+):
+    rules = _rules(tmp_path, f"{pattern}\n")
+
+    assert rules.matches("Library/private", is_directory=True)
+    assert rules.matches("Library/private/secret.txt")
+
+
+def test_trailing_slash_is_directory_only_but_still_hides_descendants(tmp_path):
+    rules = _rules(tmp_path, "Library/private/\n")
+
+    assert not rules.matches("Library/private")
+    assert rules.matches("Library/private", is_directory=True)
+    assert rules.matches("Library/private/secret.txt")
+
+
 def test_unsupported_syntax_is_reported_not_reinterpreted(tmp_path):
     rules = _rules(tmp_path, "!Library/keep.txt\nfolder/[ab].txt\nfolder\\name.txt\n")
     assert [issue.line for issue in rules.issues] == [1, 2, 3]

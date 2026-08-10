@@ -109,9 +109,9 @@ def recall(
     if limit < 1:
         raise ValueError("limit must be positive")
 
-    load_ignore_rules(workspace_path).require_valid()
+    rules = load_ignore_rules(workspace_path).require_valid()
     cache = library_cache_root(workspace_path)
-    if not index.has_extractions(cache):
+    if not index.has_extractions(cache, rules):
         raise NoExtractionsError
     ignore_report = index.refresh(cache, workspace_path)
     hits = index.search(cache, question, limit)

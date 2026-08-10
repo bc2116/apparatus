@@ -144,6 +144,48 @@ def test_threshold_flips_a_match_to_abstained(monkeypatch, tmp_path):
     assert abstained["threshold"] == recall.RECALL_ABSTAIN_THRESHOLD
 
 
+@pytest.mark.parametrize(
+    ("pattern", "expected_skipped"),
+    [
+        ("Library/private", 1),
+        ("/Library/private", 1),
+        ("Library/*", 2),
+    ],
+)
+def test_directory_patterns_make_recall_abstain_with_accurate_reporting(
+    monkeypatch, tmp_path, pattern, expected_skipped
+):
+    workspace = _workspace(tmp_path / "workspace")
+    monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "apparatus-home"))
+    private = workspace / "Library/private"
+    private.mkdir()
+    (private / "secret.txt").write_text(
+        "The cobalt directory phrase is private.", encoding="utf-8"
+    )
+    (private / "second.txt").write_text(
+        "A second cobalt directory phrase is private.", encoding="utf-8"
+    )
+    (workspace / "Library/visible.txt").write_text(
+        "An ordinary visible fixture.", encoding="utf-8"
+    )
+    result = ingest_library(workspace)
+    index.refresh(result.cache, workspace)
+    assert index.search(result.cache, "cobalt")
+    (workspace / "System/ignore").write_text(f"{pattern}\n", encoding="utf-8")
+
+    envelope = recall.recall(workspace, "cobalt directory phrase")
+
+    assert envelope["status"] == "abstained"
+    assert envelope["evidence"] == []
+    data, _body = records.parse_record(
+        _recall_receipts(workspace)[0].read_text(encoding="utf-8")
+    )
+    assert data["ignored_paths"] == expected_skipped
+    assert data["ignore_rule_provenance"] == (
+        "built-in defaults and System/ignore (1 user pattern(s))"
+    )
+
+
 def test_receipt_redacts_credentials_but_envelope_keeps_exact_question(
     monkeypatch, tmp_path
 ):

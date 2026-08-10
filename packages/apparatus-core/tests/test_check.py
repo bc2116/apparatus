@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import pytest
+
 from apparatus_core.check import CheckResult, Finding, check_workspace
 from apparatus_core.commands import check
 from apparatus_core.render import render_workspace
@@ -241,6 +243,39 @@ def test_check_can_skip_an_ignored_profile_record(tmp_path):
     assert result.ignored_paths == 1
     assert result.ignore_report.user_paths == 1
     assert "System/ignore" in result.ignore_report.provenance
+
+
+@pytest.mark.parametrize(
+    "pattern", ["Goals/private", "/Goals/private", "Goals/*"]
+)
+def test_check_prunes_matching_record_directory_and_counts_it_once(
+    monkeypatch, tmp_path, pattern
+):
+    workspace = _workspace(tmp_path)
+    private = workspace / "Goals/private"
+    private.mkdir()
+    records = (private / "one.md", private / "two.md")
+    for record in records:
+        record.write_text("---\nnot: [yaml\n", encoding="utf-8")
+    (workspace / "System/ignore").write_text(f"{pattern}\n", encoding="utf-8")
+    original_read = Path.read_text
+
+    def reject_ignored_record_read(self, *args, **kwargs):
+        if self in records:
+            raise AssertionError("ignored record was opened")
+        return original_read(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", reject_ignored_record_read)
+
+    result = check_workspace(workspace)
+
+    assert result.ok
+    assert result.ignored_paths == 1
+    assert result.ignore_report.user_paths == 1
+    assert result.ignore_report.built_in_paths == 0
+    assert result.ignore_report.provenance == (
+        "built-in defaults and System/ignore (1 user pattern(s))"
+    )
 
 
 def test_check_reports_invalid_ignore_without_reading_records(monkeypatch, tmp_path):

@@ -66,7 +66,7 @@ def run_search(args: argparse.Namespace) -> int:
     try:
         rules = load_ignore_rules(workspace).require_valid()
         cache = library_cache_root(workspace)
-        if not index.has_extractions(cache):
+        if not index.has_extractions(cache, rules):
             print("Nothing from your Library has been ingested yet. Run apparatus library ingest first.")
             _print_ignore_report(rules.report(), args.as_json)
             return 1

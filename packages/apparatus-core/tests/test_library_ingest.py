@@ -116,19 +116,38 @@ def test_ignore_skips_source_before_open_and_evicts_index_and_recall(monkeypatch
     )
 
 
-def test_ignored_directory_is_pruned_and_stale_cache_is_removed(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    ("pattern", "expected_ignored", "visible_ignored"),
+    [
+        ("Library/private", 1, False),
+        ("/Library/private", 1, False),
+        ("Library/*", 2, True),
+    ],
+)
+def test_matching_directory_is_pruned_and_stale_cache_is_removed(
+    monkeypatch, tmp_path, pattern, expected_ignored, visible_ignored
+):
     workspace = _workspace(tmp_path / "workspace")
     monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "apparatus-home"))
     private = workspace / "Library/private"
     private.mkdir()
     (private / "secret.txt").write_text("private sentinel", encoding="utf-8")
+    (private / "second.txt").write_text(
+        "second private sentinel", encoding="utf-8"
+    )
     visible = workspace / "Library/visible.txt"
     visible.write_text("visible sentinel", encoding="utf-8")
     first = ingest_library(workspace)
     stale_record = first.cache / "extractions/private/secret.txt.json"
     stale_text = first.cache / "extractions/private/secret.txt.txt"
+    second_record = first.cache / "extractions/private/second.txt.json"
+    second_text = first.cache / "extractions/private/second.txt.txt"
+    visible_record = first.cache / "extractions/visible.txt.json"
+    visible_text = first.cache / "extractions/visible.txt.txt"
     assert stale_record.is_file() and stale_text.is_file()
-    (workspace / "System/ignore").write_text("Library/private/\n", encoding="utf-8")
+    assert second_record.is_file() and second_text.is_file()
+    assert visible_record.is_file() and visible_text.is_file()
+    (workspace / "System/ignore").write_text(f"{pattern}\n", encoding="utf-8")
 
     original_scandir = ingest_module.os.scandir
 
@@ -140,11 +159,26 @@ def test_ignored_directory_is_pruned_and_stale_cache_is_removed(monkeypatch, tmp
     monkeypatch.setattr(ingest_module.os, "scandir", reject_ignored_directory)
     result = ingest_library(workspace)
 
-    assert result.counts["ignored"] == 1
-    assert result.counts["unchanged"] == 1
-    assert result.ignore_report.skipped_paths == 1
-    assert result.ignore_report.user_paths == 1
+    assert result.counts["ignored"] == expected_ignored
+    assert result.counts["unchanged"] == (0 if visible_ignored else 1)
+    assert result.ignore_report.skipped_paths == expected_ignored
+    assert result.ignore_report.user_paths == expected_ignored
+    assert result.ignore_report.built_in_paths == 0
+    assert "System/ignore (1 user pattern(s))" in result.ignore_report.provenance
     assert not stale_record.exists() and not stale_text.exists()
+    assert not second_record.exists() and not second_text.exists()
+    assert visible_record.exists() is not visible_ignored
+    assert visible_text.exists() is not visible_ignored
+    report = (
+        f"skipped {expected_ignored} path(s) "
+        f"(built-in=0, user={expected_ignored})"
+    )
+    assert any(
+        report in receipt.read_text(encoding="utf-8")
+        for receipt in (workspace / "System/receipts").glob(
+            "*-library-ingest*.md"
+        )
+    )
 
 
 def test_builtin_skip_count_and_provenance_are_reported(monkeypatch, tmp_path):

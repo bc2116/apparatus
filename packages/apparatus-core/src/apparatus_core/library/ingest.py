@@ -82,7 +82,17 @@ def _ingest_library(
             flagged.append((_safe(source.relative), "error", "Library directory could not be traversed"))
             continue
         relative = source.relative_to(library).as_posix()
-        classification = rules.classification("Library/" + relative)
+        try:
+            source_status = os.lstat(source)
+        except OSError:
+            counts["scanned"] += 1
+            counts["error"] += 1
+            flagged.append((_safe(relative), "error", "source could not be inspected"))
+            continue
+        classification = rules.classification(
+            "Library/" + relative,
+            is_directory=stat.S_ISDIR(source_status.st_mode),
+        )
         if classification is not None:
             counts["ignored"] += 1
             if classification == "built-in":
@@ -96,13 +106,6 @@ def _ingest_library(
             relative = source.relative_to(library).as_posix()
             counts["scanned"] += 1; counts["error"] += 1
             flagged.append((_safe(relative), "error", "symbolic-link sources are not supported"))
-            continue
-        try:
-            source_status = source.stat()
-        except OSError:
-            relative = source.relative_to(library).as_posix()
-            counts["scanned"] += 1; counts["error"] += 1
-            flagged.append((_safe(relative), "error", "source could not be inspected"))
             continue
         if stat.S_ISDIR(source_status.st_mode):
             continue
@@ -207,13 +210,16 @@ def _library_entries(
         for child in children:
             entries.append(child)
             relative = child.relative_to(library).as_posix()
-            ignored = rules.matches("Library/" + relative)
-            if not ignored and not is_reparse_path(child):
-                try:
-                    if stat.S_ISDIR(os.lstat(child).st_mode):
-                        visit(child)
-                except OSError:
-                    continue
+            try:
+                child_status = os.lstat(child)
+            except OSError:
+                continue
+            is_directory = stat.S_ISDIR(child_status.st_mode)
+            ignored = rules.matches(
+                "Library/" + relative, is_directory=is_directory
+            )
+            if not ignored and not is_reparse_path(child) and is_directory:
+                visit(child)
 
     visit(library)
     return entries
