@@ -232,6 +232,7 @@ def _new_record(
     body: str,
     mode: str,
     write: Callable[[str | Path, str, dict[str, Any]], Path],
+    suffix_on_collision: bool = True,
 ) -> tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]] | None:
     cleaned, findings = _redact_strings({**metadata, "body": body})
     cleaned_body = cleaned.pop("body")
@@ -266,6 +267,8 @@ def _new_record(
         }
         if "role" in cleaned:
             frontmatter["role"] = cleaned["role"]
+        if "organization" in cleaned:
+            frontmatter["organization"] = cleaned["organization"]
     frontmatter = refresh_frontmatter_labels(frontmatter, labels)
     anchor.require_directory(relative_folder)
     stem = _slug(filename_value)
@@ -281,6 +284,8 @@ def _new_record(
         try:
             owned_record = anchor.create_file(relative, content)
         except FileExistsError:
+            if not suffix_on_collision:
+                return None
             continue
         owned_receipt: _OwnedFile | None = None
         try:

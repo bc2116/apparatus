@@ -100,7 +100,7 @@ SCHEMAS: dict[str, RecordSchema] = {
     "profile": RecordSchema(
         kind="profile",
         required=("schema", "status", "privacy_mode", "work_types", "review_day"),
-        optional=("spend",),
+        optional=("spend", "key_people", "current_efforts", "source_locations"),
         enums={
             "status": PROFILE_STATUSES,
             "privacy_mode": PRIVACY_MODES,
@@ -218,6 +218,7 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
             problems.append(
                 f"review_day must be null or one of {', '.join(REVIEW_DAYS)}; found {review_day!r}"
             )
+        _profile_interview_problems(data, problems)
 
     if schema.kind == "decision" and "date" in data and not _is_date(data["date"]):
         problems.append("date must be YYYY-MM-DD")
@@ -237,3 +238,52 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
             problems.append(f"filename {filename!r} violates the rule: {schema.filename_rule}")
 
     return problems
+
+
+def _profile_interview_problems(data: dict, problems: list[str]) -> None:
+    """Validate the optional, structured answers recorded by the setup interview."""
+    people = data.get("key_people")
+    if people is not None:
+        if not isinstance(people, list):
+            problems.append("key_people must be a list")
+        else:
+            for index, person in enumerate(people):
+                entry = f"key_people[{index}]"
+                if not isinstance(person, dict):
+                    problems.append(f"{entry} must be a mapping")
+                    continue
+                unexpected = sorted(set(person) - {"name", "role", "organization"})
+                if unexpected:
+                    problems.append(f"{entry} has unexpected key: {unexpected[0]}")
+                if not isinstance(person.get("name"), str) or not person["name"].strip():
+                    problems.append(f"{entry}.name must be a non-empty string")
+                for key in ("role", "organization"):
+                    if key in person and (
+                        not isinstance(person[key], str) or not person[key].strip()
+                    ):
+                        problems.append(f"{entry}.{key} must be a non-empty string")
+
+    efforts = data.get("current_efforts")
+    if efforts is not None:
+        if not isinstance(efforts, list):
+            problems.append("current_efforts must be a list")
+        else:
+            for index, effort in enumerate(efforts):
+                entry = f"current_efforts[{index}]"
+                if not isinstance(effort, dict):
+                    problems.append(f"{entry} must be a mapping")
+                    continue
+                unexpected = sorted(set(effort) - {"title", "done_when", "next_action"})
+                if unexpected:
+                    problems.append(f"{entry} has unexpected key: {unexpected[0]}")
+                if not isinstance(effort.get("title"), str) or not effort["title"].strip():
+                    problems.append(f"{entry}.title must be a non-empty string")
+                for key in ("done_when", "next_action"):
+                    if key in effort and (
+                        not isinstance(effort[key], str) or not effort[key].strip()
+                    ):
+                        problems.append(f"{entry}.{key} must be a non-empty string")
+
+    locations = data.get("source_locations")
+    if locations is not None and not _is_string_list(locations):
+        problems.append("source_locations must be a list of strings")

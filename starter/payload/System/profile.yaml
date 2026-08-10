@@ -6,3 +6,6 @@ privacy_mode: standard      # standard = label, don't block · private = strict
 work_types: []              # e.g. analysis, quality, project-management, writing, support
 review_day: null            # weekly review day, set during the interview
 spend: balanced             # model capability and cost: frugal, balanced, or thorough
+key_people: []              # name required; role and organization optional
+current_efforts: []         # title required; done_when and next_action optional
+source_locations: []        # plain-language places where source documents live

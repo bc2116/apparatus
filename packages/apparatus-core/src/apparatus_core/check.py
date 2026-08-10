@@ -188,7 +188,11 @@ def _profile_findings(path: Path, workspace: Path) -> list[Finding]:
     if not isinstance(data, dict):
         return [Finding("record-schema-error", relative, "Use a YAML mapping for this profile.")]
     return [
-        Finding(_problem_code(problem), relative, "Correct this profile to match its v0 schema.")
+        Finding(
+            _problem_code(problem),
+            relative,
+            f"Correct this profile field: {problem}",
+        )
         for problem in records.validate("profile", data, filename=path.name)
     ]
 

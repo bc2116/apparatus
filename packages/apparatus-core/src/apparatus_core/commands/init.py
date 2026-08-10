@@ -104,6 +104,10 @@ def _profile_data(
         "review_day": existing["review_day"] if existing is not None else None,
         "spend": existing.get("spend", "balanced") if existing is not None else "balanced",
     }
+    if existing is not None:
+        for key in ("key_people", "current_efforts", "source_locations"):
+            if key in existing:
+                profile[key] = existing[key]
     problems = records.validate("profile", profile, filename="profile.yaml")
     if problems:
         raise ManifestError("generated System/profile.yaml is invalid: " + "; ".join(problems))

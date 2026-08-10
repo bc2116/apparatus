@@ -21,7 +21,7 @@ EXPECTED_SHARE_STEPS = {
     "research-and-summarize.md": {7},
     "review-against-checklist.md": {7},
     "weekly-review.md": {7},
-    "welcome.md": {8},
+    "welcome.md": {7},
 }
 
 
