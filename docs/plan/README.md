@@ -56,7 +56,7 @@ on every commit.
 | 11 | [init and profile overlay engine](PR-11-init-profiles.md) | 2 | ✅ landed | 09, 10 |
 | 12 | [Memory verbs, PII labeler, credential floor](PR-12-memory-labeler.md) | 2 | ✅ landed | 09 |
 | 13 | [render — canon to shims](PR-13-render.md) | 2 | ✅ landed | 09 |
-| 14 | [Library ingest and text extraction](PR-14-library-ingest.md) | 3 | ready | 09 |
+| 14 | [Library ingest and text extraction](PR-14-library-ingest.md) | 3 | ✅ landed | 09 |
 | 15 | [Library local search index](PR-15-library-index.md) | 3 | ready | 14 |
 | 16 | [recall with citations](PR-16-recall.md) | 3 | ready | 15 |
 | 17 | [Interview wired to profile deployment](PR-17-interview-profiles.md) | 4 | ready | 11, 12, 27 |
