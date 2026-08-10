@@ -1,0 +1,20 @@
+schema: apparatus/profile@v0
+status: configured
+privacy_mode: standard
+work_types:
+  - quality
+  - writing
+review_day: thursday
+spend: balanced
+key_people:
+  - name: Riley Sample
+    role: Review lead
+  - name: Northstar Quality Council
+    role: Partner organization
+    organization: Northstar Quality Council
+current_efforts:
+  - title: Prepare Orion readiness brief
+    done_when: The reviewed brief is filed at Deliverables/orion-readiness-brief.md.
+    next_action: Draft the brief from the Library source.
+source_locations:
+  - Library/

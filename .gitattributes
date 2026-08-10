@@ -1,1 +1,9 @@
+# The rendered shims pin the raw bytes of the instruction canon. Keep every
+# input and shipped render on LF across native checkouts so a fresh workspace
+# starts check-clean on Windows as well as POSIX systems.
+starter/payload/AGENTS.md text eol=lf
+starter/payload/CLAUDE.md text eol=lf
+starter/payload/.cursor/rules/apparatus.mdc text eol=lf
+starter/payload/.github/copilot-instructions.md text eol=lf
+packages/apparatus-core/src/apparatus_core/shims/*.template text eol=lf
 conformance/golden/egress/* text eol=lf
