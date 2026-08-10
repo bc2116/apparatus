@@ -7,13 +7,20 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import os
+import re
 import stat
 import zipfile
 from typing import Any, BinaryIO
 
-from apparatus_core.receipts import write_receipt
+from apparatus_core.receipts import (
+    ReceiptInvocation,
+    ReceiptPublication,
+    prepare_receipt_invocation,
+    write_receipt,
+)
 from apparatus_core.snapshots import (
     SnapshotError,
+    SnapshotTransientPath,
     SnapshotTransaction,
     git_available,
     prepare_snapshot,
@@ -22,6 +29,7 @@ from apparatus_core.snapshots import (
 
 _CHUNK_SIZE = 1024 * 1024
 _MAX_COLLISIONS = 1_000_000
+_RECEIPT_OWNERSHIP_NAME = re.compile(r"^\.apparatus-receipt-[0-9a-f]+\.tmp$")
 
 
 class BackupError(RuntimeError):
@@ -96,6 +104,28 @@ def _stable_file_identity(value: os.stat_result) -> tuple[int, int, int, int, in
 
 def _stable_directory_identity(value: os.stat_result) -> tuple[int, int, int, int]:
     return value.st_dev, value.st_ino, value.st_mtime_ns, stat.S_IFMT(value.st_mode)
+
+
+def _consume_posix_transient(
+    relative: Path,
+    value: os.stat_result,
+    remaining: set[SnapshotTransientPath],
+) -> bool:
+    match = next((item for item in remaining if item.relative == relative), None)
+    if match is None:
+        return False
+    if not stat.S_ISREG(value.st_mode) or (value.st_dev, value.st_ino) != (
+        match.device,
+        match.inode,
+    ):
+        raise BackupError("Snapshot receipt ownership changed during backup export.")
+    remaining.remove(match)
+    return True
+
+
+def _require_no_transients(remaining: set[SnapshotTransientPath]) -> None:
+    if remaining:
+        raise BackupError("Snapshot receipt ownership changed during backup export.")
 
 
 def _config_uses_external_history(content: bytes) -> bool:
@@ -295,16 +325,67 @@ class _PosixWorkspaceAnchor:
     def forbid(self, *identities: tuple[int, int, int]) -> None:
         self.forbidden_identities.update(identities)
 
-    def copy_snapshot_content(self, destination: Path) -> None:
+    def cleanup_snapshot_transients(
+        self,
+        transient_paths: tuple[SnapshotTransientPath, ...],
+    ) -> None:
+        """Remove only exact POSIX ownership aliases retained by this export."""
+        if not transient_paths:
+            return
+        expected = {(item.device, item.inode) for item in transient_paths}
+        system = receipts = -1
+        try:
+            self.require_path_current()
+            system = os.open("System", _posix_directory_flags(), dir_fd=self.handle)
+            receipts = os.open("receipts", _posix_directory_flags(), dir_fd=system)
+            for name in os.listdir(receipts):
+                if not _RECEIPT_OWNERSHIP_NAME.fullmatch(name):
+                    continue
+                value = os.stat(name, dir_fd=receipts, follow_symlinks=False)
+                if (value.st_dev, value.st_ino) in expected:
+                    os.unlink(name, dir_fd=receipts)
+            for name in os.listdir(receipts):
+                if not _RECEIPT_OWNERSHIP_NAME.fullmatch(name):
+                    continue
+                value = os.stat(name, dir_fd=receipts, follow_symlinks=False)
+                if (value.st_dev, value.st_ino) in expected:
+                    raise BackupError(
+                        "Snapshot receipt ownership could not be removed safely."
+                    )
+            self.require_path_current()
+        except BackupError:
+            raise
+        except OSError as error:
+            raise BackupError(
+                "Snapshot receipt ownership could not be removed safely."
+            ) from error
+        finally:
+            for descriptor in (receipts, system):
+                if descriptor >= 0:
+                    os.close(descriptor)
+
+    def copy_snapshot_content(
+        self,
+        destination: Path,
+        transient_paths: tuple[SnapshotTransientPath, ...] = (),
+    ) -> None:
         """Copy identity-checked workspace bytes, excluding implementation history."""
         self.require_path_current()
         before = os.fstat(self.handle)
-        self._copy_directory(self.handle, Path(), destination)
+        remaining = set(transient_paths)
+        self._copy_directory(self.handle, Path(), destination, remaining)
+        _require_no_transients(remaining)
         if _stable_directory_identity(os.fstat(self.handle)) != _stable_directory_identity(before):
             raise BackupError("Workspace content changed during backup export.")
         self.require_path_current()
 
-    def _copy_directory(self, parent: int, relative: Path, destination: Path) -> None:
+    def _copy_directory(
+        self,
+        parent: int,
+        relative: Path,
+        destination: Path,
+        remaining: set[SnapshotTransientPath],
+    ) -> None:
         try:
             names = sorted(os.listdir(parent))
         except OSError as error:
@@ -324,7 +405,7 @@ class _PosixWorkspaceAnchor:
                         if _identity(opened) != _identity(before):
                             raise BackupError("Workspace content changed during backup export.")
                         target.mkdir()
-                        self._copy_directory(child, child_relative, target)
+                        self._copy_directory(child, child_relative, target, remaining)
                         if _stable_directory_identity(os.fstat(child)) != _stable_directory_identity(
                             opened
                         ):
@@ -337,11 +418,20 @@ class _PosixWorkspaceAnchor:
                         opened = os.fstat(child)
                         if _identity(opened) != _identity(before):
                             raise BackupError("Workspace content changed during backup export.")
-                        with target.open("xb") as output:
-                            for chunk in self._file_chunks(child):
-                                output.write(chunk)
-                        target.chmod(0o755 if opened.st_mode & 0o111 else 0o644)
+                        transient = _consume_posix_transient(
+                            child_relative,
+                            opened,
+                            remaining,
+                        )
+                        if not transient:
+                            with target.open("xb") as output:
+                                for chunk in self._file_chunks(child):
+                                    output.write(chunk)
+                            target.chmod(0o755 if opened.st_mode & 0o111 else 0o644)
+                        current = os.stat(name, dir_fd=parent, follow_symlinks=False)
                         if _stable_file_identity(os.fstat(child)) != _stable_file_identity(opened):
+                            raise BackupError("Workspace content changed during backup export.")
+                        if _identity(current) != _identity(opened):
                             raise BackupError("Workspace content changed during backup export.")
                     finally:
                         os.close(child)
@@ -352,10 +442,16 @@ class _PosixWorkspaceAnchor:
             except OSError as error:
                 raise BackupError("Workspace contents could not be read safely.") from error
 
-    def write_entries(self, archive: zipfile.ZipFile) -> None:
+    def write_entries(
+        self,
+        archive: zipfile.ZipFile,
+        transient_paths: tuple[SnapshotTransientPath, ...] = (),
+    ) -> None:
         self.require_path_current()
         before = os.fstat(self.handle)
-        self._write_directory(archive, self.handle, Path())
+        remaining = set(transient_paths)
+        self._write_directory(archive, self.handle, Path(), remaining)
+        _require_no_transients(remaining)
         if _stable_directory_identity(os.fstat(self.handle)) != _stable_directory_identity(before):
             raise BackupError("Workspace content changed during backup export.")
         self.require_path_current()
@@ -366,7 +462,13 @@ class _PosixWorkspaceAnchor:
         if _identity(value) in self.forbidden_identities:
             raise BackupError("Destination moved into the workspace during backup export.")
 
-    def _write_directory(self, archive: zipfile.ZipFile, parent: int, relative: Path) -> None:
+    def _write_directory(
+        self,
+        archive: zipfile.ZipFile,
+        parent: int,
+        relative: Path,
+        remaining: set[SnapshotTransientPath],
+    ) -> None:
         try:
             names = sorted(os.listdir(parent))
         except OSError as error:
@@ -391,7 +493,7 @@ class _PosixWorkspaceAnchor:
                             ),
                             b"",
                         )
-                        self._write_directory(archive, child, child_relative)
+                        self._write_directory(archive, child, child_relative, remaining)
                         after = os.fstat(child)
                         current = os.stat(name, dir_fd=parent, follow_symlinks=False)
                         if (
@@ -413,16 +515,22 @@ class _PosixWorkspaceAnchor:
                         opened = os.fstat(child)
                         if _identity(opened) != _identity(before):
                             raise BackupError("Workspace content changed during backup export.")
-                        _write_chunks(
-                            archive,
-                            _zip_info(
-                                child_relative,
-                                directory=False,
-                                modified=opened.st_mtime,
-                                executable=bool(opened.st_mode & 0o111),
-                            ),
-                            self._file_chunks(child),
+                        transient = _consume_posix_transient(
+                            child_relative,
+                            opened,
+                            remaining,
                         )
+                        if not transient:
+                            _write_chunks(
+                                archive,
+                                _zip_info(
+                                    child_relative,
+                                    directory=False,
+                                    modified=opened.st_mtime,
+                                    executable=bool(opened.st_mode & 0o111),
+                                ),
+                                self._file_chunks(child),
+                            )
                         after = os.fstat(child)
                         current = os.stat(name, dir_fd=parent, follow_symlinks=False)
                         if (
@@ -461,14 +569,31 @@ class _PosixOwnedArchive:
     def size(self) -> int:
         return os.fstat(self.handle).st_size
 
+    def validate_name(self) -> None:
+        if self.handle < 0:
+            raise BackupError("Backup archive ownership is no longer retained.")
+        try:
+            retained = os.fstat(self.handle)
+            current = os.stat(
+                self.name,
+                dir_fd=self.destination.handle,
+                follow_symlinks=False,
+            )
+        except OSError as error:
+            raise BackupError("Backup archive path changed during export.") from error
+        if _identity(retained) != self.identity or _identity(current) != self.identity:
+            raise BackupError("Backup archive path changed during export.")
+
     def finish(self) -> None:
         if self.handle >= 0:
+            self.validate_name()
             os.close(self.handle)
             self.handle = -1
 
     def cleanup(self) -> None:
         if self.handle < 0:
             return
+        cleanup_error: BackupError | None = None
         try:
             current = os.stat(self.name, dir_fd=self.destination.handle, follow_symlinks=False)
             if _identity(current) == self.identity:
@@ -476,7 +601,15 @@ class _PosixOwnedArchive:
         except FileNotFoundError:
             pass
         finally:
-            self.finish()
+            retained = os.fstat(self.handle)
+            os.close(self.handle)
+            self.handle = -1
+            if retained.st_nlink != 0:
+                cleanup_error = BackupError(
+                    "Owned backup archive changed path and could not be removed safely."
+                )
+        if cleanup_error is not None:
+            raise cleanup_error
 
 
 class _PosixDestinationAnchor:
@@ -731,7 +864,18 @@ class _WindowsWorkspaceAnchor:
     def forbid(self, *identities: tuple[int, int]) -> None:
         self.forbidden_identities.update(identities)
 
-    def copy_snapshot_content(self, destination: Path) -> None:
+    def cleanup_snapshot_transients(
+        self,
+        transient_paths: tuple[SnapshotTransientPath, ...],
+    ) -> None:
+        _require_no_transients(set(transient_paths))
+
+    def copy_snapshot_content(
+        self,
+        destination: Path,
+        transient_paths: tuple[SnapshotTransientPath, ...] = (),
+    ) -> None:
+        _require_no_transients(set(transient_paths))
         self.require_path_current()
         before = _windows_fs._win_identity(self.handle)
         self._copy_directory(self.path, Path(), destination)
@@ -783,7 +927,12 @@ class _WindowsWorkspaceAnchor:
             finally:
                 _windows_fs._win_close(handle)
 
-    def write_entries(self, archive: zipfile.ZipFile) -> None:
+    def write_entries(
+        self,
+        archive: zipfile.ZipFile,
+        transient_paths: tuple[SnapshotTransientPath, ...] = (),
+    ) -> None:
+        _require_no_transients(set(transient_paths))
         self.require_path_current()
         before = _windows_fs._win_identity(self.handle)
         self._write_directory(archive, self.path, self.handle, Path())
@@ -877,8 +1026,16 @@ class _WindowsOwnedArchive:
     def size(self) -> int:
         return os.fstat(self.file_descriptor).st_size
 
+    def validate_name(self) -> None:
+        if self.file_descriptor < 0:
+            raise BackupError("Backup archive ownership is no longer retained.")
+        identity = _windows_fs._win_identity(self.windows_handle)
+        if (identity.volume, identity.index) != self.identity:
+            raise BackupError("Backup archive path changed during export.")
+
     def finish(self) -> None:
         if self.file_descriptor >= 0:
+            self.validate_name()
             os.close(self.file_descriptor)
             self.file_descriptor = -1
             self.windows_handle = -1
@@ -966,7 +1123,11 @@ def _anchor_types() -> tuple[type[Any], type[Any]]:
     raise BackupUsageError("safe backup export is unavailable on this machine")
 
 
-def _write_archive(source: Any, owned: Any) -> int:
+def _write_archive(
+    source: Any,
+    owned: Any,
+    transient_paths: tuple[SnapshotTransientPath, ...] = (),
+) -> int:
     try:
         with owned.writer() as archive_file:
             with zipfile.ZipFile(
@@ -975,7 +1136,7 @@ def _write_archive(source: Any, owned: Any) -> int:
                 compression=zipfile.ZIP_DEFLATED,
                 strict_timestamps=True,
             ) as archive:
-                source.write_entries(archive)
+                source.write_entries(archive, transient_paths)
             archive_file.flush()
         os.fsync(
             owned.file_descriptor if hasattr(owned, "file_descriptor") else owned.handle
@@ -1000,13 +1161,48 @@ def _receipt_fields(result: BackupResult, destination: Path) -> dict[str, str | 
     return fields
 
 
+def _write_owned_backup_receipt(
+    write: Callable[..., object],
+    workspace: Path,
+    fields: dict[str, str | int],
+) -> ReceiptPublication:
+    invocation: ReceiptInvocation = prepare_receipt_invocation(
+        workspace,
+        "backup-export",
+        fields,
+    )
+    value: object | None = None
+    try:
+        value = write(
+            workspace,
+            "backup-export",
+            fields,
+            invocation=invocation,
+        )
+        if not isinstance(value, ReceiptPublication) or not value.is_bound_to(
+            invocation
+        ):
+            if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+                invocation
+            ):
+                value.close()
+            raise BackupError(
+                "Backup receipt writer did not return exact publication ownership."
+            )
+        value.claim(invocation)
+        return value
+    except Exception:
+        invocation.close()
+        raise
+
+
 def export_backup(
     workspace: str | Path,
     destination: str | Path,
     *,
     available: Callable[[], bool] = git_available,
     take: Callable[..., SnapshotTransaction] = prepare_snapshot,
-    write: Callable[[str | Path, str, dict[str, str | int]], Path] = write_receipt,
+    write: Callable[..., object] = write_receipt,
     clock: Callable[[], datetime] | None = None,
 ) -> BackupResult:
     """Export one anchored workspace archive without reading destination content."""
@@ -1032,6 +1228,7 @@ def export_backup(
             snapshot_id: str | None = None
             transaction: SnapshotTransaction | None = None
             owned: Any = None
+            success_receipt: ReceiptPublication | None = None
             completed = False
             try:
                 if snapshots_available:
@@ -1053,13 +1250,20 @@ def export_backup(
                     if source.snapshot_storage() != "standalone":
                         raise BackupError("Workspace snapshot storage is not safe to archive.")
                     source.validate_snapshot_history()
+                    transaction.validate_receipt()
                 source.require_path_current()
                 target.require_path_current()
                 owned = target.allocate(timestamp)
                 source.forbid(owned.identity)
                 target.require_path_current()
                 target.require_outside(source)
-                size = _write_archive(source, owned)
+                transient_paths = (
+                    transaction.transient_paths if transaction is not None else ()
+                )
+                size = _write_archive(source, owned, transient_paths)
+                owned.validate_name()
+                if transaction is not None:
+                    transaction.validate_receipt()
                 source.require_path_current()
                 target.require_path_current()
                 target.require_outside(source)
@@ -1070,28 +1274,59 @@ def export_backup(
                     size=size,
                 )
                 try:
-                    write(root, "backup-export", _receipt_fields(result, destination_path))
-                except (OSError, ValueError) as error:
+                    success_receipt = _write_owned_backup_receipt(
+                        write,
+                        root,
+                        _receipt_fields(result, destination_path),
+                    )
+                except BackupError:
+                    raise
+                except (OSError, TypeError, ValueError) as error:
                     raise BackupError(
                         "Backup archive was written, but its receipt could not be recorded."
                     ) from error
+                success_receipt.commit()
+                if transaction is not None:
+                    transaction.settle()
                 owned.finish()
                 if transaction is not None:
                     transaction.commit()
+                success_receipt.close()
                 completed = True
                 return result
             finally:
                 if not completed:
+                    cleanup_errors: list[Exception] = []
+                    if success_receipt is not None:
+                        try:
+                            success_receipt.rollback()
+                        except Exception as error:
+                            cleanup_errors.append(error)
+                        try:
+                            success_receipt.close()
+                        except Exception as error:
+                            cleanup_errors.append(error)
                     if owned is not None:
-                        owned.cleanup()
+                        try:
+                            owned.cleanup()
+                        except Exception as error:
+                            cleanup_errors.append(error)
                     if transaction is not None:
                         try:
                             transaction.rollback()
-                        except SnapshotError as error:
-                            raise BackupError(
-                                "Backup export failed and its prepared snapshot could not be "
-                                "rolled back safely."
-                            ) from error
+                        except Exception as error:
+                            cleanup_errors.append(error)
+                        try:
+                            source.cleanup_snapshot_transients(
+                                transaction.transient_paths
+                            )
+                        except Exception as error:
+                            cleanup_errors.append(error)
+                    if cleanup_errors:
+                        raise BackupError(
+                            "Backup export failed and exact cleanup could not be completed "
+                            "safely."
+                        ) from cleanup_errors[0]
     except BackupError:
         raise
     except OSError as error:

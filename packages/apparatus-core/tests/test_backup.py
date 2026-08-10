@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import time
@@ -47,6 +48,22 @@ def _git(workspace: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
         text=True,
         env=environment,
     )
+
+
+def _head_paths(workspace: Path) -> set[str]:
+    return set(
+        _git(workspace, "ls-tree", "-r", "--name-only", "HEAD")
+        .stdout.strip()
+        .splitlines()
+    )
+
+
+def _status_paths(workspace: Path) -> set[str]:
+    return {
+        line[3:]
+        for line in _git(workspace, "status", "--porcelain").stdout.splitlines()
+        if len(line) > 3
+    }
 
 
 def test_export_archives_hidden_files_and_writes_a_valid_receipt(tmp_path, capsys):
@@ -424,7 +441,7 @@ def test_failed_export_preserves_same_size_concurrent_snapshot_receipt_edit(
             OSError("injected write failure")
         ),
     )
-    with pytest.raises(BackupError, match="could not be rolled back safely"):
+    with pytest.raises(BackupError, match="exact cleanup"):
         export_backup(
             workspace,
             destination,
@@ -437,6 +454,65 @@ def test_failed_export_preserves_same_size_concurrent_snapshot_receipt_edit(
     assert edited_content is not None
     assert edited_path.read_bytes() == edited_content
     assert _archives(destination) == []
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX late-settlement receipt probe requires git",
+)
+def test_late_snapshot_receipt_edit_compensates_archive_and_success_receipt(
+    tmp_path,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"initial\n")
+    snapshots.take_snapshot(workspace, label="Initial")
+    (workspace / "note.txt").write_bytes(b"changed\n")
+    head_before = _git(workspace, "rev-parse", "HEAD").stdout.strip()
+    snapshot_receipt: Path | None = None
+    edited_content: bytes | None = None
+    transient: Path | None = None
+
+    def observing_take(*args, **kwargs):
+        nonlocal snapshot_receipt, transient
+        transaction = snapshots.prepare_snapshot(*args, **kwargs)
+        assert transaction.receipt is not None
+        assert len(transaction.transient_paths) == 1
+        snapshot_receipt = transaction.receipt.path
+        transient = transaction.transient_paths[0].relative
+        return transaction
+
+    def publish_then_edit(*args, **kwargs):
+        nonlocal edited_content
+        publication = backup_engine.write_receipt(*args, **kwargs)
+        assert snapshot_receipt is not None
+        original = snapshot_receipt.read_bytes()
+        edited_content = original.replace(b"Snapshot saved", b"Snapshot Saved", 1)
+        assert edited_content != original
+        assert len(edited_content) == len(original)
+        snapshot_receipt.write_bytes(edited_content)
+        return publication
+
+    with pytest.raises(BackupError, match="exact cleanup"):
+        export_backup(
+            workspace,
+            destination,
+            take=observing_take,
+            write=publish_then_edit,
+            clock=_clock,
+        )
+
+    assert _git(workspace, "rev-parse", "HEAD").stdout.strip() == head_before
+    assert _archives(destination) == []
+    assert not list((workspace / "System" / "receipts").glob("*-backup-export.md"))
+    assert snapshot_receipt is not None
+    assert edited_content is not None
+    assert snapshot_receipt.read_bytes() == edited_content
+    assert transient is not None
+    assert not (workspace / transient).exists()
+    assert transient.as_posix() not in _status_paths(workspace)
 
 
 @pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
@@ -458,6 +534,139 @@ def test_successful_prepared_snapshot_preserves_index_and_worktree_bytes(tmp_pat
     assert (workspace / ".git/index").read_bytes() == index_before
     assert (workspace / "tracked.txt").read_text(encoding="utf-8") == "worktree\n"
     assert _git(workspace, "show", "HEAD:tracked.txt").stdout == "worktree\n"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX snapshot receipt ownership probe requires git",
+)
+def test_unborn_export_omits_owned_receipt_alias_and_preserves_caller_state(tmp_path):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"unborn working bytes\n")
+    receipts = workspace / "System" / "receipts"
+    receipts.mkdir(parents=True)
+    lookalike = receipts / ".apparatus-receipt-deadbeef.tmp"
+    lookalike.write_bytes(b"pre-existing lookalike\n")
+    index = workspace / ".git" / "index"
+    assert not index.exists()
+    transient: Path | None = None
+
+    def observing_take(*args, **kwargs):
+        nonlocal transient
+        transaction = snapshots.prepare_snapshot(*args, **kwargs)
+        assert len(transaction.transient_paths) == 1
+        transient = transaction.transient_paths[0].relative
+        return transaction
+
+    result = export_backup(
+        workspace,
+        destination,
+        take=observing_take,
+        clock=_clock,
+    )
+
+    assert transient is not None
+    transient_name = transient.as_posix()
+    assert transient_name not in _head_paths(workspace)
+    assert transient_name not in _status_paths(workspace)
+    assert not (workspace / transient).exists()
+    assert not index.exists()
+    assert (workspace / "note.txt").read_bytes() == b"unborn working bytes\n"
+    assert lookalike.read_bytes() == b"pre-existing lookalike\n"
+    with zipfile.ZipFile(result.archive) as archive:
+        names = set(archive.namelist())
+        assert transient_name not in names
+        assert archive.read("note.txt") == b"unborn working bytes\n"
+        assert archive.read(lookalike.relative_to(workspace).as_posix()) == (
+            b"pre-existing lookalike\n"
+        )
+    assert lookalike.relative_to(workspace).as_posix() in _head_paths(workspace)
+    assert any(name.endswith("-snapshot.md") for name in _head_paths(workspace))
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX snapshot receipt ownership probe requires git",
+)
+def test_existing_export_omits_owned_receipt_alias_and_preserves_caller_bytes(tmp_path):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "tracked.txt").write_bytes(b"initial\n")
+    snapshots.take_snapshot(workspace, label="Initial")
+    (workspace / "tracked.txt").write_bytes(b"staged\n")
+    _git(workspace, "add", "tracked.txt")
+    (workspace / "tracked.txt").write_bytes(b"working\n")
+    index_before = (workspace / ".git" / "index").read_bytes()
+    transient: Path | None = None
+
+    def observing_take(*args, **kwargs):
+        nonlocal transient
+        transaction = snapshots.prepare_snapshot(*args, **kwargs)
+        assert len(transaction.transient_paths) == 1
+        transient = transaction.transient_paths[0].relative
+        return transaction
+
+    result = export_backup(
+        workspace,
+        destination,
+        take=observing_take,
+        clock=_clock,
+    )
+
+    assert transient is not None
+    transient_name = transient.as_posix()
+    assert transient_name not in _head_paths(workspace)
+    assert transient_name not in _status_paths(workspace)
+    assert not (workspace / transient).exists()
+    assert (workspace / ".git" / "index").read_bytes() == index_before
+    assert (workspace / "tracked.txt").read_bytes() == b"working\n"
+    assert _git(workspace, "show", "HEAD:tracked.txt").stdout == "working\n"
+    with zipfile.ZipFile(result.archive) as archive:
+        assert transient_name not in set(archive.namelist())
+        assert archive.read("tracked.txt") == b"working\n"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX clean-filter probe requires git",
+)
+def test_prepared_snapshot_never_executes_or_applies_clean_filters(tmp_path):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    marker = tmp_path / "filter-ran"
+    filter_script = tmp_path / "upper-filter.sh"
+    workspace.mkdir()
+    destination.mkdir()
+    filter_script.write_text(
+        "#!/bin/sh\nprintf ran > "
+        + shlex.quote(str(marker))
+        + "\ntr '[:lower:]' '[:upper:]'\n",
+        encoding="utf-8",
+    )
+    filter_script.chmod(0o755)
+    (workspace / ".gitattributes").write_text(
+        "note.txt filter=upper\n",
+        encoding="utf-8",
+    )
+    (workspace / "note.txt").write_bytes(b"captured lowercase\n")
+    snapshots.ensure_snapshot_store(workspace)
+    _git(workspace, "config", "filter.upper.clean", str(filter_script))
+
+    result = export_backup(workspace, destination, clock=_clock)
+
+    assert not marker.exists()
+    assert _git(workspace, "show", "HEAD:note.txt").stdout == "captured lowercase\n"
+    with zipfile.ZipFile(result.archive) as archive:
+        assert archive.read("note.txt") == b"captured lowercase\n"
+    (workspace / "note.txt").write_bytes(b"later\n")
+    snapshots.restore_snapshot(workspace, result.snapshot_id or "")
+    assert (workspace / "note.txt").read_bytes() == b"captured lowercase\n"
+    assert not marker.exists()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX symbolic-link probe")
@@ -517,11 +726,15 @@ def test_collision_race_retries_without_reading_or_modifying_winner(tmp_path, mo
         return original_open(path, flags, *args, **kwargs)
 
     monkeypatch.setattr(backup_engine.os, "open", racing_open)
+    monkeypatch.setattr(
+        backup_engine.os,
+        "supports_dir_fd",
+        backup_engine.os.supports_dir_fd | {racing_open},
+    )
     result = export_backup(
         workspace,
         destination,
         available=lambda: False,
-        write=lambda *_args, **_kwargs: workspace / "unused-receipt.md",
         clock=_clock,
     )
     assert raced
@@ -546,6 +759,64 @@ def test_mid_write_failure_removes_only_the_invocation_owned_archive(tmp_path, m
         export_backup(workspace, destination, available=lambda: False, clock=_clock)
     assert _archives(destination) == []
     assert unrelated.read_bytes() == b"preserved"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX archive ownership probe")
+def test_archive_name_substitution_never_returns_foreign_replacement(
+    tmp_path, monkeypatch
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    moved = destination / "moved-owned.zip"
+    final = destination / "apparatus-backup-2026-08-10-123456.zip"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"saved")
+    original_write = backup_engine._write_chunks
+    substituted = False
+
+    def substitute_then_write(*args, **kwargs):
+        nonlocal substituted
+        if not substituted:
+            substituted = True
+            final.rename(moved)
+            final.write_bytes(b"foreign replacement")
+        return original_write(*args, **kwargs)
+
+    monkeypatch.setattr(backup_engine, "_write_chunks", substitute_then_write)
+    with pytest.raises(BackupError, match="exact cleanup"):
+        export_backup(workspace, destination, available=lambda: False, clock=_clock)
+
+    assert substituted
+    assert final.read_bytes() == b"foreign replacement"
+    assert moved.is_file()
+    assert not list((workspace / "System" / "receipts").glob("*-backup-export.md"))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX archive ownership probe")
+def test_failed_write_after_archive_rename_fails_loudly_and_preserves_substitution(
+    tmp_path, monkeypatch
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    moved = destination / "moved-partial.zip"
+    final = destination / "apparatus-backup-2026-08-10-123456.zip"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"saved")
+
+    def rename_then_fail(*_args, **_kwargs):
+        final.rename(moved)
+        final.write_bytes(b"foreign replacement")
+        raise OSError("injected write failure")
+
+    monkeypatch.setattr(backup_engine, "_write_chunks", rename_then_fail)
+    with pytest.raises(BackupError, match="exact cleanup"):
+        export_backup(workspace, destination, available=lambda: False, clock=_clock)
+
+    assert final.read_bytes() == b"foreign replacement"
+    assert moved.is_file()
+    assert not list((workspace / "System" / "receipts").glob("*-backup-export.md"))
 
 
 @pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
@@ -851,11 +1122,15 @@ def test_destination_is_never_listed_or_opened_for_reading(tmp_path, monkeypatch
 
     monkeypatch.setattr(backup_engine.os, "listdir", guarded_listdir)
     monkeypatch.setattr(backup_engine.os, "open", recording_open)
+    monkeypatch.setattr(
+        backup_engine.os,
+        "supports_dir_fd",
+        backup_engine.os.supports_dir_fd | {recording_open},
+    )
     export_backup(
         workspace,
         destination,
         available=lambda: False,
-        write=lambda *_args, **_kwargs: workspace / "unused-receipt.md",
         clock=_clock,
     )
     assert destination_opens
@@ -889,12 +1164,48 @@ def test_windows_collision_race_retries_without_modifying_winner(tmp_path, monke
         workspace,
         destination,
         available=lambda: False,
-        write=lambda *_args, **_kwargs: workspace / "unused-receipt.md",
         clock=_clock,
     )
     assert raced
     assert result.archive.name == "apparatus-backup-2026-08-10-123456-2.zip"
     assert (destination / first_name).read_bytes() == b"race-winner"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows archive name-lock probe")
+def test_windows_archive_name_cannot_move_while_export_owns_it(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    final = destination / "apparatus-backup-2026-08-10-123456.zip"
+    moved = destination / "moved-owned.zip"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"saved")
+    original_write = backup_engine._write_chunks
+    rename_error: OSError | None = None
+
+    def attempt_rename_then_write(*args, **kwargs):
+        nonlocal rename_error
+        if rename_error is None:
+            try:
+                final.rename(moved)
+            except OSError as error:
+                rename_error = error
+            else:
+                raise AssertionError("owned archive name moved while locked")
+        return original_write(*args, **kwargs)
+
+    monkeypatch.setattr(backup_engine, "_write_chunks", attempt_rename_then_write)
+    result = export_backup(
+        workspace,
+        destination,
+        available=lambda: False,
+        clock=_clock,
+    )
+
+    assert rename_error is not None
+    assert result.archive == final
+    assert final.is_file()
+    assert not moved.exists()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows no-listing proof")

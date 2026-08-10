@@ -24,6 +24,9 @@ from apparatus_core.receipts import (
 
 GENERIC_EMAIL = "snapshots@apparatus.invalid"
 _SNAPSHOT_ID = re.compile(r"^[0-9a-fA-F]{4,64}$")
+_RECEIPT_OWNERSHIP_NAME = re.compile(
+    r"^\.apparatus-receipt-[0-9a-f]+\.tmp$"
+)
 
 
 class SnapshotError(RuntimeError):
@@ -59,6 +62,15 @@ class SnapshotResult:
     no_changes: bool = False
 
 
+@dataclass(frozen=True)
+class SnapshotTransientPath:
+    """One invocation-owned path omitted from durable snapshot state."""
+
+    relative: Path
+    device: int
+    inode: int
+
+
 class SnapshotTransaction:
     """A prepared snapshot whose visible state can be accepted or rolled back."""
 
@@ -70,6 +82,7 @@ class SnapshotTransaction:
         previous_head: str | None = None,
         prepared_head: str | None = None,
         receipt: ReceiptPublication | None = None,
+        transient_paths: tuple[SnapshotTransientPath, ...] = (),
         run: Callable[..., Any] = subprocess.run,
     ) -> None:
         self.workspace = workspace
@@ -77,13 +90,29 @@ class SnapshotTransaction:
         self.previous_head = previous_head
         self.prepared_head = prepared_head
         self.receipt = receipt
+        self.transient_paths = transient_paths
         self.run = run
         self.closed = False
+        self.settled = False
 
-    def commit(self) -> SnapshotResult:
-        """Keep the prepared snapshot."""
+    def validate_receipt(self) -> None:
+        """Confirm that the retained snapshot receipt proof is still exact."""
         if self.closed:
-            return self.result
+            raise SnapshotError("The prepared snapshot is no longer active.")
+        if self.receipt is not None:
+            try:
+                self.receipt.validate()
+            except OSError as error:
+                raise SnapshotError(
+                    "The prepared snapshot receipt changed during backup export."
+                ) from error
+
+    def settle(self) -> None:
+        """Validate and retain the prepared receipt while keeping rollback proof."""
+        if self.closed:
+            raise SnapshotError("The prepared snapshot is no longer active.")
+        if self.settled:
+            return
         if self.receipt is not None:
             try:
                 self.receipt.commit()
@@ -91,6 +120,14 @@ class SnapshotTransaction:
                 raise SnapshotError(
                     "The prepared snapshot receipt could not be retained safely."
                 ) from error
+        self.settled = True
+
+    def commit(self) -> SnapshotResult:
+        """Keep the prepared snapshot."""
+        if self.closed:
+            return self.result
+        self.settle()
+        if self.receipt is not None:
             self.receipt.close()
         self.closed = True
         return self.result
@@ -280,8 +317,9 @@ def _run_git_with_environment(
 
 def _captured_tree(
     workspace: Path,
-    capture: Callable[[Path], None],
+    capture: Callable[[Path, tuple[SnapshotTransientPath, ...]], None],
     *,
+    transient_paths: tuple[SnapshotTransientPath, ...] = (),
     run: Callable[..., Any],
 ) -> str:
     """Build a tree from caller-validated bytes without touching the caller's index."""
@@ -292,7 +330,7 @@ def _captured_tree(
         transaction_root = Path(temporary)
         content = transaction_root / "content"
         content.mkdir()
-        capture(content)
+        capture(content, transient_paths)
         environment = _git_environment()
         environment.update(
             {
@@ -304,14 +342,32 @@ def _captured_tree(
         _require_success(
             _run_git_with_environment(workspace, ["read-tree", "--empty"], environment, run=run)
         )
-        _require_success(
-            _run_git_with_environment(
-                workspace,
-                ["add", "--all", "--force", "--", "."],
-                environment,
-                run=run,
+        for path in sorted(content.rglob("*")):
+            value = path.lstat()
+            if path.is_symlink() or not (path.is_dir() or path.is_file()):
+                raise SnapshotError(
+                    "Snapshots could not be completed for this workspace."
+                )
+            if path.is_dir():
+                continue
+            relative = path.relative_to(content).as_posix()
+            identifier = _require_success(
+                _run_git_with_environment(
+                    workspace,
+                    ["hash-object", "-w", "--no-filters", "--", str(path)],
+                    environment,
+                    run=run,
+                )
+            ).strip()
+            mode = "100755" if value.st_mode & 0o111 else "100644"
+            _require_success(
+                _run_git_with_environment(
+                    workspace,
+                    ["update-index", "--add", "--cacheinfo", mode, identifier, relative],
+                    environment,
+                    run=run,
+                )
             )
-        )
         return _require_success(
             _run_git_with_environment(workspace, ["write-tree"], environment, run=run)
         ).strip()
@@ -377,11 +433,58 @@ def _write_owned_snapshot_receipt(
         raise SnapshotReceiptError("Snapshot receipt could not be written.") from error
 
 
+def _snapshot_receipt_transient_paths(
+    workspace: Path,
+    receipt: ReceiptPublication,
+) -> tuple[SnapshotTransientPath, ...]:
+    """Locate the landed POSIX writer's exact, temporary ownership link."""
+    if os.name != "posix":
+        return ()
+    try:
+        receipt.validate()
+        receipt_path = receipt.path
+        relative = receipt_path.relative_to(workspace)
+        if relative.parent != Path("System/receipts"):
+            raise SnapshotReceiptError(
+                "Snapshot receipt was not written in the receipts folder."
+            )
+        receipt_status = receipt_path.lstat()
+        aliases: list[SnapshotTransientPath] = []
+        for name in os.listdir(receipt_path.parent):
+            if not _RECEIPT_OWNERSHIP_NAME.fullmatch(name):
+                continue
+            candidate = receipt_path.parent / name
+            candidate_status = candidate.lstat()
+            if (candidate_status.st_dev, candidate_status.st_ino) == (
+                receipt_status.st_dev,
+                receipt_status.st_ino,
+            ):
+                aliases.append(
+                    SnapshotTransientPath(
+                        candidate.relative_to(workspace),
+                        candidate_status.st_dev,
+                        candidate_status.st_ino,
+                    )
+                )
+        receipt.validate()
+    except SnapshotReceiptError:
+        raise
+    except (OSError, ValueError) as error:
+        raise SnapshotReceiptError(
+            "Snapshot receipt ownership could not be isolated."
+        ) from error
+    if len(aliases) != 1:
+        raise SnapshotReceiptError(
+            "Snapshot receipt ownership could not be isolated."
+        )
+    return tuple(aliases)
+
+
 def prepare_snapshot(
     workspace: str | Path,
     *,
     label: str,
-    capture: Callable[[Path], None],
+    capture: Callable[[Path, tuple[SnapshotTransientPath, ...]], None],
     run: Callable[..., Any] = subprocess.run,
     write: ReceiptWriter = write_receipt,
 ) -> SnapshotTransaction:
@@ -401,6 +504,7 @@ def prepare_snapshot(
         )
 
     receipt: ReceiptPublication | None = None
+    transient_paths: tuple[SnapshotTransientPath, ...] = ()
     prepared_head: str | None = None
     published_head: str | None = None
     try:
@@ -409,7 +513,14 @@ def prepare_snapshot(
             root,
             _snapshot_receipt_fields(label),
         )
-        tree = _captured_tree(root, capture, run=run)
+        transient_paths = _snapshot_receipt_transient_paths(root, receipt)
+        tree = _captured_tree(
+            root,
+            capture,
+            transient_paths=transient_paths,
+            run=run,
+        )
+        receipt.validate()
         arguments = ["-c", "commit.gpgsign=false", "commit-tree", tree, "-m", label]
         if previous_head is not None:
             arguments.extend(["-p", previous_head])
@@ -425,6 +536,7 @@ def prepare_snapshot(
             previous_head=previous_head,
             prepared_head=prepared_head,
             receipt=receipt,
+            transient_paths=transient_paths,
             run=run,
         )
     except Exception:
@@ -434,6 +546,7 @@ def prepare_snapshot(
             previous_head=previous_head,
             prepared_head=published_head,
             receipt=receipt,
+            transient_paths=transient_paths,
             run=run,
         )
         transaction.rollback()
