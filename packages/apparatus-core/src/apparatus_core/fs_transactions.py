@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import os
 import secrets
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,615 @@ def exchange_names(parent: int, first: str, second: str) -> None:
     if result != 0:
         error = ctypes.get_errno()
         raise OSError(error, os.strerror(error))
+
+
+@dataclass(frozen=True)
+class PosixIdentity:
+    """Stable POSIX identity used by containment-safe workspace operations."""
+
+    device: int
+    inode: int
+    size: int
+    modified_ns: int
+
+
+@dataclass
+class PosixOwnedFile:
+    """An exact invocation-owned file retained through its parent directory."""
+
+    relative: Path
+    parent: int
+    name: str
+    identity: PosixIdentity
+    content: bytes
+
+    def close(self) -> None:
+        if self.parent >= 0:
+            os.close(self.parent)
+            self.parent = -1
+
+
+@dataclass
+class PosixOwnedDirectory:
+    """An exact invocation-owned empty directory."""
+
+    relative: Path
+    parent: int
+    name: str
+    device: int
+    inode: int
+
+    def close(self) -> None:
+        if self.parent >= 0:
+            os.close(self.parent)
+            self.parent = -1
+
+
+@dataclass
+class PosixReplacementTransaction:
+    """One conditional replacement retaining its exact rollback copy."""
+
+    anchor: PosixWorkspaceAnchor
+    target: PosixOwnedFile
+    backup: PosixOwnedFile
+    finished: bool = False
+
+    def rollback(self) -> None:
+        if self.finished:
+            return
+        # Rollback is deliberately rooted in the retained parent descriptor.
+        # Even when the visible workspace path was substituted, removing or
+        # exchanging only the exact invocation-owned objects is still safe.
+        if not self.anchor._matches(
+            self.target.parent,
+            self.target.name,
+            self.target.identity,
+            self.target.content,
+        ) or not self.anchor._matches(
+            self.backup.parent,
+            self.backup.name,
+            self.backup.identity,
+            self.backup.content,
+        ):
+            raise OSError("workspace replacement changed before rollback")
+        exchange_names(self.target.parent, self.target.name, self.backup.name)
+        if not self.anchor._matches(
+            self.target.parent,
+            self.target.name,
+            self.backup.identity,
+            self.backup.content,
+        ):
+            raise OSError("workspace replacement rollback could not be verified")
+        self.anchor._unlink_at_owned(
+            self.backup.parent,
+            self.backup.name,
+            self.target.identity,
+            self.target.content,
+        )
+        self.finished = True
+
+    def commit(self) -> None:
+        if self.finished:
+            return
+        self.validate_commit()
+        self.discard_backup()
+
+    def discard_backup(self) -> None:
+        if self.finished:
+            return
+        self.anchor._unlink_at_owned(
+            self.backup.parent,
+            self.backup.name,
+            self.backup.identity,
+            self.backup.content,
+        )
+        self.finished = True
+
+    def validate_commit(self) -> None:
+        if self.finished:
+            return
+        if (
+            not self.anchor.matches_owned(self.target)
+            or not self.anchor.matches_owned(self.backup)
+            or not self.anchor._parent_is_current(
+                self.target.relative, self.target.parent
+            )
+        ):
+            raise OSError("workspace replacement changed before completion")
+
+    def close(self) -> None:
+        self.target.close()
+        self.backup.close()
+
+
+def _posix_directory_flags() -> int:
+    if (
+        not hasattr(os, "O_DIRECTORY")
+        or not hasattr(os, "O_NOFOLLOW")
+        or os.open not in os.supports_dir_fd
+        or os.stat not in os.supports_dir_fd
+        or os.unlink not in os.supports_dir_fd
+    ):
+        raise OSError("safe descriptor-relative workspace operations are unavailable")
+    return os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+
+def _posix_identity(status_value: os.stat_result) -> PosixIdentity:
+    return PosixIdentity(
+        status_value.st_dev,
+        status_value.st_ino,
+        status_value.st_size,
+        status_value.st_mtime_ns,
+    )
+
+
+def _open_posix_absolute_directory(path: Path) -> int:
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    if not absolute.is_absolute() or not absolute.anchor:
+        raise OSError("workspace path must be absolute")
+    current = os.open(absolute.anchor, _posix_directory_flags())
+    try:
+        for part in absolute.parts[1:]:
+            following = os.open(part, _posix_directory_flags(), dir_fd=current)
+            os.close(current)
+            current = following
+        return current
+    except Exception:
+        os.close(current)
+        raise
+
+
+class PosixWorkspaceAnchor:
+    """Workspace operations rooted at one no-follow POSIX descriptor chain."""
+
+    def __init__(self, workspace: Path):
+        self.workspace = Path(os.path.abspath(os.fspath(workspace)))
+        self._root = _open_posix_absolute_directory(self.workspace)
+        status_value = os.fstat(self._root)
+        self._root_identity = (status_value.st_dev, status_value.st_ino)
+        if not self.root_is_current():
+            self.close()
+            raise OSError("workspace root changed while it was anchored")
+
+    def close(self) -> None:
+        if self._root >= 0:
+            os.close(self._root)
+            self._root = -1
+
+    def __enter__(self) -> PosixWorkspaceAnchor:  # noqa: PYI034
+        return self
+
+    def __exit__(self, _kind: object, _value: object, _traceback: object) -> None:
+        self.close()
+
+    def root_is_current(self) -> bool:
+        current = -1
+        try:
+            current = _open_posix_absolute_directory(self.workspace)
+            status_value = os.fstat(current)
+            return (status_value.st_dev, status_value.st_ino) == self._root_identity
+        except OSError:
+            return False
+        finally:
+            if current >= 0:
+                os.close(current)
+
+    @staticmethod
+    def _parts(relative: str | Path) -> tuple[str, ...]:
+        path = Path(relative)
+        if (
+            path.is_absolute()
+            or not path.parts
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
+            raise OSError("workspace operation path is not safely relative")
+        return path.parts
+
+    def _parent(self, relative: str | Path) -> tuple[int, str]:
+        parts = self._parts(relative)
+        current = os.dup(self._root)
+        try:
+            for part in parts[:-1]:
+                following = os.open(part, _posix_directory_flags(), dir_fd=current)
+                os.close(current)
+                current = following
+            return current, parts[-1]
+        except Exception:
+            os.close(current)
+            raise
+
+    def open_directory(self, relative: str | Path) -> int:
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent, name = self._parent(relative)
+        try:
+            descriptor = os.open(name, _posix_directory_flags(), dir_fd=parent)
+        finally:
+            os.close(parent)
+        if not self.root_is_current():
+            os.close(descriptor)
+            raise OSError("workspace root changed")
+        return descriptor
+
+    def require_directory(self, relative: str | Path) -> None:
+        descriptor = self.open_directory(relative)
+        os.close(descriptor)
+
+    def directory_exists(self, relative: str | Path) -> bool:
+        try:
+            descriptor = self.open_directory(relative)
+        except FileNotFoundError:
+            return False
+        else:
+            os.close(descriptor)
+            return True
+
+    @staticmethod
+    def _read_at(parent: int, name: str) -> tuple[bytes, PosixIdentity]:
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent)
+        try:
+            before = os.fstat(descriptor)
+            if not stat.S_ISREG(before.st_mode):
+                raise OSError("workspace file is not a regular file")
+            chunks: list[bytes] = []
+            while True:
+                chunk = os.read(descriptor, 65_536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            after = os.fstat(descriptor)
+            if _posix_identity(before) != _posix_identity(after):
+                raise OSError("workspace file changed while it was read")
+            content = b"".join(chunks)
+            if len(content) != after.st_size:
+                raise OSError("workspace file changed while it was read")
+            return content, _posix_identity(after)
+        finally:
+            os.close(descriptor)
+
+    def read_file(self, relative: str | Path) -> tuple[bytes, PosixIdentity]:
+        owned = self.capture_file(relative)
+        try:
+            return owned.content, owned.identity
+        finally:
+            owned.close()
+
+    @staticmethod
+    def _write_at(
+        parent: int, name: str, content: bytes, mode: int
+    ) -> PosixIdentity:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        descriptor = os.open(name, flags, mode, dir_fd=parent)
+        opened_identity: PosixIdentity | None = None
+        try:
+            opened_identity = _posix_identity(os.fstat(descriptor))
+            view = memoryview(content)
+            written = 0
+            while written < len(view):
+                count = os.write(descriptor, view[written:])
+                if count <= 0:
+                    raise OSError("workspace content could not be written")
+                written += count
+            os.fsync(descriptor)
+            return _posix_identity(os.fstat(descriptor))
+        except Exception:
+            try:
+                if opened_identity is not None:
+                    current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                    if (current.st_dev, current.st_ino) == (
+                        opened_identity.device,
+                        opened_identity.inode,
+                    ):
+                        os.unlink(name, dir_fd=parent)
+            except OSError:
+                pass
+            raise
+        finally:
+            os.close(descriptor)
+
+    def create_file(
+        self,
+        relative: str | Path,
+        content: bytes,
+        mode: int = 0o600,
+        *,
+        owned_parent: PosixOwnedDirectory | None = None,
+    ) -> PosixOwnedFile:
+        del owned_parent
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent, name = self._parent(relative)
+        try:
+            identity_value = self._write_at(parent, name, content, mode)
+            owned = PosixOwnedFile(
+                Path(relative), parent, name, identity_value, content
+            )
+            if not self._parent_is_current(owned.relative, parent):
+                self._unlink_at_owned(parent, name, identity_value, content)
+                raise OSError("workspace destination detached during creation")
+            return owned
+        except Exception:
+            os.close(parent)
+            raise
+
+    def create_directory(self, relative: str | Path) -> PosixOwnedDirectory:
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent, name = self._parent(relative)
+        try:
+            os.mkdir(name, 0o700, dir_fd=parent)
+            descriptor = os.open(name, _posix_directory_flags(), dir_fd=parent)
+            try:
+                status_value = os.fstat(descriptor)
+            finally:
+                os.close(descriptor)
+            owned = PosixOwnedDirectory(
+                Path(relative),
+                parent,
+                name,
+                status_value.st_dev,
+                status_value.st_ino,
+            )
+            if not self._parent_is_current(owned.relative, parent):
+                self.remove_owned_directory(owned)
+                raise OSError("workspace directory detached during creation")
+            return owned
+        except Exception:
+            os.close(parent)
+            raise
+
+    def entry_exists(self, relative: str | Path) -> bool:
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent, name = self._parent(relative)
+        try:
+            try:
+                os.stat(name, dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                return False
+            return True
+        finally:
+            os.close(parent)
+
+    def _matches(
+        self,
+        parent: int,
+        name: str,
+        identity: PosixIdentity,
+        content: bytes,
+    ) -> bool:
+        try:
+            current_content, current_identity = self._read_at(parent, name)
+        except OSError:
+            return False
+        return current_identity == identity and current_content == content
+
+    def matches_owned(self, owned: PosixOwnedFile) -> bool:
+        return (
+            self.root_is_current()
+            and self._parent_is_current(owned.relative, owned.parent)
+            and self._matches(
+                owned.parent, owned.name, owned.identity, owned.content
+            )
+        )
+
+    def capture_file(self, relative: str | Path) -> PosixOwnedFile:
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent, name = self._parent(relative)
+        try:
+            content, identity_value = self._read_at(parent, name)
+            owned = PosixOwnedFile(
+                Path(relative), parent, name, identity_value, content
+            )
+            if not self._parent_is_current(owned.relative, parent):
+                raise OSError("workspace source detached while it was read")
+            return owned
+        except Exception:
+            os.close(parent)
+            raise
+
+    def unlink_owned(self, owned: PosixOwnedFile) -> None:
+        # Cleanup uses the retained parent and exact identity/content. It must
+        # remain available after a path substitution so a failed transaction
+        # does not strand an invocation-owned artifact.
+        self._unlink_at_owned(
+            owned.parent, owned.name, owned.identity, owned.content
+        )
+
+    def _unlink_at_owned(
+        self,
+        parent: int,
+        name: str,
+        identity_value: PosixIdentity,
+        content: bytes,
+    ) -> None:
+        if not self._matches(parent, name, identity_value, content):
+            raise OSError("owned workspace file changed before cleanup")
+        os.unlink(name, dir_fd=parent)
+
+    def remove_owned_directory(self, owned: PosixOwnedDirectory) -> None:
+        status_value = os.stat(
+            owned.name, dir_fd=owned.parent, follow_symlinks=False
+        )
+        if (status_value.st_dev, status_value.st_ino) != (
+            owned.device,
+            owned.inode,
+        ):
+            raise OSError("owned workspace directory changed before cleanup")
+        os.rmdir(owned.name, dir_fd=owned.parent)
+
+    def _parent_is_current(self, relative: str | Path, parent: int) -> bool:
+        current = -1
+        try:
+            if not self.root_is_current():
+                return False
+            current, _name = self._parent(relative)
+            current_status = os.fstat(current)
+            retained_status = os.fstat(parent)
+            return (current_status.st_dev, current_status.st_ino) == (
+                retained_status.st_dev,
+                retained_status.st_ino,
+            )
+        except OSError:
+            return False
+        finally:
+            if current >= 0:
+                os.close(current)
+
+    def replace_if_unchanged(
+        self,
+        relative: str | Path,
+        expected_identity: PosixIdentity,
+        expected_content: bytes,
+        replacement: bytes,
+    ) -> PosixReplacementTransaction:
+        parent, name = self._parent(relative)
+        return self._replace_at(
+            Path(relative),
+            parent,
+            name,
+            expected_identity,
+            expected_content,
+            replacement,
+        )
+
+    def _replace_at(
+        self,
+        relative: Path,
+        parent: int,
+        name: str,
+        expected_identity: PosixIdentity,
+        expected_content: bytes,
+        replacement: bytes,
+    ) -> PosixReplacementTransaction:
+        temporary = f".apparatus-memory-{secrets.token_hex(16)}.tmp"
+        temporary_created = False
+        keep_parent = False
+        replacement_identity: PosixIdentity | None = None
+        try:
+            if not self._parent_is_current(relative, parent):
+                raise OSError("workspace destination detached before replacement")
+            if not self._matches(parent, name, expected_identity, expected_content):
+                raise OSError("workspace file changed after replacement planning")
+            status_value = os.stat(name, dir_fd=parent, follow_symlinks=False)
+            if not stat.S_ISREG(status_value.st_mode):
+                raise OSError("workspace file changed after replacement planning")
+            mode = stat.S_IMODE(status_value.st_mode)
+            replacement_identity = self._write_at(
+                parent, temporary, replacement, mode
+            )
+            temporary_created = True
+            if not self._matches(parent, name, expected_identity, expected_content):
+                raise OSError("workspace file changed after replacement planning")
+            if not self._parent_is_current(relative, parent):
+                raise OSError("workspace destination detached before replacement")
+            exchange_names(parent, temporary, name)
+            new_content, new_identity = self._read_at(parent, name)
+            backup_content, backup_identity = self._read_at(parent, temporary)
+            if (
+                new_identity != replacement_identity
+                or new_content != replacement
+                or backup_identity != expected_identity
+                or backup_content != expected_content
+                or not self._parent_is_current(relative, parent)
+            ):
+                if new_identity == replacement_identity and new_content == replacement:
+                    exchange_names(parent, temporary, name)
+                raise OSError("workspace file changed at conditional publication")
+            target = PosixOwnedFile(
+                relative, parent, name, replacement_identity, replacement
+            )
+            backup = PosixOwnedFile(
+                relative,
+                os.dup(parent),
+                temporary,
+                backup_identity,
+                backup_content,
+            )
+            temporary_created = False
+            keep_parent = True
+            transaction = PosixReplacementTransaction(self, target, backup)
+            if not self._parent_is_current(relative, parent):
+                transaction.rollback()
+                transaction.close()
+                raise OSError("workspace destination detached after replacement")
+            return transaction
+        finally:
+            if temporary_created:
+                try:
+                    current_content, current_identity = self._read_at(parent, name)
+                    backup_content, backup_identity = self._read_at(parent, temporary)
+                    if (
+                        replacement_identity is not None
+                        and current_identity == replacement_identity
+                        and current_content == replacement
+                        and backup_identity == expected_identity
+                        and backup_content == expected_content
+                    ):
+                        exchange_names(parent, temporary, name)
+                except OSError:
+                    pass
+            if temporary_created:
+                try:
+                    if replacement_identity is not None:
+                        self._unlink_at_owned(
+                            parent, temporary, replacement_identity, replacement
+                        )
+                except OSError:
+                    pass
+            if not keep_parent:
+                os.close(parent)
+
+    def list_files(
+        self,
+        relative: str | Path,
+        *,
+        suffix: str | None = None,
+        include_hidden: bool = True,
+    ) -> list[Path]:
+        root_relative = Path(relative)
+        descriptor = self.open_directory(root_relative)
+        found: list[Path] = []
+
+        def inspect(current: int, current_relative: Path) -> None:
+            before = os.fstat(current)
+            for name in sorted(os.listdir(current)):
+                if not include_hidden and name.startswith("."):
+                    continue
+                status_value = os.stat(name, dir_fd=current, follow_symlinks=False)
+                child_relative = current_relative / name
+                if stat.S_ISLNK(status_value.st_mode):
+                    raise OSError("workspace traversal found a symbolic link")
+                if stat.S_ISDIR(status_value.st_mode):
+                    child = os.open(name, _posix_directory_flags(), dir_fd=current)
+                    try:
+                        inspect(child, child_relative)
+                    finally:
+                        os.close(child)
+                elif stat.S_ISREG(status_value.st_mode):
+                    if suffix is None or name.endswith(suffix):
+                        found.append(child_relative)
+                else:
+                    raise OSError("workspace traversal found an unsupported file type")
+            after = os.fstat(current)
+            if (before.st_dev, before.st_ino, before.st_mtime_ns) != (
+                after.st_dev,
+                after.st_ino,
+                after.st_mtime_ns,
+            ):
+                raise OSError("workspace directory changed during traversal")
+
+        try:
+            inspect(descriptor, root_relative)
+        finally:
+            os.close(descriptor)
+        if not self.root_is_current():
+            raise OSError("workspace root changed during traversal")
+        return found
+
+    def list_memory_records(self, relative: str | Path) -> list[Path]:
+        return self.list_files(relative, suffix=".md", include_hidden=False)
 
 
 # Windows has no directory-fd API.  The backend below retains a no-reparse
@@ -343,6 +953,28 @@ def _win_create_directory(path: Path) -> bool:
     raise _win_error("safe receipt directory could not be created")
 
 
+def _win_open_absolute_directory_chain(path: Path) -> tuple[int, list[int]]:
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    if not absolute.is_absolute() or not absolute.anchor:
+        raise OSError("workspace path must be absolute")
+    current_path = Path(absolute.anchor)
+    current = _win_open(current_path, directory=True)
+    ancestors: list[int] = []
+    try:
+        for part in absolute.parts[1:]:
+            following_path = current_path / part
+            following = _win_open(following_path, directory=True)
+            ancestors.append(current)
+            current = following
+            current_path = following_path
+        return current, ancestors
+    except Exception:
+        _win_close(current)
+        for handle in reversed(ancestors):
+            _win_close(handle)
+        raise
+
+
 def _safe_parts(relative: str | Path) -> tuple[str, ...]:
     path = Path(relative)
     if (
@@ -361,6 +993,24 @@ class WindowsOwnedFile:
     path: Path
     identity: WindowsIdentity
     content: bytes
+    handle: int
+    parent_shares_delete: bool = False
+
+    def close(self) -> None:
+        if self.handle >= 0:
+            _win_close(self.handle)
+            self.handle = -1
+        if self.parent >= 0:
+            _win_close(self.parent)
+            self.parent = -1
+
+
+@dataclass
+class WindowsOwnedDirectory:
+    relative: Path
+    parent: int
+    path: Path
+    identity: WindowsIdentity
     handle: int
 
     def close(self) -> None:
@@ -439,10 +1089,14 @@ class WindowsWorkspaceAnchor:
     """Containment-safe Windows workspace backend using retained Win32 handles."""
 
     def __init__(self, workspace: Path):
-        self.workspace = workspace
-        self._root = _win_open(workspace, directory=True)
+        self.workspace = Path(os.path.abspath(os.fspath(workspace)))
+        self._root, self._chain_handles = _win_open_absolute_directory_chain(
+            self.workspace
+        )
         self._root_identity = _win_identity(self._root)
-        self._chain_handles: list[int] = []
+        if not self.root_is_current():
+            self.close()
+            raise OSError("workspace root changed while it was anchored")
 
     def __enter__(self) -> WindowsWorkspaceAnchor:  # noqa: PYI034
         return self
@@ -458,16 +1112,48 @@ class WindowsWorkspaceAnchor:
             _win_close(self._root)
             self._root = -1
 
-    def _directory(self, relative: str | Path) -> tuple[Path, int]:
+    def root_is_current(self) -> bool:
+        current = -1
+        ancestors: list[int] = []
+        try:
+            current, ancestors = _win_open_absolute_directory_chain(self.workspace)
+            return _same_windows_object(
+                _win_identity(current), self._root_identity
+            )
+        except OSError:
+            return False
+        finally:
+            _win_close(current)
+            for handle in reversed(ancestors):
+                _win_close(handle)
+
+    def _directory(
+        self,
+        relative: str | Path,
+        *,
+        final_shares_delete: bool = False,
+    ) -> tuple[Path, int]:
         current_path = self.workspace
         current = -1
         try:
-            if not _same_windows_object(_win_identity(self._root), self._root_identity):
+            if not self.root_is_current() or not _same_windows_object(
+                _win_identity(self._root), self._root_identity
+            ):
                 raise OSError("workspace root changed")
             parts = _safe_parts(relative)
-            for part in parts:
+            for index, part in enumerate(parts):
                 following_path = current_path / part
-                following = _win_open(following_path, directory=True)
+                # A newly invocation-owned directory retains a separate handle
+                # that denies delete sharing. Its child-operation aliases must
+                # share delete so they remain compatible with that owner's
+                # DELETE access; the retained owner still locks the name.
+                following = _win_open(
+                    following_path,
+                    directory=True,
+                    lock_name=not (
+                        final_shares_delete and index == len(parts) - 1
+                    ),
+                )
                 if current >= 0:
                     self._chain_handles.append(current)
                 current = following
@@ -477,7 +1163,12 @@ class WindowsWorkspaceAnchor:
             _win_close(current)
             raise
 
-    def _parent(self, relative: str | Path) -> tuple[Path, int, str]:
+    def _parent(
+        self,
+        relative: str | Path,
+        *,
+        parent_shares_delete: bool = False,
+    ) -> tuple[Path, int, str]:
         parts = _safe_parts(relative)
         if len(parts) == 1:
             parent_path = self.workspace
@@ -486,12 +1177,24 @@ class WindowsWorkspaceAnchor:
                 _win_close(parent)
                 raise OSError("workspace root changed")
             return parent_path, parent, parts[0]
-        parent_path, parent = self._directory(Path(*parts[:-1]))
+        parent_path, parent = self._directory(
+            Path(*parts[:-1]),
+            final_shares_delete=parent_shares_delete,
+        )
         return parent_path, parent, parts[-1]
 
     def require_directory(self, relative: str | Path) -> None:
         _path, handle = self._directory(relative)
         _win_close(handle)
+
+    def directory_exists(self, relative: str | Path) -> bool:
+        try:
+            _path, handle = self._directory(relative)
+        except FileNotFoundError:
+            return False
+        else:
+            _win_close(handle)
+            return True
 
     @staticmethod
     def _read_locked(path: Path) -> tuple[bytes, WindowsIdentity, int]:
@@ -512,29 +1215,62 @@ class WindowsWorkspaceAnchor:
             raise
 
     def read_file(self, relative: str | Path) -> tuple[bytes, WindowsIdentity]:
-        parent_path, parent, name = self._parent(relative)
+        owned = self.capture_file(relative)
         try:
-            content, identity, handle = self._read_locked(parent_path / name)
-            _win_close(handle)
-            return content, identity
+            return owned.content, owned.identity
         finally:
-            _win_close(parent)
+            owned.close()
 
-    def _parent_is_current(self, relative: Path, parent: int) -> bool:
+    def _parent_is_current(
+        self,
+        relative: Path,
+        parent: int,
+        *,
+        parent_shares_delete: bool = False,
+    ) -> bool:
         current = -1
         try:
-            _path, current, _name = self._parent(relative)
-            return _same_windows_object(_win_identity(current), _win_identity(parent))
+            if not self.root_is_current():
+                return False
+            _path, current, _name = self._parent(
+                relative,
+                parent_shares_delete=parent_shares_delete,
+            )
+            return _same_windows_object(
+                _win_identity(current), _win_identity(parent)
+            )
         except OSError:
             return False
         finally:
             _win_close(current)
 
     def create_file(
-        self, relative: str | Path, content: bytes, mode: int = 0o600
+        self,
+        relative: str | Path,
+        content: bytes,
+        mode: int = 0o600,
+        *,
+        owned_parent: WindowsOwnedDirectory | None = None,
     ) -> WindowsOwnedFile:
         del mode
-        parent_path, parent, name = self._parent(relative)
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent_shares_delete = owned_parent is not None
+        if owned_parent is not None and (
+            Path(relative).parent != owned_parent.relative
+            or owned_parent.handle < 0
+            or not _same_windows_object(
+                _win_identity(owned_parent.handle), owned_parent.identity
+            )
+            or not self._parent_is_current(
+                owned_parent.relative, owned_parent.parent
+            )
+        ):
+            raise OSError("invocation-owned parent directory changed")
+        parent_path, parent, name = self._parent(
+            relative,
+            parent_shares_delete=parent_shares_delete,
+        )
         path = parent_path / name
         handle = verification = -1
         identity: WindowsIdentity | None = None
@@ -550,10 +1286,20 @@ class WindowsWorkspaceAnchor:
             if current_identity != identity or current != content:
                 raise OSError("Memory record changed during creation")
             owned = WindowsOwnedFile(
-                Path(relative), parent, path, identity, content, verification
+                Path(relative),
+                parent,
+                path,
+                identity,
+                content,
+                verification,
+                parent_shares_delete,
             )
             verification = -1
-            if not self._parent_is_current(Path(relative), parent):
+            if not self._parent_is_current(
+                Path(relative),
+                parent,
+                parent_shares_delete=parent_shares_delete,
+            ):
                 self.unlink_owned(owned)
                 raise OSError("Memory destination detached during creation")
             return owned
@@ -591,13 +1337,77 @@ class WindowsWorkspaceAnchor:
             _win_close(parent)
             raise
 
+    def create_directory(self, relative: str | Path) -> WindowsOwnedDirectory:
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent_path, parent, name = self._parent(relative)
+        path = parent_path / name
+        handle = -1
+        try:
+            if not _win_create_directory(path):
+                raise FileExistsError("workspace directory already exists")
+            handle = _win_open(path, directory=True, delete_access=True)
+            owned = WindowsOwnedDirectory(
+                Path(relative), parent, path, _win_identity(handle), handle
+            )
+            handle = -1
+            if not self._parent_is_current(Path(relative), parent):
+                self.remove_owned_directory(owned)
+                owned.close()
+                parent = -1
+                raise OSError("workspace directory detached during creation")
+            return owned
+        except Exception:
+            if handle >= 0:
+                try:
+                    _win_delete_handle(handle)
+                except OSError:
+                    pass
+                _win_close(handle)
+            _win_close(parent)
+            raise
+
+    def entry_exists(self, relative: str | Path) -> bool:
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
+        parent_path, parent, name = self._parent(relative)
+        handle = -1
+        path = parent_path / name
+        try:
+            try:
+                handle = _win_open(path, directory=False, lock_name=False)
+            except FileNotFoundError:
+                try:
+                    handle = _win_open(path, directory=True)
+                except FileNotFoundError:
+                    return False
+            return True
+        except OSError as error:
+            # Reparse points and unexpected object types still occupy the
+            # name and therefore collide with an exclusive egress output.
+            try:
+                os.lstat(path)
+            except OSError:
+                raise error
+            return True
+        finally:
+            _win_close(handle)
+            _win_close(parent)
+
     def capture_file(self, relative: str | Path) -> WindowsOwnedFile:
+        if not self.root_is_current():
+            raise OSError("workspace root changed")
         parent_path, parent, name = self._parent(relative)
         try:
             content, identity, handle = self._read_locked(parent_path / name)
-            return WindowsOwnedFile(
+            owned = WindowsOwnedFile(
                 Path(relative), parent, parent_path / name, identity, content, handle
             )
+            if not self._parent_is_current(Path(relative), parent):
+                owned.close()
+                parent = -1
+                raise OSError("workspace source detached while it was read")
+            return owned
         except Exception:
             _win_close(parent)
             raise
@@ -625,8 +1435,33 @@ class WindowsWorkspaceAnchor:
         )
 
     def unlink_owned(self, owned: WindowsOwnedFile) -> None:
-        if not self._matches_owned(owned):
+        # The retained handle identifies and write-locks the exact object. It
+        # is safe to delete that object even if its visible path was swapped.
+        if owned.handle < 0 or _win_identity(owned.handle) != owned.identity:
             raise OSError("owned workspace file changed before cleanup")
+        _win_delete_handle(owned.handle)
+        _win_close(owned.handle)
+        owned.handle = -1
+
+    def matches_owned(self, owned: WindowsOwnedFile) -> bool:
+        return (
+            self.root_is_current()
+            and self._parent_is_current(
+                owned.relative,
+                owned.parent,
+                parent_shares_delete=owned.parent_shares_delete,
+            )
+            and self._matches_owned(owned)
+        )
+
+    def remove_owned_directory(self, owned: WindowsOwnedDirectory) -> None:
+        if (
+            owned.handle < 0
+            or not _same_windows_object(
+                _win_identity(owned.handle), owned.identity
+            )
+        ):
+            raise OSError("owned workspace directory changed before cleanup")
         _win_delete_handle(owned.handle)
         _win_close(owned.handle)
         owned.handle = -1
@@ -797,7 +1632,13 @@ class WindowsWorkspaceAnchor:
             _win_close(parent)
             raise
 
-    def list_memory_records(self, relative: str | Path) -> list[Path]:
+    def list_files(
+        self,
+        relative: str | Path,
+        *,
+        suffix: str | None = None,
+        include_hidden: bool = True,
+    ) -> list[Path]:
         root_relative = Path(relative)
         root_path, root_handle = self._directory(root_relative)
         found: list[Path] = []
@@ -805,7 +1646,7 @@ class WindowsWorkspaceAnchor:
         def inspect(path: Path, handle: int, current_relative: Path) -> None:
             before = _win_identity(handle)
             for entry in sorted(os.scandir(path), key=lambda item: item.name):
-                if entry.name.startswith("."):
+                if not include_hidden and entry.name.startswith("."):
                     continue
                 child_relative = current_relative / entry.name
                 if entry.is_symlink():
@@ -817,7 +1658,7 @@ class WindowsWorkspaceAnchor:
                     finally:
                         _win_close(child)
                 elif entry.is_file(follow_symlinks=False):
-                    if entry.name.endswith(".md"):
+                    if suffix is None or entry.name.endswith(suffix):
                         found.append(child_relative)
                 else:
                     raise OSError("Memory sweep found an unsupported file type")
@@ -828,7 +1669,26 @@ class WindowsWorkspaceAnchor:
             inspect(root_path, root_handle, root_relative)
         finally:
             _win_close(root_handle)
+        if not self.root_is_current():
+            raise OSError("workspace root changed during traversal")
         return found
+
+    def list_memory_records(self, relative: str | Path) -> list[Path]:
+        return self.list_files(relative, suffix=".md", include_hidden=False)
+
+
+if os.name == "nt":  # pragma: no cover - selected by native Windows CI
+    WorkspaceAnchor = WindowsWorkspaceAnchor
+    WorkspaceIdentity = WindowsIdentity
+    OwnedFile = WindowsOwnedFile
+    OwnedDirectory = WindowsOwnedDirectory
+    ReplacementTransaction = WindowsReplacementTransaction
+else:
+    WorkspaceAnchor = PosixWorkspaceAnchor
+    WorkspaceIdentity = PosixIdentity
+    OwnedFile = PosixOwnedFile
+    OwnedDirectory = PosixOwnedDirectory
+    ReplacementTransaction = PosixReplacementTransaction
 
 
 def windows_publish_receipt(

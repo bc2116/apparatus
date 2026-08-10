@@ -22,6 +22,7 @@ python3 conformance/payload_check.py
 |---|---|---|
 | `golden/payload-manifest.txt` | The exact file set of `starter/payload/` against `docs/spec/workspace.md` | PR-03 |
 | `golden/records/` | One valid example per record kind against `docs/spec/records.md` and `apparatus_core.records` | PR-04 |
+| `golden/egress/` | Byte-exact sensitive-content redaction and value-free findings summary | PR-18 |
 
 ## The rule
 

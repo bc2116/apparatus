@@ -17,6 +17,7 @@ ap = "apparatus_core.cli:main"
 [project.entry-points."apparatus.commands"]
 check = "apparatus_core.commands.check:register"
 doctor = "apparatus_core.commands.doctor:register"
+egress = "apparatus_core.commands.egress:register"
 init = "apparatus_core.commands.init:register"
 library = "apparatus_core.commands.library:register"
 memory = "apparatus_core.commands.memory:register"

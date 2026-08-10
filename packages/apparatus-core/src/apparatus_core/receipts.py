@@ -27,6 +27,15 @@ def _filename(now: datetime, event: str, collision: int) -> str:
     return f"{stem}{suffix}.md"
 
 
+def receipt_filename(now: datetime, event: str, collision: int = 1) -> str:
+    """Return the canonical receipt filename for a prepared UTC instant."""
+    if event not in records.RECEIPT_EVENTS:
+        raise ValueError(f"unknown receipt event: {event!r}")
+    if collision < 1:
+        raise ValueError("receipt collision number must be positive")
+    return _filename(now, event, collision)
+
+
 def _render(event: str, timestamp: str, fields: Mapping[str, Any]) -> str:
     protected = {"schema", "event", "timestamp"}
     attempted_overrides = protected.intersection(fields)
@@ -60,6 +69,21 @@ def _render(event: str, timestamp: str, fields: Mapping[str, Any]) -> str:
         + body.rstrip()
         + "\n"
     )
+
+
+def prepare_receipt(
+    event: str,
+    fields: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
+) -> tuple[datetime, bytes]:
+    """Render one receipt for transaction-aware callers without publishing it."""
+    if event not in records.RECEIPT_EVENTS:
+        raise ValueError(f"unknown receipt event: {event!r}")
+    instant = _utcnow() if now is None else now.astimezone(timezone.utc).replace(
+        microsecond=0
+    )
+    return instant, _render(event, _timestamp(instant), fields).encode("utf-8")
 
 
 def _directory_flags() -> int:
@@ -250,10 +274,7 @@ def _publish_receipt(
 
 def write_receipt(workspace: str | Path, event: str, fields: Mapping[str, Any]) -> Path:
     """Atomically publish one unique receipt and return its workspace path."""
-    if event not in records.RECEIPT_EVENTS:
-        raise ValueError(f"unknown receipt event: {event!r}")
-    now = _utcnow()
-    content = _render(event, _timestamp(now), fields).encode("utf-8")
+    now, content = prepare_receipt(event, fields)
     workspace_path = Path(os.path.abspath(os.fspath(workspace)))
     try:
         if workspace_path.is_symlink() or not workspace_path.is_dir():

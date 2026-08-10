@@ -18,14 +18,40 @@ intent: Use when the user wants to create a finished file for a defined purpose.
    section it supports. Distinguish source-backed facts from assumptions and
    mark unresolved uncertainty plainly.
 6. Compare the draft with every part of the agreed definition of done. Show the
-   user any unmet part and revise only with the user's direction.
+   user any unmet part and revise only with the user's direction. Before the
+   next `[share]` step, name the intended recipient, path, or service as
+   `TARGET` and run
+   `apparatus egress check WORKSPACE DRAFT-FILE --destination TARGET` with the
+   explicit workspace path and draft file; omit `--destination` only when the
+   destination is genuinely unknown. Do not pass `--decision` on this initial
+   inspection. Show the user every finding, redacted-copy offer, and unavailable
+   copy, then ask for exactly one fresh choice: use the redacted copy, send the
+   original, or stop. Rerun the same check with the same destination and
+   `--decision use-redacted`, `--decision send-original`, or `--decision stop`
+   only after that choice. Proceed to sharing only when the decision-bearing
+   check exits successfully and records pre-share authorization. A stop or
+   refusal means do not share. After a credential refusal, ask again; only a
+   new explicit `use-redacted` choice and fresh successful check may proceed.
 7. [share] Treat an email, update, submission, or other primary content intended to be
    sent as a draft meant to leave the workspace. Keep that requested work
    itself in `Projects/`, hand it to the user, and do not file it in
    `Deliverables/`; the assistant never sends, posts, or submits anything
    itself.
 8. If the primary requested work is not intended to be sent, file the finished
-   version in `Deliverables/` when the user agrees it is finished.
+   version in `Deliverables/` when the user agrees it is finished. Before the
+   next `[share]` step for an accompanying draft, name its intended recipient,
+   path, or service as `TARGET` and run
+   `apparatus egress check WORKSPACE DRAFT-FILE --destination TARGET`; omit
+   `--destination` only when the destination is genuinely unknown. Do not pass
+   `--decision` on this initial inspection. Show the user every finding,
+   redacted-copy offer, and unavailable copy, then ask for exactly one fresh
+   choice: use the redacted copy, send the original, or stop. Rerun the same
+   check with the same destination and `--decision use-redacted`,
+   `--decision send-original`, or `--decision stop` only after that choice.
+   Proceed to sharing only when the decision-bearing check exits successfully
+   and records pre-share authorization. A stop or refusal means do not share.
+   After a credential refusal, ask again; only a new explicit `use-redacted`
+   choice and fresh successful check may proceed.
 9. [share] If there is an accompanying email, update, or submission, keep it as
    a draft in `Projects/` and hand it to the user.
 10. If there is a related goal, update its record. Set it to `done` only when its

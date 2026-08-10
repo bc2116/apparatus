@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 import pytest
-from apparatus_core import records
+from apparatus_core import fs_transactions, records
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import memory
 from apparatus_core.labeler import split_record_exact
@@ -443,7 +443,7 @@ def test_sweep_atomic_exchange_restores_an_edit_injected_at_publication(
         b"---\nschema: apparatus/fact@v0\ntitle: Publication race\n---\n"
         b"Concurrent publication edit."
     )
-    original = memory.exchange_names
+    original = fs_transactions.exchange_names
     injected = False
 
     def edit_at_exchange(parent, first, second):
@@ -458,7 +458,7 @@ def test_sweep_atomic_exchange_restores_an_edit_injected_at_publication(
                 os.close(descriptor)
         original(parent, first, second)
 
-    monkeypatch.setattr(memory, "exchange_names", edit_at_exchange)
+    monkeypatch.setattr(fs_transactions, "exchange_names", edit_at_exchange)
     args = argparse.Namespace(workspace=str(workspace), memory_action="label")
     assert memory.run(args) == 2
     assert fact.read_bytes() == concurrent
@@ -475,7 +475,7 @@ def test_post_exchange_failure_restores_original_before_returning_two(
         b"password=sample-only"
     )
     fact.write_bytes(original_content)
-    original = memory.exchange_names
+    original = fs_transactions.exchange_names
     failed = False
 
     def exchange_then_fail(parent, first, second):
@@ -485,7 +485,7 @@ def test_post_exchange_failure_restores_original_before_returning_two(
             failed = True
             raise OSError("fictional post-exchange verification failure")
 
-    monkeypatch.setattr(memory, "exchange_names", exchange_then_fail)
+    monkeypatch.setattr(fs_transactions, "exchange_names", exchange_then_fail)
     args = argparse.Namespace(workspace=str(workspace), memory_action="label")
     assert memory.run(args) == 2
     assert fact.read_bytes() == original_content
