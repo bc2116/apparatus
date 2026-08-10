@@ -215,6 +215,50 @@ def test_source_capture_rejects_file_replacement_without_publishing(
     assert "could not safely capture starter payload tree" in capsys.readouterr().err
 
 
+@pytest.mark.skipif(os.name != "nt", reason="native Windows source-identity coverage")
+def test_source_capture_rejects_windows_regular_file_aba_without_publishing(
+    monkeypatch, tmp_path, capsys
+):
+    repo = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "starter", repo / "starter")
+    source = repo / "starter" / "payload" / "Welcome.md"
+    detached = source.with_name("Welcome-detached.md")
+    outside = tmp_path / "outside.txt"
+    original_content = source.read_bytes()
+    outside_content = b"B" * len(original_content)
+    outside.write_bytes(outside_content)
+    original_capture = builder.WorkspaceAnchor.capture_file
+    swapped = False
+
+    def capture_during_aba(anchor, relative):
+        nonlocal swapped
+        if Path(relative) == Path("payload/Welcome.md") and not swapped:
+            swapped = True
+            source.rename(detached)
+            outside.rename(source)
+            owned = original_capture(anchor, relative)
+            source.rename(outside)
+            detached.rename(source)
+            return owned
+        return original_capture(anchor, relative)
+
+    monkeypatch.setattr(builder.WorkspaceAnchor, "capture_file", capture_during_aba)
+    output = tmp_path / "out"
+    original_build = builder.build_payload
+    monkeypatch.setattr(
+        builder,
+        "build_payload",
+        lambda out, version=None: original_build(out, version=version, repo_root=repo),
+    )
+
+    assert builder.main(["--out", str(output), "--version", "source-aba"]) == 2
+    assert swapped
+    assert not output.exists()
+    assert source.read_bytes() == original_content
+    assert outside.read_bytes() == outside_content
+    assert "could not safely capture starter payload tree" in capsys.readouterr().err
+
+
 def test_source_capture_rejects_directory_replacement_before_descent(
     monkeypatch, tmp_path, capsys
 ):

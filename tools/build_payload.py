@@ -217,6 +217,7 @@ def _capture_source_files(root: Path, archive_root: str) -> tuple[tuple[str, byt
                         or is_reparse_path(source)
                         or _stat_identity(before) != _stat_identity(after)
                         or not posix_identity_matches
+                        or not anchor.matches_owned(owned)
                         or len(owned.content) != before.st_size
                     ):
                         raise OSError("starter source changed while it was captured")
