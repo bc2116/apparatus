@@ -622,7 +622,8 @@ def test_windows_writer_lock_rejects_reparse_endpoint(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(index.time, "sleep", lambda _seconds: pytest.fail("reparse endpoint must not retry"))
     with pytest.raises(index.IndexError, match="writer lock is not private"):
-        index.refresh(cache, workspace)
+        with index._windows_writer_lock(lock):
+            pass
 
 
 def test_windows_writer_lock_retries_only_transient_regular_metadata(monkeypatch, tmp_path):
