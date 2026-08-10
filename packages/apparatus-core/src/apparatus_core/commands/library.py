@@ -10,9 +10,15 @@ from typing import Any
 import unicodedata
 
 from apparatus_core.cache import library_cache_root
+from apparatus_core.features import (
+    FeatureProfileError,
+    enabled as feature_enabled,
+    off_receipt_fields,
+)
 from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.library.ingest import ingest_library
 from apparatus_core.library import index
+from apparatus_core.receipts import write_receipt
 
 
 def register(subparsers: Any) -> None:
@@ -39,6 +45,23 @@ def run(args: argparse.Namespace) -> int:
         print("library ingest: workspace path is not a directory")
         return 2
     try:
+        feature_is_enabled = feature_enabled(workspace, "library_indexing")
+    except FeatureProfileError as error:
+        print(f"library ingest: {_safe(str(error))}")
+        return 2
+    if not feature_is_enabled:
+        try:
+            write_receipt(
+                workspace,
+                "library-ingest",
+                off_receipt_fields("library indexing", operation="Library ingest"),
+            )
+        except (OSError, ValueError):
+            print("library ingest: could not record that this feature is off")
+            return 2
+        print("This feature is off; say the word and I'll enable it.")
+        return 1
+    try:
         result = ingest_library(workspace)
     except ValueError as error:
         print(f"library ingest: {_safe(str(error))}")
@@ -63,6 +86,23 @@ def run_search(args: argparse.Namespace) -> int:
     if args.limit < 1:
         print("library search: --limit must be positive")
         return 2
+    try:
+        feature_is_enabled = feature_enabled(workspace, "library_indexing")
+    except FeatureProfileError as error:
+        print(f"library search: {_safe(str(error))}")
+        return 2
+    if not feature_is_enabled:
+        try:
+            write_receipt(
+                workspace,
+                "library-ingest",
+                off_receipt_fields("library indexing", operation="Library search"),
+            )
+        except (OSError, ValueError):
+            print("library search: could not record that this feature is off")
+            return 2
+        print("This feature is off; say the word and I'll enable it.")
+        return 1
     try:
         rules = load_ignore_rules(workspace).require_valid()
         cache = library_cache_root(workspace)

@@ -39,6 +39,7 @@ class _CorruptDatabaseError(IndexError):
 
 _DATABASE_FDS: dict[int, int] = {}
 _DATABASE_HANDLES: dict[int, int] = {}
+_WINDOWS_LOCK_METADATA_RETRIES = 3
 
 
 @dataclass(frozen=True)
@@ -734,6 +735,7 @@ def _windows_writer_lock(lock: Path):
     """Acquire a no-reparse, name-locked writer lock on Windows."""
     handle = -1
     identity: tuple[int, int] | None = None
+    unsafe_metadata_attempts = 0
     try:
         for _attempt in range(500):
             try:
@@ -750,8 +752,21 @@ def _windows_writer_lock(lock: Path):
                     status = os.lstat(lock)
                 except OSError as error:
                     raise IndexError("Library index writer lock could not be inspected") from error
-                if not _private_regular(status) or is_reparse_path(lock):
+                if is_reparse_path(lock):
                     raise IndexError("Library index writer lock is not private")
+                # A concurrent Win32 creator can expose the name before its
+                # final metadata is observable. Retry only a bounded number
+                # of regular-but-not-yet-private observations; a directory,
+                # device, or persistent unsafe endpoint is not a writer.
+                if not stat.S_ISREG(status.st_mode):
+                    raise IndexError("Library index writer lock is not private")
+                if not _private_regular(status):
+                    unsafe_metadata_attempts += 1
+                    if unsafe_metadata_attempts >= _WINDOWS_LOCK_METADATA_RETRIES:
+                        raise IndexError("Library index writer lock is not private")
+                    time.sleep(0.01)
+                    continue
+                unsafe_metadata_attempts = 0
                 time.sleep(0.01)
         else:
             raise IndexError("Library index is busy")

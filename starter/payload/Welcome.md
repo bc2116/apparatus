@@ -31,16 +31,17 @@ language. It knows how this workspace is organized and follows its rules.
    quietly labeled as they're saved, and if something containing them is about
    to leave the workspace, you'll be shown exactly what — with a cleaned copy
    offered. Passwords and keys are never stored, period.
-3. **You can't break anything.** The workspace takes snapshots as you work.
-   If something goes wrong, ask your assistant to go back to an earlier
-   snapshot.
+3. **You can't break anything.** When snapshots are on, the workspace saves
+   snapshots as you work. If something goes wrong, ask your assistant to go
+   back to an earlier snapshot.
 
 ## Getting started
 
 Just say hello. If this workspace is new, your assistant will ask you a few
 questions about your work — what you do, who you work with, what you're working
-on now — and set the workspace up around your answers. You can redo this any
-time by saying "re-run my setup interview."
+on now — and set the workspace up around your answers. The features you choose
+are never permanent: re-run my setup interview or just ask your assistant to
+change them any time.
 
 Then try it: ask for something real. *"Summarize the document I just put in the
 Library"* or *"help me plan this week"* are good first requests.

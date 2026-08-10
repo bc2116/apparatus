@@ -71,7 +71,7 @@ on every commit.
 | 26 | [Installer wrapper and signed artifacts](PR-26-installer-wrapper.md) | 5 | ready | 22, 23 |
 | 27 | [Model and spend guidance v1](PR-27-model-spend-guidance.md) | 1 | ✅ landed | 04 |
 | 28 | [Workspace ignore rules v1](PR-28-workspace-ignore-rules.md) | 4 | ✅ landed | 09, 14, 15, 16, 18 |
-| 29 | [First-run feature selection](PR-29-first-run-feature-selection.md) | 4 | ready | 17, 27, 28 |
+| 29 | [First-run feature selection](PR-29-first-run-feature-selection.md) | 4 | ✅ landed | 17, 27, 28 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`.

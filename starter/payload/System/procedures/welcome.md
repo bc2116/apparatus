@@ -21,6 +21,21 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
    - Which lowercase weekday should be the weekly review day?
    - Which spend level should guide your assistant: `frugal`, `balanced`, or
      `thorough`?
+   After the interview questions, offer these setup choices in this order. For
+   each, state the current valid value as the default and say: "you can change
+   this any time by asking me." If there is no valid current value, use the
+   product fallback shown below. Ask only for a change the user wants;
+   otherwise retain the current value:
+   - `library_indexing` (default `true`): lets the assistant extract, index,
+     and recall sources in `Library/`.
+   - `snapshots` (default `true`): saves workspace snapshots so the user can
+     return to an earlier version.
+   - `ignore_rules` (default `true`): applies `System/ignore` to Library
+     machinery; built-in OS-noise defaults always stay active.
+   - Privacy mode (default `standard`): `standard` labels personal details;
+     `private` does not keep them in durable Memory.
+   - Spend level (default `balanced`): chooses how much model capability and
+     cost the assistant applies.
 3. Summarize the answers in plain language and ask the user to correct or
    confirm them before writing files. For any skipped question, retain the
    current valid value from `System/profile.yaml`; if it is missing or invalid,
@@ -29,8 +44,9 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
    durable temporary file and never in command arguments. Keep
    `schema: apparatus/profile@v0`, set `status: configured`, write `key_people`
    as `{name, role, organization}` entries, `current_efforts` as
-   `{title, done_when, next_action}` entries, and `source_locations` as plain
-   language strings. Keep the current valid value of any skipped answer.
+   `{title, done_when, next_action}` entries, `source_locations` as plain
+   language strings, and `features` with all three named selections. Keep the
+   current valid value of any skipped answer.
 5. From the workspace, provide that YAML to `apparatus profile apply --stdin`
    through standard input. This applies the credential floor before the
    answers reach durable files, deploys the selected profile overlay, and adds

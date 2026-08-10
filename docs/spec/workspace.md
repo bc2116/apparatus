@@ -66,6 +66,12 @@ normative in `docs/spec/records.md`, machine-readable in
 | `System/ignore` | PR-28 | Workspace-relative rules that hide selected paths from Library machinery and record checks; they never change egress or credential redaction. |
 | Workspace instruction canon and shims | now (PR-07) | `AGENTS.md` canon at the workspace root plus `CLAUDE.md`, `.cursor/rules/apparatus.mdc`, and `.github/copilot-instructions.md` shims (ADR-0003). |
 
+### Bootstrapper handoff seam
+
+The bootstrapper's closing message directs a new user to the welcome
+conversation for feature choices. The bootstrapper does not choose features;
+the conversation records them in `System/profile.yaml` and they can change later.
+
 ## Placement on disk
 
 - Windows default: `C:\Projects\Apparatus` (or the equivalent on the best data

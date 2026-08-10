@@ -96,6 +96,13 @@ have landed, matching `docs/plan/README.md`.
 
 ## Open decisions
 
+- **Disabled Library-search receipt.** The v1 receipt event enum is closed and
+  normal Library search has no receipt. Smallest reversible default: a disabled
+  Library-search control outcome writes the existing `library-ingest` event,
+  with `Operation: Library search.` in its body. This records the Library
+  indexing feature outcome without adding an event; normal search remains
+  receipt-free.
+
 - **Presentation order.** Smallest reversible default: interview questions
   first, then feature selection, so job-function context can inform the
   explanations.
