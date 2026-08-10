@@ -59,7 +59,7 @@ on every commit.
 | 14 | [Library ingest and text extraction](PR-14-library-ingest.md) | 3 | ✅ landed | 09 |
 | 15 | [Library local search index](PR-15-library-index.md) | 3 | ✅ landed | 14 |
 | 16 | [recall with citations](PR-16-recall.md) | 3 | ✅ landed | 15 |
-| 17 | [Interview wired to profile deployment](PR-17-interview-profiles.md) | 4 | ✅ landed | 11, 12, 27 |
+| 17 | [Interview wired to profile deployment](PR-17-interview-profiles.md) | 4 | blocked — operator review required | 11, 12, 27 |
 | 18 | [Egress gate v1](PR-18-egress-gate.md) | 4 | ✅ landed | 12 |
 | 19 | [Welcome flow end-to-end](PR-19-welcome-e2e.md) | 4 | ready | 17, 18, 16 |
 | 20 | [Universal payload builder](PR-20-payload-builder.md) | 5 | ready | 13, 19 |
