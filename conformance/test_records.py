@@ -209,6 +209,21 @@ def test_profile_review_day_key_must_be_present_even_when_null():
     assert any("review_day" in p for p in records.validate("profile", data))
 
 
+def test_profile_spend_accepts_only_canonical_values_and_is_optional():
+    assert records.SPEND_LEVELS == ("frugal", "balanced", "thorough")
+    data = yaml.safe_load(SHIPPED_PROFILE.read_text(encoding="utf-8"))
+    for spend in records.SPEND_LEVELS:
+        data["spend"] = spend
+        assert records.validate("profile", data) == []
+
+    data["spend"] = "cheap"
+    problems = records.validate("profile", data)
+    assert any("spend must be one of frugal, balanced, thorough" in problem for problem in problems)
+
+    del data["spend"]
+    assert records.validate("profile", data) == []
+
+
 def test_kebab_filename_rule():
     data = {"schema": "apparatus/fact@v0", "title": "t"}
     assert records.validate("fact", data, filename="ok-name-2.md") == []

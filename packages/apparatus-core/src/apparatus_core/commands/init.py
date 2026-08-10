@@ -102,6 +102,7 @@ def _profile_data(
         "privacy_mode": mode,
         "work_types": list(normalized_types),
         "review_day": existing["review_day"] if existing is not None else None,
+        "spend": existing.get("spend", "balanced") if existing is not None else "balanced",
     }
     problems = records.validate("profile", profile, filename="profile.yaml")
     if problems:

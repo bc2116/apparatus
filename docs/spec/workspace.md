@@ -58,6 +58,7 @@ normative in `docs/spec/records.md`, machine-readable in
 |---|---|---|
 | `System/README.md` | now | Explains the machinery folder to a curious human. |
 | `System/profile.yaml` | now (unconfigured) | The profile: interview answers, privacy mode, selected procedures. |
+| `System/guidance/` | now (PR-27) | Assistant-readable model capability, effort, and spend-level guidance. |
 | `System/procedures/` | now (PR-05) | Five starter procedure records: `welcome.md`, `produce-deliverable.md`, `research-and-summarize.md`, `review-against-checklist.md`, and `weekly-review.md`. |
 | `System/policy/` | now (PR-06) | Both policy overlays ship; `System/profile.yaml`'s `privacy_mode` selects the active one. |
 | `System/receipts/` | now (PR-05); PR-09 machinery | The assistant writes receipts from the first procedure run; CLI machinery also writes them from PR-09. |

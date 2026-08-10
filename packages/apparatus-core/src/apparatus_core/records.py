@@ -29,6 +29,7 @@ RECEIPT_EVENTS: tuple[str, ...] = (
 GOAL_STATUSES: tuple[str, ...] = ("active", "waiting", "done", "dropped")
 PROFILE_STATUSES: tuple[str, ...] = ("unconfigured", "configured")
 PRIVACY_MODES: tuple[str, ...] = ("standard", "private")
+SPEND_LEVELS: tuple[str, ...] = ("frugal", "balanced", "thorough")
 REVIEW_DAYS: tuple[str, ...] = (
     "monday",
     "tuesday",
@@ -99,8 +100,12 @@ SCHEMAS: dict[str, RecordSchema] = {
     "profile": RecordSchema(
         kind="profile",
         required=("schema", "status", "privacy_mode", "work_types", "review_day"),
-        optional=(),
-        enums={"status": PROFILE_STATUSES, "privacy_mode": PRIVACY_MODES},
+        optional=("spend",),
+        enums={
+            "status": PROFILE_STATUSES,
+            "privacy_mode": PRIVACY_MODES,
+            "spend": SPEND_LEVELS,
+        },
         filename_rule="fixed name: profile.yaml",
         filename_pattern=re.compile(r"^profile\.yaml$"),
         markdown_body=False,
