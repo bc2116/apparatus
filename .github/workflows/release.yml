@@ -111,6 +111,7 @@ jobs:
     needs: [build, publish-pypi]
     if: >-
       always() && github.event_name == 'push' &&
+      needs.build.result == 'success' &&
       (needs.build.outputs.dry_run == 'true' || needs.publish-pypi.result == 'success')
     runs-on: ubuntu-latest
     permissions:
@@ -124,6 +125,7 @@ jobs:
       - name: Create release and attach files
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.build.outputs.version }}
           DRY_RUN: ${{ needs.build.outputs.dry_run }}
         run: |
@@ -133,6 +135,7 @@ jobs:
             prerelease=(--prerelease)
           fi
           gh release create "v${VERSION}" \
+            --repo "$GH_REPO" \
             --title "v${VERSION}" \
             --notes-file "release-files/release-notes.md" \
             "${prerelease[@]}" \

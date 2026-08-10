@@ -27,16 +27,19 @@ def test_release_workflow_keeps_dispatch_and_publishing_separate() -> None:
     assert "token" not in str(action).lower()
     release = workflow["jobs"]["github-release"]
     assert release["permissions"] == {"contents": "write"}
+    assert "needs.build.result == 'success'" in release["if"]
     assert "needs.publish-pypi.result == 'success'" in release["if"]
     assert "needs.build.outputs.dry_run == 'true'" in release["if"]
     release_step = release["steps"][-1]
     assert "uses" not in release_step
     assert release_step["env"] == {
         "GH_TOKEN": "${{ github.token }}",
+        "GH_REPO": "${{ github.repository }}",
         "VERSION": "${{ needs.build.outputs.version }}",
         "DRY_RUN": "${{ needs.build.outputs.dry_run }}",
     }
     assert "gh release create" in release_step["run"]
+    assert '--repo "$GH_REPO"' in release_step["run"]
 
 
 def test_release_workflow_builds_and_attaches_every_release_file() -> None:
@@ -103,3 +106,93 @@ def test_release_metadata_does_not_prefix_match_changelog_versions(tmp_path: Pat
     assert "Release date:" in notes
     assert "Update CHANGELOG.md" in notes
     assert "Other notes." not in notes
+
+
+def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path: Path) -> None:
+    workflow = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    release_step = workflow["jobs"]["github-release"]["steps"][-1]
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    captured = tmp_path / "gh-arguments"
+    fake_gh = fake_bin / "gh"
+    fake_gh.write_text(
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$GH_ARGUMENTS\"\n",
+        encoding="utf-8",
+    )
+    fake_gh.chmod(0o755)
+    release_files = tmp_path / "release-files" / "packages"
+    release_files.mkdir(parents=True)
+    for relative_path in (
+        "release-notes.md",
+        "apparatus-payload-0.0.1.zip",
+        "packages/apparatus_core-0.0.1.tar.gz",
+        "packages/apparatus_core-0.0.1-py3-none-any.whl",
+    ):
+        path = tmp_path / "release-files" / relative_path
+        path.write_text("test", encoding="utf-8")
+
+    repository = "owner/repository; touch should-not-exist"
+    environment = {
+        **os.environ,
+        "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+        "GH_ARGUMENTS": str(captured),
+        "GH_REPO": repository,
+        "GH_TOKEN": "test-token",
+        "VERSION": "0.0.1",
+        "DRY_RUN": "true",
+    }
+    subprocess.run(
+        ["bash", "-c", release_step["run"]],
+        cwd=tmp_path,
+        env=environment,
+        check=True,
+    )
+
+    arguments = captured.read_text(encoding="utf-8").splitlines()
+    assert arguments[:5] == ["release", "create", "v0.0.1", "--repo", repository]
+    assert not (tmp_path / "should-not-exist").exists()
+
+
+def _github_release_is_eligible(
+    *, build_result: str, dry_run: str, publish_result: str, event: str = "push"
+) -> bool:
+    workflow = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    expression = workflow["jobs"]["github-release"]["if"]
+    substitutions = {
+        "always()": True,
+        "github.event_name == 'push'": event == "push",
+        "needs.build.result == 'success'": build_result == "success",
+        "needs.build.outputs.dry_run == 'true'": dry_run == "true",
+        "needs.publish-pypi.result == 'success'": publish_result == "success",
+    }
+    for term, value in substitutions.items():
+        expression = expression.replace(term, str(value))
+    expression = expression.replace("&&", " and ").replace("||", " or ")
+    assert not any(character not in "TrueFalsandor ()" for character in expression)
+    return bool(eval(expression, {"__builtins__": {}}, {}))
+
+
+def test_github_release_requires_a_successful_build_for_every_path() -> None:
+    assert not _github_release_is_eligible(
+        build_result="failure", dry_run="true", publish_result="skipped"
+    )
+    assert not _github_release_is_eligible(
+        build_result="failure", dry_run="false", publish_result="success"
+    )
+    assert _github_release_is_eligible(
+        build_result="success", dry_run="true", publish_result="skipped"
+    )
+    assert _github_release_is_eligible(
+        build_result="success", dry_run="false", publish_result="success"
+    )
+    assert not _github_release_is_eligible(
+        build_result="success", dry_run="false", publish_result="failure"
+    )
