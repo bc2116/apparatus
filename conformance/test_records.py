@@ -220,6 +220,10 @@ def test_profile_spend_accepts_only_canonical_values_and_is_optional():
     problems = records.validate("profile", data)
     assert any("spend must be one of frugal, balanced, thorough" in problem for problem in problems)
 
+    data["spend"] = None
+    problems = records.validate("profile", data)
+    assert any("spend must be one of frugal, balanced, thorough" in problem for problem in problems)
+
     del data["spend"]
     assert records.validate("profile", data) == []
 

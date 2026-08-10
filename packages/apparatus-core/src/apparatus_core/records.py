@@ -191,8 +191,14 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
         problems.append(f"schema must be {expected_schema!r}, found {data['schema']!r}")
 
     for name, allowed in schema.enums.items():
-        value = data.get(name)
-        if value is not None and value not in allowed:
+        if name not in data:
+            continue
+        value = data[name]
+        # Required nulls already have the clearer required-field problem above.
+        # Optional enum keys may be omitted, but a present key must name a value.
+        if value is None and name in schema.required:
+            continue
+        if value not in allowed:
             problems.append(f"{name} must be one of {', '.join(allowed)}; found {value!r}")
 
     if "labels" in data and data["labels"] is not None and not _is_string_list(data["labels"]):
