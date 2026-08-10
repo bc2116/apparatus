@@ -31,9 +31,9 @@ language. It knows how this workspace is organized and follows its rules.
    quietly labeled as they're saved, and if something containing them is about
    to leave the workspace, you'll be shown exactly what — with a cleaned copy
    offered. Passwords and keys are never stored, period.
-3. **You can't break anything.** The workspace takes snapshots as you work.
-   If something goes wrong, ask your assistant to go back to an earlier
-   snapshot.
+3. **You can't break anything.** When snapshots are on, the workspace saves
+   snapshots as you work. If something goes wrong, ask your assistant to go
+   back to an earlier snapshot.
 
 ## Getting started
 

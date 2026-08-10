@@ -10,7 +10,11 @@ from typing import Any
 import unicodedata
 
 from apparatus_core import recall as recall_engine
-from apparatus_core.features import enabled as feature_enabled, off_receipt_fields
+from apparatus_core.features import (
+    FeatureProfileError,
+    enabled as feature_enabled,
+    off_receipt_fields,
+)
 from apparatus_core.ignore import IgnoreReport
 from apparatus_core.library import index
 from apparatus_core.receipts import write_receipt
@@ -58,7 +62,12 @@ def run(args: argparse.Namespace) -> int:
     if args.limit < 1:
         print("recall: --limit must be positive")
         return 2
-    if not feature_enabled(workspace, "library_indexing"):
+    try:
+        feature_is_enabled = feature_enabled(workspace, "library_indexing")
+    except FeatureProfileError as error:
+        print(f"recall: {_safe(str(error))}")
+        return 2
+    if not feature_is_enabled:
         try:
             write_receipt(
                 workspace, "recall", off_receipt_fields("library indexing")

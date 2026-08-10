@@ -30,6 +30,13 @@ Library search has no receipt event in the closed v1 receipt schema, so it
 reports the same count and provenance in command output instead. JSON search
 keeps stdout machine-readable and writes this report to stderr.
 
+**Feature-off control outcome.** When the profile safely and validly selects
+`library_indexing: false`, a requested `apparatus library search` is not normal
+search. It exits with the feature-off outcome and writes one `library-ingest`
+receipt because that existing event governs the Library indexing feature. The
+receipt body explicitly records `Operation: Library search.` No receipt event
+is added; normal search continues to have no receipt.
+
 ## File and supported syntax
 
 `System/ignore` has one pattern per line. Blank lines and lines beginning with

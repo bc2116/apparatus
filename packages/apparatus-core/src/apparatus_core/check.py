@@ -294,7 +294,7 @@ def check_workspace(
     """Check a workspace tree and its v0 records without changing it."""
     root = Path(workspace)
     findings: list[Finding] = []
-    rules = load_ignore_rules(root)
+    rules = load_ignore_rules(root, respect_feature=False)
     findings.extend(
         Finding(
             issue.code,

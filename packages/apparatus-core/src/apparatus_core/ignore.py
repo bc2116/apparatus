@@ -10,7 +10,7 @@ import re
 import stat
 
 from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
-from apparatus_core.features import enabled as feature_enabled
+from apparatus_core.features import FeatureProfileError, enabled as feature_enabled
 from apparatus_core.render import is_reparse_path
 
 
@@ -40,6 +40,7 @@ class IgnoreReport:
     file_present: bool = False
     user_patterns: int = 0
     valid: bool = True
+    user_rules_enabled: bool = True
 
     @property
     def skipped_paths(self) -> int:
@@ -49,6 +50,8 @@ class IgnoreReport:
     def provenance(self) -> str:
         if not self.valid:
             return "built-in defaults; System/ignore is invalid"
+        if not self.user_rules_enabled:
+            return "built-in defaults; user rules are off"
         if self.file_present:
             return (
                 "built-in defaults and System/ignore "
@@ -71,6 +74,7 @@ class IgnoreRules:
     issues: tuple[PatternIssue, ...]
     file_present: bool = False
     valid: bool = True
+    user_rules_enabled: bool = True
 
     def require_valid(self) -> IgnoreRules:
         """Return these rules or stop an ignore-aware content operation."""
@@ -113,20 +117,34 @@ class IgnoreRules:
             file_present=self.file_present,
             user_patterns=len(self.patterns),
             valid=self.valid,
+            user_rules_enabled=self.user_rules_enabled,
         )
 
 
-def load_ignore_rules(workspace: str | Path) -> IgnoreRules:
+def load_ignore_rules(
+    workspace: str | Path, *, respect_feature: bool = True
+) -> IgnoreRules:
     """Read ``System/ignore`` safely, distinguishing missing from invalid."""
     root = Path(workspace)
-    use_user_rules = feature_enabled(root, "ignore_rules")
     system = root / "System"
-    path = system / "ignore"
     if is_reparse_path(root) or is_reparse_path(system):
         return _invalid(
             "ignore-file-unsafe",
             "System/ignore must stay inside regular workspace directories, not symbolic links or reparse points.",
         )
+    if respect_feature:
+        try:
+            use_user_rules = feature_enabled(root, "ignore_rules")
+        except FeatureProfileError as error:
+            return _invalid("profile-invalid", str(error))
+    else:
+        # The check command is the repair path for an invalid profile and does
+        # not perform feature machinery mutations.
+        use_user_rules = True
+    if not use_user_rules:
+        # Do not inspect System/ignore at all while the user rules feature is off.
+        return IgnoreRules((), (), file_present=False, user_rules_enabled=False)
+    path = system / "ignore"
     try:
         status = os.lstat(path)
     except FileNotFoundError:
@@ -175,8 +193,6 @@ def load_ignore_rules(workspace: str | Path) -> IgnoreRules:
             )
         else:
             patterns.append(pattern)
-    if not use_user_rules:
-        return IgnoreRules((), (), file_present=True)
     return IgnoreRules(
         tuple(patterns), tuple(issues), file_present=True, valid=not issues
     )

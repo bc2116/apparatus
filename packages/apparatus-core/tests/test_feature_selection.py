@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,9 @@ from apparatus_core.commands import (
     profile as profile_command,
     recall,
     snapshot,
+    restore,
 )
+from apparatus_core import ignore
 from apparatus_core.ignore import load_ignore_rules
 
 
@@ -37,6 +40,11 @@ def _workspace(tmp_path: Path, **features: bool) -> Path:
 
 def _receipt_count(workspace: Path, event: str) -> int:
     return len(list((workspace / "System/receipts").glob(f"*-{event}*.md")))
+
+
+def _receipt(workspace: Path, event: str) -> tuple[dict, str]:
+    path = sorted((workspace / "System/receipts").glob(f"*-{event}*.md"))[-1]
+    return records.parse_record(path.read_text(encoding="utf-8"))
 
 
 def test_features_mapping_is_closed_and_absence_keeps_defaults(tmp_path):
@@ -86,6 +94,30 @@ def test_library_toggle_writes_receipt_and_reenable_preserves_content(tmp_path, 
             rebuild=False,
         )
     ) == 0
+    assert recall.run(
+        argparse.Namespace(
+            workspace=str(workspace), question="sample", limit=5, as_json=False
+        )
+    ) == 0
+
+
+def test_disabled_library_search_records_the_control_outcome_exactly(tmp_path, capsys):
+    workspace = _workspace(tmp_path, library_indexing=False)
+    capsys.readouterr()
+    assert library.run_search(
+        argparse.Namespace(
+            workspace=str(workspace), query="sample", limit=5, as_json=False, rebuild=True
+        )
+    ) == 1
+    assert capsys.readouterr().out == "This feature is off; say the word and I'll enable it.\n"
+    receipts = list((workspace / "System/receipts").glob("*.md"))
+    assert len(receipts) == 3  # init, unavailable snapshot, disabled control outcome
+    receipt, body = _receipt(workspace, "library-ingest")
+    assert receipt["schema"] == "apparatus/receipt@v0"
+    assert receipt["event"] == "library-ingest"
+    assert receipt["summary"] == "Library indexing is off."
+    assert body == "Operation: Library search.\nOutcome: this feature is off; say the word and I'll enable it."
+    assert receipt and _receipt(workspace, "library-ingest")[0]["event"] == "library-ingest"
 
 
 def test_snapshots_toggle_reports_and_reenable_runs(tmp_path, capsys):
@@ -101,16 +133,40 @@ def test_snapshots_toggle_reports_and_reenable_runs(tmp_path, capsys):
     assert "unavailable" in capsys.readouterr().out.lower()
 
 
+def test_disabled_restore_and_list_do_not_touch_snapshot_history(tmp_path, capsys):
+    workspace = _workspace(tmp_path, snapshots=False)
+    args = argparse.Namespace(workspace=str(workspace), snapshot_id=None, list=True)
+    assert restore.run(args) == 1
+    assert "feature is off" in capsys.readouterr().out
+    assert _receipt_count(workspace, "restore") == 1
+
+
 def test_ignore_toggle_keeps_built_ins_and_reenable_restores_user_matching(tmp_path):
     workspace = _workspace(tmp_path, ignore_rules=False)
     (workspace / "System/ignore").write_text("secret.txt\n", encoding="utf-8")
     rules = load_ignore_rules(workspace).require_valid()
     assert rules.matches("secret.txt") is False
     assert rules.matches(".DS_Store") is True
+    assert rules.report().provenance == "built-in defaults; user rules are off"
     profile = records.yaml.safe_load((workspace / "System/profile.yaml").read_text())
     profile["features"]["ignore_rules"] = True
     (workspace / "System/profile.yaml").write_text(records.yaml.safe_dump(profile, sort_keys=False))
     assert load_ignore_rules(workspace).require_valid().matches("secret.txt") is True
+
+
+@pytest.mark.parametrize("content", [b"!unsupported\n", b"\xff\n"])
+def test_disabled_ignore_rules_do_not_open_or_parse_the_user_file(tmp_path, monkeypatch, content):
+    workspace = _workspace(tmp_path, ignore_rules=False)
+    (workspace / "System/ignore").write_bytes(content)
+
+    def must_not_open(*_args, **_kwargs):
+        raise AssertionError("disabled user rules must not be opened")
+
+    monkeypatch.setattr(ignore, "_read_regular_file", must_not_open)
+    rules = load_ignore_rules(workspace).require_valid()
+    assert rules.matches("secret.txt") is False
+    assert rules.matches(".DS_Store") is True
+    assert rules.report().provenance == "built-in defaults; user rules are off"
 
 
 def test_profile_apply_keeps_feature_choices_idempotently(tmp_path):
@@ -138,3 +194,39 @@ def test_disabled_recall_writes_an_honest_receipt(tmp_path, capsys):
     assert recall.run(args) == 1
     assert "feature is off" in capsys.readouterr().out
     assert _receipt_count(workspace, "recall") == 1
+
+
+@pytest.mark.parametrize("profile_content", ["not: [valid", "[]\n", "features: false\n"])
+def test_invalid_profile_fails_closed_before_feature_machinery_mutates(
+    tmp_path, capsys, profile_content
+):
+    workspace = _workspace(tmp_path)
+    profile = workspace / "System/profile.yaml"
+    profile.write_text(profile_content, encoding="utf-8")
+    receipts_before = sorted((workspace / "System/receipts").glob("*.md"))
+    assert library.run(argparse.Namespace(workspace=str(workspace))) == 2
+    assert "profile" in capsys.readouterr().out
+    assert snapshot.run(argparse.Namespace(workspace=str(workspace), label=None)) == 2
+    assert "profile" in capsys.readouterr().out
+    assert sorted((workspace / "System/receipts").glob("*.md")) == receipts_before
+    with pytest.raises(ValueError, match="profile"):
+        load_ignore_rules(workspace).require_valid()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows link privilege is runner-dependent")
+def test_symlinked_profile_fails_closed_without_following_outside_control(tmp_path, capsys):
+    workspace = _workspace(tmp_path)
+    outside = tmp_path / "outside-profile.yaml"
+    outside.write_text(
+        "schema: apparatus/profile@v0\nstatus: unconfigured\nprivacy_mode: standard\n"
+        "work_types: []\nreview_day: null\nfeatures:\n  library_indexing: false\n"
+        "  snapshots: false\n  ignore_rules: false\n",
+        encoding="utf-8",
+    )
+    profile = workspace / "System/profile.yaml"
+    profile.unlink()
+    profile.symlink_to(outside)
+    receipts_before = sorted((workspace / "System/receipts").glob("*.md"))
+    assert library.run(argparse.Namespace(workspace=str(workspace))) == 2
+    assert "read safely" in capsys.readouterr().out
+    assert sorted((workspace / "System/receipts").glob("*.md")) == receipts_before

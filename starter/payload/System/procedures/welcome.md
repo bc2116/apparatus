@@ -22,9 +22,10 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
    - Which spend level should guide your assistant: `frugal`, `balanced`, or
      `thorough`?
    After the interview questions, offer these setup choices in this order. For
-   each, state the current value as the default and say: "you can change this
-   any time by asking me." Ask only for a change the user wants; otherwise
-   retain the current value:
+   each, state the current valid value as the default and say: "you can change
+   this any time by asking me." If there is no valid current value, use the
+   product fallback shown below. Ask only for a change the user wants;
+   otherwise retain the current value:
    - `library_indexing` (default `true`): lets the assistant extract, index,
      and recall sources in `Library/`.
    - `snapshots` (default `true`): saves workspace snapshots so the user can

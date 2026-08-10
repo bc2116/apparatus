@@ -42,3 +42,4 @@ jobs:
           packages/apparatus-core/tests/test_memory_commands.py::test_new_record_retries_suffix_when_exclusive_open_loses_a_race
           packages/apparatus-core/tests/test_interview_profiles.py
           conformance/test_welcome_e2e.py
+          packages/apparatus-core/tests/test_feature_selection.py

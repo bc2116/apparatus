@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core.receipts import write_receipt
-from apparatus_core.features import enabled as feature_enabled, off_receipt_fields
+from apparatus_core.features import (
+    FeatureProfileError,
+    enabled as feature_enabled,
+    off_receipt_fields,
+)
 from apparatus_core.snapshots import (
     SnapshotError,
     SnapshotReceiptError,
@@ -56,7 +60,12 @@ def run(
     workspace = _workspace_or_usage_error(args.workspace)
     if workspace is None:
         return 2
-    if not feature_enabled(workspace, "snapshots"):
+    try:
+        feature_is_enabled = feature_enabled(workspace, "snapshots")
+    except FeatureProfileError as error:
+        print(f"snapshot: {error}")
+        return 2
+    if not feature_is_enabled:
         try:
             write(workspace, "snapshot", off_receipt_fields("snapshots"))
         except (OSError, ValueError):
