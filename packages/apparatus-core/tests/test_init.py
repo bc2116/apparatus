@@ -498,7 +498,12 @@ def test_repair_receipt_lists_exact_sorted_changes_and_sync_note(tmp_path):
         _args(workspace), available=lambda: False, detect=lambda _path: sync
     ) == 0
     receipts = sorted((workspace / "System/receipts").glob("*-init*.md"))
-    repaired = next(path for path in receipts if "created Goals/" in path.read_text(encoding="utf-8"))
+    repaired = next(
+        path
+        for path in receipts
+        if "Sync redirection: Synthetic sync note."
+        in path.read_text(encoding="utf-8")
+    )
     _frontmatter, body = records.parse_record(repaired.read_text(encoding="utf-8"))
     assert body == "Changes:\n- created Goals/\n\nSync redirection: Synthetic sync note."
 
