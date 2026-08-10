@@ -12,6 +12,7 @@ import stat
 import zipfile
 from typing import Any, BinaryIO
 
+from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.receipts import (
     ReceiptInvocation,
     ReceiptPublication,
@@ -648,22 +649,28 @@ class _PosixDestinationAnchor:
         if _identity(current) != self.identity or not stat.S_ISDIR(current.st_mode):
             raise BackupError("Destination path changed during backup export.")
 
-    def require_outside(self, workspace: _PosixWorkspaceAnchor) -> None:
-        current = os.dup(self.handle)
+    def require_outside(
+        self,
+        workspace: _PosixWorkspaceAnchor,
+        *,
+        workspace_anchor: Any,
+        destination_anchor: Any,
+        changed: bool = False,
+    ) -> None:
+        if not workspace_anchor.matches_root_handle(
+            workspace.handle
+        ) or not destination_anchor.matches_root_handle(self.handle):
+            raise BackupError("Destination identity changed during backup export.")
         try:
-            while True:
-                current_status = os.fstat(current)
-                if _identity(current_status) == workspace.root_identity:
-                    raise BackupUsageError("destination must be outside the workspace")
-                parent = os.open("..", _posix_directory_flags(), dir_fd=current)
-                parent_status = os.fstat(parent)
-                if _identity(parent_status) == _identity(current_status):
-                    os.close(parent)
-                    return
-                os.close(current)
-                current = parent
-        finally:
-            os.close(current)
+            contained = workspace_anchor.contains_anchored_root(
+                destination_anchor
+            )
+        except OSError as error:
+            raise BackupError("Destination identity changed during backup export.") from error
+        if contained:
+            if changed:
+                raise BackupError("Destination moved into the workspace during backup export.")
+            raise BackupUsageError("destination must be outside the workspace")
 
     def allocate(self, timestamp: str) -> _PosixOwnedArchive:
         stem = f"apparatus-backup-{timestamp}"
@@ -1084,12 +1091,27 @@ class _WindowsDestinationAnchor:
         if _windows_final_path(self.handle) != self.final_path:
             raise BackupError("Destination path changed during backup export.")
 
-    def require_outside(self, workspace: _WindowsWorkspaceAnchor) -> None:
+    def require_outside(
+        self,
+        workspace: _WindowsWorkspaceAnchor,
+        *,
+        workspace_anchor: Any,
+        destination_anchor: Any,
+        changed: bool = False,
+    ) -> None:
+        if not workspace_anchor.matches_root_handle(
+            workspace.handle
+        ) or not destination_anchor.matches_root_handle(self.handle):
+            raise BackupError("Destination identity changed during backup export.")
         try:
-            common = os.path.commonpath([workspace.final_path, self.final_path])
-        except ValueError:
-            return
-        if os.path.normcase(common) == workspace.final_path:
+            contained = workspace_anchor.contains_anchored_root(
+                destination_anchor
+            )
+        except OSError as error:
+            raise BackupError("Destination identity changed during backup export.") from error
+        if contained:
+            if changed:
+                raise BackupError("Destination moved into the workspace during backup export.")
             raise BackupUsageError("destination must be outside the workspace")
 
     def allocate(self, timestamp: str) -> _WindowsOwnedArchive:
@@ -1196,6 +1218,55 @@ def _write_owned_backup_receipt(
         raise
 
 
+def _require_success_checkpoint(
+    source: Any,
+    target: Any,
+    workspace_anchor: Any,
+    destination_anchor: Any,
+    owned: Any,
+    transaction: SnapshotTransaction | None,
+) -> None:
+    """Reverify every identity that makes the reported export a safe success."""
+    try:
+        if transaction is not None:
+            transaction.validate_receipt()
+        source.require_path_current()
+        target.require_path_current()
+        if not workspace_anchor.matches_root_handle(
+            source.handle
+        ) or not destination_anchor.matches_root_handle(target.handle):
+            raise BackupError("Destination identity changed during backup export.")
+        owned.validate_name()
+        target.require_outside(
+            source,
+            workspace_anchor=workspace_anchor,
+            destination_anchor=destination_anchor,
+            changed=True,
+        )
+        # Containment traversal is anchored, but POSIX permits a concurrent
+        # directory rename. Re-probe both public paths and the exact archive
+        # name after that traversal before this checkpoint can authorize
+        # success.
+        source.require_path_current()
+        target.require_path_current()
+        if (
+            not workspace_anchor.root_is_current()
+            or not destination_anchor.root_is_current()
+        ):
+            raise BackupError("Destination identity changed during backup export.")
+        if not workspace_anchor.matches_root_handle(
+            source.handle
+        ) or not destination_anchor.matches_root_handle(target.handle):
+            raise BackupError("Destination identity changed during backup export.")
+        owned.validate_name()
+        if transaction is not None:
+            transaction.validate_receipt()
+    except BackupError:
+        raise
+    except (OSError, SnapshotError) as error:
+        raise BackupError("Backup success checks could not be completed safely.") from error
+
+
 def export_backup(
     workspace: str | Path,
     destination: str | Path,
@@ -1213,8 +1284,14 @@ def export_backup(
     try:
         with workspace_anchor_type(root) as source, destination_anchor_type(
             destination_path
-        ) as target:
-            target.require_outside(source)
+        ) as target, WorkspaceAnchor(root) as workspace_anchor, WorkspaceAnchor(
+            destination_path
+        ) as destination_anchor:
+            target.require_outside(
+                source,
+                workspace_anchor=workspace_anchor,
+                destination_anchor=destination_anchor,
+            )
             source.forbid(target.object_identity())
             storage = source.snapshot_storage()
             if storage == "external":
@@ -1256,17 +1333,23 @@ def export_backup(
                 owned = target.allocate(timestamp)
                 source.forbid(owned.identity)
                 target.require_path_current()
-                target.require_outside(source)
+                target.require_outside(
+                    source,
+                    workspace_anchor=workspace_anchor,
+                    destination_anchor=destination_anchor,
+                )
                 transient_paths = (
                     transaction.transient_paths if transaction is not None else ()
                 )
                 size = _write_archive(source, owned, transient_paths)
-                owned.validate_name()
-                if transaction is not None:
-                    transaction.validate_receipt()
-                source.require_path_current()
-                target.require_path_current()
-                target.require_outside(source)
+                _require_success_checkpoint(
+                    source,
+                    target,
+                    workspace_anchor,
+                    destination_anchor,
+                    owned,
+                    transaction,
+                )
                 result = BackupResult(
                     archive=destination_path / owned.name,
                     snapshot_id=snapshot_id,
@@ -1288,6 +1371,14 @@ def export_backup(
                 success_receipt.commit()
                 if transaction is not None:
                     transaction.settle()
+                _require_success_checkpoint(
+                    source,
+                    target,
+                    workspace_anchor,
+                    destination_anchor,
+                    owned,
+                    transaction,
+                )
                 owned.finish()
                 if transaction is not None:
                     transaction.commit()

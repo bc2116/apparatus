@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from datetime import datetime, timezone
 import os
 from pathlib import Path
@@ -64,6 +65,52 @@ def _status_paths(workspace: Path) -> set[str]:
         for line in _git(workspace, "status", "--porcelain").stdout.splitlines()
         if len(line) > 3
     }
+
+
+_LATE_DESTINATION_MOVE_STAGES = (
+    "after-old-containment-before-archive-finish",
+    "after-archive-finish-before-receipt-publication",
+    "after-receipt-publication-before-return",
+)
+
+
+def _install_late_destination_move(
+    monkeypatch,
+    *,
+    stage: str,
+    move: Callable[[], None],
+) -> Callable[..., object]:
+    """Inject one move in each late-success window without adding a test hook."""
+    _workspace_anchor_type, destination_anchor_type = backup_engine._anchor_types()
+    original_require_outside = destination_anchor_type.require_outside
+    containment_checks = 0
+
+    def racing_require_outside(self, source, *args, **kwargs):
+        nonlocal containment_checks
+        result = original_require_outside(self, source, *args, **kwargs)
+        containment_checks += 1
+        if (
+            stage == "after-old-containment-before-archive-finish"
+            and containment_checks == 3
+        ):
+            move()
+        return result
+
+    monkeypatch.setattr(
+        destination_anchor_type,
+        "require_outside",
+        racing_require_outside,
+    )
+
+    def racing_write(*args, **kwargs):
+        if stage == "after-archive-finish-before-receipt-publication":
+            move()
+        publication = backup_engine.write_receipt(*args, **kwargs)
+        if stage == "after-receipt-publication-before-return":
+            move()
+        return publication
+
+    return racing_write
 
 
 def test_export_archives_hidden_files_and_writes_a_valid_receipt(tmp_path, capsys):
@@ -288,6 +335,11 @@ def test_source_swap_to_outside_symlink_never_archives_outside_bytes(tmp_path, m
         return original_open(path, flags, *args, **kwargs)
 
     monkeypatch.setattr(backup_engine.os, "open", swapping_open)
+    monkeypatch.setattr(
+        backup_engine.os,
+        "supports_dir_fd",
+        backup_engine.os.supports_dir_fd | {swapping_open},
+    )
     with pytest.raises(BackupError, match="read safely"):
         export_backup(workspace, destination, available=lambda: False, clock=_clock)
     assert swapped
@@ -322,6 +374,11 @@ def test_destination_swap_to_workspace_is_detected_and_owned_archive_is_removed(
         return original_open(path, flags, *args, **kwargs)
 
     monkeypatch.setattr(backup_engine.os, "open", swapping_open)
+    monkeypatch.setattr(
+        backup_engine.os,
+        "supports_dir_fd",
+        backup_engine.os.supports_dir_fd | {swapping_open},
+    )
     with pytest.raises(BackupError, match="Destination path changed"):
         export_backup(workspace, destination, available=lambda: False, clock=_clock)
     assert swapped
@@ -370,6 +427,116 @@ def test_destination_moved_during_snapshot_is_never_snapshot_input_and_leaves_no
     with pytest.raises(subprocess.CalledProcessError):
         _git(workspace, "cat-file", "-e", "HEAD:moved-backups/destination-sentinel.txt")
     assert _archives(moved_destination) == []
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason=(
+        "POSIX permits a retained destination directory to be renamed; "
+        "the rollback proof also requires git"
+    ),
+)
+@pytest.mark.parametrize("stage", _LATE_DESTINATION_MOVE_STAGES)
+def test_posix_late_destination_move_inside_workspace_fails_cleanly(
+    tmp_path,
+    monkeypatch,
+    stage,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    moved_destination = workspace / "moved-backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"clean snapshotted state\n")
+    initial = snapshots.take_snapshot(workspace, label="Initial").snapshot
+    assert initial is not None
+    head_before = _git(workspace, "rev-parse", "HEAD").stdout.strip()
+    receipts_before = _files(workspace / "System" / "receipts")
+    assert _status_paths(workspace) == set()
+    moved = False
+
+    def move_destination() -> None:
+        nonlocal moved
+        assert not moved
+        destination.rename(moved_destination)
+        moved = True
+
+    racing_write = _install_late_destination_move(
+        monkeypatch,
+        stage=stage,
+        move=move_destination,
+    )
+
+    with pytest.raises(BackupError):
+        export_backup(
+            workspace,
+            destination,
+            write=racing_write,
+            clock=_clock,
+        )
+
+    assert moved
+    assert not destination.exists()
+    assert moved_destination.is_dir()
+    assert _archives(moved_destination) == []
+    assert not list(workspace.rglob("apparatus-backup-*.zip"))
+    assert not list((workspace / "System" / "receipts").glob("*-backup-export.md"))
+    assert _files(workspace / "System" / "receipts") == receipts_before
+    assert _git(workspace, "rev-parse", "HEAD").stdout.strip() == head_before
+    assert _status_paths(workspace) == set()
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="native Win32 retained directory-name lock proof",
+)
+@pytest.mark.parametrize("stage", _LATE_DESTINATION_MOVE_STAGES)
+def test_windows_late_destination_move_is_blocked_non_vacuously(
+    tmp_path,
+    monkeypatch,
+    stage,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    moved_destination = workspace / "moved-backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"saved\n")
+    rename_control = tmp_path / "rename-control"
+    moved_control = workspace / "rename-control"
+    rename_control.mkdir()
+    rename_control.rename(moved_control)
+    moved_control.rename(rename_control)
+    rename_control.rmdir()
+    move_errors: list[OSError] = []
+
+    def attempt_destination_move() -> None:
+        try:
+            destination.rename(moved_destination)
+        except OSError as error:
+            move_errors.append(error)
+        else:
+            raise AssertionError("retained destination name moved on Windows")
+
+    racing_write = _install_late_destination_move(
+        monkeypatch,
+        stage=stage,
+        move=attempt_destination_move,
+    )
+
+    result = export_backup(
+        workspace,
+        destination,
+        available=lambda: False,
+        write=racing_write,
+        clock=_clock,
+    )
+
+    assert len(move_errors) == 1
+    assert result.archive == destination / "apparatus-backup-2026-08-10-123456.zip"
+    assert result.archive.is_file()
+    assert not moved_destination.exists()
+    assert not list(workspace.rglob("apparatus-backup-*.zip"))
 
 
 @pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")

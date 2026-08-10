@@ -1,4 +1,9 @@
-"""Small platform primitives for containment-safe filesystem transactions."""
+"""Small platform primitives for containment-safe filesystem transactions.
+
+A check not repeated at the final success boundary is hope, not a guarantee;
+success checkpoints reverify identity and containment through retained
+descriptors or handles.
+"""
 
 from __future__ import annotations
 
@@ -250,6 +255,36 @@ class PosixWorkspaceAnchor:
             return (status_value.st_dev, status_value.st_ino) == self._root_identity
         except OSError:
             return False
+
+    def contains_anchored_root(self, candidate: PosixWorkspaceAnchor) -> bool:
+        """Return whether this root contains ``candidate`` by object identity."""
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        current = os.dup(candidate._root)
+        try:
+            while True:
+                current_status = os.fstat(current)
+                if (current_status.st_dev, current_status.st_ino) == (
+                    self._root_identity
+                ):
+                    result = True
+                    break
+                parent = os.open("..", _posix_directory_flags(), dir_fd=current)
+                parent_status = os.fstat(parent)
+                if (parent_status.st_dev, parent_status.st_ino) == (
+                    current_status.st_dev,
+                    current_status.st_ino,
+                ):
+                    os.close(parent)
+                    result = False
+                    break
+                os.close(current)
+                current = parent
+        finally:
+            os.close(current)
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        return result
 
     @staticmethod
     def _parts(relative: str | Path) -> tuple[str, ...]:
@@ -1217,6 +1252,26 @@ class WindowsWorkspaceAnchor:
             )
         except OSError:
             return False
+
+    def contains_anchored_root(self, candidate: WindowsWorkspaceAnchor) -> bool:
+        """Return whether this root contains ``candidate`` by object identity."""
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        if self._root < 0 or candidate._root < 0:
+            raise OSError("anchored directory proof is no longer active")
+        if not _same_windows_object(
+            _win_identity(self._root), self._root_identity
+        ) or not _same_windows_object(
+            _win_identity(candidate._root), candidate._root_identity
+        ):
+            raise OSError("anchored directory identity changed")
+        result = any(
+            _same_windows_object(_win_identity(handle), self._root_identity)
+            for handle in (candidate._root, *candidate._chain_handles)
+        )
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        return result
 
     def _directory(
         self,
