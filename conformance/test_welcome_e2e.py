@@ -17,6 +17,18 @@ FIXTURES = Path(__file__).parent / "fixtures" / "welcome-e2e"
 HAS_GIT = shutil.which("git") is not None
 APPARATUS = shutil.which("apparatus")
 UTC_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+RECEIPT_EVENTS = {
+    "backup-export",
+    "check",
+    "egress",
+    "init",
+    "library-ingest",
+    "profile-apply",
+    "recall",
+    "redaction",
+    "restore",
+    "snapshot",
+}
 
 
 def _run(
@@ -85,14 +97,52 @@ def _assert_receipts_are_bound_and_well_formed(workspace: Path) -> None:
         assert data["schema"] == "apparatus/receipt@v0"
         event = data["event"]
         timestamp = data["timestamp"]
-        assert isinstance(event, str) and event
+        assert event in RECEIPT_EVENTS
         assert isinstance(timestamp, str) and UTC_TIMESTAMP.fullmatch(timestamp)
         assert isinstance(data["summary"], str) and data["summary"].strip()
+        labels = data.get("labels")
+        assert labels is None or (
+            isinstance(labels, list)
+            and all(isinstance(label, str) for label in labels)
+        )
         filename_time = timestamp.replace("T", "-").replace(":", "").removesuffix("Z")
         assert re.fullmatch(
             rf"{re.escape(filename_time)}-{re.escape(event)}(?:-[2-9]|-[1-9]\d+)?\.md",
             path.name,
         )
+
+
+@pytest.mark.parametrize(
+    ("event", "labels"),
+    [
+        ("not-an-event", None),
+        ("check", "pii/email"),
+    ],
+)
+def test_receipt_schema_proof_rejects_parseable_invalid_common_fields(
+    tmp_path, event, labels
+):
+    workspace = tmp_path / "workspace"
+    receipts = workspace / "System" / "receipts"
+    receipts.mkdir(parents=True)
+    data = {
+        "schema": "apparatus/receipt@v0",
+        "event": event,
+        "timestamp": "2026-08-10T20:00:00Z",
+        "summary": "Parseable but intentionally invalid receipt fixture.",
+    }
+    if labels is not None:
+        data["labels"] = labels
+    receipt = receipts / f"2026-08-10-200000-{event}.md"
+    receipt.write_text(
+        "---\n"
+        + yaml.safe_dump(data, sort_keys=False)
+        + "---\nIntentional negative fixture.\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AssertionError):
+        _assert_receipts_are_bound_and_well_formed(workspace)
 
 
 @pytest.mark.skipif(
