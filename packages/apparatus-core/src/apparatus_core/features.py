@@ -8,7 +8,7 @@ from pathlib import Path
 import stat
 from typing import Callable, Final
 
-from apparatus_core import records
+from apparatus_core import fs_transactions, records
 from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
 
 
@@ -59,16 +59,23 @@ def _read_windows_profile(workspace: Path) -> _ProfileRead | None:
             except FileNotFoundError:
                 return None
             try:
+                root_identity = anchor._root_identity
+                system_identity = fs_transactions._win_identity(owned.parent)
                 # ``capture_file`` retains the file and parent handles.  The
                 # second proof makes the read fail closed if any current
                 # workspace/System/profile.yaml pathname no longer names that
-                # exact identity and content before a selection can be used.
+                # exact root, parent, identity, and content before a selection
+                # can be used.
                 if not anchor.matches_owned(owned):
                     raise OSError("System/profile.yaml changed while it was read")
                 return _ProfileRead(
                     owned.content,
                     lambda: _windows_profile_is_current(
-                        workspace, owned.identity, owned.content
+                        workspace,
+                        root_identity,
+                        system_identity,
+                        owned.identity,
+                        owned.content,
                     ),
                 )
             finally:
@@ -84,15 +91,28 @@ def _read_windows_profile(workspace: Path) -> _ProfileRead | None:
         ) from error
 
 
-def _windows_profile_is_current(workspace: Path, identity: object, content: bytes) -> bool:
-    """Recheck the original Windows profile identity after schema parsing."""
+def _windows_profile_is_current(
+    workspace: Path,
+    root_identity: fs_transactions.WindowsIdentity,
+    system_identity: fs_transactions.WindowsIdentity,
+    profile_identity: fs_transactions.WindowsIdentity,
+    content: bytes,
+) -> bool:
+    """Recheck the original Windows root, System, and profile after parsing."""
     try:
         with WindowsWorkspaceAnchor(workspace) as anchor:
+            if not fs_transactions._same_windows_object(
+                anchor._root_identity, root_identity
+            ):
+                return False
             anchor.require_directory("System")
             owned = anchor.capture_file("System/profile.yaml")
             try:
                 return (
-                    owned.identity == identity
+                    fs_transactions._same_windows_object(
+                        fs_transactions._win_identity(owned.parent), system_identity
+                    )
+                    and owned.identity == profile_identity
                     and owned.content == content
                     and anchor.matches_owned(owned)
                 )

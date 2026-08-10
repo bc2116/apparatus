@@ -7,7 +7,7 @@ import shutil
 
 import pytest
 
-from apparatus_core import features, records
+from apparatus_core import features, fs_transactions, records
 from apparatus_core.commands import (
     init,
     library,
@@ -338,6 +338,95 @@ def test_windows_profile_replacement_has_no_feature_effects(tmp_path, monkeypatc
         features.WindowsWorkspaceAnchor, "matches_owned", replace_then_verify
     )
     _assert_profile_failure_has_no_effects(tmp_path, workspace, capsys)
+
+
+def _windows_identity(
+    path: Path, *, directory: bool
+) -> fs_transactions.WindowsIdentity:
+    handle = fs_transactions._win_open(path, directory=directory)
+    try:
+        return fs_transactions._win_identity(handle)
+    finally:
+        fs_transactions._win_close(handle)
+
+
+def _replace_windows_profile_container(
+    workspace: Path, tmp_path: Path, replacement: str
+) -> None:
+    root_before = _windows_identity(workspace, directory=True)
+    system = workspace / "System"
+    system_before = _windows_identity(system, directory=True)
+    profile_before = _windows_identity(system / "profile.yaml", directory=False)
+
+    if replacement == "system":
+        candidate = tmp_path / "replacement-system"
+        shutil.copytree(
+            system,
+            candidate,
+            ignore=shutil.ignore_patterns("profile.yaml"),
+        )
+        (system / "profile.yaml").replace(candidate / "profile.yaml")
+        system.rename(tmp_path / "prior-system")
+        candidate.rename(system)
+    else:
+        candidate = tmp_path / "replacement-workspace"
+        shutil.copytree(
+            workspace,
+            candidate,
+            ignore=shutil.ignore_patterns("System"),
+        )
+        system.replace(candidate / "System")
+        workspace.rename(tmp_path / "prior-workspace")
+        candidate.rename(workspace)
+
+    root_after = _windows_identity(workspace, directory=True)
+    system_after = _windows_identity(workspace / "System", directory=True)
+    profile_after = _windows_identity(
+        workspace / "System/profile.yaml", directory=False
+    )
+    assert profile_after == profile_before
+    if replacement == "system":
+        assert fs_transactions._same_windows_object(root_after, root_before)
+        assert not fs_transactions._same_windows_object(system_after, system_before)
+    else:
+        assert not fs_transactions._same_windows_object(root_after, root_before)
+        assert fs_transactions._same_windows_object(system_after, system_before)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows parent-currentness coverage")
+@pytest.mark.parametrize("replacement", ["system", "workspace"])
+@pytest.mark.parametrize("operation", ["library", "snapshot"])
+def test_windows_parent_replacement_with_original_profile_has_no_effects(
+    tmp_path, monkeypatch, capsys, replacement, operation
+):
+    workspace = _workspace(tmp_path)
+    before = _workspace_bytes(workspace)
+    home = tmp_path / "feature-home"
+    monkeypatch.setenv("APPARATUS_HOME", str(home))
+    original_validate = features.records.validate
+    replaced = False
+
+    def replace_after_validation(*args, **kwargs):
+        nonlocal replaced
+        problems = original_validate(*args, **kwargs)
+        if not replaced:
+            replaced = True
+            _replace_windows_profile_container(workspace, tmp_path, replacement)
+        return problems
+
+    monkeypatch.setattr(features.records, "validate", replace_after_validation)
+    if operation == "library":
+        result = library.run(argparse.Namespace(workspace=str(workspace)))
+    else:
+        result = snapshot.run(
+            argparse.Namespace(workspace=str(workspace), label=None)
+        )
+
+    assert replaced
+    assert result == 2
+    assert "profile" in capsys.readouterr().out
+    assert _workspace_bytes(workspace) == before
+    assert not home.exists()
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows link privilege is runner-dependent")
