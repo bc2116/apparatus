@@ -14,6 +14,8 @@ import pytest
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import library
 from apparatus_core.library.ingest import IngestResult, _safe, ingest_library
+from apparatus_core.library import index
+from apparatus_core import recall
 import apparatus_core.library.ingest as ingest_module
 from apparatus_core.cache import library_cache_root
 import apparatus_core.cache as cache_module
@@ -80,6 +82,35 @@ def test_ingest_is_incremental_and_deletes_stale_cache_pairs(monkeypatch, tmp_pa
     rebuilt = ingest_library(workspace)
     assert rebuilt.counts["extracted"] == 1
     assert (rebuilt.cache / "extractions" / "note.txt.txt").read_text(encoding="utf-8") == "rebuilt"
+
+
+def test_ignore_skips_source_before_open_and_evicts_index_and_recall(monkeypatch, tmp_path):
+    workspace = _workspace(tmp_path / "workspace")
+    monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "apparatus-home"))
+    source = workspace / "Library/private.txt"
+    source.write_text("cobalt sentinel phrase", encoding="utf-8")
+    (workspace / "Library/visible.txt").write_text("ordinary fixture phrase", encoding="utf-8")
+    first = ingest_library(workspace)
+    index.refresh(first.cache, workspace)
+    assert recall.recall(workspace, "cobalt sentinel")["status"] == "grounded"
+    (workspace / "System/ignore").write_text("Library/private.txt\n", encoding="utf-8")
+
+    original_read = ingest_module._read_source
+
+    def fail_if_opened(path, *args, **kwargs):
+        if Path(path) == source:
+            raise AssertionError("an ignored Library source was opened")
+        return original_read(path, *args, **kwargs)
+
+    monkeypatch.setattr(ingest_module, "_read_source", fail_if_opened)
+    result = ingest_library(workspace)
+    assert result.counts["ignored"] == 1
+    assert not (result.cache / "extractions/private.txt.json").exists()
+    index.refresh(result.cache, workspace)
+    assert index.search(result.cache, "cobalt") == []
+    assert recall.recall(workspace, "cobalt sentinel")["status"] == "abstained"
+    receipts = (workspace / "System/receipts").glob("*-library-ingest*.md")
+    assert any("ignored=1" in receipt.read_text(encoding="utf-8") for receipt in receipts)
 
 
 def test_ingest_flags_unsupported_and_corrupt_sources_and_command_exits_one(monkeypatch, tmp_path, capsys):

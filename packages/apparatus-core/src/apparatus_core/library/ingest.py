@@ -14,12 +14,13 @@ import unicodedata
 
 from apparatus_core.cache import library_cache_root
 from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
+from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION, extract_bytes
 from apparatus_core.receipts import write_receipt
 from apparatus_core.render import is_reparse_path
 
 _NOISE = {".DS_Store", "Thumbs.db", "desktop.ini"}
-_STATUSES = ("scanned", "extracted", "unchanged", "no_text", "unsupported", "error")
+_STATUSES = ("scanned", "ignored", "extracted", "unchanged", "no_text", "unsupported", "error")
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,7 @@ def _ingest_library(
     extractions.mkdir(parents=True, exist_ok=True)
     _validate_private_cache_tree(extractions)
     counts = {status: 0 for status in _STATUSES}
+    rules = load_ignore_rules(root)
     flagged: list[tuple[str, str, str]] = []
     seen: set[tuple[str, ...]] = set()
     entries = _library_entries(library, library_fd)
@@ -74,6 +76,10 @@ def _ingest_library(
             counts["scanned"] += 1
             counts["error"] += 1
             flagged.append((_safe(source.relative), "error", "Library directory could not be traversed"))
+            continue
+        relative = source.relative_to(library).as_posix()
+        if rules.matches("Library/" + relative):
+            counts["ignored"] += 1
             continue
         if source.name in _NOISE or any(part.startswith(".") for part in source.relative_to(library).parts):
             continue
@@ -96,7 +102,6 @@ def _ingest_library(
             counts["scanned"] += 1; counts["error"] += 1
             flagged.append((_safe(relative), "error", "source is not a regular file"))
             continue
-        relative = source.relative_to(library).as_posix()
         seen.add(_portable_key(relative))
         counts["scanned"] += 1
         try:
@@ -139,7 +144,12 @@ def _ingest_library(
         if result.status in {"no_text", "unsupported", "error"}:
             flagged.append((_safe(relative), result.status, _safe(result.error or "no text extracted")))
     _remove_deleted(extractions, seen)
-    body = "Flagged Library files:\n" + ("\n".join(f"- {_safe(path)}: {status}: {_safe(reason)}" for path, status, reason in flagged) if flagged else "- none")
+    body = (
+        "Ignore rules: "
+        + (f"{len(rules.patterns)} user pattern(s), {len(rules.issues)} unsupported pattern(s); ignored={counts['ignored']}." if rules.patterns or rules.issues else "built-in defaults only; ignored=0.")
+        + "\n\nFlagged Library files:\n"
+        + ("\n".join(f"- {_safe(path)}: {status}: {_safe(reason)}" for path, status, reason in flagged) if flagged else "- none")
+    )
     summary = "Library ingest: " + ", ".join(f"{name}={counts[name]}" for name in _STATUSES) + "."
     write_receipt(root, "library-ingest", {"summary": summary, "body": body})
     return IngestResult(cache, counts, tuple(flagged))

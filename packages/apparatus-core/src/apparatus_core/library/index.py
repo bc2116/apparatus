@@ -16,6 +16,7 @@ import tempfile
 import time
 
 from apparatus_core import fs_transactions
+from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION
 from apparatus_core.render import is_reparse_path
 
@@ -47,10 +48,10 @@ class SearchHit:
     score: float
 
 
-def refresh(cache: Path) -> None:
+def refresh(cache: Path, workspace: str | Path | None = None) -> None:
     """Synchronize changed extracted cache pairs into the local FTS index."""
     with _writer_lock(cache):
-        desired = _extracted_sources(cache)
+        desired = _extracted_sources(cache) if workspace is None else _extracted_sources(cache, workspace)
         connection = _database_for_operation(cache)
         try:
             with connection:
@@ -622,12 +623,15 @@ def _create_schema(connection: sqlite3.Connection) -> None:
         raise IndexError("Library index could not be prepared") from error
 
 
-def _extracted_sources(cache: Path) -> dict[str, tuple[str, str, str]]:
+def _extracted_sources(
+    cache: Path, workspace: str | Path | None = None
+) -> dict[str, tuple[str, str, str]]:
     _assert_private_cache(cache)
     extractions = cache / "extractions"
     if not extractions.is_dir() or is_reparse_path(extractions):
         return {}
     sources: dict[str, tuple[str, str, str]] = {}
+    rules = load_ignore_rules(workspace) if workspace is not None else None
     for record_path in _record_paths(extractions):
         relative = record_path.relative_to(extractions).as_posix()[:-5]
         text_path = record_path.with_suffix(".txt")
@@ -636,6 +640,8 @@ def _extracted_sources(cache: Path) -> dict[str, tuple[str, str, str]]:
         except (OSError, ValueError):
             continue
         if not _is_extracted_record(record, relative, text_path):
+            continue
+        if rules is not None and rules.matches(str(record["source_path"])):
             continue
         try:
             sources[record["source_path"]] = (

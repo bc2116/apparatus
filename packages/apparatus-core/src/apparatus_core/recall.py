@@ -105,7 +105,7 @@ def recall(
     cache = library_cache_root(workspace_path)
     if not index.has_extractions(cache):
         raise NoExtractionsError
-    index.refresh(cache)
+    index.refresh(cache, workspace_path)
     hits = index.search(cache, question, limit)
     qualifying = [hit for hit in hits if hit.score >= RECALL_ABSTAIN_THRESHOLD]
     evidence: list[Evidence] = [

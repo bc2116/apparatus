@@ -169,7 +169,7 @@ def test_command_exit_codes_and_receipt_writing(tmp_path, capsys):
     ) == 0
     assert "check passed" in capsys.readouterr().out
     assert writes[0][1] == "check"
-    assert "Finding codes: none." == writes[0][2]["body"]
+    assert "Finding codes: none. Ignore rules excluded 0 path(s)." == writes[0][2]["body"]
 
     missing = tmp_path / "missing"
     assert check.run(argparse.Namespace(workspace=str(missing), no_receipt=True)) == 2
@@ -210,4 +210,25 @@ def test_command_receipt_summary_includes_outcome_count_and_codes(tmp_path):
     ) == 1
     fields = writes[0][2]
     assert "1 finding(s)" in fields["summary"]
-    assert fields["body"] == "Finding codes: missing-required-field."
+    assert fields["body"] == "Finding codes: missing-required-field. Ignore rules excluded 0 path(s)."
+
+
+def test_check_skips_matched_records_but_reports_count_and_bad_patterns(tmp_path):
+    workspace = _workspace(tmp_path)
+    _goal(workspace)
+    (workspace / "System/ignore").write_text("Goals/finish-sample.md\n!unsupported\n", encoding="utf-8")
+    result = check_workspace(workspace)
+    assert result.records_checked == 0
+    assert result.ignored_paths == 1
+    assert [(finding.code, finding.path) for finding in result.findings] == [
+        ("ignore-unsupported-pattern", "System/ignore")
+    ]
+
+
+def test_check_can_skip_an_ignored_profile_record(tmp_path):
+    workspace = _workspace(tmp_path)
+    (workspace / "System/profile.yaml").write_text("not: [yaml\n", encoding="utf-8")
+    (workspace / "System/ignore").write_text("System/profile.yaml\n", encoding="utf-8")
+    result = check_workspace(workspace)
+    assert result.ok
+    assert result.ignored_paths == 1

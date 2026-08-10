@@ -68,7 +68,7 @@ def run_search(args: argparse.Namespace) -> int:
         if args.rebuild:
             index.rebuild(cache)
         else:
-            index.refresh(cache)
+            index.refresh(cache, workspace)
         hits = index.search(cache, args.query, args.limit)
     except index.FtsUnavailable as error:
         print(f"library search: {_safe(str(error))}")
