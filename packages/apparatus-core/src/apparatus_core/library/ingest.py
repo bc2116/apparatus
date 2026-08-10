@@ -83,7 +83,7 @@ def _ingest_library(
             continue
         relative = source.relative_to(library).as_posix()
         try:
-            source_status = os.lstat(source)
+            entry_status = os.lstat(source)
         except OSError:
             counts["scanned"] += 1
             counts["error"] += 1
@@ -91,7 +91,7 @@ def _ingest_library(
             continue
         classification = rules.classification(
             "Library/" + relative,
-            is_directory=stat.S_ISDIR(source_status.st_mode),
+            is_directory=stat.S_ISDIR(entry_status.st_mode),
         )
         if classification is not None:
             counts["ignored"] += 1
@@ -106,6 +106,13 @@ def _ingest_library(
             relative = source.relative_to(library).as_posix()
             counts["scanned"] += 1; counts["error"] += 1
             flagged.append((_safe(relative), "error", "symbolic-link sources are not supported"))
+            continue
+        try:
+            source_status = source.stat()
+        except OSError:
+            counts["scanned"] += 1
+            counts["error"] += 1
+            flagged.append((_safe(relative), "error", "source could not be inspected"))
             continue
         if stat.S_ISDIR(source_status.st_mode):
             continue
