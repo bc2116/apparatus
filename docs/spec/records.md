@@ -94,6 +94,10 @@ optional keys listed here:
 - `review_day`: `null`, or a lowercase weekday name (`monday` … `sunday`).
 - Optional `spend`: `frugal` | `balanced` | `thorough` (the spend level;
   omitted profiles remain valid).
+- Optional `features`: a mapping with exactly these three boolean selections:
+  `library_indexing` (default `true`), `snapshots` (default `true`), and
+  `ignore_rules` (default `true`). An omitted mapping means all three defaults.
+  New feature selections require a plan change; they are not inline additions.
 - Optional `key_people`: a list of `{name, role, organization}` mappings.
   `name` is required; `role` and `organization` are optional non-empty strings.
 - Optional `current_efforts`: a list of `{title, done_when, next_action}`

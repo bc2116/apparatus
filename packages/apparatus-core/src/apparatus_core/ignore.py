@@ -10,6 +10,7 @@ import re
 import stat
 
 from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
+from apparatus_core.features import enabled as feature_enabled
 from apparatus_core.render import is_reparse_path
 
 
@@ -118,6 +119,7 @@ class IgnoreRules:
 def load_ignore_rules(workspace: str | Path) -> IgnoreRules:
     """Read ``System/ignore`` safely, distinguishing missing from invalid."""
     root = Path(workspace)
+    use_user_rules = feature_enabled(root, "ignore_rules")
     system = root / "System"
     path = system / "ignore"
     if is_reparse_path(root) or is_reparse_path(system):
@@ -173,6 +175,8 @@ def load_ignore_rules(workspace: str | Path) -> IgnoreRules:
             )
         else:
             patterns.append(pattern)
+    if not use_user_rules:
+        return IgnoreRules((), (), file_present=True)
     return IgnoreRules(
         tuple(patterns), tuple(issues), file_present=True, valid=not issues
     )

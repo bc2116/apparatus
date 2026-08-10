@@ -100,7 +100,7 @@ SCHEMAS: dict[str, RecordSchema] = {
     "profile": RecordSchema(
         kind="profile",
         required=("schema", "status", "privacy_mode", "work_types", "review_day"),
-        optional=("spend", "key_people", "current_efforts", "source_locations"),
+        optional=("spend", "features", "key_people", "current_efforts", "source_locations"),
         enums={
             "status": PROFILE_STATUSES,
             "privacy_mode": PRIVACY_MODES,
@@ -247,6 +247,26 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
 
 def _profile_interview_problems(data: dict, problems: list[str]) -> None:
     """Validate the optional, structured answers recorded by the setup interview."""
+    features = data.get("features")
+    if features is not None:
+        expected = {"library_indexing", "snapshots", "ignore_rules"}
+        if not isinstance(features, dict):
+            problems.append("features must be a mapping")
+        else:
+            unexpected = set(features) - expected
+            if unexpected:
+                problems.append(
+                    "features has an unexpected key; use only library_indexing, snapshots, or ignore_rules"
+                )
+            missing = expected - set(features)
+            if missing:
+                problems.append(
+                    "features must include library_indexing, snapshots, and ignore_rules"
+                )
+            for name, value in features.items():
+                if name in expected and not isinstance(value, bool):
+                    problems.append(f"features.{name} must be true or false")
+
     people = data.get("key_people")
     if people is not None:
         if not isinstance(people, list):

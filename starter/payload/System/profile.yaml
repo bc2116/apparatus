@@ -6,6 +6,10 @@ privacy_mode: standard      # standard = label, don't block · private = strict
 work_types: []              # e.g. analysis, quality, project-management, writing, support
 review_day: null            # weekly review day, set during the interview
 spend: balanced             # model capability and cost: frugal, balanced, or thorough
+features:                   # optional core features; omitted means all are on
+  library_indexing: true    # extract, index, and recall Library sources
+  snapshots: true           # save and restore workspace snapshots
+  ignore_rules: true        # apply System/ignore; built-in OS-noise defaults always apply
 key_people: []              # name required; role and organization optional
 current_efforts: []         # title required; done_when and next_action optional
 source_locations: []        # plain-language places where source documents live

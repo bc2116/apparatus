@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core.receipts import write_receipt
+from apparatus_core.features import enabled as feature_enabled, off_receipt_fields
 from apparatus_core.snapshots import (
     Snapshot,
     SnapshotError,
@@ -80,6 +81,14 @@ def run(
     workspace = _workspace_or_usage_error(args.workspace)
     if workspace is None:
         return 2
+    if not feature_enabled(workspace, "snapshots"):
+        try:
+            write(workspace, "restore", off_receipt_fields("snapshots"))
+        except (OSError, ValueError):
+            print("restore: could not record that this feature is off")
+            return 2
+        print("This feature is off; say the word and I'll enable it.")
+        return 1
     if not available():
         receipt_written = True
         try:

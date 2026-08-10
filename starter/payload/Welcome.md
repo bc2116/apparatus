@@ -39,8 +39,9 @@ language. It knows how this workspace is organized and follows its rules.
 
 Just say hello. If this workspace is new, your assistant will ask you a few
 questions about your work — what you do, who you work with, what you're working
-on now — and set the workspace up around your answers. You can redo this any
-time by saying "re-run my setup interview."
+on now — and set the workspace up around your answers. The features you choose
+are never permanent: re-run my setup interview or just ask your assistant to
+change them any time.
 
 Then try it: ask for something real. *"Summarize the document I just put in the
 Library"* or *"help me plan this week"* are good first requests.
