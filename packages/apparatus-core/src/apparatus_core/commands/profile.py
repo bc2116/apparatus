@@ -1,19 +1,28 @@
-"""Apply a configured setup profile without replacing user-authored records."""
+"""Credential-safe, auditable application of configured setup profiles."""
 
 from __future__ import annotations
 
 import argparse
+import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from apparatus_core import records
 from apparatus_core.commands import memory
-from apparatus_core.interview import goal_seeds, person_seeds
+from apparatus_core.credentials import RedactionFinding
+from apparatus_core.interview import (
+    GoalSeed,
+    PersonSeed,
+    goal_seeds,
+    person_seeds,
+    redact_answer_values,
+)
 from apparatus_core.labeler import render_record
 from apparatus_core.overlays import (
     ManifestError,
-    apply_overlay_plan,
+    OverlayPlan,
     canonical_work_types,
     load_manifest,
     plan_overlay,
@@ -31,6 +40,14 @@ class ProfileCommandError(ValueError):
     """A profile could not be applied without risking workspace content."""
 
 
+@dataclass(frozen=True)
+class _SeedPlan:
+    people: tuple[PersonSeed, ...]
+    goals: tuple[GoalSeed, ...]
+    seeded: tuple[str, ...]
+    skipped: tuple[str, ...]
+
+
 def register(subparsers: Any) -> None:
     """Register the profile verb through the shared entry-point path."""
     parser = subparsers.add_parser("profile", help="apply a configured setup profile")
@@ -38,6 +55,12 @@ def register(subparsers: Any) -> None:
     apply = actions.add_parser("apply", help="apply profile selections and starter records")
     apply.add_argument("workspace", metavar="WORKSPACE", nargs="?", default=".")
     apply.add_argument("--payload", metavar="PATH", help="starter payload source")
+    apply.add_argument(
+        "--stdin",
+        action="store_true",
+        dest="candidate_stdin",
+        help="read the configured profile YAML from standard input",
+    )
     apply.set_defaults(func=run, profile_action="apply")
 
 
@@ -53,31 +76,39 @@ def _workspace(value: str) -> Path:
         raise ProfileCommandError(str(error)) from error
 
 
-def _profile(workspace: Path) -> dict[str, Any]:
-    path = workspace / "System/profile.yaml"
-    if not path.is_file():
-        raise ProfileCommandError("System/profile.yaml is missing")
+def _profile_data(
+    content: bytes,
+) -> tuple[dict[str, Any], tuple[RedactionFinding, ...], bytes]:
     try:
-        data = records.yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, records.yaml.YAMLError) as error:
-        raise ProfileCommandError("System/profile.yaml must be valid UTF-8 YAML") from error
-    if not isinstance(data, dict):
+        decoded = content.decode("utf-8", errors="strict")
+        parsed = records.yaml.safe_load(decoded)
+    except (UnicodeError, records.yaml.YAMLError) as error:
+        raise ProfileCommandError(
+            "System/profile.yaml must be valid UTF-8 YAML"
+        ) from error
+    if not isinstance(parsed, dict):
         raise ProfileCommandError("System/profile.yaml must be a YAML mapping")
-    problems = records.validate("profile", data, filename="profile.yaml")
+    cleaned, findings = redact_answer_values(parsed)
+    if not isinstance(cleaned, dict):  # pragma: no cover - mapping recursion is stable
+        raise ProfileCommandError("System/profile.yaml must be a YAML mapping")
+    problems = records.validate("profile", cleaned, filename="profile.yaml")
     if problems:
         raise ProfileCommandError("System/profile.yaml is invalid: " + "; ".join(problems))
-    if data["status"] != "configured":
+    if cleaned["status"] != "configured":
         raise ProfileCommandError(
             "System/profile.yaml status must be configured before apply"
         )
-    return data
+    rendered = records.yaml.safe_dump(
+        cleaned, sort_keys=False, allow_unicode=True
+    ).encode("utf-8")
+    return cleaned, findings, rendered
 
 
 def _slug(value: str) -> str:
     return memory._slug(value)
 
 
-def _goal_content(seed: Any) -> bytes:
+def _goal_content(seed: GoalSeed) -> bytes:
     frontmatter = {
         "schema": records.SCHEMAS["goal"].schema_id,
         "title": seed.title,
@@ -94,23 +125,73 @@ def _goal_content(seed: Any) -> bytes:
     return render_record(frontmatter, "Seeded from the setup interview.").encode("utf-8")
 
 
+def _exists(anchor: Any, relative: Path) -> bool:
+    try:
+        anchor.read_file(relative)
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError as error:
+        raise ProfileCommandError(
+            f"workspace destination {relative.as_posix()!r} is not a safe file"
+        ) from error
+
+
+def _seed_plan(anchor: Any, profile: dict[str, Any]) -> _SeedPlan:
+    people: list[PersonSeed] = []
+    goals: list[GoalSeed] = []
+    seeded: list[str] = []
+    skipped: list[str] = []
+    reserved: set[Path] = set()
+    for seed in person_seeds(profile):
+        relative = Path("Memory/People") / f"{_slug(seed.name)}.md"
+        if relative in reserved or _exists(anchor, relative):
+            skipped.append(f"{relative.as_posix()} (already exists)")
+        elif profile["privacy_mode"] == "private":
+            skipped.append(f"{relative.as_posix()} (blocked by private mode)")
+        else:
+            reserved.add(relative)
+            people.append(seed)
+            seeded.append(relative.as_posix())
+    for seed in goal_seeds(profile):
+        relative = Path("Goals") / f"{_slug(seed.title)}.md"
+        if relative in reserved or _exists(anchor, relative):
+            skipped.append(f"{relative.as_posix()} (already exists)")
+        else:
+            reserved.add(relative)
+            goals.append(seed)
+            seeded.append(relative.as_posix())
+    return _SeedPlan(tuple(people), tuple(goals), tuple(seeded), tuple(skipped))
+
+
+def _overlay_actions(plan: OverlayPlan) -> tuple[str, ...]:
+    return (
+        *(f"updated {write.relative}" for write in plan.writes),
+        *(f"removed {relative}" for relative in plan.removals),
+    )
+
+
 def _receipt_fields(
-    overlay_actions: tuple[str, ...], seeded: list[str], skipped: list[str]
+    profile_updated: bool,
+    overlay_actions: tuple[str, ...],
+    seeded: tuple[str, ...],
+    skipped: tuple[str, ...],
 ) -> dict[str, str]:
-    body = ["Overlay actions:"]
-    if overlay_actions:
-        body.extend(f"- {action}" for action in overlay_actions)
-    else:
+    body = [
+        "Profile actions:",
+        "- updated System/profile.yaml" if profile_updated else "- none",
+    ]
+    body.extend(("", "Overlay actions:"))
+    body.extend(f"- {action}" for action in overlay_actions)
+    if not overlay_actions:
         body.append("- none")
     body.extend(("", "Records seeded:"))
-    if seeded:
-        body.extend(f"- {item}" for item in seeded)
-    else:
+    body.extend(f"- {item}" for item in seeded)
+    if not seeded:
         body.append("- none")
     body.extend(("", "Records skipped:"))
-    if skipped:
-        body.extend(f"- {item}" for item in skipped)
-    else:
+    body.extend(f"- {item}" for item in skipped)
+    if not skipped:
         body.append("- none")
     return {
         "summary": (
@@ -120,99 +201,267 @@ def _receipt_fields(
     }
 
 
-def _seed_records(
-    workspace: Path,
+def _remove_receipts(anchor: Any, owned: list[Any]) -> bool:
+    try:
+        memory._remove_owned_receipts(anchor, owned)
+        return True
+    except (OSError, memory.MemoryCommandError):
+        return False
+
+
+def _write_required_receipts(
+    anchor: Any,
+    findings: tuple[RedactionFinding, ...],
+    fields: dict[str, str],
+    write: Callable[[str | Path, str, dict[str, Any]], Path],
+) -> list[Any]:
+    owned: list[Any] = []
+    try:
+        if findings:
+            path = write(anchor.workspace, "redaction", memory._receipt_fields(findings))
+            owned.append(memory._capture_receipt(anchor, path))
+        path = write(anchor.workspace, "profile-apply", fields)
+        owned.append(memory._capture_receipt(anchor, path))
+        return owned
+    except Exception as error:
+        if not _remove_receipts(anchor, owned):
+            raise ProfileCommandError(
+                "profile receipts could not restore their prior state"
+            ) from error
+        raise ProfileCommandError("could not write the required profile receipts") from error
+
+
+def _restore_removals(anchor: Any, removed: list[tuple[Path, bytes]]) -> bool:
+    restored: list[Any] = []
+    try:
+        for relative, content in reversed(removed):
+            owned = anchor.create_file(relative, content)
+            restored.append(owned)
+        return True
+    except (OSError, memory.MemoryCommandError):
+        return False
+    finally:
+        for owned in restored:
+            owned.close()
+
+
+def _rollback(
+    anchor: Any,
+    removed: list[tuple[Path, bytes]],
+    created: list[Any],
+    replacements: list[Any],
+    receipts: list[Any],
+) -> bool:
+    ok = _restore_removals(anchor, removed)
+    for owned in reversed(created):
+        try:
+            anchor.unlink_owned(owned)
+        except (OSError, memory.MemoryCommandError):
+            ok = False
+        finally:
+            owned.close()
+    for transaction in reversed(replacements):
+        try:
+            transaction.rollback()
+        except (OSError, memory.MemoryCommandError):
+            ok = False
+        finally:
+            transaction.close()
+    if not _remove_receipts(anchor, receipts):
+        ok = False
+    return ok
+
+
+def _commit(replacements: list[Any], created: list[Any], receipts: list[Any]) -> None:
+    cleanup_failed = False
+    for transaction in replacements:
+        try:
+            transaction.commit()
+        except (OSError, memory.MemoryCommandError):
+            cleanup_failed = True
+    if cleanup_failed:
+        for transaction in replacements:
+            try:
+                transaction.discard_backup()
+            except (OSError, memory.MemoryCommandError):
+                cleanup_failed = True
+    for transaction in replacements:
+        transaction.close()
+    for owned in created:
+        owned.close()
+    for receipt in receipts:
+        receipt.close()
+    if cleanup_failed:
+        raise ProfileCommandError(
+            "profile applied with receipts but protected backup cleanup failed"
+        )
+
+
+def _apply_changes(
+    anchor: Any,
+    original_profile: bytes,
+    profile_identity: Any,
+    rendered_profile: bytes,
+    overlay_plan: OverlayPlan,
+    seed_plan: _SeedPlan,
+    receipts: list[Any],
     profile: dict[str, Any],
     write: Callable[[str | Path, str, dict[str, Any]], Path],
-) -> tuple[list[str], list[str]]:
-    seeded: list[str] = []
-    skipped: list[str] = []
+) -> None:
+    replacements: list[Any] = []
+    created: list[Any] = []
+    removed: list[tuple[Path, bytes]] = []
+    commit_phase = False
+
+    def tracked_seed_receipt(
+        workspace: str | Path, event: str, fields: dict[str, Any]
+    ) -> Path:
+        path = write(workspace, event, fields)
+        receipts.append(memory._capture_receipt(anchor, path))
+        return path
+
     try:
-        with memory._WorkspaceAnchor(workspace) as anchor:
-            anchor.require_directory("Goals")
-            anchor.require_directory("Memory/People")
-            for seed in person_seeds(profile):
-                relative = Path("Memory/People") / f"{_slug(seed.name)}.md"
-                metadata = {"name": seed.name}
-                if seed.role is not None:
-                    metadata["role"] = seed.role
-                if seed.organization is not None:
-                    metadata["organization"] = seed.organization
-                result = memory._new_record(
-                    anchor,
-                    kind="person",
-                    metadata=metadata,
-                    body="",
-                    mode=profile["privacy_mode"],
-                    write=write,
-                    suffix_on_collision=False,
+        if rendered_profile != original_profile:
+            replacements.append(
+                anchor.replace_if_unchanged(
+                    "System/profile.yaml",
+                    profile_identity,
+                    original_profile,
+                    rendered_profile,
                 )
-                if result is None:
-                    reason = (
-                        "blocked by private mode"
-                        if profile["privacy_mode"] == "private"
-                        else "already exists"
+            )
+        for overlay_write in overlay_plan.writes:
+            relative = Path(overlay_write.relative)
+            try:
+                current, identity = anchor.read_file(relative)
+            except FileNotFoundError:
+                created.append(anchor.create_file(relative, overlay_write.content))
+            else:
+                replacements.append(
+                    anchor.replace_if_unchanged(
+                        relative, identity, current, overlay_write.content
                     )
-                    skipped.append(f"{relative.as_posix()} ({reason})")
-                else:
-                    seeded.append(result[0].as_posix())
-            for seed in goal_seeds(profile):
-                relative = Path("Goals") / f"{_slug(seed.title)}.md"
-                try:
-                    owned = anchor.create_file(relative, _goal_content(seed))
-                except FileExistsError:
-                    skipped.append(f"{relative.as_posix()} (already exists)")
-                    continue
+                )
+        for seed in seed_plan.people:
+            metadata = {"name": seed.name}
+            if seed.role is not None:
+                metadata["role"] = seed.role
+            if seed.organization is not None:
+                metadata["organization"] = seed.organization
+            result = memory._new_record(
+                anchor,
+                kind="person",
+                metadata=metadata,
+                body="",
+                mode=profile["privacy_mode"],
+                write=tracked_seed_receipt,
+                suffix_on_collision=False,
+                retain_ownership=True,
+            )
+            if result is None or len(result) != 4:
+                raise ProfileCommandError("a planned People record could not be created")
+            created.append(result[3])
+            if result[1]:
+                raise ProfileCommandError("a profile seed bypassed credential sanitization")
+        for seed in seed_plan.goals:
+            relative = Path("Goals") / f"{_slug(seed.title)}.md"
+            created.append(anchor.create_file(relative, _goal_content(seed)))
+        for transaction in replacements:
+            transaction.validate_commit()
+        for value in overlay_plan.removals:
+            relative = Path(value)
+            owned = anchor.capture_file(relative)
+            content = owned.content
+            anchor.unlink_owned(owned)
+            owned.close()
+            removed.append((relative, content))
+        commit_phase = True
+        _commit(replacements, created, receipts)
+    except Exception as error:
+        if commit_phase:
+            for transaction in replacements:
+                transaction.close()
+            for owned in created:
                 owned.close()
-                seeded.append(relative.as_posix())
-    except memory.MemoryCommandError as error:
-        raise ProfileCommandError(str(error)) from error
-    return seeded, skipped
+            for receipt in receipts:
+                receipt.close()
+            raise
+        if not _rollback(anchor, removed, created, replacements, receipts):
+            raise ProfileCommandError(
+                "profile apply could not restore its prior state"
+            ) from error
+        raise
 
 
 def run(
     args: argparse.Namespace,
     *,
     write: Callable[[str | Path, str, dict[str, Any]], Path] = write_receipt,
+    input_stream: TextIO | None = None,
 ) -> int:
-    """Validate first, then apply overlays and seed only missing records."""
+    """Validate and receipt a complete apply before committing its mutations."""
     if getattr(args, "profile_action", None) != "apply":
         print("profile: choose apply")
         return 2
     try:
         workspace = _workspace(args.workspace)
-        profile = _profile(workspace)
         payload = resolve_payload(getattr(args, "payload", None))
         manifest = load_manifest(resolve_profiles_manifest(payload), payload)
-        if profile["privacy_mode"] not in manifest.privacy_modes:
-            raise ProfileCommandError(f"unknown privacy mode {profile['privacy_mode']!r}")
-        canonical_work_types(manifest, profile["work_types"])
-        overlay_plan = plan_overlay(
-            payload,
-            workspace,
-            manifest,
-            privacy_mode=profile["privacy_mode"],
-            work_types=profile["work_types"],
-        )
-        # Derive every seed before mutating so malformed answer data has no effects.
-        person_seeds(profile)
-        goal_seeds(profile)
+        with memory._WorkspaceAnchor(workspace) as anchor:
+            original_profile, profile_identity = anchor.read_file("System/profile.yaml")
+            if getattr(args, "candidate_stdin", False):
+                stream = sys.stdin if input_stream is None else input_stream
+                candidate = stream.read().encode("utf-8")
+            else:
+                candidate = original_profile
+            profile, findings, rendered_profile = _profile_data(candidate)
+            if not getattr(args, "candidate_stdin", False) and not findings:
+                rendered_profile = original_profile
+            if profile["privacy_mode"] not in manifest.privacy_modes:
+                raise ProfileCommandError("profile privacy_mode is not available")
+            try:
+                canonical_work_types(manifest, profile["work_types"])
+            except ManifestError as error:
+                raise ProfileCommandError(
+                    "profile work_types includes an unknown work type"
+                ) from error
+            overlay_plan = plan_overlay(
+                payload,
+                workspace,
+                manifest,
+                privacy_mode=profile["privacy_mode"],
+                work_types=profile["work_types"],
+            )
+            seeds = _seed_plan(anchor, profile)
+            profile_updated = rendered_profile != original_profile
+            receipt_fields = _receipt_fields(
+                profile_updated,
+                _overlay_actions(overlay_plan),
+                seeds.seeded,
+                seeds.skipped,
+            )
+            receipts = _write_required_receipts(
+                anchor, findings, receipt_fields, write
+            )
+            _apply_changes(
+                anchor,
+                original_profile,
+                profile_identity,
+                rendered_profile,
+                overlay_plan,
+                seeds,
+                receipts,
+                profile,
+                write,
+            )
     except (PayloadError, ManifestError, ProfileCommandError) as error:
         print(f"profile: {error}")
         return 2
     except Exception:
-        print("profile: could not prepare profile application")
-        return 2
-
-    try:
-        overlay_actions = apply_overlay_plan(workspace, overlay_plan)
-        seeded, skipped = _seed_records(workspace, profile, write)
-        write(workspace, "profile-apply", _receipt_fields(overlay_actions, seeded, skipped))
-    except (ManifestError, ProfileCommandError):
         print("profile: could not apply the profile safely")
         return 2
-    except Exception:
-        print("profile: could not apply the profile safely")
-        return 2
-    print(f"Profile applied: {len(seeded)} record(s) seeded, {len(skipped)} skipped.")
+    print(
+        f"Profile applied: {len(seeds.seeded)} record(s) seeded, "
+        f"{len(seeds.skipped)} skipped."
+    )
     return 0

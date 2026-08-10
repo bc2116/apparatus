@@ -21,7 +21,7 @@ EXPECTED_SHARE_STEPS = {
     "research-and-summarize.md": {7},
     "review-against-checklist.md": {7},
     "weekly-review.md": {7},
-    "welcome.md": {7},
+    "welcome.md": {8},
 }
 
 
@@ -103,6 +103,19 @@ def test_shipped_starter_procedures_declare_share_shaped_steps():
         }
 
     assert found == EXPECTED_SHARE_STEPS
+
+
+def test_welcome_procedure_ends_with_snapshot_and_receipt_confirmation():
+    _data, body = records.parse_record(
+        (SHIPPED_PROCEDURES / "welcome.md").read_text(encoding="utf-8")
+    )
+    steps = [
+        (int(match.group(1)), line)
+        for line in body.splitlines()
+        if (match := re.match(r"^(\d+)\. ", line))
+    ]
+    assert steps[-2][0] == 9 and "snapshot" in steps[-2][1].lower()
+    assert steps[-1][0] == 10 and "receipt" in steps[-1][1].lower()
 
 
 def test_missing_required_field_is_a_problem():

@@ -25,14 +25,17 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
    confirm them before writing files. For any skipped question, retain the
    current valid value from `System/profile.yaml`; if it is missing or invalid,
    ask the user instead of inventing a replacement.
-4. Rewrite `System/profile.yaml` with `schema: apparatus/profile@v0`,
-   `status: configured`, and the confirmed interview answers. Write
-   `key_people` as `{name, role, organization}` entries, `current_efforts` as
+4. Prepare the complete configured profile as YAML in memory, never as a
+   durable temporary file and never in command arguments. Keep
+   `schema: apparatus/profile@v0`, set `status: configured`, write `key_people`
+   as `{name, role, organization}` entries, `current_efforts` as
    `{title, done_when, next_action}` entries, and `source_locations` as plain
    language strings. Keep the current valid value of any skipped answer.
-5. Run `apparatus profile apply` from the workspace. It deploys the selected
-   profile overlay and adds only missing People and Goals records; it never
-   replaces, renames, or deletes existing user records.
+5. From the workspace, provide that YAML to `apparatus profile apply --stdin`
+   through standard input. This applies the credential floor before the
+   answers reach durable files, deploys the selected profile overlay, and adds
+   only missing People and Goals records. It never replaces, renames, or
+   deletes existing user records.
 6. Run `apparatus check` and explain any result plainly. Confirm the new
    records and remind the user that they can say "re-run my setup interview"
    whenever their setup changes.
@@ -52,3 +55,9 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
 8. [share] If there is an email, update, or submission, keep it as a draft in
    `Projects/` and hand it to the user; the assistant never sends, posts, or
    submits anything itself.
+9. Take a snapshot using the workspace's snapshot command if it is available
+   and approved. If snapshots are unavailable, tell the user plainly and
+   continue.
+10. Confirm that the snapshot command wrote its schema-valid snapshot receipt
+    under `System/receipts/`. If snapshots are unavailable, confirm that the
+    workspace records that unavailable state instead.

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from apparatus_core.credentials import RedactionFinding, redact
+
 
 @dataclass(frozen=True)
 class PersonSeed:
@@ -19,6 +21,31 @@ class GoalSeed:
     done_when: str
     next_action: str
     status: str
+
+
+def redact_answer_values(value: Any) -> tuple[Any, tuple[RedactionFinding, ...]]:
+    """Recursively apply the credential floor to profile values, never keys."""
+    findings: dict[str, int] = {}
+
+    def visit(item: Any) -> Any:
+        if isinstance(item, str):
+            cleaned, found = redact(item)
+            for finding in found:
+                findings[finding.credential_class] = (
+                    findings.get(finding.credential_class, 0) + finding.count
+                )
+            return cleaned
+        if isinstance(item, list):
+            return [visit(child) for child in item]
+        if isinstance(item, dict):
+            return {key: visit(child) for key, child in item.items()}
+        return item
+
+    cleaned = visit(value)
+    merged = tuple(
+        RedactionFinding(name, findings[name]) for name in sorted(findings)
+    )
+    return cleaned, merged
 
 
 def person_seeds(profile: dict[str, Any]) -> tuple[PersonSeed, ...]:
@@ -43,7 +70,9 @@ def goal_seeds(profile: dict[str, Any]) -> tuple[GoalSeed, ...]:
                 GoalSeed(
                     title=entry["title"],
                     done_when="Agree with the owner what done looks like.",
-                    next_action="Agree with the owner what done looks like.",
+                    next_action=entry.get(
+                        "next_action", "Agree with the owner what done looks like."
+                    ),
                     status="waiting",
                 )
             )

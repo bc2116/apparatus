@@ -188,7 +188,12 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
 
     expected_schema = schema.schema_id
     if "schema" in data and data["schema"] != expected_schema:
-        problems.append(f"schema must be {expected_schema!r}, found {data['schema']!r}")
+        if schema.kind == "profile":
+            problems.append(f"schema must be {expected_schema!r}")
+        else:
+            problems.append(
+                f"schema must be {expected_schema!r}, found {data['schema']!r}"
+            )
 
     for name, allowed in schema.enums.items():
         if name not in data:
@@ -199,16 +204,16 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
         if value is None and name in schema.required:
             continue
         if value not in allowed:
-            problems.append(f"{name} must be one of {', '.join(allowed)}; found {value!r}")
+            suffix = "" if schema.kind == "profile" else f"; found {value!r}"
+            problems.append(f"{name} must be one of {', '.join(allowed)}{suffix}")
 
     if "labels" in data and data["labels"] is not None and not _is_string_list(data["labels"]):
         problems.append("labels must be a flat list of strings")
 
     if schema.closed:
         allowed_keys = set(schema.required) | set(schema.optional)
-        for name in data:
-            if name not in allowed_keys:
-                problems.append(f"profile keys are closed; unexpected key: {name}")
+        if any(name not in allowed_keys for name in data):
+            problems.append("profile keys are closed; remove the unexpected key")
 
     if schema.kind == "profile":
         if not _is_string_list(data.get("work_types", [])):
@@ -216,7 +221,7 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
         review_day = data.get("review_day")
         if review_day is not None and review_day not in REVIEW_DAYS:
             problems.append(
-                f"review_day must be null or one of {', '.join(REVIEW_DAYS)}; found {review_day!r}"
+                f"review_day must be null or one of {', '.join(REVIEW_DAYS)}"
             )
         _profile_interview_problems(data, problems)
 
@@ -252,9 +257,8 @@ def _profile_interview_problems(data: dict, problems: list[str]) -> None:
                 if not isinstance(person, dict):
                     problems.append(f"{entry} must be a mapping")
                     continue
-                unexpected = sorted(set(person) - {"name", "role", "organization"})
-                if unexpected:
-                    problems.append(f"{entry} has unexpected key: {unexpected[0]}")
+                if set(person) - {"name", "role", "organization"}:
+                    problems.append(f"{entry} has an unexpected key")
                 if not isinstance(person.get("name"), str) or not person["name"].strip():
                     problems.append(f"{entry}.name must be a non-empty string")
                 for key in ("role", "organization"):
@@ -273,9 +277,8 @@ def _profile_interview_problems(data: dict, problems: list[str]) -> None:
                 if not isinstance(effort, dict):
                     problems.append(f"{entry} must be a mapping")
                     continue
-                unexpected = sorted(set(effort) - {"title", "done_when", "next_action"})
-                if unexpected:
-                    problems.append(f"{entry} has unexpected key: {unexpected[0]}")
+                if set(effort) - {"title", "done_when", "next_action"}:
+                    problems.append(f"{entry} has an unexpected key")
                 if not isinstance(effort.get("title"), str) or not effort["title"].strip():
                     problems.append(f"{entry}.title must be a non-empty string")
                 for key in ("done_when", "next_action"):
@@ -285,5 +288,12 @@ def _profile_interview_problems(data: dict, problems: list[str]) -> None:
                         problems.append(f"{entry}.{key} must be a non-empty string")
 
     locations = data.get("source_locations")
-    if locations is not None and not _is_string_list(locations):
-        problems.append("source_locations must be a list of strings")
+    if locations is not None:
+        if not _is_string_list(locations):
+            problems.append("source_locations must be a list of strings")
+        else:
+            for index, location in enumerate(locations):
+                if not location.strip():
+                    problems.append(
+                        f"source_locations[{index}] must be a non-empty string"
+                    )

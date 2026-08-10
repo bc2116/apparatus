@@ -233,7 +233,12 @@ def _new_record(
     mode: str,
     write: Callable[[str | Path, str, dict[str, Any]], Path],
     suffix_on_collision: bool = True,
-) -> tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]] | None:
+    retain_ownership: bool = False,
+) -> (
+    tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]]
+    | tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...], _OwnedFile]
+    | None
+):
     cleaned, findings = _redact_strings({**metadata, "body": body})
     cleaned_body = cleaned.pop("body")
     labels = _labels_for((*cleaned.values(), cleaned_body))
@@ -316,6 +321,8 @@ def _new_record(
             raise
         if owned_receipt is not None:
             owned_receipt.close()
+        if retain_ownership:
+            return relative, findings, labels, owned_record
         owned_record.close()
         return relative, findings, labels
     raise MemoryCommandError("could not allocate a safe Memory filename")
