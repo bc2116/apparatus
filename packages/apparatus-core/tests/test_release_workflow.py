@@ -37,6 +37,8 @@ def test_release_workflow_keeps_dispatch_and_publishing_separate() -> None:
         "GH_REPO": "${{ github.repository }}",
         "VERSION": "${{ needs.build.outputs.version }}",
         "DRY_RUN": "${{ needs.build.outputs.dry_run }}",
+        "SDIST_NAME": "${{ needs.build.outputs.sdist_name }}",
+        "WHEEL_NAME": "${{ needs.build.outputs.wheel_name }}",
     }
     assert "gh release create" in release_step["run"]
     assert '--repo "$GH_REPO"' in release_step["run"]
@@ -52,8 +54,12 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "release tag {ref_name!r} must exactly match package version" in content
     assert "softprops/action-gh-release" not in content
     assert "dist/apparatus-payload-${{ steps.release.outputs.version }}.zip" in content
-    assert "dist/packages/apparatus_core-${{ steps.release.outputs.version }}.tar.gz" in content
-    assert "dist/packages/apparatus_core-${{ steps.release.outputs.version }}-py3-none-any.whl" in content
+    assert "dist/packages/${{ steps.packages.outputs.sdist_name }}" in content
+    assert "dist/packages/${{ steps.packages.outputs.wheel_name }}" in content
+    assert '"release-files/packages/${SDIST_NAME}"' in content
+    assert '"release-files/packages/${WHEEL_NAME}"' in content
+    assert "apparatus_core-${VERSION}.tar.gz" not in content
+    assert "apparatus_core-${VERSION}-py3-none-any.whl" not in content
 
 
 def _release_metadata_script() -> str:
@@ -144,6 +150,8 @@ def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path:
         "GH_TOKEN": "test-token",
         "VERSION": "0.0.1",
         "DRY_RUN": "true",
+        "SDIST_NAME": "apparatus_core-0.0.1.tar.gz",
+        "WHEEL_NAME": "apparatus_core-0.0.1-py3-none-any.whl",
     }
     subprocess.run(
         ["bash", "-c", release_step["run"]],
@@ -196,3 +204,76 @@ def test_github_release_requires_a_successful_build_for_every_path() -> None:
     assert not _github_release_is_eligible(
         build_result="success", dry_run="false", publish_result="failure"
     )
+
+
+def _distribution_resolver_script() -> str:
+    workflow = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    steps = workflow["jobs"]["build"]["steps"]
+    return next(step["run"] for step in steps if step.get("id") == "packages")
+
+
+def _run_distribution_resolver(temporary_path: Path, names: tuple[str, ...]) -> str:
+    package_dir = temporary_path / "dist" / "packages"
+    package_dir.mkdir(parents=True)
+    for name in names:
+        (package_dir / name).write_text("distribution", encoding="utf-8")
+    output = temporary_path / "github-output"
+    subprocess.run(
+        [sys.executable, "-c", _distribution_resolver_script()],
+        cwd=temporary_path,
+        env={**os.environ, "GITHUB_OUTPUT": str(output)},
+        check=True,
+    )
+    return output.read_text(encoding="utf-8")
+
+
+def test_distribution_resolver_uses_normalized_prerelease_filenames(tmp_path: Path) -> None:
+    output = _run_distribution_resolver(
+        tmp_path,
+        (
+            "apparatus_core-1.0.0rc1.tar.gz",
+            "apparatus_core-1.0.0rc1-py3-none-any.whl",
+        ),
+    )
+
+    assert output == (
+        "sdist_name=apparatus_core-1.0.0rc1.tar.gz\n"
+        "wheel_name=apparatus_core-1.0.0rc1-py3-none-any.whl\n"
+    )
+
+
+def test_distribution_resolver_rejects_missing_or_ambiguous_files(tmp_path: Path) -> None:
+    package_dir = tmp_path / "dist" / "packages"
+    package_dir.mkdir(parents=True)
+    output = tmp_path / "github-output"
+    environment = {**os.environ, "GITHUB_OUTPUT": str(output)}
+
+    missing = subprocess.run(
+        [sys.executable, "-c", _distribution_resolver_script()],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert missing.returncode != 0
+    assert "exactly one sdist and one wheel" in missing.stderr
+
+    for name in (
+        "apparatus_core-1.0.0.tar.gz",
+        "apparatus_core-1.0.0-py3-none-any.whl",
+        "apparatus_core-1.0.0-py2-none-any.whl",
+    ):
+        (package_dir / name).write_text("distribution", encoding="utf-8")
+    ambiguous = subprocess.run(
+        [sys.executable, "-c", _distribution_resolver_script()],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert ambiguous.returncode != 0
+    assert "exactly one sdist and one wheel" in ambiguous.stderr

@@ -15,6 +15,8 @@ jobs:
     outputs:
       version: ${{ steps.release.outputs.version }}
       dry_run: ${{ steps.release.outputs.dry_run }}
+      sdist_name: ${{ steps.packages.outputs.sdist_name }}
+      wheel_name: ${{ steps.packages.outputs.wheel_name }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -74,6 +76,34 @@ jobs:
         run: uv run python tools/build_payload.py
       - name: Build apparatus-core distribution
         run: uv build --package apparatus-core --out-dir dist/packages
+      - name: Resolve apparatus-core distribution files
+        id: packages
+        shell: python
+        run: |
+          import os
+          import re
+          from pathlib import Path
+
+          package_dir = Path("dist/packages")
+          if package_dir.is_symlink() or not package_dir.is_dir():
+              raise SystemExit("dist/packages must be a real directory")
+          entries = sorted(package_dir.iterdir())
+          if any(entry.is_symlink() or not entry.is_file() for entry in entries):
+              raise SystemExit("dist/packages may contain only regular distribution files")
+          sdist_pattern = re.compile(r"apparatus_core-[A-Za-z0-9][A-Za-z0-9._+]*\.tar\.gz")
+          wheel_pattern = re.compile(
+              r"apparatus_core-[A-Za-z0-9][A-Za-z0-9._+]*"
+              r"-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+\.whl"
+          )
+          sdists = [entry for entry in entries if sdist_pattern.fullmatch(entry.name)]
+          wheels = [entry for entry in entries if wheel_pattern.fullmatch(entry.name)]
+          if len(entries) != 2 or len(sdists) != 1 or len(wheels) != 1:
+              raise SystemExit(
+                  "apparatus-core build must produce exactly one sdist and one wheel"
+              )
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"sdist_name={sdists[0].name}\n")
+              output.write(f"wheel_name={wheels[0].name}\n")
       - name: Upload release files
         uses: actions/upload-artifact@v4
         with:
@@ -81,8 +111,8 @@ jobs:
           if-no-files-found: error
           path: |
             dist/apparatus-payload-${{ steps.release.outputs.version }}.zip
-            dist/packages/apparatus_core-${{ steps.release.outputs.version }}.tar.gz
-            dist/packages/apparatus_core-${{ steps.release.outputs.version }}-py3-none-any.whl
+            dist/packages/${{ steps.packages.outputs.sdist_name }}
+            dist/packages/${{ steps.packages.outputs.wheel_name }}
             dist/release-notes.md
 
   publish-pypi:
@@ -128,6 +158,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.build.outputs.version }}
           DRY_RUN: ${{ needs.build.outputs.dry_run }}
+          SDIST_NAME: ${{ needs.build.outputs.sdist_name }}
+          WHEEL_NAME: ${{ needs.build.outputs.wheel_name }}
         run: |
           set -euo pipefail
           prerelease=()
@@ -140,5 +172,5 @@ jobs:
             --notes-file "release-files/release-notes.md" \
             "${prerelease[@]}" \
             "release-files/apparatus-payload-${VERSION}.zip" \
-            "release-files/packages/apparatus_core-${VERSION}.tar.gz" \
-            "release-files/packages/apparatus_core-${VERSION}-py3-none-any.whl"
+            "release-files/packages/${SDIST_NAME}" \
+            "release-files/packages/${WHEEL_NAME}"
