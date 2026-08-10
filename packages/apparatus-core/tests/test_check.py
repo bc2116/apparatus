@@ -5,6 +5,7 @@ from pathlib import Path
 
 from apparatus_core.check import CheckResult, Finding, check_workspace
 from apparatus_core.commands import check
+from apparatus_core.render import render_workspace
 
 
 def _workspace(path: Path) -> Path:
@@ -20,6 +21,8 @@ def _workspace(path: Path) -> Path:
         "System",
     ):
         (path / relative).mkdir(parents=True, exist_ok=True)
+    (path / "AGENTS.md").write_text("# Test canon\n", encoding="utf-8")
+    render_workspace(path)
     return path
 
 
@@ -42,8 +45,8 @@ def _goal(path: Path) -> Path:
 
 def test_required_tree_missing_entries_are_individual_findings(tmp_path):
     result = check_workspace(tmp_path)
-    assert {finding.code for finding in result.findings} == {"tree-missing-entry"}
-    assert {finding.path for finding in result.findings} == {
+    tree_findings = [finding for finding in result.findings if finding.code == "tree-missing-entry"]
+    assert {finding.path for finding in tree_findings} == {
         "Welcome.md",
         "Goals",
         "Decisions",
@@ -54,6 +57,23 @@ def test_required_tree_missing_entries_are_individual_findings(tmp_path):
         "Memory/Facts",
         "System",
     }
+    assert [finding.code for finding in result.findings if finding.code == "shim-missing"] == [
+        "shim-missing",
+        "shim-missing",
+        "shim-missing",
+    ]
+
+
+def test_legacy_workspace_without_shims_gets_missing_findings(tmp_path):
+    workspace = _workspace(tmp_path)
+    for relative in ("CLAUDE.md", ".cursor/rules/apparatus.mdc", ".github/copilot-instructions.md"):
+        (workspace / relative).unlink()
+    result = check_workspace(workspace)
+    assert [(finding.code, finding.path) for finding in result.findings] == [
+        ("shim-missing", "CLAUDE.md"),
+        ("shim-missing", ".cursor/rules/apparatus.mdc"),
+        ("shim-missing", ".github/copilot-instructions.md"),
+    ]
 
 
 def test_bad_content_in_data_folders_is_not_parsed_as_a_record(tmp_path):

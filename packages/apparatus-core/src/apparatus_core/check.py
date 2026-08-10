@@ -6,6 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from apparatus_core import records
+from apparatus_core import shims
+from apparatus_core.render import (
+    RenderError,
+    is_reparse_path,
+    normalize_target,
+    rendered_shims,
+)
 
 
 @dataclass(frozen=True)
@@ -170,7 +177,83 @@ def _machine_report_findings(path: Path, workspace: Path) -> list[Finding]:
     return []
 
 
-def check_workspace(workspace: str | Path) -> CheckResult:
+def _shim_findings(
+    workspace: Path,
+    registry: tuple[tuple[str, str], ...] | None,
+) -> list[Finding]:
+    """Compare every registered shim to its deterministic in-memory render."""
+    active_registry = shims.SHIM_REGISTRY if registry is None else registry
+    try:
+        expected = rendered_shims(workspace, registry=active_registry)
+    except RenderError:
+        # With no usable canon, an existing target is stale while an absent
+        # target remains missing. Do not let one render error blur the two.
+        return [
+            Finding(
+                "shim-drift" if _shim_target_present(workspace, target) else "shim-missing",
+                target,
+                "Run `apparatus render` after adding AGENTS.md.",
+            )
+            for target, _template in active_registry
+        ]
+
+    findings: list[Finding] = []
+    for shim in expected:
+        target = workspace / shim.target
+        if not _safe_shim_file(workspace, shim.target):
+            code = "shim-drift" if _shim_target_present(workspace, shim.target) else "shim-missing"
+            findings.append(
+                Finding(code, shim.target, "Run `apparatus render` to regenerate this shim.")
+            )
+            continue
+        try:
+            actual = target.read_bytes()
+        except OSError:
+            actual = None
+        if actual != shim.content:
+            findings.append(
+                Finding("shim-drift", shim.target, "Run `apparatus render` to regenerate this shim.")
+            )
+    return findings
+
+
+def _safe_shim_file(workspace: Path, target: str) -> bool:
+    """Return whether target is a regular workspace file without symlink traversal."""
+    try:
+        relative = normalize_target(target)
+    except RenderError:
+        return False
+    if is_reparse_path(workspace):
+        return False
+    current = workspace
+    for part in relative.parts:
+        current /= part
+        if is_reparse_path(current):
+            return False
+    return current.is_file()
+
+
+def _shim_target_present(workspace: Path, target: str) -> bool:
+    """Detect a target or unsafe symlink component without reading through it."""
+    try:
+        relative = normalize_target(target)
+    except RenderError:
+        return False
+    if is_reparse_path(workspace):
+        return True
+    current = workspace
+    for part in relative.parts:
+        current /= part
+        if is_reparse_path(current):
+            return True
+    return current.exists()
+
+
+def check_workspace(
+    workspace: str | Path,
+    *,
+    shim_registry: tuple[tuple[str, str], ...] | None = None,
+) -> CheckResult:
     """Check a workspace tree and its v0 records without changing it."""
     root = Path(workspace)
     findings: list[Finding] = []
@@ -202,5 +285,7 @@ def check_workspace(workspace: str | Path) -> CheckResult:
     machine_report = root / "System/machine-report.md"
     if machine_report.is_file():
         findings.extend(_machine_report_findings(machine_report, root))
+
+    findings.extend(_shim_findings(root, shim_registry))
 
     return CheckResult(tuple(findings), records_checked)
