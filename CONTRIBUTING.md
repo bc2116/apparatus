@@ -29,6 +29,18 @@ Python ≥ 3.10; uv manages the interpreter (see `.python-version`).
 3. `uv run pytest` is green.
 4. The diff is focused — nothing outside the PR's scope.
 
+## Releases and versioning
+
+`packages/apparatus-core/pyproject.toml` is the single source of version truth.
+The universal payload archive uses that same version when it is built. For a
+release, land the version bump, a matching `## v<version>` section in
+`CHANGELOG.md`, and the `v<version>` tag together. Tags are permanent: never
+move or reuse a tag.
+
+The release pipeline is dry-run by default. Follow
+[the release runbook](docs/release-runbook.md) for the operator-owned trusted
+publishing setup and rehearsal steps before enabling publication.
+
 ## Sign-off (DCO)
 
 All commits must carry a Developer Certificate of Origin sign-off
