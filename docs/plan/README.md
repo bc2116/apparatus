@@ -102,6 +102,18 @@ latency-optimized.
   criteria and the ADRs. Verification catches the failure class that matters
   here (invented scope, contract violations) at a fraction of authorship
   cost.
+- **Escalation rule (learned in execution):** when a slice's author–review
+  loop hits a **second blocking rework cycle on the same deliverable**,
+  first classify the findings — contract ambiguity gets fixed in the prompt
+  or spec before any more authoring; capability shortfall gets escalation.
+  Escalate the author one tier (strong → frontier) and/or one effort step,
+  and raise the reviewer with it (reviewer never weaker than author, high
+  effort for the re-review). Run time far beyond a slice's reasonable
+  expectation is corroborating evidence, never a trigger by itself. The
+  escalation holds for the remainder of that slice and resets for the next.
+  Economics: repeated rework is the most expensive path — a cheap author
+  plus two rework cycles plus repeat reviews costs more than one stronger
+  authorship pass, so escalating promptly is the frugal move.
 
 ## Post-alpha (deliberately not in this plan)
 
