@@ -811,10 +811,15 @@ def _win_open(
     lock_name: bool = True,
     delete_access: bool = False,
     share_existing_write: bool = False,
+    retain_readable: bool = False,
 ) -> int:
     kernel = _win_kernel()
     access = _GENERIC_READ
-    if not directory or delete_access:
+    # Windows sharing is mutual: a handle holding DELETE access blocks every
+    # ordinary reader that does not offer FILE_SHARE_DELETE. A retained
+    # long-lived handle therefore opts out of DELETE access so the published
+    # file stays readable at its path; deletion re-opens and re-verifies.
+    if (not directory and not retain_readable) or delete_access:
         access |= _DELETE
     if create:
         access |= _GENERIC_WRITE
@@ -1077,7 +1082,19 @@ class WindowsReceiptPublication:
 
     def rollback(self) -> None:
         self.validate()
-        _win_delete_handle(self.handle)
+        # The retained proof handle holds no DELETE access so the published
+        # receipt stays readable by ordinary tools while the proof is live.
+        # Deletion closes the pin, re-opens by name with DELETE access, and
+        # re-verifies exact object identity before disposing.
+        _win_close(self.handle)
+        self.handle = -1
+        reopened = _win_open(self.path, directory=False)
+        try:
+            if _win_identity(reopened) != self.identity:
+                raise OSError("receipt publication changed before rollback")
+            _win_delete_handle(reopened)
+        finally:
+            _win_close(reopened)
 
     def close(self) -> None:
         for name in ("handle", "receipts", "system", "root"):
@@ -1823,7 +1840,7 @@ def windows_publish_receipt(
             _win_delete_handle(temporary)
             _win_close(temporary)
             temporary = -1
-            final = _win_open(final_path, directory=False)
+            final = _win_open(final_path, directory=False, retain_readable=True)
             if _win_identity(final) != temporary_identity:
                 raise OSError("receipt identity changed after publication")
             publication = WindowsReceiptPublication(
