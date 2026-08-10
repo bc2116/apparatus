@@ -9,7 +9,9 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
+import tempfile
 from typing import Any
 
 from apparatus_core.detect import detect_tool
@@ -51,6 +53,63 @@ class SnapshotResult:
 
     snapshot: Snapshot | None
     no_changes: bool = False
+
+
+class SnapshotTransaction:
+    """A prepared snapshot whose visible state can be accepted or rolled back."""
+
+    def __init__(
+        self,
+        workspace: Path,
+        result: SnapshotResult,
+        *,
+        previous_head: str | None = None,
+        prepared_head: str | None = None,
+        receipt: tuple[Path, tuple[int, int, int]] | None = None,
+        run: Callable[..., Any] = subprocess.run,
+    ) -> None:
+        self.workspace = workspace
+        self.result = result
+        self.previous_head = previous_head
+        self.prepared_head = prepared_head
+        self.receipt = receipt
+        self.run = run
+        self.closed = False
+
+    def commit(self) -> SnapshotResult:
+        """Keep the prepared snapshot."""
+        self.closed = True
+        return self.result
+
+    def rollback(self) -> None:
+        """Remove only this transaction's visible snapshot and exact receipt."""
+        if self.closed:
+            return
+        errors: list[Exception] = []
+        if self.prepared_head is not None:
+            arguments = ["update-ref"]
+            if self.previous_head is None:
+                arguments.extend(["-d", "HEAD", self.prepared_head])
+            else:
+                arguments.extend(["HEAD", self.previous_head, self.prepared_head])
+            try:
+                _require_success(_run_git(self.workspace, arguments, run=self.run))
+            except Exception as error:  # preserve a concurrent ref instead of overwriting it
+                errors.append(error)
+        if self.receipt is not None:
+            path, identity = self.receipt
+            try:
+                status = path.lstat()
+                if (status.st_dev, status.st_ino, status.st_size) != identity:
+                    raise SnapshotError("Snapshot receipt changed before rollback.")
+                path.unlink()
+            except FileNotFoundError:
+                pass
+            except Exception as error:
+                errors.append(error)
+        self.closed = True
+        if errors:
+            raise SnapshotError("The prepared snapshot could not be rolled back safely.") from errors[0]
 
 
 def utc_timestamp(clock: Callable[[], datetime] | None = None) -> str:
@@ -186,6 +245,154 @@ def take_snapshot(
     _require_success(_run_git(root, ["add", "--all", "--force"], run=run))
     _require_success(_run_git(root, ["-c", "commit.gpgsign=false", "commit", "-m", resolved_label], run=run))
     return SnapshotResult(snapshot=_snapshot_from_head(root, run=run))
+
+
+def _run_git_with_environment(
+    workspace: Path,
+    arguments: list[str],
+    environment: dict[str, str],
+    *,
+    run: Callable[..., Any],
+) -> Any:
+    try:
+        return run(
+            ["git", "-C", str(workspace), *arguments],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise SnapshotError("Snapshots could not be completed on this machine.") from error
+
+
+def _captured_tree(
+    workspace: Path,
+    capture: Callable[[Path], None],
+    *,
+    run: Callable[..., Any],
+) -> str:
+    """Build a tree from caller-validated bytes without touching the caller's index."""
+    store = workspace / ".git"
+    if not store.is_dir():
+        raise SnapshotError("Snapshots could not be completed for this workspace.")
+    with tempfile.TemporaryDirectory(prefix="apparatus-snapshot-", dir=store) as temporary:
+        transaction_root = Path(temporary)
+        content = transaction_root / "content"
+        content.mkdir()
+        capture(content)
+        environment = _git_environment()
+        environment.update(
+            {
+                "GIT_DIR": str(store),
+                "GIT_WORK_TREE": str(content),
+                "GIT_INDEX_FILE": str(transaction_root / "index"),
+            }
+        )
+        _require_success(
+            _run_git_with_environment(workspace, ["read-tree", "--empty"], environment, run=run)
+        )
+        _require_success(
+            _run_git_with_environment(
+                workspace,
+                ["add", "--all", "--force", "--", "."],
+                environment,
+                run=run,
+            )
+        )
+        return _require_success(
+            _run_git_with_environment(workspace, ["write-tree"], environment, run=run)
+        ).strip()
+
+
+def _current_head(workspace: Path, *, run: Callable[..., Any]) -> str | None:
+    result = _run_git(workspace, ["rev-parse", "--verify", "HEAD"], run=run)
+    if getattr(result, "returncode", 1) != 0:
+        return None
+    value = str(getattr(result, "stdout", "") or "").strip()
+    return value or None
+
+
+def _tree_for_head(workspace: Path, head: str | None, *, run: Callable[..., Any]) -> str | None:
+    if head is None:
+        return None
+    return _require_success(_run_git(workspace, ["rev-parse", f"{head}^{{tree}}"], run=run)).strip()
+
+
+def _owned_snapshot_receipt(workspace: Path, path: Path) -> tuple[Path, tuple[int, int, int]]:
+    absolute = Path(os.path.abspath(path))
+    try:
+        relative = absolute.relative_to(workspace)
+    except ValueError as error:
+        raise SnapshotReceiptError("Snapshot receipt was not written inside the workspace.") from error
+    if relative.parent != Path("System/receipts"):
+        raise SnapshotReceiptError("Snapshot receipt was not written in the receipts folder.")
+    status = absolute.lstat()
+    if not stat.S_ISREG(status.st_mode):
+        raise SnapshotReceiptError("Snapshot receipt is not a regular file.")
+    return absolute, (status.st_dev, status.st_ino, status.st_size)
+
+
+def prepare_snapshot(
+    workspace: str | Path,
+    *,
+    label: str,
+    capture: Callable[[Path], None],
+    run: Callable[..., Any] = subprocess.run,
+    write: Callable[[str | Path, str, dict[str, str]], Path] = write_receipt,
+) -> SnapshotTransaction:
+    """Prepare a rollback-capable snapshot from an independently captured tree.
+
+    This path is for operations that must keep an external directory out of
+    snapshot input. The normal PR-10 command continues to use ``take_snapshot``.
+    """
+    root = ensure_snapshot_store(workspace, run=run)
+    previous_head = _current_head(root, run=run)
+    initial_tree = _captured_tree(root, capture, run=run)
+    if initial_tree == _tree_for_head(root, previous_head, run=run):
+        return SnapshotTransaction(
+            root,
+            SnapshotResult(snapshot=None, no_changes=True),
+            run=run,
+        )
+
+    receipt: tuple[Path, tuple[int, int, int]] | None = None
+    prepared_head: str | None = None
+    try:
+        try:
+            receipt_path = write(root, "snapshot", _snapshot_receipt_fields(label))
+            receipt = _owned_snapshot_receipt(root, receipt_path)
+        except (OSError, ValueError) as error:
+            raise SnapshotReceiptError("Snapshot receipt could not be written.") from error
+        tree = _captured_tree(root, capture, run=run)
+        arguments = ["-c", "commit.gpgsign=false", "commit-tree", tree, "-m", label]
+        if previous_head is not None:
+            arguments.extend(["-p", previous_head])
+        prepared_head = _require_success(_run_git(root, arguments, run=run)).strip()
+        update = ["update-ref", "HEAD", prepared_head]
+        if previous_head is not None:
+            update.append(previous_head)
+        _require_success(_run_git(root, update, run=run))
+        result = SnapshotResult(snapshot=_snapshot_from_head(root, run=run))
+        return SnapshotTransaction(
+            root,
+            result,
+            previous_head=previous_head,
+            prepared_head=prepared_head,
+            receipt=receipt,
+            run=run,
+        )
+    except Exception:
+        transaction = SnapshotTransaction(
+            root,
+            SnapshotResult(snapshot=None),
+            previous_head=previous_head,
+            prepared_head=prepared_head,
+            receipt=receipt,
+            run=run,
+        )
+        transaction.rollback()
+        raise
 
 
 def list_snapshots(

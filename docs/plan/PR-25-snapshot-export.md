@@ -58,14 +58,23 @@ deliberately not built here.
    a standalone snapshot history directory when present — so a restored backup
    keeps its snapshots. A workspace whose snapshot history is stored externally
    (as in a linked git worktree) is rejected with a clear explanation; see Open
-   decisions. Nothing is excluded and nothing outside the workspace root is
-   included; every archive produced is self-contained.
+   decisions. The preflight also rejects common-directory indirection,
+   alternates of every path or transport form, shared or partial/promisor object
+   stores, external local configuration, and nested history indirections before
+   any snapshot or archive write. It never reads external object contents.
+   Nothing is excluded and nothing outside the workspace root is included;
+   every archive produced is self-contained.
 2. Snapshot-first: when snapshots are available (reusing the PR-10
    availability probe, injectable for tests), the verb takes a snapshot
    labeled "Before backup export <UTC timestamp>" before archiving, so the
    archive captures a restorable state. PR-10's no-change semantics apply
    unchanged: an untouched workspace produces no new snapshot and that is
-   not an error.
+   not an error. Backup prepares this snapshot from a descriptor-validated
+   staging tree that excludes the anchored destination identity, without
+   changing the caller's index or working files. The prepared snapshot ref and
+   its exact receipt are retained only with a successful export and are rolled
+   back on every failed export, so destination content is never snapshot input
+   and a failed export leaves no visible snapshot mutation.
 3. Works without git: when snapshots are unavailable, the verb still
    produces the archive and exits 0, telling the user in plain language that
    the backup contains the workspace exactly as it is now, without a fresh
@@ -108,6 +117,9 @@ deliberately not built here.
   - export → unzip to a fresh temp folder → tree bytes match the workspace
     at export time, hidden files included;
   - the pre-export snapshot exists and is restorable when git is present;
+  - a destination moved into the workspace from inside the injected snapshot
+    callback is never read or captured, and failure restores the prior snapshot
+    id, exact index bytes, working files, and receipt set;
   - the no-git path (injectable probe pointed at an empty PATH): archive
     still produced, exit 0, plain-language message, receipt written;
   - one-way proof: a pre-existing unrelated file at the destination is
@@ -118,6 +130,10 @@ deliberately not built here.
     workspace each exit 2;
   - the `backup-export` receipt exists, follows the pinned receipt filename
     convention, and validates against the receipt schema.
+  - real shared-clone and common-directory stores, plus absolute, relative,
+    local-URL, HTTP, partial/promisor, and nested indirections, are rejected
+    before snapshot/archive; an extracted standalone backup remains restorable
+    after its original workspace is moved away.
 - A test asserts stdout for a successful run contains no git vocabulary.
 
 ## Out of scope
@@ -132,7 +148,10 @@ deliberately not built here.
 - Verifying that the destination actually is synced storage; the destination
   is just a directory the user chose.
 - Incremental or differential archives, encryption, or compression tuning.
-- Any change to `snapshot`/`restore` behavior (PR-10 owns those verbs).
+- Any change to the user-facing `snapshot`/`restore` command behavior (PR-10
+  owns those verbs). The reusable prepared-snapshot transaction used only by
+  backup preserves their snapshot labels, history, receipts, and no-change
+  semantics.
 - Any change to `starter/payload/` or the golden manifest.
 
 ## Dependencies
@@ -156,4 +175,8 @@ deliberately not built here.
   snapshot history cannot both hold for that shape. Smallest conservative v1
   default: reject linked-worktree exports with a clear explanation. Standalone
   `.git` directories and workspaces operating without git remain supported.
-  Guided collection of external snapshot storage is not introduced here.
+  Guided collection of external snapshot storage is not introduced here. The
+  same conservative rule applies to every other external-history mechanism:
+  common directories, alternates, shared or partial/promisor object stores,
+  included/external local configuration, and nested history indirections are
+  rejected even when the reference is relative or uses a remote transport.

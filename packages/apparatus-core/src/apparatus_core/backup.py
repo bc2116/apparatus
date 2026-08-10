@@ -14,9 +14,9 @@ from typing import Any, BinaryIO
 from apparatus_core.receipts import write_receipt
 from apparatus_core.snapshots import (
     SnapshotError,
-    SnapshotResult,
+    SnapshotTransaction,
     git_available,
-    take_snapshot,
+    prepare_snapshot,
 )
 
 
@@ -98,6 +98,50 @@ def _stable_directory_identity(value: os.stat_result) -> tuple[int, int, int, in
     return value.st_dev, value.st_ino, value.st_mtime_ns, stat.S_IFMT(value.st_mode)
 
 
+def _config_uses_external_history(content: bytes) -> bool:
+    """Recognize local configuration that can make history non-self-contained."""
+    section = ""
+    for raw_line in content.decode("utf-8", errors="replace").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("[") and "]" in line:
+            section = "".join(line[1 : line.index("]")].casefold().split())
+            if section.startswith("include"):
+                return True
+            continue
+        pieces = line.split("=", 1)
+        key = "".join(pieces[0].casefold().split())
+        value = pieces[1].strip().casefold() if len(pieces) == 2 else "true"
+        if section == "core" and key == "worktree":
+            return True
+        if section == "core" and key == "bare" and value not in {"false", "no", "off", "0"}:
+            return True
+        if section == "extensions" and key in {"partialclone", "worktreeconfig"}:
+            return True
+        if section.startswith("remote") and key in {"promisor", "partialclonefilter"}:
+            return True
+        if "alternate" in key or section.startswith("odb"):
+            return True
+    return False
+
+
+def _external_history_marker(relative: Path) -> bool:
+    parts = tuple(part.casefold() for part in relative.parts)
+    if not parts:
+        return False
+    if parts in {("commondir",), ("gitdir",), ("config.worktree",)}:
+        return True
+    if parts[0] in {"modules", "worktrees"}:
+        return True
+    if len(parts) >= 3 and parts[-3:] in {
+        ("objects", "info", "alternates"),
+        ("objects", "info", "http-alternates"),
+    }:
+        return True
+    return "objects" in parts and parts[-1].endswith(".promisor")
+
+
 def _posix_directory_flags() -> int:
     if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
         raise OSError("safe directory handles are unavailable")
@@ -158,8 +202,155 @@ class _PosixWorkspaceAnchor:
             return "external"
         return "unsafe"
 
+    def validate_snapshot_history(self) -> None:
+        """Reject external or nested history without opening external objects."""
+        self._scan_for_history(self.handle, Path())
+
+    def _scan_for_history(self, parent: int, relative: Path) -> None:
+        try:
+            names = os.listdir(parent)
+        except OSError as error:
+            raise BackupError("Workspace contents could not be read safely.") from error
+        for name in names:
+            child_relative = relative / name
+            try:
+                before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                self._same_filesystem(before)
+                if not stat.S_ISDIR(before.st_mode):
+                    if name.casefold() == ".git":
+                        raise BackupError(
+                            "This workspace uses external snapshot storage and cannot be "
+                            "backed up safely."
+                        )
+                    continue
+                child = os.open(name, _posix_directory_flags(), dir_fd=parent)
+                try:
+                    opened = os.fstat(child)
+                    if _identity(opened) != _identity(before):
+                        raise BackupError("Workspace content changed during backup export.")
+                    if name.casefold() == ".git":
+                        if relative.parts:
+                            raise BackupError(
+                                "This workspace contains nested snapshot storage and cannot be "
+                                "backed up safely."
+                            )
+                        self._validate_git_store(child, Path())
+                    else:
+                        self._scan_for_history(child, child_relative)
+                finally:
+                    os.close(child)
+            except BackupError:
+                raise
+            except OSError as error:
+                raise BackupError("Workspace contents could not be read safely.") from error
+
+    def _validate_git_store(self, parent: int, relative: Path) -> None:
+        try:
+            names = os.listdir(parent)
+        except OSError as error:
+            raise BackupError("Workspace snapshot storage could not be inspected safely.") from error
+        for name in names:
+            child_relative = relative / name
+            try:
+                before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                self._same_filesystem(before)
+                if _external_history_marker(child_relative):
+                    raise BackupError(
+                        "This workspace uses external snapshot history and cannot be backed up "
+                        "safely."
+                    )
+                if stat.S_ISDIR(before.st_mode):
+                    child = os.open(name, _posix_directory_flags(), dir_fd=parent)
+                    try:
+                        opened = os.fstat(child)
+                        if _identity(opened) != _identity(before):
+                            raise BackupError("Workspace content changed during backup export.")
+                        self._validate_git_store(child, child_relative)
+                    finally:
+                        os.close(child)
+                elif stat.S_ISREG(before.st_mode):
+                    if child_relative == Path("config"):
+                        child = os.open(name, _posix_file_flags(), dir_fd=parent)
+                        try:
+                            opened = os.fstat(child)
+                            if _identity(opened) != _identity(before) or opened.st_size > 1024 * 1024:
+                                raise BackupError(
+                                    "Workspace snapshot storage could not be inspected safely."
+                                )
+                            content = b"".join(self._file_chunks(child))
+                            if _config_uses_external_history(content):
+                                raise BackupError(
+                                    "This workspace uses external snapshot history and cannot be "
+                                    "backed up safely."
+                                )
+                        finally:
+                            os.close(child)
+                else:
+                    raise BackupError("Workspace snapshot storage is not safe to archive.")
+            except BackupError:
+                raise
+            except OSError as error:
+                raise BackupError("Workspace snapshot storage could not be inspected safely.") from error
+
     def forbid(self, *identities: tuple[int, int, int]) -> None:
         self.forbidden_identities.update(identities)
+
+    def copy_snapshot_content(self, destination: Path) -> None:
+        """Copy identity-checked workspace bytes, excluding implementation history."""
+        self.require_path_current()
+        before = os.fstat(self.handle)
+        self._copy_directory(self.handle, Path(), destination)
+        if _stable_directory_identity(os.fstat(self.handle)) != _stable_directory_identity(before):
+            raise BackupError("Workspace content changed during backup export.")
+        self.require_path_current()
+
+    def _copy_directory(self, parent: int, relative: Path, destination: Path) -> None:
+        try:
+            names = sorted(os.listdir(parent))
+        except OSError as error:
+            raise BackupError("Workspace contents could not be read safely.") from error
+        for name in names:
+            if not relative.parts and name.casefold() == ".git":
+                continue
+            child_relative = relative / name
+            target = destination / name
+            try:
+                before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                self._same_filesystem(before)
+                if stat.S_ISDIR(before.st_mode):
+                    child = os.open(name, _posix_directory_flags(), dir_fd=parent)
+                    try:
+                        opened = os.fstat(child)
+                        if _identity(opened) != _identity(before):
+                            raise BackupError("Workspace content changed during backup export.")
+                        target.mkdir()
+                        self._copy_directory(child, child_relative, target)
+                        if _stable_directory_identity(os.fstat(child)) != _stable_directory_identity(
+                            opened
+                        ):
+                            raise BackupError("Workspace content changed during backup export.")
+                    finally:
+                        os.close(child)
+                elif stat.S_ISREG(before.st_mode):
+                    child = os.open(name, _posix_file_flags(), dir_fd=parent)
+                    try:
+                        opened = os.fstat(child)
+                        if _identity(opened) != _identity(before):
+                            raise BackupError("Workspace content changed during backup export.")
+                        with target.open("xb") as output:
+                            for chunk in self._file_chunks(child):
+                                output.write(chunk)
+                        target.chmod(0o755 if opened.st_mode & 0o111 else 0o644)
+                        if _stable_file_identity(os.fstat(child)) != _stable_file_identity(opened):
+                            raise BackupError("Workspace content changed during backup export.")
+                    finally:
+                        os.close(child)
+                else:
+                    raise BackupError("Workspace contains an unsupported filesystem entry.")
+            except BackupError:
+                raise
+            except OSError as error:
+                raise BackupError("Workspace contents could not be read safely.") from error
 
     def write_entries(self, archive: zipfile.ZipFile) -> None:
         self.require_path_current()
@@ -212,7 +403,7 @@ class _PosixWorkspaceAnchor:
                     finally:
                         os.close(child)
                 elif stat.S_ISREG(before.st_mode):
-                    if not relative.parts and name == ".git":
+                    if not relative.parts and name.casefold() == ".git":
                         raise BackupError(
                             "This workspace uses external snapshot storage and cannot be "
                             "backed up safely."
@@ -450,8 +641,143 @@ class _WindowsWorkspaceAnchor:
             return "external"
         return "unsafe"
 
+    def validate_snapshot_history(self) -> None:
+        self._scan_for_history(self.path, Path())
+
+    def _scan_for_history(self, parent_path: Path, relative: Path) -> None:
+        try:
+            names = os.listdir(parent_path)
+        except OSError as error:
+            raise BackupError("Workspace contents could not be read safely.") from error
+        for name in names:
+            path = parent_path / name
+            child_relative = relative / name
+            handle = -1
+            try:
+                value = path.lstat()
+                if getattr(value, "st_file_attributes", 0) & _FILE_ATTRIBUTE_REPARSE_POINT:
+                    raise BackupError("Workspace contains an unsupported filesystem entry.")
+                if name.casefold() == ".git" and not stat.S_ISDIR(value.st_mode):
+                    raise BackupError(
+                        "This workspace uses external snapshot storage and cannot be backed up "
+                        "safely."
+                    )
+                if not stat.S_ISDIR(value.st_mode):
+                    continue
+                handle = _windows_fs._win_open(path, directory=True)
+                identity = _windows_fs._win_identity(handle)
+                if (identity.volume, identity.index) in self.forbidden_identities:
+                    raise BackupError("Destination moved into the workspace during backup export.")
+                if name.casefold() == ".git":
+                    if relative.parts:
+                        raise BackupError(
+                            "This workspace contains nested snapshot storage and cannot be backed "
+                            "up safely."
+                        )
+                    self._validate_git_store(path, Path())
+                else:
+                    self._scan_for_history(path, child_relative)
+            except BackupError:
+                raise
+            except OSError as error:
+                raise BackupError("Workspace contents could not be read safely.") from error
+            finally:
+                _windows_fs._win_close(handle)
+
+    def _validate_git_store(self, parent_path: Path, relative: Path) -> None:
+        try:
+            names = os.listdir(parent_path)
+        except OSError as error:
+            raise BackupError("Workspace snapshot storage could not be inspected safely.") from error
+        for name in names:
+            path = parent_path / name
+            child_relative = relative / name
+            handle = -1
+            try:
+                value = path.lstat()
+                if getattr(value, "st_file_attributes", 0) & _FILE_ATTRIBUTE_REPARSE_POINT:
+                    raise BackupError("Workspace snapshot storage is not safe to archive.")
+                if _external_history_marker(child_relative):
+                    raise BackupError(
+                        "This workspace uses external snapshot history and cannot be backed up "
+                        "safely."
+                    )
+                directory = stat.S_ISDIR(value.st_mode)
+                if not directory and not stat.S_ISREG(value.st_mode):
+                    raise BackupError("Workspace snapshot storage is not safe to archive.")
+                handle = _windows_fs._win_open(path, directory=directory)
+                identity = _windows_fs._win_identity(handle)
+                if (identity.volume, identity.index) in self.forbidden_identities:
+                    raise BackupError("Destination moved into the workspace during backup export.")
+                if directory:
+                    self._validate_git_store(path, child_relative)
+                elif child_relative == Path("config"):
+                    if identity.size > 1024 * 1024:
+                        raise BackupError(
+                            "Workspace snapshot storage could not be inspected safely."
+                        )
+                    if _config_uses_external_history(b"".join(_windows_chunks(handle))):
+                        raise BackupError(
+                            "This workspace uses external snapshot history and cannot be backed "
+                            "up safely."
+                        )
+            except BackupError:
+                raise
+            except OSError as error:
+                raise BackupError("Workspace snapshot storage could not be inspected safely.") from error
+            finally:
+                _windows_fs._win_close(handle)
+
     def forbid(self, *identities: tuple[int, int]) -> None:
         self.forbidden_identities.update(identities)
+
+    def copy_snapshot_content(self, destination: Path) -> None:
+        self.require_path_current()
+        before = _windows_fs._win_identity(self.handle)
+        self._copy_directory(self.path, Path(), destination)
+        if _windows_fs._win_identity(self.handle) != before:
+            raise BackupError("Workspace content changed during backup export.")
+        self.require_path_current()
+
+    def _copy_directory(self, parent_path: Path, relative: Path, destination: Path) -> None:
+        try:
+            names = sorted(os.listdir(parent_path))
+        except OSError as error:
+            raise BackupError("Workspace contents could not be read safely.") from error
+        for name in names:
+            if not relative.parts and name.casefold() == ".git":
+                continue
+            path = parent_path / name
+            target = destination / name
+            handle = -1
+            try:
+                value = path.lstat()
+                if getattr(value, "st_file_attributes", 0) & _FILE_ATTRIBUTE_REPARSE_POINT:
+                    raise BackupError("Workspace contains an unsupported filesystem entry.")
+                directory = stat.S_ISDIR(value.st_mode)
+                if not directory and not stat.S_ISREG(value.st_mode):
+                    raise BackupError("Workspace contains an unsupported filesystem entry.")
+                handle = _windows_fs._win_open(path, directory=directory)
+                identity = _windows_fs._win_identity(handle)
+                if (identity.volume, identity.index) in self.forbidden_identities:
+                    raise BackupError("Destination moved into the workspace during backup export.")
+                if directory:
+                    target.mkdir()
+                    self._copy_directory(path, relative / name, target)
+                    if _windows_fs._win_identity(handle) != identity:
+                        raise BackupError("Workspace content changed during backup export.")
+                else:
+                    with target.open("xb") as output:
+                        for chunk in _windows_chunks(handle):
+                            output.write(chunk)
+                    if _windows_fs._win_identity(handle) != identity:
+                        raise BackupError("Workspace content changed during backup export.")
+            except BackupError:
+                raise
+            except OSError as error:
+                raise BackupError("Workspace contents could not be read safely.") from error
+            finally:
+                _windows_fs._win_close(handle)
 
     def write_entries(self, archive: zipfile.ZipFile) -> None:
         self.require_path_current()
@@ -480,7 +806,7 @@ class _WindowsWorkspaceAnchor:
                 directory = stat.S_ISDIR(value.st_mode)
                 if not directory and not stat.S_ISREG(value.st_mode):
                     raise BackupError("Workspace contains an unsupported filesystem entry.")
-                if not directory and not relative.parts and name == ".git":
+                if not directory and not relative.parts and name.casefold() == ".git":
                     raise BackupError(
                         "This workspace uses external snapshot storage and cannot be "
                         "backed up safely."
@@ -671,7 +997,7 @@ def export_backup(
     destination: str | Path,
     *,
     available: Callable[[], bool] = git_available,
-    take: Callable[..., SnapshotResult] = take_snapshot,
+    take: Callable[..., SnapshotTransaction] = prepare_snapshot,
     write: Callable[[str | Path, str, dict[str, str | int]], Path] = write_receipt,
     clock: Callable[[], datetime] | None = None,
 ) -> BackupResult:
@@ -685,6 +1011,7 @@ def export_backup(
             destination_path
         ) as target:
             target.require_outside(source)
+            source.forbid(target.object_identity())
             storage = source.snapshot_storage()
             if storage == "external":
                 raise BackupError(
@@ -692,25 +1019,36 @@ def export_backup(
                 )
             if storage == "unsafe":
                 raise BackupError("Workspace snapshot storage is not safe to archive.")
+            source.validate_snapshot_history()
             snapshots_available = available()
             snapshot_id: str | None = None
-            if snapshots_available:
-                source.require_path_current()
-                try:
-                    snapshot = take(root, label=f"Before backup export {timestamp}")
-                except (OSError, ValueError, SnapshotError) as error:
-                    raise BackupError("Could not save the pre-export snapshot.") from error
-                source.require_path_current()
-                if snapshot.snapshot is not None:
-                    snapshot_id = snapshot.snapshot.identifier
-                if source.snapshot_storage() != "standalone":
-                    raise BackupError("Workspace snapshot storage is not safe to archive.")
-            source.require_path_current()
-            target.require_path_current()
-            owned = target.allocate(timestamp)
+            transaction: SnapshotTransaction | None = None
+            owned: Any = None
             completed = False
             try:
-                source.forbid(target.object_identity(), owned.identity)
+                if snapshots_available:
+                    source.require_path_current()
+                    try:
+                        transaction = take(
+                            root,
+                            label=f"Before backup export {timestamp}",
+                            capture=source.copy_snapshot_content,
+                        )
+                    except BackupError:
+                        raise
+                    except (OSError, ValueError, SnapshotError) as error:
+                        raise BackupError("Could not save the pre-export snapshot.") from error
+                    source.require_path_current()
+                    snapshot = transaction.result
+                    if snapshot.snapshot is not None:
+                        snapshot_id = snapshot.snapshot.identifier
+                    if source.snapshot_storage() != "standalone":
+                        raise BackupError("Workspace snapshot storage is not safe to archive.")
+                    source.validate_snapshot_history()
+                source.require_path_current()
+                target.require_path_current()
+                owned = target.allocate(timestamp)
+                source.forbid(owned.identity)
                 target.require_path_current()
                 target.require_outside(source)
                 size = _write_archive(source, owned)
@@ -730,11 +1068,22 @@ def export_backup(
                         "Backup archive was written, but its receipt could not be recorded."
                     ) from error
                 owned.finish()
+                if transaction is not None:
+                    transaction.commit()
                 completed = True
                 return result
             finally:
                 if not completed:
-                    owned.cleanup()
+                    if owned is not None:
+                        owned.cleanup()
+                    if transaction is not None:
+                        try:
+                            transaction.rollback()
+                        except SnapshotError as error:
+                            raise BackupError(
+                                "Backup export failed and its prepared snapshot could not be "
+                                "rolled back safely."
+                            ) from error
     except BackupError:
         raise
     except OSError as error:

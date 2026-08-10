@@ -235,6 +235,102 @@ def test_destination_swap_to_workspace_is_detected_and_owned_archive_is_removed(
     assert _archives(workspace) == []
 
 
+@pytest.mark.skipif(os.name != "posix", reason="descriptor-relative POSIX snapshot probe")
+def test_destination_moved_during_snapshot_is_never_snapshot_input_and_leaves_no_mutation(
+    tmp_path, monkeypatch
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    moved_destination = workspace / "moved-backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "inside.txt").write_bytes(b"inside")
+    (destination / "destination-sentinel.txt").write_bytes(b"never snapshot or read")
+    initial = snapshots.take_snapshot(workspace, label="Initial").snapshot
+    assert initial is not None
+    head_before = _git(workspace, "rev-parse", "HEAD").stdout.strip()
+    index_before = (workspace / ".git/index").read_bytes()
+    receipts_before = set((workspace / "System/receipts").iterdir())
+    destination_identity = (destination.stat().st_dev, destination.stat().st_ino)
+    original_listdir = backup_engine.os.listdir
+
+    def guarded_listdir(path):
+        if isinstance(path, int):
+            value = os.fstat(path)
+            if (value.st_dev, value.st_ino) == destination_identity:
+                raise AssertionError("destination content was read during snapshot")
+        return original_listdir(path)
+
+    def racing_take(*args, **kwargs):
+        destination.rename(moved_destination)
+        return snapshots.prepare_snapshot(*args, **kwargs)
+
+    monkeypatch.setattr(backup_engine.os, "listdir", guarded_listdir)
+    with pytest.raises(BackupError, match="Destination moved into the workspace"):
+        export_backup(workspace, destination, take=racing_take, clock=_clock)
+
+    assert _git(workspace, "rev-parse", "HEAD").stdout.strip() == head_before
+    assert (workspace / ".git/index").read_bytes() == index_before
+    assert set((workspace / "System/receipts").iterdir()) == receipts_before
+    assert (moved_destination / "destination-sentinel.txt").read_bytes() == b"never snapshot or read"
+    with pytest.raises(subprocess.CalledProcessError):
+        _git(workspace, "cat-file", "-e", "HEAD:moved-backups/destination-sentinel.txt")
+    assert _archives(moved_destination) == []
+
+
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_failed_archive_rolls_back_prepared_snapshot_and_preserves_index_and_worktree(
+    tmp_path, monkeypatch
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "tracked.txt").write_text("first\n", encoding="utf-8")
+    snapshots.take_snapshot(workspace, label="Initial")
+    (workspace / "tracked.txt").write_text("staged\n", encoding="utf-8")
+    _git(workspace, "add", "tracked.txt")
+    (workspace / "tracked.txt").write_text("worktree\n", encoding="utf-8")
+    head_before = _git(workspace, "rev-parse", "HEAD").stdout.strip()
+    index_before = (workspace / ".git/index").read_bytes()
+    receipts_before = set((workspace / "System/receipts").iterdir())
+
+    monkeypatch.setattr(
+        backup_engine,
+        "_write_chunks",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("injected write failure")),
+    )
+    with pytest.raises(BackupError, match="could not be read safely"):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert _git(workspace, "rev-parse", "HEAD").stdout.strip() == head_before
+    assert (workspace / ".git/index").read_bytes() == index_before
+    assert (workspace / "tracked.txt").read_text(encoding="utf-8") == "worktree\n"
+    assert set((workspace / "System/receipts").iterdir()) == receipts_before
+    assert _archives(destination) == []
+
+
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_successful_prepared_snapshot_preserves_index_and_worktree_bytes(tmp_path):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "tracked.txt").write_text("first\n", encoding="utf-8")
+    snapshots.take_snapshot(workspace, label="Initial")
+    (workspace / "tracked.txt").write_text("staged\n", encoding="utf-8")
+    _git(workspace, "add", "tracked.txt")
+    (workspace / "tracked.txt").write_text("worktree\n", encoding="utf-8")
+    index_before = (workspace / ".git/index").read_bytes()
+
+    result = export_backup(workspace, destination, clock=_clock)
+
+    assert result.snapshot_id is not None
+    assert (workspace / ".git/index").read_bytes() == index_before
+    assert (workspace / "tracked.txt").read_text(encoding="utf-8") == "worktree\n"
+    assert _git(workspace, "show", "HEAD:tracked.txt").stdout == "worktree\n"
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX symbolic-link probe")
 def test_symbolic_link_content_is_rejected_and_partial_archive_is_removed(tmp_path):
     workspace = tmp_path / "workspace"
@@ -323,12 +419,17 @@ def test_mid_write_failure_removes_only_the_invocation_owned_archive(tmp_path, m
     assert unrelated.read_bytes() == b"preserved"
 
 
-def test_export_receipt_failure_removes_completed_archive(tmp_path):
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_export_receipt_failure_removes_archive_and_rolls_back_prepared_snapshot(tmp_path):
     workspace = tmp_path / "workspace"
     destination = tmp_path / "backups"
     workspace.mkdir()
     destination.mkdir()
     (workspace / "note.txt").write_bytes(b"saved")
+    snapshots.take_snapshot(workspace, label="Initial")
+    (workspace / "note.txt").write_bytes(b"changed")
+    head_before = _git(workspace, "rev-parse", "HEAD").stdout.strip()
+    receipts_before = set((workspace / "System/receipts").iterdir())
 
     def fail_receipt(*_args, **_kwargs):
         raise OSError("injected receipt failure")
@@ -337,11 +438,13 @@ def test_export_receipt_failure_removes_completed_archive(tmp_path):
         export_backup(
             workspace,
             destination,
-            available=lambda: False,
             write=fail_receipt,
             clock=_clock,
         )
     assert _archives(destination) == []
+    assert _git(workspace, "rev-parse", "HEAD").stdout.strip() == head_before
+    assert set((workspace / "System/receipts").iterdir()) == receipts_before
+    assert (workspace / "note.txt").read_bytes() == b"changed"
 
 
 def test_snapshot_receipt_failure_leaves_no_archive(tmp_path):
@@ -395,6 +498,127 @@ def test_real_linked_worktree_is_rejected_because_snapshot_storage_is_external(t
 
 
 @pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_real_shared_clone_is_rejected_before_snapshot_or_archive(tmp_path):
+    source = tmp_path / "source"
+    workspace = tmp_path / "shared-workspace"
+    destination = tmp_path / "backups"
+    source.mkdir()
+    destination.mkdir()
+    (source / "note.txt").write_text("source\n", encoding="utf-8")
+    snapshots.take_snapshot(source, label="Initial")
+    subprocess.run(
+        ["git", "clone", "--shared", str(source), str(workspace)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    alternates = workspace / ".git/objects/info/alternates"
+    assert alternates.is_file()
+    take_called = False
+
+    def forbidden_take(*_args, **_kwargs):
+        nonlocal take_called
+        take_called = True
+        raise AssertionError("snapshot must not start")
+
+    with pytest.raises(BackupError, match="external snapshot history"):
+        export_backup(workspace, destination, take=forbidden_take, clock=_clock)
+    assert not take_called
+    assert _archives(destination) == []
+
+
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_real_commondir_store_is_rejected_before_snapshot_or_archive(tmp_path):
+    main = tmp_path / "main"
+    workspace = tmp_path / "linked"
+    destination = tmp_path / "backups"
+    main.mkdir()
+    destination.mkdir()
+    (main / "note.txt").write_text("source\n", encoding="utf-8")
+    snapshots.take_snapshot(main, label="Initial")
+    _git(main, "worktree", "add", "--detach", str(workspace), "HEAD")
+    pointer = (workspace / ".git").read_text(encoding="utf-8").removeprefix("gitdir: ").strip()
+    admin = Path(pointer)
+    (workspace / ".git").unlink()
+    shutil.copytree(admin, workspace / ".git")
+    (workspace / ".git/commondir").write_text(str(main / ".git") + "\n", encoding="utf-8")
+    (workspace / ".git/gitdir").write_text(str(workspace / ".git") + "\n", encoding="utf-8")
+    assert Path(_git(workspace, "rev-parse", "--git-common-dir").stdout.strip()).is_absolute()
+
+    with pytest.raises(BackupError, match="external snapshot history"):
+        export_backup(workspace, destination, clock=_clock)
+    assert _archives(destination) == []
+
+
+@pytest.mark.parametrize(
+    ("marker", "content"),
+    [
+        ("objects/info/alternates", "/absolute/object-store\n"),
+        ("objects/info/alternates", "../../../relative-object-store\n"),
+        ("objects/info/alternates", "file:///local/object-store\n"),
+        ("objects/info/http-alternates", "https://example.invalid/objects\n"),
+    ],
+)
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_every_alternate_history_form_is_rejected_without_reading_external_objects(
+    tmp_path, marker, content
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_text("saved\n", encoding="utf-8")
+    snapshots.take_snapshot(workspace, label="Initial")
+    path = workspace / ".git" / marker
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+    with pytest.raises(BackupError, match="external snapshot history"):
+        export_backup(workspace, destination, clock=_clock)
+    assert _archives(destination) == []
+
+
+@pytest.mark.parametrize(
+    "configure",
+    [
+        lambda workspace: _git(workspace, "config", "extensions.partialClone", "origin"),
+        lambda workspace: _git(workspace, "config", "remote.origin.promisor", "true"),
+        lambda workspace: (workspace / ".git/objects/pack/sample.promisor").write_bytes(b""),
+    ],
+)
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_partial_and_promisor_history_is_rejected(tmp_path, configure):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_text("saved\n", encoding="utf-8")
+    snapshots.take_snapshot(workspace, label="Initial")
+    configure(workspace)
+
+    with pytest.raises(BackupError, match="external snapshot history"):
+        export_backup(workspace, destination, clock=_clock)
+    assert _archives(destination) == []
+
+
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_nested_snapshot_indirection_is_rejected(tmp_path):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    nested = workspace / "nested"
+    workspace.mkdir()
+    destination.mkdir()
+    nested.mkdir()
+    (workspace / "note.txt").write_text("saved\n", encoding="utf-8")
+    snapshots.take_snapshot(workspace, label="Initial")
+    (nested / ".git").write_text("gitdir: ../../external-store\n", encoding="utf-8")
+
+    with pytest.raises(BackupError, match="external snapshot storage"):
+        export_backup(workspace, destination, clock=_clock)
+    assert _archives(destination) == []
+
+
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
 def test_extracted_standalone_backup_keeps_restorable_snapshots(tmp_path):
     workspace = tmp_path / "workspace"
     destination = tmp_path / "backups"
@@ -408,6 +632,7 @@ def test_extracted_standalone_backup_keeps_restorable_snapshots(tmp_path):
     result = export_backup(workspace, destination, clock=_clock)
     with zipfile.ZipFile(result.archive) as archive:
         archive.extractall(restored)
+    workspace.rename(tmp_path / "original-workspace-moved-away")
     assert first is not None
     assert snapshots.resolve_snapshot_id(restored, first.identifier) == first.identifier
     snapshots.restore_snapshot(restored, first.identifier)
