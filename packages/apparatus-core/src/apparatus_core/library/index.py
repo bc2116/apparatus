@@ -750,8 +750,14 @@ def _windows_writer_lock(lock: Path):
                     status = os.lstat(lock)
                 except OSError as error:
                     raise IndexError("Library index writer lock could not be inspected") from error
-                if not _private_regular(status) or is_reparse_path(lock):
+                if is_reparse_path(lock):
                     raise IndexError("Library index writer lock is not private")
+                # A concurrent Win32 creator can expose the name before its
+                # final metadata is observable. Never follow it; retry the
+                # exclusive create and reject it if it remains unusable.
+                if not _private_regular(status):
+                    time.sleep(0.01)
+                    continue
                 time.sleep(0.01)
         else:
             raise IndexError("Library index is busy")
