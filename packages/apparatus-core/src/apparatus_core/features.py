@@ -23,6 +23,17 @@ class FeatureProfileError(ValueError):
 
 
 def _profile_bytes(workspace: Path) -> bytes | None:
+    # A workspace created before profile-controlled features has no profile at
+    # all. Detect only that absence without following a path; any present
+    # profile is still read through the retained no-follow primitive below.
+    try:
+        os.lstat(workspace / "System/profile.yaml")
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        raise FeatureProfileError(
+            "System/profile.yaml could not be read safely; repair the workspace profile before using this feature"
+        ) from error
     anchor_type: Any
     if os.name == "posix":
         anchor_type = PosixWorkspaceAnchor
