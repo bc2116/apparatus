@@ -26,7 +26,15 @@ intent: Use when the user wants a source-grounded answer or summary from the Lib
    facts or assumptions support each recommendation.
 6. Show the user the summary and correct any source or reasoning problem they
    identify. When the user agrees it is finished, file the finished version in
-   `Deliverables/` and update any related goal.
+   `Deliverables/` and update any related goal. Before the next `[share]` step,
+   name the intended recipient, path, or
+   service and run `apparatus egress check WORKSPACE DRAFT-FILE` with the
+   explicit workspace path and draft file. If the check reports sensitive
+   items, stop, show the enumeration and redacted copy to the user, and ask
+   whether to use the redacted copy, send the original, or stop. Never pass
+   `--decision` until the user explicitly chooses. If the user chooses, rerun
+   the check with `--decision use-redacted` or `--decision send-original`. A
+   credential refusal means only the redacted copy may proceed.
 7. [share] If an email, update, or submission would carry the summary outside
    the workspace, keep it as a draft in `Projects/` and hand it to the user; the
    assistant never sends, posts, or submits anything itself.

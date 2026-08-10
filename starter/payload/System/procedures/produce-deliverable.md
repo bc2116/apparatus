@@ -18,14 +18,26 @@ intent: Use when the user wants to create a finished file for a defined purpose.
    section it supports. Distinguish source-backed facts from assumptions and
    mark unresolved uncertainty plainly.
 6. Compare the draft with every part of the agreed definition of done. Show the
-   user any unmet part and revise only with the user's direction.
+   user any unmet part and revise only with the user's direction. Before the
+   next `[share]` step, name the intended recipient, path, or
+   service and run `apparatus egress check WORKSPACE DRAFT-FILE` with the
+   explicit workspace path and draft file. If the check reports sensitive
+   items, stop, show the enumeration and redacted copy to the user, and ask
+   whether to use the redacted copy, send the original, or stop. Never pass
+   `--decision` until the user explicitly chooses. If the user chooses, rerun
+   the check with `--decision use-redacted` or `--decision send-original`. A
+   credential refusal means only the redacted copy may proceed.
 7. [share] Treat an email, update, submission, or other primary content intended to be
    sent as a draft meant to leave the workspace. Keep that requested work
    itself in `Projects/`, hand it to the user, and do not file it in
    `Deliverables/`; the assistant never sends, posts, or submits anything
    itself.
 8. If the primary requested work is not intended to be sent, file the finished
-   version in `Deliverables/` when the user agrees it is finished.
+   version in `Deliverables/` when the user agrees it is finished. Before an
+   accompanying draft leaves the workspace, run
+   `apparatus egress check WORKSPACE DRAFT-FILE` for that draft. Stop and ask
+   the user whenever sensitive items are reported, and never relay a
+   `--decision` value before the user's choice.
 9. [share] If there is an accompanying email, update, or submission, keep it as
    a draft in `Projects/` and hand it to the user.
 10. If there is a related goal, update its record. Set it to `done` only when its

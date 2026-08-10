@@ -20,7 +20,15 @@ intent: Use when the user wants a draft or deliverable checked item by item agai
    draft or deliverable being reviewed, and do not present an edited file as
    though it were the original.
 6. Make changes only when the user asks. Save the revised work as a draft in
-   `Projects/` until the user accepts it.
+   `Projects/` until the user accepts it. Before the next `[share]` step, name
+   the intended recipient, path, or
+   service and run `apparatus egress check WORKSPACE DRAFT-FILE` with the
+   explicit workspace path and draft file. If the check reports sensitive
+   items, stop, show the enumeration and redacted copy to the user, and ask
+   whether to use the redacted copy, send the original, or stop. Never pass
+   `--decision` until the user explicitly chooses. If the user chooses, rerun
+   the check with `--decision use-redacted` or `--decision send-original`. A
+   credential refusal means only the redacted copy may proceed.
 7. [share] If there is an email, update, or submission, keep it as a draft in
    `Projects/` and hand it to the user; the assistant never sends, posts, or
    submits anything itself.

@@ -21,7 +21,15 @@ intent: Use on the chosen review day or whenever the user asks to review the wee
    active goals and open loops. Agree the priorities with the user, then update
    affected goal statuses and next actions.
 6. Save a weekly plan in the appropriate folder in `Projects/` if the user
-   wants one.
+   wants one. Before the next `[share]` step, name the intended recipient, path,
+   or
+   service and run `apparatus egress check WORKSPACE DRAFT-FILE` with the
+   explicit workspace path and draft file. If the check reports sensitive
+   items, stop, show the enumeration and redacted copy to the user, and ask
+   whether to use the redacted copy, send the original, or stop. Never pass
+   `--decision` until the user explicitly chooses. If the user chooses, rerun
+   the check with `--decision use-redacted` or `--decision send-original`. A
+   credential refusal means only the redacted copy may proceed.
 7. [share] If there is an email, update, or submission about the plan, keep it
    as a draft in `Projects/` and hand it to the user; the assistant never sends,
    posts, or submits anything itself.

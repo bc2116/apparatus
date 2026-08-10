@@ -45,7 +45,15 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
    provided. In private mode, do not save labeled personal details; explain
    when that choice prevents a requested people record from being written.
 7. Tell the user setup is complete and that they can change it at any time by
-   saying "re-run my setup interview."
+   saying "re-run my setup interview." Before the next `[share]` step, name the
+   intended recipient, path, or
+   service and run `apparatus egress check WORKSPACE DRAFT-FILE` with the
+   explicit workspace path and draft file. If the check reports sensitive
+   items, stop, show the enumeration and redacted copy to the user, and ask
+   whether to use the redacted copy, send the original, or stop. Never pass
+   `--decision` until the user explicitly chooses. If the user chooses, rerun
+   the check with `--decision use-redacted` or `--decision send-original`. A
+   credential refusal means only the redacted copy may proceed.
 8. [share] If there is an email, update, or submission, keep it as a draft in
    `Projects/` and hand it to the user; the assistant never sends, posts, or
    submits anything itself.
