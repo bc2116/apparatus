@@ -489,6 +489,23 @@ def test_target_file_and_missing_payload_are_actionable_usage_errors(tmp_path, c
     assert not workspace.exists()
 
 
+def test_default_payload_is_package_local_and_nonfilesystem_resources_fail_clearly(
+    monkeypatch,
+):
+    package = Path(payload_module.__file__).resolve().parent
+    assert package in shipped_payload().resolve().parents
+
+    class NonFilesystemResource:
+        def joinpath(self, *_parts):
+            return self
+
+    monkeypatch.setattr(
+        payload_module.resources, "files", lambda _package: NonFilesystemResource()
+    )
+    with pytest.raises(PayloadError, match="unavailable as a filesystem resource"):
+        payload_module.resolve_payload(None)
+
+
 def test_repair_receipt_lists_exact_sorted_changes_and_sync_note(tmp_path):
     workspace = tmp_path / "workspace"
     assert init.run(_args(workspace), available=lambda: False) == 0

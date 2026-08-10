@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import hashlib
+from importlib import resources
 import importlib.util
 import os
 from pathlib import Path
 import shutil
 import stat
+import subprocess
+import sys
+import tarfile
 import zipfile
 
 import pytest
@@ -15,11 +19,13 @@ from apparatus_core.render import rendered_shims
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_MANIFEST = REPO_ROOT / "conformance" / "golden" / "payload-manifest.txt"
 BUILDER_PATH = REPO_ROOT / "tools" / "build_payload.py"
+PACKAGE_STARTER = Path(os.fspath(resources.files("apparatus_core").joinpath("starter")))
 
 spec = importlib.util.spec_from_file_location("apparatus_build_payload", BUILDER_PATH)
 assert spec is not None and spec.loader is not None
 builder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(builder)
+PACKAGE_VERSION = builder.read_version(REPO_ROOT / "packages/apparatus-core/pyproject.toml")
 
 
 def _golden_payload_paths() -> set[str]:
@@ -34,6 +40,39 @@ def _build(out: Path, *, version: str = "archive-test") -> Path:
     archive, drift = builder.build_payload(out, version=version)
     assert drift == ()
     return archive
+
+
+def _tree_bytes(root: Path, prefix: str = "") -> dict[str, bytes]:
+    return {
+        f"{prefix}{path.relative_to(root).as_posix()}": path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _embedded_bytes() -> dict[str, bytes]:
+    return _tree_bytes(PACKAGE_STARTER / "payload", "payload/") | _tree_bytes(
+        PACKAGE_STARTER / "profiles", "profiles/"
+    )
+
+
+@pytest.fixture(scope="module")
+def built_distributions(tmp_path_factory):
+    output = tmp_path_factory.mktemp("apparatus-core-distributions")
+    uv = shutil.which("uv")
+    assert uv is not None, "uv is required for distribution conformance"
+    completed = subprocess.run(
+        [uv, "build", "--package", "apparatus-core", "--out-dir", str(output)],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    wheels = sorted(output.glob("*.whl"))
+    sdists = sorted(output.glob("*.tar.gz"))
+    assert len(wheels) == len(sdists) == 1
+    return wheels[0], sdists[0]
 
 
 def test_payload_archive_is_complete_freshly_rendered_hashed_and_reproducible(tmp_path):
@@ -70,6 +109,144 @@ def test_payload_archive_is_complete_freshly_rendered_hashed_and_reproducible(tm
             assert info.date_time == (1980, 1, 1, 0, 0, 0)
             assert stat.S_IMODE(info.external_attr >> 16) == 0o644
             assert info.compress_type == zipfile.ZIP_STORED
+
+
+def test_embedded_package_data_matches_builder_golden_and_sources_byte_for_byte(tmp_path):
+    archive_path = _build(tmp_path, version=PACKAGE_VERSION)
+    embedded = _embedded_bytes()
+    source = _tree_bytes(REPO_ROOT / "starter" / "payload", "payload/") | _tree_bytes(
+        REPO_ROOT / "starter" / "profiles", "profiles/"
+    )
+
+    assert embedded == source
+    assert {
+        path.removeprefix("payload/")
+        for path in embedded
+        if path.startswith("payload/")
+    } == _golden_payload_paths()
+    assert {
+        path.removeprefix("profiles/")
+        for path in embedded
+        if path.startswith("profiles/")
+    } == {"README.md", "profiles.yaml"}
+
+    fresh_shims = {
+        f"payload/{shim.target}": shim.content
+        for shim in rendered_shims(REPO_ROOT / "starter" / "payload")
+    }
+    assert {path: embedded[path] for path in fresh_shims} == fresh_shims
+
+    with zipfile.ZipFile(archive_path) as archive:
+        archived = {
+            name: archive.read(name)
+            for name in archive.namelist()
+            if name != "manifest.txt"
+        }
+        assert archived == embedded
+        assert archive.read("manifest.txt").splitlines()[0] == (
+            f"version: {PACKAGE_VERSION}".encode()
+        )
+
+
+def test_wheel_and_sdist_contain_exact_embedded_bytes(built_distributions):
+    wheel, sdist = built_distributions
+    expected = _embedded_bytes()
+
+    with zipfile.ZipFile(wheel) as archive:
+        wheel_prefix = "apparatus_core/starter/"
+        wheel_bytes = {
+            name.removeprefix(wheel_prefix): archive.read(name)
+            for name in archive.namelist()
+            if name.startswith(wheel_prefix) and not name.endswith("/")
+        }
+        metadata_name = next(
+            name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+        )
+        metadata = archive.read(metadata_name).decode("utf-8")
+    assert wheel_bytes == expected
+    assert f"Version: {PACKAGE_VERSION}\n" in metadata
+
+    marker = "/src/apparatus_core/starter/"
+    with tarfile.open(sdist, "r:gz") as archive:
+        sdist_bytes: dict[str, bytes] = {}
+        for member in archive.getmembers():
+            normalized = member.name.replace("\\", "/")
+            if marker not in normalized or not member.isfile():
+                continue
+            relative = normalized.split(marker, 1)[1]
+            extracted = archive.extractfile(member)
+            assert extracted is not None
+            sdist_bytes[relative] = extracted.read()
+    assert sdist_bytes == expected
+
+
+def test_installed_wheel_default_init_works_outside_checkout(
+    built_distributions, tmp_path
+):
+    wheel, _sdist = built_distributions
+    uv = shutil.which("uv")
+    assert uv is not None
+    environment = tmp_path / "isolated"
+    subprocess.run(
+        [uv, "venv", "--python", sys.executable, str(environment)],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    subprocess.run(
+        [uv, "pip", "install", "--python", str(python), str(wheel)],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    scripts = environment / ("Scripts" if os.name == "nt" else "bin")
+    executable = scripts / ("apparatus.exe" if os.name == "nt" else "apparatus")
+    outside = tmp_path / "outside-checkout"
+    outside.mkdir()
+    workspace = outside / "workspace"
+    smoke_environment = os.environ.copy()
+    smoke_environment.pop("PYTHONPATH", None)
+    smoke_environment["PATH"] = str(scripts)
+
+    installed_path = subprocess.run(
+        [
+            str(python),
+            "-c",
+            "from pathlib import Path; import apparatus_core; "
+            "print(Path(apparatus_core.__file__).resolve())",
+        ],
+        cwd=outside,
+        env=smoke_environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert REPO_ROOT not in Path(installed_path).parents
+
+    initialized = subprocess.run(
+        [str(executable), "init", str(workspace)],
+        cwd=outside,
+        env=smoke_environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert initialized.returncode == 0, initialized.stdout + initialized.stderr
+    checked = subprocess.run(
+        [str(executable), "check", str(workspace)],
+        cwd=outside,
+        env=smoke_environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+    assert (workspace / "Welcome.md").read_bytes() == (
+        PACKAGE_STARTER / "payload/Welcome.md"
+    ).read_bytes()
 
 
 def test_builder_uses_source_date_epoch_and_retains_gitkeep(tmp_path):

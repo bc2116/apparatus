@@ -17,7 +17,8 @@ deliverable to these same users without tier branding.
 1. **Monorepo, multiple artifacts.** This repository is a uv workspace.
    Releases produce: PyPI packages (`apparatus-core`, later packs), the
    universal starter payload, and a per-OS bootstrapper. Users never interact
-   with the repository.
+   with the repository. `apparatus-core` embeds that same payload and its
+   profiles byte-for-byte; the separate release archive is the files-only form.
 2. **Plugin CLI.** `apparatus-core` ships lean and owns the `apparatus`
    command. Packs register subcommands via Python entry points; a verb exists
    on a machine only when its pack is installed. No dormant capability code in

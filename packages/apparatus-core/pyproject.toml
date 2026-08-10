@@ -36,4 +36,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/apparatus_core"]
-include = ["src/apparatus_core/shims/*.template"]
+include = [
+  "src/apparatus_core/shims/*.template",
+  "src/apparatus_core/starter/**/*",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["README.md", "pyproject.toml", "src/apparatus_core"]
