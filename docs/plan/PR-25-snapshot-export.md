@@ -55,9 +55,11 @@ deliberately not built here.
    `apparatus-backup-YYYY-MM-DD-HHMMSS.zip` (UTC timestamp, all lowercase)
    into the destination directory and exits 0. The archive contains the
    entire workspace tree, hidden files included — `System/`, receipts, and
-   the snapshot history storage when present — so a restored backup keeps
-   its snapshots. Nothing is excluded and nothing outside the workspace root
-   is included; the archive is self-contained.
+   a standalone snapshot history directory when present — so a restored backup
+   keeps its snapshots. A workspace whose snapshot history is stored externally
+   (as in a linked git worktree) is rejected with a clear explanation; see Open
+   decisions. Nothing is excluded and nothing outside the workspace root is
+   included; every archive produced is self-contained.
 2. Snapshot-first: when snapshots are available (reusing the PR-10
    availability probe, injectable for tests), the verb takes a snapshot
    labeled "Before backup export <UTC timestamp>" before archiving, so the
@@ -71,10 +73,10 @@ deliberately not built here.
 4. Strictly one-way: the verb never reads destination content. No listing
    or pruning of old archives, no parsing of existing archives, no restore
    path, and nothing at the destination is ever used as input to the
-   workspace. The only destination operations are the existence checks
-   needed to place the new file and the write of that file. A same-second
-   name collision appends `-2`, `-3`, … before `.zip` (mirroring the receipt
-   filename collision rule).
+   workspace. The only destination operations are retaining a no-follow anchor,
+   exclusively creating the new file, and writing that file. An exclusive-create
+   collision retries with `-2`, `-3`, … before `.zip` (mirroring the receipt
+   filename collision rule), without listing or reading the destination.
 5. A successful export writes a receipt under `System/receipts/` via
    `write_receipt` with `event: backup-export` — a value already present in
    the enum pinned by PR-04; this PR adds nothing to that enum. The receipt
@@ -148,3 +150,10 @@ deliberately not built here.
   corrupted-archive reports appear; a self-check of the verb's own artifact
   could be added later without weakening the rule that destination content
   is never an input.
+- **Linked worktree snapshot storage.** A linked git worktree represents its
+  snapshot storage with a `.git` pointer to a directory outside the workspace.
+  The requirements that an export contain no outside bytes and retain complete
+  snapshot history cannot both hold for that shape. Smallest conservative v1
+  default: reject linked-worktree exports with a clear explanation. Standalone
+  `.git` directories and workspaces operating without git remain supported.
+  Guided collection of external snapshot storage is not introduced here.

@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
-from apparatus_core.backup import BackupError, BackupResult, export_backup
+from apparatus_core.backup import BackupError, BackupResult, BackupUsageError, export_backup
 from apparatus_core.snapshots import git_available
 
 
@@ -21,27 +20,6 @@ def register(subparsers: Any) -> None:
     export.set_defaults(func=run)
 
 
-def _paths_or_usage_error(workspace_value: str, destination_value: str) -> tuple[Path, Path] | None:
-    workspace = Path(workspace_value)
-    destination = Path(destination_value)
-    if not workspace.is_dir():
-        print("backup export: workspace path is not a directory")
-        return None
-    if not destination.is_dir():
-        print("backup export: destination path does not exist or is not a directory")
-        return None
-    try:
-        root = workspace.resolve()
-        target = destination.resolve()
-    except OSError:
-        print("backup export: could not resolve the workspace or destination path")
-        return None
-    if target == root or root in target.parents:
-        print("backup export: destination must be outside the workspace")
-        return None
-    return root, target
-
-
 def run(
     args: argparse.Namespace,
     *,
@@ -49,12 +27,11 @@ def run(
     export: Callable[..., BackupResult] = export_backup,
 ) -> int:
     """Write one archive, with a fresh snapshot when that capability is available."""
-    paths = _paths_or_usage_error(args.workspace, args.destination)
-    if paths is None:
-        return 2
-    workspace, destination = paths
     try:
-        result = export(workspace, destination, available=available)
+        result = export(args.workspace, args.destination, available=available)
+    except BackupUsageError as error:
+        print(f"backup export: {error}")
+        return 2
     except BackupError as error:
         print(f"backup export: {error}")
         return 1
@@ -63,9 +40,12 @@ def run(
         return 1
     size = result.size
     print(f"Backup archive: {result.archive.name}")
-    print(f"Destination: {destination}")
+    print(f"Destination: {result.archive.parent}")
     print(f"Size: {size} bytes")
     if not result.snapshots_available:
-        print("Snapshots are unavailable, so this backup contains the workspace exactly as it is now.")
+        print(
+            "Snapshots are unavailable, so this backup contains the workspace "
+            "exactly as it is now."
+        )
     print("To restore, unzip this archive into a fresh folder.")
     return 0
