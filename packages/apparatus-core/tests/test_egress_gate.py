@@ -450,8 +450,20 @@ def test_path_substitution_rolls_back_exact_owned_artifacts_and_writes_nothing_o
     class SwapAfterFirstArtifact(fs_transactions.WorkspaceAnchor):
         calls = 0
 
-        def create_file(self, relative, content, mode=0o600):
-            owned = super().create_file(relative, content, mode)
+        def create_file(
+            self,
+            relative,
+            content,
+            mode=0o600,
+            *,
+            owned_parent=None,
+        ):
+            owned = super().create_file(
+                relative,
+                content,
+                mode,
+                owned_parent=owned_parent,
+            )
             self.calls += 1
             if self.calls == 1:
                 (workspace / "Projects").rename(detached)
@@ -578,11 +590,23 @@ def test_multi_file_receipt_failure_rolls_back_all_copies_and_receipts(tmp_path)
     class FailFinalReceipt(fs_transactions.WorkspaceAnchor):
         calls = 0
 
-        def create_file(self, relative, content, mode=0o600):
+        def create_file(
+            self,
+            relative,
+            content,
+            mode=0o600,
+            *,
+            owned_parent=None,
+        ):
             self.calls += 1
             if self.calls == 4:
                 raise OSError("injected final receipt failure")
-            return super().create_file(relative, content, mode)
+            return super().create_file(
+                relative,
+                content,
+                mode,
+                owned_parent=owned_parent,
+            )
 
     with pytest.raises(EgressError, match="safely"):
         check_egress(
@@ -606,11 +630,23 @@ def test_receipt_directory_creation_rolls_back_when_publication_fails(tmp_path):
     class FailReceipt(fs_transactions.WorkspaceAnchor):
         calls = 0
 
-        def create_file(self, relative, content, mode=0o600):
+        def create_file(
+            self,
+            relative,
+            content,
+            mode=0o600,
+            *,
+            owned_parent=None,
+        ):
             self.calls += 1
             if self.calls == 2:
                 raise OSError("injected receipt failure")
-            return super().create_file(relative, content, mode)
+            return super().create_file(
+                relative,
+                content,
+                mode,
+                owned_parent=owned_parent,
+            )
 
     with pytest.raises(EgressError, match="safely"):
         check_egress(

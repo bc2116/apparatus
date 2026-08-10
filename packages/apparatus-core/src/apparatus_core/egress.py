@@ -634,8 +634,18 @@ def _publish(
         if create_receipts_directory:
             owned_directory = anchor.create_directory("System/receipts")
         for artifact in artifacts:
+            artifact_owned_parent = (
+                owned_directory
+                if create_receipts_directory
+                and artifact.relative.parent == Path("System/receipts")
+                else None
+            )
             owned_files.append(
-                anchor.create_file(artifact.relative, artifact.content)
+                anchor.create_file(
+                    artifact.relative,
+                    artifact.content,
+                    owned_parent=artifact_owned_parent,
+                )
             )
         _validate_snapshot(anchor, captured, people_tree)
         if not all(anchor.matches_owned(item) for item in owned_files):

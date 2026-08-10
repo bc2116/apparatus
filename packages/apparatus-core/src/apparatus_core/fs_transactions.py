@@ -355,8 +355,14 @@ class PosixWorkspaceAnchor:
             os.close(descriptor)
 
     def create_file(
-        self, relative: str | Path, content: bytes, mode: int = 0o600
+        self,
+        relative: str | Path,
+        content: bytes,
+        mode: int = 0o600,
+        *,
+        owned_parent: PosixOwnedDirectory | None = None,
     ) -> PosixOwnedFile:
+        del owned_parent
         if not self.root_is_current():
             raise OSError("workspace root changed")
         parent, name = self._parent(relative)
@@ -988,6 +994,7 @@ class WindowsOwnedFile:
     identity: WindowsIdentity
     content: bytes
     handle: int
+    parent_shares_delete: bool = False
 
     def close(self) -> None:
         if self.handle >= 0:
@@ -1120,7 +1127,12 @@ class WindowsWorkspaceAnchor:
             for handle in reversed(ancestors):
                 _win_close(handle)
 
-    def _directory(self, relative: str | Path) -> tuple[Path, int]:
+    def _directory(
+        self,
+        relative: str | Path,
+        *,
+        final_shares_delete: bool = False,
+    ) -> tuple[Path, int]:
         current_path = self.workspace
         current = -1
         try:
@@ -1129,9 +1141,19 @@ class WindowsWorkspaceAnchor:
             ):
                 raise OSError("workspace root changed")
             parts = _safe_parts(relative)
-            for part in parts:
+            for index, part in enumerate(parts):
                 following_path = current_path / part
-                following = _win_open(following_path, directory=True)
+                # A newly invocation-owned directory retains a separate handle
+                # that denies delete sharing. Its child-operation aliases must
+                # share delete so they remain compatible with that owner's
+                # DELETE access; the retained owner still locks the name.
+                following = _win_open(
+                    following_path,
+                    directory=True,
+                    lock_name=not (
+                        final_shares_delete and index == len(parts) - 1
+                    ),
+                )
                 if current >= 0:
                     self._chain_handles.append(current)
                 current = following
@@ -1141,7 +1163,12 @@ class WindowsWorkspaceAnchor:
             _win_close(current)
             raise
 
-    def _parent(self, relative: str | Path) -> tuple[Path, int, str]:
+    def _parent(
+        self,
+        relative: str | Path,
+        *,
+        parent_shares_delete: bool = False,
+    ) -> tuple[Path, int, str]:
         parts = _safe_parts(relative)
         if len(parts) == 1:
             parent_path = self.workspace
@@ -1150,7 +1177,10 @@ class WindowsWorkspaceAnchor:
                 _win_close(parent)
                 raise OSError("workspace root changed")
             return parent_path, parent, parts[0]
-        parent_path, parent = self._directory(Path(*parts[:-1]))
+        parent_path, parent = self._directory(
+            Path(*parts[:-1]),
+            final_shares_delete=parent_shares_delete,
+        )
         return parent_path, parent, parts[-1]
 
     def require_directory(self, relative: str | Path) -> None:
@@ -1191,12 +1221,21 @@ class WindowsWorkspaceAnchor:
         finally:
             owned.close()
 
-    def _parent_is_current(self, relative: Path, parent: int) -> bool:
+    def _parent_is_current(
+        self,
+        relative: Path,
+        parent: int,
+        *,
+        parent_shares_delete: bool = False,
+    ) -> bool:
         current = -1
         try:
             if not self.root_is_current():
                 return False
-            _path, current, _name = self._parent(relative)
+            _path, current, _name = self._parent(
+                relative,
+                parent_shares_delete=parent_shares_delete,
+            )
             return _same_windows_object(
                 _win_identity(current), _win_identity(parent)
             )
@@ -1206,12 +1245,32 @@ class WindowsWorkspaceAnchor:
             _win_close(current)
 
     def create_file(
-        self, relative: str | Path, content: bytes, mode: int = 0o600
+        self,
+        relative: str | Path,
+        content: bytes,
+        mode: int = 0o600,
+        *,
+        owned_parent: WindowsOwnedDirectory | None = None,
     ) -> WindowsOwnedFile:
         del mode
         if not self.root_is_current():
             raise OSError("workspace root changed")
-        parent_path, parent, name = self._parent(relative)
+        parent_shares_delete = owned_parent is not None
+        if owned_parent is not None and (
+            Path(relative).parent != owned_parent.relative
+            or owned_parent.handle < 0
+            or not _same_windows_object(
+                _win_identity(owned_parent.handle), owned_parent.identity
+            )
+            or not self._parent_is_current(
+                owned_parent.relative, owned_parent.parent
+            )
+        ):
+            raise OSError("invocation-owned parent directory changed")
+        parent_path, parent, name = self._parent(
+            relative,
+            parent_shares_delete=parent_shares_delete,
+        )
         path = parent_path / name
         handle = verification = -1
         identity: WindowsIdentity | None = None
@@ -1227,10 +1286,20 @@ class WindowsWorkspaceAnchor:
             if current_identity != identity or current != content:
                 raise OSError("Memory record changed during creation")
             owned = WindowsOwnedFile(
-                Path(relative), parent, path, identity, content, verification
+                Path(relative),
+                parent,
+                path,
+                identity,
+                content,
+                verification,
+                parent_shares_delete,
             )
             verification = -1
-            if not self._parent_is_current(Path(relative), parent):
+            if not self._parent_is_current(
+                Path(relative),
+                parent,
+                parent_shares_delete=parent_shares_delete,
+            ):
                 self.unlink_owned(owned)
                 raise OSError("Memory destination detached during creation")
             return owned
@@ -1377,7 +1446,11 @@ class WindowsWorkspaceAnchor:
     def matches_owned(self, owned: WindowsOwnedFile) -> bool:
         return (
             self.root_is_current()
-            and self._parent_is_current(owned.relative, owned.parent)
+            and self._parent_is_current(
+                owned.relative,
+                owned.parent,
+                parent_shares_delete=owned.parent_shares_delete,
+            )
             and self._matches_owned(owned)
         )
 
