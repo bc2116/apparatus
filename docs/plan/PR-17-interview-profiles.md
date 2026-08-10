@@ -153,3 +153,8 @@ profile key this interview writes) must have landed, matching
   Smallest reversible default: the literal `me` — the workspace is
   single-user (ADR-0002); a later PR can capture a display name in the
   profile and improve seeding without migration.
+- How rollback handles a `System/receipts` parent detached or swapped after
+  publication. Smallest reversible default: fail closed, preserve the foreign
+  replacement, do not chase or delete through a detached parent, and report a
+  verified rollback failure even if the exact-owned receipt remains in the
+  detached original parent.

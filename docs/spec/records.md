@@ -84,8 +84,8 @@ One page per person **or organization** the user works with.
 ## profile
 
 The workspace's setup choices. Plain YAML at `System/profile.yaml` — no
-Markdown body. The key set is closed to the five required keys and the one
-optional key listed here:
+Markdown body. The key set is closed to the five required keys and the
+optional keys listed here:
 
 - `schema`: `apparatus/profile@v0`.
 - `status`: `unconfigured` | `configured`.
@@ -94,6 +94,19 @@ optional key listed here:
 - `review_day`: `null`, or a lowercase weekday name (`monday` … `sunday`).
 - Optional `spend`: `frugal` | `balanced` | `thorough` (the spend level;
   omitted profiles remain valid).
+- Optional `key_people`: a list of `{name, role, organization}` mappings.
+  `name` is required; `role` and `organization` are optional non-empty strings.
+- Optional `current_efforts`: a list of `{title, done_when, next_action}`
+  mappings. `title` is required; `done_when` and `next_action` are optional
+  non-empty strings.
+- Optional `source_locations`: a list of plain-language location strings.
+
+The assistant supplies a complete configured profile to
+`apparatus profile apply --stdin` through standard input. The command applies
+the credential floor recursively before publishing the profile; interview
+answers never belong in command arguments or durable temporary files. Plain
+`apparatus profile apply` remains the compatible path for an existing profile
+and sanitizes legacy configured answers before deriving records.
 
 ## receipt
 

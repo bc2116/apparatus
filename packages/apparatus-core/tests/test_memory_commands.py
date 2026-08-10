@@ -228,7 +228,7 @@ def test_invalid_profile_and_workspace_symlink_escape_fail_closed_without_writes
 def test_receipt_failure_rolls_back_new_record_and_partial_receipt(tmp_path, capsys):
     workspace = _workspace(tmp_path / "workspace")
 
-    def fail_atomically(target, event, fields):
+    def fail_atomically(target, event, fields, **_kwargs):
         raise OSError("SAMPLE_SECRET_FAILURE")
 
     before = _tree_bytes(workspace)
@@ -303,11 +303,11 @@ def test_sweep_receipt_failure_rolls_back_every_record_and_new_receipt(tmp_path)
     before = _tree_bytes(workspace)
     calls = 0
 
-    def fail_second(target, event, fields):
+    def fail_second(target, event, fields, **kwargs):
         nonlocal calls
         calls += 1
         if calls == 1:
-            return write_receipt(target, event, fields)
+            return write_receipt(target, event, fields, **kwargs)
         concurrent = Path(target) / "System/receipts/concurrent.md"
         concurrent.write_text("concurrent receipt", encoding="utf-8")
         raise OSError("second receipt failed")
@@ -522,7 +522,7 @@ def test_new_record_rollback_uses_its_owned_directory_after_an_ancestor_swap(tmp
     outside = tmp_path / "outside"
     outside.mkdir()
 
-    def swap_then_fail(_target, _event, _fields):
+    def swap_then_fail(_target, _event, _fields, **_kwargs):
         facts.rename(held)
         facts.symlink_to(outside, target_is_directory=True)
         raise OSError("fictional receipt failure")

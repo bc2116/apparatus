@@ -73,7 +73,7 @@ def run(
     resolve: Callable[..., str] = resolve_snapshot_id,
     take: Callable[..., Any] = take_snapshot,
     restore: Callable[..., None] = restore_snapshot,
-    write: Callable[[str | Path, str, dict[str, str]], Path] = write_receipt,
+    write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
     update_report: Callable[[str | Path], bool] = mark_snapshots_unavailable,
 ) -> int:
     """List snapshots or restore one after first saving the current state."""

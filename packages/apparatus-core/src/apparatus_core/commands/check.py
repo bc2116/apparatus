@@ -36,7 +36,7 @@ def run(
     args: argparse.Namespace,
     *,
     engine: Callable[[str | Path], CheckResult] = check_workspace,
-    write: Callable[[str | Path, str, dict[str, str]], Path] = write_receipt,
+    write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
 ) -> int:
     """Run the check, print findings, and write its receipt unless disabled."""
     workspace = Path(args.workspace)

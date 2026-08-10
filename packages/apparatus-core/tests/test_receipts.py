@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pytest
@@ -11,6 +13,15 @@ def _clock():
     return datetime(2026, 8, 9, 14, 15, 30, tzinfo=timezone.utc)
 
 
+def _tree(root):
+    return {
+        path.relative_to(root).as_posix(): (
+            None if path.is_dir() else path.read_bytes()
+        )
+        for path in sorted(root.rglob("*"))
+    }
+
+
 def test_write_receipt_is_parseable_and_collision_safe(tmp_path, monkeypatch):
     monkeypatch.setattr(receipts, "_utcnow", _clock)
     first = receipts.write_receipt(
@@ -19,10 +30,10 @@ def test_write_receipt_is_parseable_and_collision_safe(tmp_path, monkeypatch):
     second = receipts.write_receipt(
         tmp_path, "check", {"summary": "Check passed.", "body": "Finding codes: none."}
     )
-    assert first.name == "2026-08-09-141530-check.md"
-    assert second.name == "2026-08-09-141530-check-2.md"
-    data, body = records.parse_record(first.read_text(encoding="utf-8"))
-    assert records.validate("receipt", data, filename=first.name) == []
+    assert first.path.name == "2026-08-09-141530-check.md"
+    assert second.path.name == "2026-08-09-141530-check-2.md"
+    data, body = records.parse_record(first.path.read_text(encoding="utf-8"))
+    assert records.validate("receipt", data, filename=first.path.name) == []
     assert data["timestamp"] == "2026-08-09T14:15:30Z"
     assert body == "Finding codes: none."
 
@@ -41,7 +52,7 @@ def test_write_receipt_preserves_caller_fields_in_frontmatter(tmp_path, monkeypa
             "outcome": "success",
         },
     )
-    data, body = records.parse_record(path.read_text(encoding="utf-8"))
+    data, body = records.parse_record(path.path.read_text(encoding="utf-8"))
     assert data == {
         "schema": "apparatus/receipt@v0",
         "event": "snapshot",
@@ -53,6 +64,333 @@ def test_write_receipt_preserves_caller_fields_in_frontmatter(tmp_path, monkeypa
         "outcome": "success",
     }
     assert body == "Snapshot details."
+
+
+def test_explicit_invocation_binds_digest_and_rolls_back_only_its_receipt(tmp_path):
+    fields = {"summary": "Check passed.", "body": "Finding codes: none.\n"}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path,
+        "check",
+        fields,
+        invocation=invocation,
+    )
+    path = publication.path
+    expected_digest = receipts.sha256(path.read_bytes()).hexdigest()
+
+    assert publication.content_digest == expected_digest
+    assert publication.is_bound_to(invocation)
+    publication.claim(invocation)
+    publication.rollback()
+    publication.close()
+
+    assert not path.exists()
+    assert not list((tmp_path / "System/receipts").iterdir())
+
+
+@pytest.mark.parametrize("mismatch", ("event", "content", "workspace"))
+def test_invocation_rejects_wrong_binding_before_publication(tmp_path, mismatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    other = tmp_path / "other"
+    other.mkdir()
+    fields = {"summary": "Expected check receipt."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    target = other if mismatch == "workspace" else workspace
+    event = "snapshot" if mismatch == "event" else "check"
+    supplied = (
+        {"summary": "Substituted check receipt."}
+        if mismatch == "content"
+        else fields
+    )
+
+    with pytest.raises(OSError, match="does not match"):
+        receipts.write_receipt(
+            target,
+            event,
+            supplied,
+            invocation=invocation,
+        )
+
+    assert not (workspace / "System/receipts").exists()
+    assert not (other / "System/receipts").exists()
+
+
+def test_invocation_freshness_is_consumed_once(tmp_path):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path,
+        "check",
+        fields,
+        invocation=invocation,
+    )
+    try:
+        with pytest.raises(OSError, match="freshness was already consumed"):
+            receipts.write_receipt(
+                tmp_path,
+                "check",
+                fields,
+                invocation=invocation,
+            )
+    finally:
+        publication.claim(invocation)
+        publication.rollback()
+        publication.close()
+
+
+def test_concurrent_invocation_consume_publishes_exactly_once(tmp_path, monkeypatch):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    original_prepare = receipts.prepare_receipt
+    gate = threading.Barrier(2)
+
+    def overlap_after_freshness_check(*args, **kwargs):
+        try:
+            gate.wait(timeout=0.5)
+        except threading.BrokenBarrierError:
+            pass
+        return original_prepare(*args, **kwargs)
+
+    monkeypatch.setattr(receipts, "prepare_receipt", overlap_after_freshness_check)
+
+    def publish():
+        return receipts.write_receipt(
+            tmp_path, "check", fields, invocation=invocation
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(publish) for _index in range(2)]
+    publications = []
+    failures = []
+    for future in futures:
+        try:
+            publications.append(future.result())
+        except OSError as error:
+            failures.append(error)
+
+    assert len(publications) == 1
+    assert len(failures) == 1
+    assert "freshness was already consumed" in str(failures[0])
+    publication = publications[0]
+    publication.claim(invocation)
+    publication.rollback()
+    publication.close()
+    assert list((tmp_path / "System/receipts").iterdir()) == []
+
+
+def test_unclaimed_settlement_cannot_delete_publication(tmp_path):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path, "check", fields, invocation=invocation
+    )
+    path = publication.path
+
+    with pytest.raises(OSError, match="was not claimed"):
+        publication.commit()
+    with pytest.raises(OSError, match="was not claimed"):
+        publication.rollback()
+    assert path.exists()
+
+    publication.claim(invocation)
+    publication.commit()
+    publication.rollback()
+    publication.close()
+    assert not path.exists()
+    for action in (publication.claim, publication.commit, publication.rollback):
+        arguments = (invocation,) if action == publication.claim else ()
+        with pytest.raises(OSError, match="no longer active"):
+            action(*arguments)
+
+
+def test_claimed_unsettled_close_rolls_back_exact_receipt(tmp_path):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path, "check", fields, invocation=invocation
+    )
+    path = publication.path
+    publication.claim(invocation)
+
+    publication.close()
+
+    assert not path.exists()
+    assert list((tmp_path / "System/receipts").iterdir()) == []
+
+
+def test_concurrent_publication_claim_allows_one_transition(tmp_path, monkeypatch):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path, "check", fields, invocation=invocation
+    )
+    handle_type = type(publication._handle)
+    original = handle_type.validate
+    gate = threading.Barrier(2)
+
+    def overlap(self):
+        try:
+            gate.wait(timeout=0.5)
+        except threading.BrokenBarrierError:
+            pass
+        return original(self)
+
+    monkeypatch.setattr(handle_type, "validate", overlap)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(publication.claim, invocation) for _index in range(2)]
+    successes = 0
+    failures = 0
+    for future in futures:
+        try:
+            future.result()
+            successes += 1
+        except OSError:
+            failures += 1
+    assert (successes, failures) == (1, 1)
+    publication.rollback()
+    publication.close()
+
+
+@pytest.mark.parametrize("action", ("commit", "rollback"))
+def test_concurrent_publication_settlement_allows_one_transition(
+    tmp_path, monkeypatch, action
+):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path, "check", fields, invocation=invocation
+    )
+    publication.claim(invocation)
+    handle_type = type(publication._handle)
+    original = getattr(handle_type, action)
+    gate = threading.Barrier(2)
+
+    def overlap(self):
+        try:
+            gate.wait(timeout=0.5)
+        except threading.BrokenBarrierError:
+            pass
+        return original(self)
+
+    monkeypatch.setattr(handle_type, action, overlap)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(getattr(publication, action)) for _index in range(2)]
+    successes = 0
+    failures = 0
+    for future in futures:
+        try:
+            future.result()
+            successes += 1
+        except OSError:
+            failures += 1
+    assert (successes, failures) == (1, 1)
+    publication.close()
+
+
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="Windows anchor name-locks the root; the rename cannot occur there",
+)
+def test_prepared_invocation_rejects_replaced_workspace_object(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "sentinel.txt").write_bytes(b"original")
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    original_tree = _tree(workspace)
+    moved = tmp_path / "moved-workspace"
+    try:
+        workspace.rename(moved)
+    except OSError:
+        invocation.close()
+        assert _tree(workspace) == original_tree
+        return
+    workspace.mkdir()
+    replacement_tree = _tree(workspace)
+
+    with pytest.raises(OSError, match="does not match"):
+        receipts.write_receipt(
+            workspace, "check", fields, invocation=invocation
+        )
+
+    assert _tree(moved) == original_tree
+    assert _tree(workspace) == replacement_tree
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX workspace rename race probe")
+def test_workspace_swap_during_publication_cleans_only_replacement_receipt(
+    tmp_path, monkeypatch
+):
+    workspace = tmp_path / "workspace"
+    (workspace / "System/receipts").mkdir(parents=True)
+    (workspace / "original.txt").write_bytes(b"original")
+    replacement = tmp_path / "replacement"
+    (replacement / "System/receipts").mkdir(parents=True)
+    (replacement / "foreign.txt").write_bytes(b"foreign")
+    original_tree = _tree(workspace)
+    replacement_tree = _tree(replacement)
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    moved = tmp_path / "moved-workspace"
+    original_publish = receipts._publish_receipt_handle
+
+    def swap_then_publish(*args, **kwargs):
+        workspace.rename(moved)
+        replacement.rename(workspace)
+        return original_publish(*args, **kwargs)
+
+    monkeypatch.setattr(receipts, "_publish_receipt_handle", swap_then_publish)
+    with pytest.raises(OSError, match="workspace changed"):
+        receipts.write_receipt(
+            workspace, "check", fields, invocation=invocation
+        )
+
+    assert _tree(moved) == original_tree
+    assert _tree(workspace) == replacement_tree
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX hard-link alias probe")
+def test_unclaimed_moved_receipt_is_cleaned_on_close(tmp_path):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path, "check", fields, invocation=invocation
+    )
+    receipt_dir = tmp_path / "System/receipts"
+    moved = receipt_dir / "post-return-new-name.md"
+    publication.path.rename(moved)
+
+    with pytest.raises(OSError, match="proof changed"):
+        publication.claim(invocation)
+    with pytest.raises(OSError, match="was not claimed"):
+        publication.rollback()
+    publication.close()
+
+    assert list(receipt_dir.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX hard-link alias probe")
+def test_moved_receipt_cleanup_preserves_concurrent_foreign_substitution(tmp_path):
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(tmp_path, "check", fields)
+    publication = receipts.write_receipt(
+        tmp_path, "check", fields, invocation=invocation
+    )
+    receipt_dir = tmp_path / "System/receipts"
+    original = publication.path
+    moved = receipt_dir / "post-return-new-name.md"
+    original.rename(moved)
+    foreign = b"foreign concurrent receipt"
+    original.write_bytes(foreign)
+
+    with pytest.raises(OSError, match="proof changed"):
+        publication.claim(invocation)
+    publication.close()
+
+    assert original.read_bytes() == foreign
+    assert not moved.exists()
+    assert not list(receipt_dir.glob(".apparatus-receipt-*"))
 
 
 @pytest.mark.parametrize("protected", ["schema", "event", "timestamp"])
@@ -70,6 +408,10 @@ def test_write_receipt_requires_a_known_event_and_summary(tmp_path):
         receipts.write_receipt(tmp_path, "check", {})
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="injects failure via the POSIX write path the Windows backend never calls",
+)
 def test_failed_atomic_publication_removes_its_exact_partial(tmp_path, monkeypatch):
     original = receipts._write_complete
 
@@ -139,6 +481,10 @@ def test_failed_receipt_never_deletes_a_preopen_substituted_directory(
     assert list((system / "held-receipts").iterdir()) == []
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="injects the swap via the POSIX write path the Windows backend never calls",
+)
 def test_receipt_publication_does_not_follow_a_swapped_ancestor(tmp_path, monkeypatch):
     system = tmp_path / "System"
     target = system / "receipts"
@@ -182,6 +528,10 @@ def test_failed_receipt_cleanup_keeps_a_substituted_created_directory(
     assert list(held.iterdir()) == []
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="symlink creation on Windows depends on runner privilege; POSIX-only probe",
+)
 def test_receipt_collision_with_a_symlink_retries_without_following_it(
     tmp_path, monkeypatch
 ):
@@ -193,7 +543,7 @@ def test_receipt_collision_with_a_symlink_retries_without_following_it(
     first = receipt_dir / "2026-08-09-141530-check.md"
     first.symlink_to(outside)
     written = receipts.write_receipt(tmp_path, "check", {"summary": "Check passed."})
-    assert written.name == "2026-08-09-141530-check-2.md"
+    assert written.path.name == "2026-08-09-141530-check-2.md"
     assert outside.read_text(encoding="utf-8") == "outside sentinel"
 
 
@@ -232,3 +582,89 @@ def test_receipt_does_not_delete_a_substituted_final_entry(tmp_path, monkeypatch
     assert final.read_bytes() == substituted
     assert held.is_file()
     assert not list(receipt_dir.glob(".apparatus-receipt-*.tmp"))
+
+
+def _swap_fixture(tmp_path):
+    workspace = tmp_path / "workspace"
+    (workspace / "System/receipts").mkdir(parents=True)
+    (workspace / "original.txt").write_bytes(b"original")
+    replacement = tmp_path / "replacement"
+    (replacement / "System/receipts").mkdir(parents=True)
+    (replacement / "foreign.txt").write_bytes(b"foreign")
+    moved = tmp_path / "moved-workspace"
+    return workspace, replacement, moved
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor-window probe")
+def test_workspace_swap_inside_write_window_is_rejected(tmp_path, monkeypatch):
+    workspace, replacement, moved = _swap_fixture(tmp_path)
+    original_tree = _tree(workspace)
+    replacement_tree = _tree(replacement)
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    original_write = receipts._write_complete
+
+    def swap_then_write(descriptor, content):
+        workspace.rename(moved)
+        replacement.rename(workspace)
+        original_write(descriptor, content)
+
+    monkeypatch.setattr(receipts, "_write_complete", swap_then_write)
+    with pytest.raises(OSError, match="destination changed"):
+        receipts.write_receipt(workspace, "check", fields, invocation=invocation)
+
+    assert _tree(moved) == original_tree
+    assert _tree(workspace) == replacement_tree
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor-window probe")
+def test_workspace_swap_inside_link_window_is_rejected(tmp_path, monkeypatch):
+    workspace, replacement, moved = _swap_fixture(tmp_path)
+    original_tree = _tree(workspace)
+    replacement_tree = _tree(replacement)
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    original_link = receipts._link_at
+    swapped = False
+
+    def swap_then_link(parent, source, target):
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            workspace.rename(moved)
+            replacement.rename(workspace)
+        original_link(parent, source, target)
+
+    monkeypatch.setattr(receipts, "_link_at", swap_then_link)
+    with pytest.raises(OSError, match="destination changed"):
+        receipts.write_receipt(workspace, "check", fields, invocation=invocation)
+
+    assert _tree(moved) == original_tree
+    assert _tree(workspace) == replacement_tree
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX rename-swap semantics")
+def test_commit_and_rollback_refuse_after_workspace_swap(tmp_path):
+    workspace, replacement, moved = _swap_fixture(tmp_path)
+    original_tree = _tree(workspace)
+    replacement_tree = _tree(replacement)
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    publication = receipts.write_receipt(
+        workspace, "check", fields, invocation=invocation
+    )
+    publication.claim(invocation)
+    workspace.rename(moved)
+    replacement.rename(workspace)
+
+    with pytest.raises(OSError, match="proof changed"):
+        publication.commit()
+    with pytest.raises(OSError, match="parent changed"):
+        publication.close()
+
+    # The live workspace at the original path is never touched, and the
+    # detached tree keeps every original byte; the failure is loud, not silent.
+    assert _tree(workspace) == replacement_tree
+    detached = _tree(moved)
+    for name, content in original_tree.items():
+        assert detached[name] == content

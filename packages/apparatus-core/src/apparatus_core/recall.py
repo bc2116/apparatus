@@ -99,7 +99,7 @@ def recall(
     question: str,
     limit: int = 5,
     *,
-    write: Callable[[str | Path, str, dict[str, Any]], Path] = write_receipt,
+    write: Callable[[str | Path, str, dict[str, Any]], object] = write_receipt,
     report_ignore: Callable[[IgnoreReport], None] | None = None,
 ) -> RecallEnvelope:
     """Retrieve Library evidence, abstain honestly, and write one receipt."""

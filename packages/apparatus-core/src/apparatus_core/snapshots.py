@@ -171,7 +171,7 @@ def take_snapshot(
     label: str | None = None,
     force: bool = False,
     run: Callable[..., Any] = subprocess.run,
-    write: Callable[[str | Path, str, dict[str, str]], Path] = write_receipt,
+    write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
     clock: Callable[[], datetime] | None = None,
 ) -> SnapshotResult:
     """Save workspace content, writing its receipt before the saved state exists."""

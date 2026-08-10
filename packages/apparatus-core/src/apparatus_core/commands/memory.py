@@ -29,7 +29,11 @@ from apparatus_core.labeler import (
     render_record,
     split_record_exact,
 )
-from apparatus_core.receipts import write_receipt
+from apparatus_core.receipts import (
+    ReceiptPublication,
+    prepare_receipt_invocation,
+    write_receipt,
+)
 
 
 class MemoryCommandError(ValueError):
@@ -199,24 +203,56 @@ def _receipt_fields(findings: tuple[RedactionFinding, ...]) -> dict[str, Any]:
     }
 
 
-def _capture_receipt(anchor: _WorkspaceAnchor, path: Path) -> _OwnedFile:
+ReceiptWriter = Callable[..., object]
+
+
+def _write_owned_receipt(
+    write: ReceiptWriter,
+    workspace: Path,
+    event: str,
+    fields: dict[str, Any],
+) -> ReceiptPublication:
+    invocation = prepare_receipt_invocation(workspace, event, fields)
+    value: object | None = None
     try:
-        relative = Path(path).relative_to(anchor.workspace)
-    except ValueError as error:
-        raise MemoryCommandError("receipt writer returned an unowned path") from error
-    if relative.parent != Path("System/receipts"):
-        raise MemoryCommandError("receipt writer returned an unowned path")
-    return anchor.capture_file(relative)
+        value = write(workspace, event, fields, invocation=invocation)
+        if not isinstance(value, ReceiptPublication) or not value.is_bound_to(
+            invocation
+        ):
+            if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+                invocation
+            ):
+                value.close()
+            raise MemoryCommandError(
+                "receipt writer did not return exact publication ownership"
+            )
+        value.claim(invocation)
+        return value
+    except Exception as error:
+        if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+            invocation
+        ):
+            try:
+                if value.claimed:
+                    value.rollback()
+            finally:
+                value.close()
+        invocation.close()
+        if isinstance(error, MemoryCommandError):
+            raise
+        raise MemoryCommandError(
+            "receipt writer did not return exact publication ownership"
+        ) from error
 
 
 def _remove_owned_receipts(
-    anchor: _WorkspaceAnchor, receipts: Iterable[_OwnedFile]
+    receipts: Iterable[ReceiptPublication],
 ) -> None:
     failed = False
     for receipt in reversed(tuple(receipts)):
         try:
-            anchor.unlink_owned(receipt)
-        except (OSError, MemoryCommandError):
+            receipt.rollback()
+        except OSError:
             failed = True
         finally:
             receipt.close()
@@ -231,8 +267,14 @@ def _new_record(
     metadata: dict[str, str],
     body: str,
     mode: str,
-    write: Callable[[str | Path, str, dict[str, Any]], Path],
-) -> tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]] | None:
+    write: ReceiptWriter,
+    suffix_on_collision: bool = True,
+    retain_ownership: bool = False,
+) -> (
+    tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]]
+    | tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...], _OwnedFile]
+    | None
+):
     cleaned, findings = _redact_strings({**metadata, "body": body})
     cleaned_body = cleaned.pop("body")
     labels = _labels_for((*cleaned.values(), cleaned_body))
@@ -266,6 +308,8 @@ def _new_record(
         }
         if "role" in cleaned:
             frontmatter["role"] = cleaned["role"]
+        if "organization" in cleaned:
+            frontmatter["organization"] = cleaned["organization"]
     frontmatter = refresh_frontmatter_labels(frontmatter, labels)
     anchor.require_directory(relative_folder)
     stem = _slug(filename_value)
@@ -281,20 +325,25 @@ def _new_record(
         try:
             owned_record = anchor.create_file(relative, content)
         except FileExistsError:
+            if not suffix_on_collision:
+                return None
             continue
-        owned_receipt: _OwnedFile | None = None
+        owned_receipt: ReceiptPublication | None = None
         try:
             if findings:
-                receipt_path = write(
-                    anchor.workspace, "redaction", _receipt_fields(findings)
+                owned_receipt = _write_owned_receipt(
+                    write,
+                    anchor.workspace,
+                    "redaction",
+                    _receipt_fields(findings),
                 )
-                owned_receipt = _capture_receipt(anchor, receipt_path)
+                owned_receipt.commit()
         except Exception as operation_error:
             cleanup_failed = False
             if owned_receipt is not None:
                 try:
-                    anchor.unlink_owned(owned_receipt)
-                except (OSError, MemoryCommandError):
+                    owned_receipt.rollback()
+                except OSError:
                     cleanup_failed = True
                 finally:
                     owned_receipt.close()
@@ -311,6 +360,8 @@ def _new_record(
             raise
         if owned_receipt is not None:
             owned_receipt.close()
+        if retain_ownership:
+            return relative, findings, labels, owned_record
         owned_record.close()
         return relative, findings, labels
     raise MemoryCommandError("could not allocate a safe Memory filename")
@@ -442,7 +493,7 @@ def _plan_sweep_record(
 
 def _sweep(
     anchor: _WorkspaceAnchor,
-    write: Callable[[str | Path, str, dict[str, Any]], Path],
+    write: ReceiptWriter,
 ) -> tuple[int, int]:
     people = anchor.list_memory_records("Memory/People")
     facts = anchor.list_memory_records("Memory/Facts")
@@ -452,7 +503,7 @@ def _sweep(
     ]
     changed = [plan for plan in plans if plan.replacement != plan.original]
     applied: list[tuple[_SweepChange, _ReplacementTransaction]] = []
-    owned_receipts: list[_OwnedFile] = []
+    owned_receipts: list[ReceiptPublication] = []
     commit_phase = False
     try:
         for plan in changed:
@@ -464,14 +515,22 @@ def _sweep(
             )
             applied.append((plan, transaction))
             if plan.findings:
-                receipt_path = write(
-                    anchor.workspace, "redaction", _receipt_fields(plan.findings)
+                owned_receipts.append(
+                    _write_owned_receipt(
+                        write,
+                        anchor.workspace,
+                        "redaction",
+                        _receipt_fields(plan.findings),
+                    )
                 )
-                owned_receipts.append(_capture_receipt(anchor, receipt_path))
         # Validate every transaction before any backup is discarded. A later
         # validation failure can therefore still roll the complete sweep back.
         for _plan, transaction in applied:
             transaction.validate_commit()
+        for receipt in owned_receipts:
+            receipt.validate()
+        for receipt in owned_receipts:
+            receipt.commit()
         commit_phase = True
         for _plan, transaction in applied:
             transaction.commit()
@@ -499,7 +558,7 @@ def _sweep(
             ) from operation_error
         rollback_failed = False
         try:
-            _remove_owned_receipts(anchor, owned_receipts)
+            _remove_owned_receipts(owned_receipts)
         except (OSError, MemoryCommandError):
             rollback_failed = True
         for _plan, transaction in reversed(applied):
@@ -524,7 +583,7 @@ def _sweep(
 def _run_anchored(
     anchor: _WorkspaceAnchor,
     args: argparse.Namespace,
-    write: Callable[[str | Path, str, dict[str, Any]], Path],
+    write: ReceiptWriter,
 ) -> int:
     mode = _privacy_mode(anchor)
     action = getattr(args, "memory_action", None)
@@ -579,7 +638,7 @@ def _run_anchored(
 def run(
     args: argparse.Namespace,
     *,
-    write: Callable[[str | Path, str, dict[str, Any]], Path] = write_receipt,
+    write: ReceiptWriter = write_receipt,
 ) -> int:
     """Run one Memory subcommand with privacy-safe, calm output."""
     try:
