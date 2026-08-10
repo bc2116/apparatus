@@ -69,7 +69,7 @@ on every commit.
 | 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
 | 25 | [Snapshot export (backup) v1](PR-25-snapshot-export.md) | 4 | ready | 10 |
 | 26 | [Installer wrapper and signed artifacts](PR-26-installer-wrapper.md) | 5 | ready | 22, 23 |
-| 27 | [Model and spend guidance v1](PR-27-model-spend-guidance.md) | 1 | ready | 04 |
+| 27 | [Model and spend guidance v1](PR-27-model-spend-guidance.md) | 1 | ✅ landed | 04 |
 | 28 | [Workspace ignore rules v1](PR-28-workspace-ignore-rules.md) | 4 | ready | 09, 14, 15, 16 |
 | 29 | [First-run feature selection](PR-29-first-run-feature-selection.md) | 4 | ready | 17, 27, 28 |
 

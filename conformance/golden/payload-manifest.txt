@@ -14,6 +14,7 @@ Memory/Facts/.gitkeep
 Memory/People/.gitkeep
 Projects/.gitkeep
 System/README.md
+System/guidance/model-guidance.md
 System/policy/private.md
 System/policy/standard.md
 System/procedures/produce-deliverable.md

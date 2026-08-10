@@ -85,6 +85,7 @@ def test_fresh_init_deploys_check_clean_workspace_and_initial_snapshot(tmp_path,
         "privacy_mode": "standard",
         "work_types": ["analysis", "quality", "project-management", "support", "writing"],
         "review_day": None,
+        "spend": "balanced",
     }
     assert not list(workspace.rglob(".gitkeep"))
     assert check_workspace(workspace).ok
@@ -497,7 +498,12 @@ def test_repair_receipt_lists_exact_sorted_changes_and_sync_note(tmp_path):
         _args(workspace), available=lambda: False, detect=lambda _path: sync
     ) == 0
     receipts = sorted((workspace / "System/receipts").glob("*-init*.md"))
-    repaired = next(path for path in receipts if "created Goals/" in path.read_text(encoding="utf-8"))
+    repaired = next(
+        path
+        for path in receipts
+        if "Sync redirection: Synthetic sync note."
+        in path.read_text(encoding="utf-8")
+    )
     _frontmatter, body = records.parse_record(repaired.read_text(encoding="utf-8"))
     assert body == "Changes:\n- created Goals/\n\nSync redirection: Synthetic sync note."
 
@@ -510,6 +516,7 @@ def test_selector_precedence_preserves_existing_values_when_flags_are_omitted(tm
     profile = _profile(workspace)
     profile["status"] = "configured"
     profile["review_day"] = "friday"
+    profile["spend"] = "thorough"
     (workspace / "System/profile.yaml").write_text(
         records.yaml.safe_dump(profile, sort_keys=False), encoding="utf-8"
     )
@@ -523,6 +530,7 @@ def test_selector_precedence_preserves_existing_values_when_flags_are_omitted(tm
         "privacy_mode": "private",
         "work_types": ["quality"],
         "review_day": "friday",
+        "spend": "thorough",
     }
     assert init.run(
         _args(workspace, work_types="writing,analysis"), available=lambda: False
@@ -532,6 +540,7 @@ def test_selector_precedence_preserves_existing_values_when_flags_are_omitted(tm
     assert final["work_types"] == ["analysis", "writing"]
     assert final["status"] == "configured"
     assert final["review_day"] == "friday"
+    assert final["spend"] == "thorough"
 
 
 def test_custom_payload_without_sibling_manifest_falls_back_to_shipped_manifest(tmp_path):

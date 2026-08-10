@@ -84,13 +84,16 @@ One page per person **or organization** the user works with.
 ## profile
 
 The workspace's setup choices. Plain YAML at `System/profile.yaml` — no
-Markdown body, and the key set is closed (exactly these five keys):
+Markdown body. The key set is closed to the five required keys and the one
+optional key listed here:
 
 - `schema`: `apparatus/profile@v0`.
 - `status`: `unconfigured` | `configured`.
 - `privacy_mode`: `standard` | `private`.
 - `work_types`: list of strings (may be empty).
 - `review_day`: `null`, or a lowercase weekday name (`monday` … `sunday`).
+- Optional `spend`: `frugal` | `balanced` | `thorough` (the spend level;
+  omitted profiles remain valid).
 
 ## receipt
 

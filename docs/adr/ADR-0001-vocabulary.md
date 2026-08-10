@@ -31,6 +31,7 @@ content, and assistant-facing procedure text:
 | Durable remembered content | **Memory** (with **People** and **Facts**) | vault, database, store |
 | The machinery folder | **System** | internals, engine, config |
 | The user's AI tool | **AI app** / **assistant** | harness, agent, LLM, model, IDE |
+| How much model capability and cost to apply | **spend level**: `frugal` \| `balanced` \| `thorough` | cheap mode, budget, tier adjectives |
 
 Rules:
 
