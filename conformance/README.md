@@ -25,6 +25,7 @@ python3 conformance/payload_check.py
 | `golden/egress/` | Byte-exact sensitive-content redaction and value-free findings summary | PR-18 |
 | `fixtures/welcome-e2e/profile-configured.yaml` | Configured standard-mode interview answers that seed two People records and one Goal | PR-19 |
 | `fixtures/welcome-e2e/library/reference-note.md` | One citable fact plus fictional People and credential-floor content for the welcome story | PR-19 |
+| `test_payload_archive.py` | The universal archive file set, rendered shims, embedded hashes, portable metadata, and reproducibility | PR-20 |
 
 ## The rule
 
