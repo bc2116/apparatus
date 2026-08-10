@@ -5,10 +5,13 @@ import json
 from pathlib import Path
 import re
 
+import pytest
+
 from apparatus_core import recall, records
 from apparatus_core.cache import library_cache_root
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import recall as recall_command
+from apparatus_core.library import index
 from apparatus_core.library.ingest import ingest_library
 from apparatus_core.render import render_workspace
 
@@ -86,6 +89,10 @@ def test_grounded_envelope_has_exact_citation_shape_and_valid_receipt(
     assert data["status"] == "grounded"
     assert data["threshold"] == recall.RECALL_ABSTAIN_THRESHOLD
     assert data["evidence_sources"] == ["Library/notes.txt"]
+    assert data["ignored_paths"] == 0
+    assert data["ignore_rule_provenance"] == (
+        "built-in defaults; System/ignore is missing"
+    )
     assert records.validate("receipt", data, filename=receipts[0].name) == []
     assert check_workspace(workspace).ok
     added = set(workspace.rglob("*")) - before
@@ -108,9 +115,11 @@ def test_abstain_is_successful_json_and_human_output(monkeypatch, tmp_path, caps
         as_json=True,
     )
     assert recall_command.run(arguments) == 0
-    envelope = json.loads(capsys.readouterr().out)
+    captured = capsys.readouterr()
+    envelope = json.loads(captured.out)
     assert envelope["status"] == "abstained"
     assert envelope["evidence"] == []
+    assert "skipped 0 path(s)" in captured.err
 
     arguments.as_json = False
     assert recall_command.run(arguments) == 0
@@ -173,6 +182,19 @@ def test_missing_extractions_and_usage_errors(monkeypatch, tmp_path, capsys):
     arguments.workspace = str(tmp_path / "missing")
     assert recall_command.run(arguments) == 2
     assert capsys.readouterr().out == "recall: workspace path is not a directory\n"
+
+
+def test_invalid_ignore_stops_recall_before_cache_inspection(monkeypatch, tmp_path):
+    workspace = _prepared(monkeypatch, tmp_path)
+    (workspace / "System/ignore").write_bytes(b"\xff")
+    monkeypatch.setattr(
+        index,
+        "has_extractions",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("cache was inspected")),
+    )
+
+    with pytest.raises(ValueError, match="UTF-8"):
+        recall.recall(workspace, "cobalt")
 
 
 def test_research_procedure_keeps_nine_steps_and_grounding_rules():

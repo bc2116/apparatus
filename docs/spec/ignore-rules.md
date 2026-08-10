@@ -24,8 +24,11 @@ its path matches `System/ignore`. Durable-write credential redaction always
 applies. Ignore rules are not an approval to send, publish, share, or retain a
 credential.
 
-Every affected command records skip counts and rule provenance in its receipt;
-receipts do not list ignored file contents.
+Every existing receipt-producing command records accurate skip counts and rule
+provenance in its receipt; receipts do not list ignored paths or file contents.
+Library search has no receipt event in the closed v1 receipt schema, so it
+reports the same count and provenance in command output instead. JSON search
+keeps stdout machine-readable and writes this report to stderr.
 
 ## File and supported syntax
 
@@ -45,7 +48,11 @@ gitignore compatibility:
 
 Negation (`!`), escapes (`\\`), and character classes (`[...]`) are not
 supported. `apparatus check` reports each unsupported line in plain language;
-it does not silently reinterpret it.
+it does not silently reinterpret it. A present ignore file that is unreadable,
+not UTF-8 text, unsafe (including a symbolic link or reparse point), or contains
+unsupported syntax is invalid. Ignore-aware content operations stop before
+reading candidate content until the file is repaired; `apparatus check`
+reports the actionable problem.
 
 The following built-in defaults always apply and cannot be disabled:
 
@@ -56,3 +63,11 @@ The following built-in defaults always apply and cannot be disabled:
 
 Built-in defaults are not user rules. The shipped file comments them for
 orientation only.
+
+## Reporting count
+
+A skipped path is counted at the boundary where an operation declines it. An
+ignored file counts once. An ignored directory counts once and is pruned before
+traversal, so its descendants are neither opened nor separately counted. Each
+report separates built-in and user-rule counts and names whether provenance was
+the built-in defaults alone or the built-ins plus `System/ignore`.

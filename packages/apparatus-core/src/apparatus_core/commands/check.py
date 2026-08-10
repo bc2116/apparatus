@@ -23,7 +23,12 @@ def _receipt_fields(result: CheckResult) -> dict[str, str]:
     codes = sorted({finding.code for finding in result.findings})
     outcome = "passed" if result.ok else "found problems"
     summary = f"Check {outcome}: {len(result.findings)} finding(s) across {result.records_checked} record(s); {result.ignored_paths} path(s) ignored."
-    body = "Finding codes: " + (", ".join(codes) if codes else "none") + f". Ignore rules excluded {result.ignored_paths} path(s)."
+    body = (
+        "Finding codes: "
+        + (", ".join(codes) if codes else "none")
+        + ". "
+        + result.ignore_report.sentence()
+    )
     return {"summary": summary, "body": body}
 
 
@@ -48,6 +53,7 @@ def run(
         print(f"check passed: {result.records_checked} record(s) checked; {result.ignored_paths} path(s) ignored")
     else:
         print(f"check found {len(result.findings)} finding(s)")
+    print(result.ignore_report.sentence())
     if not getattr(args, "no_receipt", False):
         try:
             write(workspace, "check", _receipt_fields(result))

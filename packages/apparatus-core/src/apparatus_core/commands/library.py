@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 from typing import Any
 import unicodedata
 
 from apparatus_core.cache import library_cache_root
+from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.library.ingest import ingest_library
 from apparatus_core.library import index
 
@@ -43,6 +45,7 @@ def run(args: argparse.Namespace) -> int:
         return 2
     print(f"Library cache: {_safe(str(result.cache))}")
     print("Library ingest: " + ", ".join(f"{name}={result.counts[name]}" for name in result.counts))
+    print(result.ignore_report.sentence())
     for path, status, reason in result.flagged:
         print(f"flagged {_safe(path)}: {_safe(status)}: {_safe(reason)}")
     return 0 if result.ok else 1
@@ -61,14 +64,16 @@ def run_search(args: argparse.Namespace) -> int:
         print("library search: --limit must be positive")
         return 2
     try:
+        rules = load_ignore_rules(workspace).require_valid()
         cache = library_cache_root(workspace)
         if not index.has_extractions(cache):
             print("Nothing from your Library has been ingested yet. Run apparatus library ingest first.")
+            _print_ignore_report(rules.report(), args.as_json)
             return 1
         if args.rebuild:
-            index.rebuild(cache)
+            ignore_report = index.rebuild(cache, workspace)
         else:
-            index.refresh(cache, workspace)
+            ignore_report = index.refresh(cache, workspace)
         hits = index.search(cache, args.query, args.limit)
     except index.FtsUnavailable as error:
         print(f"library search: {_safe(str(error))}")
@@ -84,4 +89,9 @@ def run_search(args: argparse.Namespace) -> int:
     else:
         for hit in hits:
             print(f"{_safe(hit.source_path)} ({hit.score:.6f}): {_safe(hit.snippet)}")
+    _print_ignore_report(ignore_report, args.as_json)
     return 0
+
+
+def _print_ignore_report(report: Any, as_json: bool) -> None:
+    print(report.sentence(), file=sys.stderr if as_json else sys.stdout)

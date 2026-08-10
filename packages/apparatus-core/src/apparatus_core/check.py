@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from apparatus_core import records
 from apparatus_core import shims
-from apparatus_core.ignore import load_ignore_rules
+from apparatus_core.ignore import IgnoreReport, load_ignore_rules
 from apparatus_core.render import (
     RenderError,
     is_reparse_path,
@@ -31,7 +31,11 @@ class CheckResult:
 
     findings: tuple[Finding, ...]
     records_checked: int
-    ignored_paths: int = 0
+    ignore_report: IgnoreReport = field(default_factory=IgnoreReport)
+
+    @property
+    def ignored_paths(self) -> int:
+        return self.ignore_report.skipped_paths
 
     @property
     def ok(self) -> bool:
@@ -261,9 +265,15 @@ def check_workspace(
     findings: list[Finding] = []
     rules = load_ignore_rules(root)
     findings.extend(
-        Finding("ignore-unsupported-pattern", "System/ignore", f"Line {issue.line}: {issue.message}")
+        Finding(
+            issue.code,
+            "System/ignore",
+            (f"Line {issue.line}: " if issue.line else "") + issue.message,
+        )
         for issue in rules.issues
     )
+    if not rules.valid:
+        return CheckResult(tuple(findings), 0, rules.report())
     for relative, is_directory in REQUIRED_ENTRIES:
         path = root / relative
         exists = path.is_dir() if is_directory else path.is_file()
@@ -277,32 +287,51 @@ def check_workspace(
             )
 
     records_checked = 0
-    ignored_paths = 0
+    built_in_ignored = 0
+    user_ignored = 0
     for relative, kind in RECORD_FOLDERS:
         folder = root / relative
         if not folder.is_dir():
             continue
         for path in _record_files(folder):
-            if rules.matches(_relative(path, root)):
-                ignored_paths += 1
+            classification = rules.classification(_relative(path, root))
+            if classification is not None:
+                if classification == "built-in":
+                    built_in_ignored += 1
+                else:
+                    user_ignored += 1
                 continue
             records_checked += 1
             findings.extend(_record_findings(path, root, kind))
 
     profile = root / "System/profile.yaml"
     if profile.is_file():
-        if rules.matches(_relative(profile, root)):
-            ignored_paths += 1
+        classification = rules.classification(_relative(profile, root))
+        if classification is not None:
+            if classification == "built-in":
+                built_in_ignored += 1
+            else:
+                user_ignored += 1
         else:
             records_checked += 1
             findings.extend(_profile_findings(profile, root))
     machine_report = root / "System/machine-report.md"
     if machine_report.is_file():
-        if rules.matches(_relative(machine_report, root)):
-            ignored_paths += 1
+        classification = rules.classification(_relative(machine_report, root))
+        if classification is not None:
+            if classification == "built-in":
+                built_in_ignored += 1
+            else:
+                user_ignored += 1
         else:
             findings.extend(_machine_report_findings(machine_report, root))
 
     findings.extend(_shim_findings(root, shim_registry))
 
-    return CheckResult(tuple(findings), records_checked, ignored_paths)
+    return CheckResult(
+        tuple(findings),
+        records_checked,
+        rules.report(
+            built_in_paths=built_in_ignored, user_paths=user_ignored
+        ),
+    )

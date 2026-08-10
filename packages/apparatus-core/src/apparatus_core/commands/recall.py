@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 from typing import Any
 import unicodedata
 
 from apparatus_core import recall as recall_engine
+from apparatus_core.ignore import IgnoreReport
 from apparatus_core.library import index
 
 
@@ -55,7 +57,13 @@ def run(args: argparse.Namespace) -> int:
         print("recall: --limit must be positive")
         return 2
     try:
-        envelope = recall_engine.recall(workspace, args.question, args.limit)
+        ignore_reports: list[IgnoreReport] = []
+        envelope = recall_engine.recall(
+            workspace,
+            args.question,
+            args.limit,
+            report_ignore=ignore_reports.append,
+        )
     except recall_engine.NoExtractionsError:
         print(
             "Nothing from your Library has been ingested yet. "
@@ -70,6 +78,8 @@ def run(args: argparse.Namespace) -> int:
         return 2
     if args.as_json:
         print(json.dumps(envelope, ensure_ascii=False))
+        print(ignore_reports[0].sentence(), file=sys.stderr)
     else:
         _render_human(envelope)
+        print(ignore_reports[0].sentence())
     return 0

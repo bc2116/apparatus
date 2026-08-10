@@ -16,7 +16,7 @@ import tempfile
 import time
 
 from apparatus_core import fs_transactions
-from apparatus_core.ignore import load_ignore_rules
+from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION
 from apparatus_core.render import is_reparse_path
 
@@ -48,10 +48,11 @@ class SearchHit:
     score: float
 
 
-def refresh(cache: Path, workspace: str | Path | None = None) -> None:
+def refresh(cache: Path, workspace: str | Path) -> IgnoreReport:
     """Synchronize changed extracted cache pairs into the local FTS index."""
+    rules = load_ignore_rules(workspace).require_valid()
     with _writer_lock(cache):
-        desired = _extracted_sources(cache) if workspace is None else _extracted_sources(cache, workspace)
+        desired, report = _extracted_sources(cache, rules)
         connection = _database_for_operation(cache)
         try:
             with connection:
@@ -62,6 +63,7 @@ def refresh(cache: Path, workspace: str | Path | None = None) -> None:
             raise IndexError("Library index could not be opened") from error
         finally:
             _close_database(connection)
+    return report
 
 
 def _refresh_connection(connection: sqlite3.Connection, desired: dict[str, tuple[str, str, str]]) -> None:
@@ -90,10 +92,11 @@ def _refresh_connection(connection: sqlite3.Connection, desired: dict[str, tuple
         )
 
 
-def rebuild(cache: Path) -> None:
+def rebuild(cache: Path, workspace: str | Path) -> IgnoreReport:
     """Discard and deterministically recreate this cache's derived index."""
+    rules = load_ignore_rules(workspace).require_valid()
     with _writer_lock(cache):
-        desired = _extracted_sources(cache)
+        desired, report = _extracted_sources(cache, rules)
         if hasattr(sqlite3.Connection, "deserialize"):
             connection = _fresh_database()
             try:
@@ -103,8 +106,9 @@ def rebuild(cache: Path) -> None:
                 raise IndexError("Library index could not be rebuilt") from error
             finally:
                 _close_database(connection)
-            return
+            return report
         _rebuild_legacy(cache, desired)
+        return report
 
 
 def _fresh_database() -> sqlite3.Connection:
@@ -624,14 +628,15 @@ def _create_schema(connection: sqlite3.Connection) -> None:
 
 
 def _extracted_sources(
-    cache: Path, workspace: str | Path | None = None
-) -> dict[str, tuple[str, str, str]]:
+    cache: Path, rules: IgnoreRules
+) -> tuple[dict[str, tuple[str, str, str]], IgnoreReport]:
     _assert_private_cache(cache)
     extractions = cache / "extractions"
     if not extractions.is_dir() or is_reparse_path(extractions):
-        return {}
+        return {}, rules.report()
     sources: dict[str, tuple[str, str, str]] = {}
-    rules = load_ignore_rules(workspace) if workspace is not None else None
+    built_in_ignored = 0
+    user_ignored = 0
     for record_path in _record_paths(extractions):
         relative = record_path.relative_to(extractions).as_posix()[:-5]
         text_path = record_path.with_suffix(".txt")
@@ -641,7 +646,12 @@ def _extracted_sources(
             continue
         if not _is_extracted_record(record, relative, text_path):
             continue
-        if rules is not None and rules.matches(str(record["source_path"])):
+        classification = rules.classification(str(record["source_path"]))
+        if classification is not None:
+            if classification == "built-in":
+                built_in_ignored += 1
+            else:
+                user_ignored += 1
             continue
         try:
             sources[record["source_path"]] = (
@@ -649,7 +659,9 @@ def _extracted_sources(
             )
         except OSError:
             continue
-    return sources
+    return sources, rules.report(
+        built_in_paths=built_in_ignored, user_paths=user_ignored
+    )
 
 
 def _is_extracted_record(record: object, relative: str, text_path: Path) -> bool:
