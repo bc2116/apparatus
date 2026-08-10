@@ -108,8 +108,10 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: build
-    if: github.event_name == 'push'
+    needs: [build, publish-pypi]
+    if: >-
+      always() && github.event_name == 'push' &&
+      (needs.build.outputs.dry_run == 'true' || needs.publish-pypi.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -120,12 +122,20 @@ jobs:
           name: apparatus-release-${{ needs.build.outputs.version }}
           path: release-files
       - name: Create release and attach files
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.build.outputs.version }}
-          prerelease: ${{ needs.build.outputs.dry_run == 'true' }}
-          body_path: release-files/release-notes.md
-          files: |
-            release-files/apparatus-payload-${{ needs.build.outputs.version }}.zip
-            release-files/packages/apparatus_core-${{ needs.build.outputs.version }}.tar.gz
-            release-files/packages/apparatus_core-${{ needs.build.outputs.version }}-py3-none-any.whl
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          DRY_RUN: ${{ needs.build.outputs.dry_run }}
+        run: |
+          set -euo pipefail
+          prerelease=()
+          if [[ "$DRY_RUN" == "true" ]]; then
+            prerelease=(--prerelease)
+          fi
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes-file "release-files/release-notes.md" \
+            "${prerelease[@]}" \
+            "release-files/apparatus-payload-${VERSION}.zip" \
+            "release-files/packages/apparatus_core-${VERSION}.tar.gz" \
+            "release-files/packages/apparatus_core-${VERSION}-py3-none-any.whl"

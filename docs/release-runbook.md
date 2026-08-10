@@ -6,8 +6,10 @@ it does not store credentials or account identifiers.
 ## One-time operator setup
 
 1. Create the `apparatus-core` project on PyPI.
-2. In PyPI, add a trusted publisher for this repository. Set its workflow
-   filename to `release.yml` and its environment name to `pypi`.
+2. In PyPI, add a trusted publisher for this repository. Populate its **Owner**
+   and **Repository** fields with this repository's GitHub owner and name, then
+   set its workflow filename to `release.yml` and its environment name to
+   `pypi`.
 3. In GitHub, create the repository environment named `pypi`. Apply the
    approval rules appropriate for releases.
 4. Leave the repository variable `APPARATUS_RELEASE_MODE` unset. An unset value
@@ -30,10 +32,11 @@ secrets, or its variables.
    includes the payload ZIP, `apparatus-core` source distribution, wheel, and
    release notes.
 4. Confirm that no GitHub Release was created and that PyPI was not changed.
-5. If practical in a disposable, operator-approved setting, push a matching
-   temporary tag while `APPARATUS_RELEASE_MODE` is unset. Confirm the resulting
-   GitHub Release is marked prerelease and begins with the dry-run notice; do
-   not reuse or move that tag.
+5. If practical in an operator-approved setting, use a dedicated rehearsal
+   version and matching tag while `APPARATUS_RELEASE_MODE` is unset. Confirm the
+   resulting GitHub Release is marked prerelease and begins with the dry-run
+   notice. The rehearsal tag permanently consumes that version; never reuse or
+   move it.
 
 ## Publish a release
 

@@ -25,6 +25,18 @@ def test_release_workflow_keeps_dispatch_and_publishing_separate() -> None:
     action = publish["steps"][-1]
     assert action["uses"] == "pypa/gh-action-pypi-publish@release/v1"
     assert "token" not in str(action).lower()
+    release = workflow["jobs"]["github-release"]
+    assert release["permissions"] == {"contents": "write"}
+    assert "needs.publish-pypi.result == 'success'" in release["if"]
+    assert "needs.build.outputs.dry_run == 'true'" in release["if"]
+    release_step = release["steps"][-1]
+    assert "uses" not in release_step
+    assert release_step["env"] == {
+        "GH_TOKEN": "${{ github.token }}",
+        "VERSION": "${{ needs.build.outputs.version }}",
+        "DRY_RUN": "${{ needs.build.outputs.dry_run }}",
+    }
+    assert "gh release create" in release_step["run"]
 
 
 def test_release_workflow_builds_and_attaches_every_release_file() -> None:
@@ -35,6 +47,7 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "uv run python tools/build_payload.py" in content
     assert "uv build --package apparatus-core --out-dir dist/packages" in content
     assert "release tag {ref_name!r} must exactly match package version" in content
+    assert "softprops/action-gh-release" not in content
     assert "dist/apparatus-payload-${{ steps.release.outputs.version }}.zip" in content
     assert "dist/packages/apparatus_core-${{ steps.release.outputs.version }}.tar.gz" in content
     assert "dist/packages/apparatus_core-${{ steps.release.outputs.version }}-py3-none-any.whl" in content
