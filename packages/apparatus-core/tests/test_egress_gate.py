@@ -774,20 +774,100 @@ def test_standard_and_private_modes_have_identical_egress_behavior(
     assert results[0] == results[1]
 
 
-def test_ignore_file_never_weakens_egress_scan(tmp_path):
-    workspace = _workspace(tmp_path / "workspace")
-    (workspace / "System/ignore").write_text(
-        "Projects/ignored.txt\n", encoding="utf-8"
+@pytest.mark.parametrize(
+    ("decision", "expected_exit", "expected_outcome", "copy_written"),
+    [
+        (None, 1, "decision-required", False),
+        ("send-original", 1, "credential-original-refused", False),
+        ("use-redacted", 0, "use-redacted", True),
+    ],
+)
+def test_ignore_rules_never_weaken_explicit_egress_check(
+    tmp_path,
+    capsys,
+    decision,
+    expected_exit,
+    expected_outcome,
+    copy_written,
+):
+    relative = "Projects/outbound.txt"
+    original = (
+        "Temporary password=sample-only for the clearly fake PR-28 fixture.\n"
     )
-    (workspace / "Projects/ignored.txt").write_text(
-        "Contact sample.person@example.invalid.\n", encoding="utf-8"
-    )
+    behaviors = []
 
-    result = check_egress(workspace, ["Projects/ignored.txt"])
+    for name, ignore_rule in (
+        ("matched-ignore", f"{relative}\n"),
+        ("unmatched-ignore", "Projects/something-else/\n"),
+    ):
+        workspace = _workspace(tmp_path / name)
+        (workspace / "System/ignore").write_text(
+            ignore_rule, encoding="utf-8"
+        )
+        source = workspace / relative
+        source.write_text(original, encoding="utf-8")
+        arguments = ["egress", "check", str(workspace), relative]
+        if decision is not None:
+            arguments.extend(("--decision", decision))
 
-    assert [(item.source, item.kind) for item in result.findings] == [
-        ("label", "pii/email")
+        exit_code = cli.main(arguments)
+        captured = capsys.readouterr()
+        output = tuple(
+            line
+            for line in captured.out.splitlines()
+            if not line.startswith("egress receipt: ")
+        )
+        receipt_paths = _receipts(workspace, "egress")
+        assert len(receipt_paths) == 1
+        data, _body = _receipt_data(receipt_paths[0])
+        redacted = workspace / "Projects/outbound.redacted.txt"
+        behaviors.append(
+            {
+                "exit_code": exit_code,
+                "stdout": output,
+                "stderr": captured.err,
+                "finding_counts": data["finding_counts"],
+                "redacted_offers": data["redacted_offers"],
+                "redacted_copies": data["redacted_copies"],
+                "decision": data["decision"],
+                "outcome": data["outcome"],
+                "pre_share_authorized": data["pre_share_authorized"],
+                "anything_left_workspace": data["anything_left_workspace"],
+                "source": source.read_text(encoding="utf-8"),
+                "redacted": (
+                    redacted.read_text(encoding="utf-8")
+                    if redacted.exists()
+                    else None
+                ),
+            }
+        )
+
+    assert behaviors[0] == behaviors[1]
+    behavior = behaviors[0]
+    assert behavior["exit_code"] == expected_exit
+    assert behavior["stderr"] == ""
+    assert behavior["finding_counts"] == {"credential/password": 1}
+    assert "Projects/outbound.txt:1: credential/password" in behavior["stdout"]
+    assert behavior["redacted_offers"] == [
+        "Projects/outbound.redacted.txt"
     ]
+    assert behavior["outcome"] == expected_outcome
+    assert behavior["decision"] == decision
+    assert behavior["anything_left_workspace"] is False
+    assert behavior["source"] == original
+    if copy_written:
+        assert behavior["redacted_copies"] == [
+            "Projects/outbound.redacted.txt"
+        ]
+        assert behavior["pre_share_authorized"] is True
+        assert behavior["redacted"] == (
+            "Temporary password=[redacted-password] for the clearly fake "
+            "PR-28 fixture.\n"
+        )
+    else:
+        assert behavior["redacted_copies"] == []
+        assert behavior["pre_share_authorized"] is False
+        assert behavior["redacted"] is None
 
 
 def test_one_decision_covers_complete_list_and_only_flagged_files_get_copies(
