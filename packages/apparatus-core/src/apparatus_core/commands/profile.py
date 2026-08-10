@@ -33,7 +33,7 @@ from apparatus_core.payload import (
     resolve_payload,
     resolve_profiles_manifest,
 )
-from apparatus_core.receipts import write_receipt
+from apparatus_core.receipts import ReceiptPublication, publish_receipt
 
 
 class ProfileCommandError(ValueError):
@@ -201,30 +201,69 @@ def _receipt_fields(
     }
 
 
-def _remove_receipts(anchor: Any, owned: list[Any]) -> bool:
+ReceiptPublisher = Callable[
+    [str | Path, str, dict[str, Any]], ReceiptPublication
+]
+
+
+def _accept_publication(
+    value: object, workspace: Path, event: str
+) -> ReceiptPublication:
+    if not isinstance(value, ReceiptPublication):
+        raise ProfileCommandError(
+            "receipt writer did not return exact publication ownership"
+        )
+    was_claimed = value.claimed
     try:
-        memory._remove_owned_receipts(anchor, owned)
-        return True
-    except (OSError, memory.MemoryCommandError):
-        return False
+        value.claim(workspace, event)
+    except OSError as error:
+        if not was_claimed:
+            try:
+                value.path.relative_to(workspace)
+            except ValueError:
+                pass
+            else:
+                try:
+                    value.rollback()
+                except OSError:
+                    pass
+            value.close()
+        raise ProfileCommandError(
+            "receipt writer did not return exact publication ownership"
+        ) from error
+    return value
+
+
+def _remove_receipts(owned: list[ReceiptPublication]) -> bool:
+    ok = True
+    for publication in reversed(owned):
+        try:
+            publication.rollback()
+        except OSError:
+            ok = False
+        finally:
+            publication.close()
+    return ok
 
 
 def _write_required_receipts(
     anchor: Any,
     findings: tuple[RedactionFinding, ...],
     fields: dict[str, str],
-    write: Callable[[str | Path, str, dict[str, Any]], Path],
-) -> list[Any]:
-    owned: list[Any] = []
+    write: ReceiptPublisher,
+) -> list[ReceiptPublication]:
+    owned: list[ReceiptPublication] = []
     try:
         if findings:
-            path = write(anchor.workspace, "redaction", memory._receipt_fields(findings))
-            owned.append(memory._capture_receipt(anchor, path))
-        path = write(anchor.workspace, "profile-apply", fields)
-        owned.append(memory._capture_receipt(anchor, path))
+            result = write(
+                anchor.workspace, "redaction", memory._receipt_fields(findings)
+            )
+            owned.append(_accept_publication(result, anchor.workspace, "redaction"))
+        result = write(anchor.workspace, "profile-apply", fields)
+        owned.append(_accept_publication(result, anchor.workspace, "profile-apply"))
         return owned
     except Exception as error:
-        if not _remove_receipts(anchor, owned):
+        if not _remove_receipts(owned):
             raise ProfileCommandError(
                 "profile receipts could not restore their prior state"
             ) from error
@@ -250,7 +289,7 @@ def _rollback(
     removed: list[tuple[Path, bytes]],
     created: list[Any],
     replacements: list[Any],
-    receipts: list[Any],
+    receipts: list[ReceiptPublication],
 ) -> bool:
     ok = _restore_removals(anchor, removed)
     for owned in reversed(created):
@@ -267,12 +306,16 @@ def _rollback(
             ok = False
         finally:
             transaction.close()
-    if not _remove_receipts(anchor, receipts):
+    if not _remove_receipts(receipts):
         ok = False
     return ok
 
 
-def _commit(replacements: list[Any], created: list[Any], receipts: list[Any]) -> None:
+def _commit(
+    replacements: list[Any],
+    created: list[Any],
+    receipts: list[ReceiptPublication],
+) -> None:
     cleanup_failed = False
     for transaction in replacements:
         try:
@@ -304,9 +347,9 @@ def _apply_changes(
     rendered_profile: bytes,
     overlay_plan: OverlayPlan,
     seed_plan: _SeedPlan,
-    receipts: list[Any],
+    receipts: list[ReceiptPublication],
     profile: dict[str, Any],
-    write: Callable[[str | Path, str, dict[str, Any]], Path],
+    write: ReceiptPublisher,
 ) -> None:
     replacements: list[Any] = []
     created: list[Any] = []
@@ -316,9 +359,10 @@ def _apply_changes(
     def tracked_seed_receipt(
         workspace: str | Path, event: str, fields: dict[str, Any]
     ) -> Path:
-        path = write(workspace, event, fields)
-        receipts.append(memory._capture_receipt(anchor, path))
-        return path
+        result = write(workspace, event, fields)
+        publication = _accept_publication(result, anchor.workspace, event)
+        receipts.append(publication)
+        return publication.path
 
     try:
         if rendered_profile != original_profile:
@@ -368,6 +412,8 @@ def _apply_changes(
             created.append(anchor.create_file(relative, _goal_content(seed)))
         for transaction in replacements:
             transaction.validate_commit()
+        for publication in receipts:
+            publication.validate()
         for value in overlay_plan.removals:
             relative = Path(value)
             owned = anchor.capture_file(relative)
@@ -375,6 +421,8 @@ def _apply_changes(
             anchor.unlink_owned(owned)
             owned.close()
             removed.append((relative, content))
+        for publication in receipts:
+            publication.commit()
         commit_phase = True
         _commit(replacements, created, receipts)
     except Exception as error:
@@ -396,7 +444,7 @@ def _apply_changes(
 def run(
     args: argparse.Namespace,
     *,
-    write: Callable[[str | Path, str, dict[str, Any]], Path] = write_receipt,
+    write: ReceiptPublisher = publish_receipt,
     input_stream: TextIO | None = None,
 ) -> int:
     """Validate and receipt a complete apply before committing its mutations."""

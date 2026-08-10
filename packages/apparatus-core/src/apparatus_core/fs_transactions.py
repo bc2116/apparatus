@@ -1023,6 +1023,61 @@ class WindowsOwnedDirectory:
 
 
 @dataclass
+class WindowsReceiptPublication:
+    """Retained Win32 proof for one newly published receipt."""
+
+    workspace: Path
+    path: Path
+    event: str
+    content: bytes
+    identity: WindowsIdentity
+    root: int
+    root_identity: WindowsIdentity
+    system: int
+    system_identity: WindowsIdentity
+    receipts: int
+    receipts_identity: WindowsIdentity
+    handle: int
+
+    def validate(self) -> None:
+        if min(self.root, self.system, self.receipts, self.handle) < 0:
+            raise OSError("receipt publication proof is no longer active")
+        if (
+            not _same_windows_object(_win_identity(self.root), self.root_identity)
+            or not _same_windows_object(
+                _win_identity(self.system), self.system_identity
+            )
+            or not _same_windows_object(
+                _win_identity(self.receipts), self.receipts_identity
+            )
+            or _win_identity(self.handle) != self.identity
+        ):
+            raise OSError("receipt publication proof changed")
+        current_root = _win_open(self.workspace, directory=True)
+        try:
+            if not _same_windows_object(
+                _win_identity(current_root), self.root_identity
+            ):
+                raise OSError("receipt publication parent changed")
+        finally:
+            _win_close(current_root)
+
+    def commit(self) -> None:
+        self.validate()
+
+    def rollback(self) -> None:
+        self.validate()
+        _win_delete_handle(self.handle)
+
+    def close(self) -> None:
+        for name in ("handle", "receipts", "system", "root"):
+            handle = getattr(self, name)
+            if handle >= 0:
+                _win_close(handle)
+                setattr(self, name, -1)
+
+
+@dataclass
 class WindowsReplacementTransaction:
     anchor: WindowsWorkspaceAnchor
     target: WindowsOwnedFile
@@ -1696,21 +1751,22 @@ def windows_publish_receipt(
     event: str,
     content: bytes,
     filename: Any,
-) -> Path:
+) -> WindowsReceiptPublication:
     """Publish a receipt with retained Win32 directory and file handles."""
-    del event
     if os.name != "nt":
         raise OSError("Win32 receipt publication is unavailable")
     root = _win_open(workspace, directory=True)
     root_identity = _win_identity(root)
-    system = receipts = temporary = -1
+    system = receipts = temporary = final = -1
     try:
         system_path = workspace / "System"
         _system_created = _win_create_directory(system_path)
         system = _win_open(system_path, directory=True)
+        system_identity = _win_identity(system)
         receipts_path = system_path / "receipts"
         _receipts_created = _win_create_directory(receipts_path)
         receipts = _win_open(receipts_path, directory=True)
+        receipts_identity = _win_identity(receipts)
         current_root = _win_open(workspace, directory=True)
         try:
             if not _same_windows_object(_win_identity(current_root), root_identity):
@@ -1734,27 +1790,40 @@ def windows_publish_receipt(
                 if getattr(error, "winerror", error.errno) in {80, 183}:
                     continue
                 raise
-            final = _win_open(
+            verification = _win_open(
                 final_path,
                 directory=False,
                 lock_name=False,
                 share_existing_write=True,
             )
             try:
-                if _win_identity(final) != temporary_identity:
+                if _win_identity(verification) != temporary_identity:
                     raise OSError("receipt identity changed during publication")
             finally:
-                _win_close(final)
+                _win_close(verification)
             _win_delete_handle(temporary)
             _win_close(temporary)
             temporary = -1
             final = _win_open(final_path, directory=False)
-            try:
-                if _win_identity(final) != temporary_identity:
-                    raise OSError("receipt identity changed after publication")
-            finally:
-                _win_close(final)
-            return final_path
+            if _win_identity(final) != temporary_identity:
+                raise OSError("receipt identity changed after publication")
+            publication = WindowsReceiptPublication(
+                workspace,
+                final_path,
+                event,
+                content,
+                temporary_identity,
+                root,
+                root_identity,
+                system,
+                system_identity,
+                receipts,
+                receipts_identity,
+                final,
+            )
+            root = system = receipts = final = -1
+            publication.validate()
+            return publication
         raise OSError("could not allocate a unique receipt filename")
     finally:
         if temporary >= 0:
@@ -1763,6 +1832,7 @@ def windows_publish_receipt(
             except OSError:
                 pass
             _win_close(temporary)
+        _win_close(final)
         # Creation and the retained handle cannot be inseparably tied on every
         # supported Windows filesystem. Empty directories are safer to leave
         # behind than a concurrently substituted entry is to delete.

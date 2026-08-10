@@ -5,12 +5,13 @@ from __future__ import annotations
 import os
 import secrets
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from apparatus_core import records
-from apparatus_core.fs_transactions import windows_publish_receipt
+from apparatus_core.fs_transactions import exchange_names, windows_publish_receipt
 
 
 def _utcnow() -> datetime:
@@ -148,6 +149,17 @@ def _unlink_if_owned(parent: int, name: str, identity: tuple[int, int, int]) -> 
         return False
 
 
+def _read_descriptor(descriptor: int) -> bytes:
+    chunks: list[bytes] = []
+    offset = 0
+    while True:
+        chunk = os.pread(descriptor, 1_048_576, offset)
+        if not chunk:
+            return b"".join(chunks)
+        chunks.append(chunk)
+        offset += len(chunk)
+
+
 def _published_is_owned(
     root: int,
     system: int,
@@ -191,9 +203,186 @@ def _directory_is_current(root: int, system: int, receipts: int) -> bool:
                 os.close(descriptor)
 
 
-def _publish_receipt(
+@dataclass
+class _PosixReceiptPublication:
+    workspace: Path
+    path: Path
+    event: str
+    content: bytes
+    identity: tuple[int, int, int]
+    root: int
+    system: int
+    receipts: int
+    descriptor: int
+    name: str
+    ownership_name: str
+    prior_names: frozenset[str]
+    ownership_link: bool = True
+
+    def _descriptor_is_exact(self) -> bool:
+        before = os.fstat(self.descriptor)
+        current = _read_descriptor(self.descriptor)
+        after = os.fstat(self.descriptor)
+        return (
+            (before.st_dev, before.st_ino, before.st_size) == self.identity
+            and (after.st_dev, after.st_ino, after.st_size) == self.identity
+            and current == self.content
+        )
+
+    def _name_is_exact(self, name: str) -> bool:
+        try:
+            return _identity_at(self.receipts, name) == self.identity
+        except OSError:
+            return False
+
+    def validate(self) -> None:
+        if min(self.root, self.system, self.receipts, self.descriptor) < 0:
+            raise OSError("receipt publication proof is no longer active")
+        if (
+            not _directory_is_current(self.root, self.system, self.receipts)
+            or not self._descriptor_is_exact()
+            or not self._name_is_exact(self.name)
+            or (self.ownership_link and not self._name_is_exact(self.ownership_name))
+        ):
+            raise OSError("receipt publication proof changed")
+
+    def commit(self) -> None:
+        self.validate()
+        if self.ownership_link:
+            if not _unlink_if_owned(
+                self.receipts, self.ownership_name, self.identity
+            ):
+                raise OSError("receipt ownership link changed before commit")
+            self.ownership_link = False
+        if not self._name_is_exact(self.name) or not self._descriptor_is_exact():
+            raise OSError("receipt publication changed during commit")
+
+    def rollback(self) -> None:
+        if min(self.root, self.system, self.receipts, self.descriptor) < 0:
+            raise OSError("receipt publication proof is no longer active")
+        if not _directory_is_current(self.root, self.system, self.receipts):
+            raise OSError("receipt publication parent changed")
+        descriptor_exact = self._descriptor_is_exact()
+        final_exact = descriptor_exact and self._name_is_exact(self.name)
+        if descriptor_exact and not final_exact:
+            prior_aliases = [
+                candidate
+                for candidate in os.listdir(self.receipts)
+                if candidate in self.prior_names
+                and candidate != self.name
+                and self._name_is_exact(candidate)
+            ]
+            if len(prior_aliases) == 1:
+                candidate = prior_aliases[0]
+                try:
+                    exchange_names(self.receipts, self.name, candidate)
+                except OSError:
+                    pass
+                else:
+                    final_exact = self._name_is_exact(self.name)
+                    if not final_exact:
+                        exchange_names(self.receipts, self.name, candidate)
+        if final_exact:
+            quarantine = f".apparatus-receipt-{secrets.token_hex(16)}.rollback"
+            quarantine_descriptor = os.open(
+                quarantine,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=self.receipts,
+            )
+            try:
+                quarantine_status = os.fstat(quarantine_descriptor)
+                quarantine_identity = (
+                    quarantine_status.st_dev,
+                    quarantine_status.st_ino,
+                    quarantine_status.st_size,
+                )
+            finally:
+                os.close(quarantine_descriptor)
+            exchange_names(self.receipts, self.name, quarantine)
+            if not self._name_is_exact(quarantine):
+                exchange_names(self.receipts, self.name, quarantine)
+                _unlink_if_owned(self.receipts, quarantine, quarantine_identity)
+                raise OSError("receipt changed at rollback")
+            if not _unlink_if_owned(self.receipts, quarantine, self.identity):
+                raise OSError("receipt changed during rollback")
+            if not _unlink_if_owned(self.receipts, self.name, quarantine_identity):
+                raise OSError("receipt rollback marker changed")
+        if self.ownership_link:
+            if not _unlink_if_owned(
+                self.receipts, self.ownership_name, self.identity
+            ):
+                raise OSError("receipt ownership link changed before rollback")
+            self.ownership_link = False
+
+    def close(self) -> None:
+        for name in ("descriptor", "receipts", "system", "root"):
+            descriptor = getattr(self, name)
+            if descriptor >= 0:
+                os.close(descriptor)
+                setattr(self, name, -1)
+
+
+_PUBLICATION_SEAL = object()
+
+
+class ReceiptPublication:
+    """Opaque, live proof that one exact receipt was newly published."""
+
+    __slots__ = ("_handle", "_active", "_claimed")
+
+    def __init__(self, handle: Any, seal: object):
+        if seal is not _PUBLICATION_SEAL:
+            raise TypeError("receipt publications are created by publish_receipt")
+        self._handle = handle
+        self._active = True
+        self._claimed = False
+
+    @property
+    def path(self) -> Path:
+        return self._handle.path
+
+    @property
+    def claimed(self) -> bool:
+        return self._claimed
+
+    def claim(self, workspace: str | Path, event: str) -> None:
+        if not self._active:
+            raise OSError("receipt publication proof is no longer active")
+        if self._claimed:
+            raise OSError("receipt publication proof was already claimed")
+        expected = Path(os.path.abspath(os.fspath(workspace)))
+        if expected != self._handle.workspace:
+            raise OSError("receipt publication belongs to another workspace")
+        if event != self._handle.event:
+            raise OSError("receipt publication belongs to another event")
+        self._handle.validate()
+        self._claimed = True
+
+    def validate(self) -> None:
+        if not self._active:
+            raise OSError("receipt publication proof is no longer active")
+        self._handle.validate()
+
+    def commit(self) -> None:
+        if not self._active:
+            raise OSError("receipt publication proof is no longer active")
+        self._handle.commit()
+
+    def rollback(self) -> None:
+        if not self._active:
+            raise OSError("receipt publication proof is no longer active")
+        self._handle.rollback()
+
+    def close(self) -> None:
+        if self._active:
+            self._handle.close()
+            self._active = False
+
+
+def _publish_receipt_handle(
     workspace: Path, event: str, now: datetime, content: bytes
-) -> Path:
+) -> Any:
     if os.name == "nt":  # pragma: no cover - exercised by the Windows CI job
         return windows_publish_receipt(
             workspace,
@@ -206,9 +395,11 @@ def _publish_receipt(
     temporary_name = f".apparatus-receipt-{secrets.token_hex(16)}.tmp"
     temporary_created = False
     temporary_identity: tuple[int, int, int] | None = None
+    publication_descriptor = -1
     try:
         system, _system_created = _open_directory(root, "System", create=True)
         receipts, _receipts_created = _open_directory(system, "receipts", create=True)
+        prior_names = frozenset(os.listdir(receipts))
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         temporary = os.open(temporary_name, flags, 0o600, dir_fd=receipts)
         temporary_created = True
@@ -242,26 +433,36 @@ def _publish_receipt(
                 if temporary_identity is not None:
                     _unlink_if_owned(receipts, name, temporary_identity)
                 raise OSError("receipt destination changed during publication")
-            try:
-                if not _unlink_if_owned(receipts, temporary_name, temporary_identity):
-                    raise OSError("receipt temporary changed during publication")
-                temporary_created = False
-            except OSError:
-                # Both names are invocation-owned. Remove the published name
-                # before reporting failure so no partial success is visible.
-                try:
-                    _unlink_if_owned(receipts, name, temporary_identity)
-                finally:
-                    if _unlink_if_owned(receipts, temporary_name, temporary_identity):
-                        temporary_created = False
-                raise
             if not _published_is_owned(
                 root, system, receipts, name, temporary_identity
             ):
                 raise OSError("receipt identity changed after publication")
-            return workspace / "System" / "receipts" / name
+            publication_descriptor = os.open(
+                name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=receipts
+            )
+            handle = _PosixReceiptPublication(
+                workspace,
+                workspace / "System" / "receipts" / name,
+                event,
+                content,
+                temporary_identity,
+                root,
+                system,
+                receipts,
+                publication_descriptor,
+                name,
+                temporary_name,
+                prior_names,
+            )
+            handle.validate()
+            publication_descriptor = -1
+            temporary_created = False
+            root = system = receipts = -1
+            return handle
         raise OSError("could not allocate a unique receipt filename")
     finally:
+        if publication_descriptor >= 0:
+            os.close(publication_descriptor)
         if temporary_created and receipts >= 0 and temporary_identity is not None:
             _unlink_if_owned(receipts, temporary_name, temporary_identity)
         # Directory creation cannot be inseparably tied to the retained handle
@@ -279,6 +480,41 @@ def write_receipt(workspace: str | Path, event: str, fields: Mapping[str, Any]) 
     try:
         if workspace_path.is_symlink() or not workspace_path.is_dir():
             raise OSError("workspace is not a safe directory")
-        return _publish_receipt(workspace_path, event, now, content)
+        publication = ReceiptPublication(
+            _publish_receipt_handle(workspace_path, event, now, content),
+            _PUBLICATION_SEAL,
+        )
+        path = publication.path
+        try:
+            publication.commit()
+            return path
+        except Exception:
+            try:
+                publication.rollback()
+            except OSError:
+                pass
+            raise
+        finally:
+            publication.close()
+    except (NotImplementedError, TypeError) as error:
+        raise OSError("safe receipt publication is unavailable") from error
+
+
+def publish_receipt(
+    workspace: str | Path, event: str, fields: Mapping[str, Any]
+) -> ReceiptPublication:
+    """Publish one receipt and retain exact ownership until commit or rollback."""
+    if event not in records.RECEIPT_EVENTS:
+        raise ValueError(f"unknown receipt event: {event!r}")
+    now = _utcnow()
+    content = _render(event, _timestamp(now), fields).encode("utf-8")
+    workspace_path = Path(os.path.abspath(os.fspath(workspace)))
+    try:
+        if workspace_path.is_symlink() or not workspace_path.is_dir():
+            raise OSError("workspace is not a safe directory")
+        return ReceiptPublication(
+            _publish_receipt_handle(workspace_path, event, now, content),
+            _PUBLICATION_SEAL,
+        )
     except (NotImplementedError, TypeError) as error:
         raise OSError("safe receipt publication is unavailable") from error
