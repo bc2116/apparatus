@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -12,7 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core import records
-from apparatus_core.fs_transactions import exchange_names, windows_publish_receipt
+from apparatus_core.fs_transactions import (
+    WorkspaceAnchor,
+    exchange_names,
+    windows_publish_receipt,
+)
 
 
 def _utcnow() -> datetime:
@@ -100,7 +105,10 @@ class ReceiptInvocation:
         "_instant",
         "_content",
         "_content_digest",
-        "_used",
+        "_anchor",
+        "_lock",
+        "_state",
+        "_publication_token",
         "_claimed",
     )
 
@@ -116,12 +124,16 @@ class ReceiptInvocation:
             raise TypeError(
                 "receipt invocations are created by prepare_receipt_invocation"
             )
+        anchor = WorkspaceAnchor(workspace)
         self._workspace = workspace
         self._event = event
         self._instant = instant
         self._content = content
         self._content_digest = sha256(content).digest()
-        self._used = False
+        self._anchor = anchor
+        self._lock = threading.Lock()
+        self._state = "prepared"
+        self._publication_token: object | None = None
         self._claimed = False
 
     def _consume(
@@ -130,30 +142,73 @@ class ReceiptInvocation:
         event: str,
         fields: Mapping[str, Any],
         seal: object,
-    ) -> bytes:
+    ) -> tuple[bytes, object]:
         if seal is not _INVOCATION_SEAL:
             raise TypeError("receipt invocation cannot be consumed here")
-        if self._used:
-            raise OSError("receipt invocation freshness was already consumed")
-        _instant, rendered = prepare_receipt(event, fields, now=self._instant)
-        if (
-            workspace != self._workspace
-            or event != self._event
-            or sha256(rendered).digest() != self._content_digest
-            or rendered != self._content
-        ):
-            raise OSError("receipt invocation does not match the requested receipt")
-        self._used = True
-        return self._content
+        with self._lock:
+            if self._state != "prepared":
+                raise OSError("receipt invocation freshness was already consumed")
+            try:
+                _instant, rendered = prepare_receipt(
+                    event, fields, now=self._instant
+                )
+            except Exception:
+                self._state = "closed"
+                self._anchor.close()
+                raise
+            if (
+                workspace != self._workspace
+                or event != self._event
+                or sha256(rendered).digest() != self._content_digest
+                or rendered != self._content
+                or not self._anchor.root_is_current()
+            ):
+                self._state = "closed"
+                self._anchor.close()
+                raise OSError(
+                    "receipt invocation does not match the requested receipt"
+                )
+            token = object()
+            self._publication_token = token
+            self._state = "consumed"
+            return self._content, token
 
-    def _claim(self, seal: object) -> None:
+    def _claim(self, token: object, seal: object) -> None:
         if seal is not _INVOCATION_SEAL:
             raise TypeError("receipt invocation cannot be claimed here")
-        if not self._used:
-            raise OSError("receipt invocation was not published")
-        if self._claimed:
-            raise OSError("receipt invocation was already claimed")
-        self._claimed = True
+        with self._lock:
+            if self._state != "consumed" or token is not self._publication_token:
+                raise OSError("receipt invocation was not published here")
+            if self._claimed:
+                raise OSError("receipt invocation was already claimed")
+            self._claimed = True
+
+    def _matches_publication(self, handle: Any, token: object) -> bool:
+        with self._lock:
+            return (
+                self._state == "consumed"
+                and token is self._publication_token
+                and self._anchor.matches_root_handle(handle.root)
+                and handle.workspace == self._workspace
+                and handle.event == self._event
+                and sha256(handle.content).digest() == self._content_digest
+                and handle.content == self._content
+            )
+
+    def _close(self, token: object | None = None) -> None:
+        anchor_to_close = None
+        with self._lock:
+            if self._state == "closed":
+                return
+            if token is not None and token is not self._publication_token:
+                return
+            self._state = "closed"
+            anchor_to_close = self._anchor
+        anchor_to_close.close()
+
+    def close(self) -> None:
+        """Release an unused invocation's retained workspace anchor."""
+        self._close()
 
 
 def prepare_receipt_invocation(
@@ -348,58 +403,36 @@ class _PosixReceiptPublication:
             raise OSError("receipt publication proof is no longer active")
         if not _directory_is_current(self.root, self.system, self.receipts):
             raise OSError("receipt publication parent changed")
-        descriptor_exact = self._descriptor_is_exact()
-        final_exact = descriptor_exact and self._name_is_exact(self.name)
-        if descriptor_exact and not final_exact:
-            prior_aliases = [
-                candidate
-                for candidate in os.listdir(self.receipts)
-                if candidate in self.prior_names
-                and candidate != self.name
-                and self._name_is_exact(candidate)
-            ]
-            if len(prior_aliases) == 1:
-                candidate = prior_aliases[0]
-                try:
-                    exchange_names(self.receipts, self.name, candidate)
-                except OSError:
-                    pass
-                else:
-                    final_exact = self._name_is_exact(self.name)
-                    if not final_exact:
-                        exchange_names(self.receipts, self.name, candidate)
-        if final_exact:
-            quarantine = f".apparatus-receipt-{secrets.token_hex(16)}.rollback"
-            quarantine_descriptor = os.open(
-                quarantine,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                0o600,
-                dir_fd=self.receipts,
-            )
-            try:
-                quarantine_status = os.fstat(quarantine_descriptor)
-                quarantine_identity = (
-                    quarantine_status.st_dev,
-                    quarantine_status.st_ino,
-                    quarantine_status.st_size,
-                )
-            finally:
-                os.close(quarantine_descriptor)
-            exchange_names(self.receipts, self.name, quarantine)
-            if not self._name_is_exact(quarantine):
-                exchange_names(self.receipts, self.name, quarantine)
-                _unlink_if_owned(self.receipts, quarantine, quarantine_identity)
-                raise OSError("receipt changed at rollback")
-            if not _unlink_if_owned(self.receipts, quarantine, self.identity):
-                raise OSError("receipt changed during rollback")
-            if not _unlink_if_owned(self.receipts, self.name, quarantine_identity):
-                raise OSError("receipt rollback marker changed")
-        if self.ownership_link:
-            if not _unlink_if_owned(
-                self.receipts, self.ownership_name, self.identity
+        if not self._descriptor_is_exact():
+            raise OSError("receipt publication changed before rollback")
+        prior_aliases = [
+            candidate
+            for candidate in os.listdir(self.receipts)
+            if candidate in self.prior_names and self._name_is_exact(candidate)
+        ]
+        if prior_aliases:
+            if len(prior_aliases) != 1 or self._name_is_exact(self.name):
+                raise OSError("receipt prior-name substitution is ambiguous")
+            displaced_name = prior_aliases[0]
+            exchange_names(self.receipts, self.name, displaced_name)
+            if not self._name_is_exact(self.name) or self._name_is_exact(
+                displaced_name
             ):
-                raise OSError("receipt ownership link changed before rollback")
-            self.ownership_link = False
+                exchange_names(self.receipts, self.name, displaced_name)
+                raise OSError("receipt prior-name substitution changed")
+        # Every pathname for this inode was created after ``prior_names`` was
+        # captured unless a prior name was displaced; that case was restored
+        # above. Delete only exact aliases at new names, then use the open
+        # descriptor's link count to prove no late alias survived the scan.
+        for candidate in os.listdir(self.receipts):
+            if candidate in self.prior_names and self._name_is_exact(candidate):
+                raise OSError("receipt prior-name substitution changed")
+            if self._name_is_exact(candidate):
+                if not _unlink_if_owned(self.receipts, candidate, self.identity):
+                    raise OSError("receipt alias changed during rollback")
+        if os.fstat(self.descriptor).st_nlink != 0:
+            raise OSError("receipt aliases changed during rollback")
+        self.ownership_link = False
 
     def close(self) -> None:
         for name in ("descriptor", "receipts", "system", "root"):
@@ -415,15 +448,32 @@ _PUBLICATION_SEAL = object()
 class ReceiptPublication:
     """Opaque, live proof that one exact receipt was newly published."""
 
-    __slots__ = ("_handle", "_invocation", "_active", "_claimed")
+    __slots__ = (
+        "_handle",
+        "_invocation",
+        "_token",
+        "_active",
+        "_claimed",
+        "_settlement",
+        "_lock",
+    )
 
-    def __init__(self, handle: Any, invocation: ReceiptInvocation, seal: object):
+    def __init__(
+        self,
+        handle: Any,
+        invocation: ReceiptInvocation,
+        token: object,
+        seal: object,
+    ):
         if seal is not _PUBLICATION_SEAL:
             raise TypeError("receipt publications are created by write_receipt")
         self._handle = handle
         self._invocation = invocation
+        self._token = token
         self._active = True
         self._claimed = False
+        self._settlement: str | None = None
+        self._lock = threading.Lock()
 
     @property
     def path(self) -> Path:
@@ -431,7 +481,8 @@ class ReceiptPublication:
 
     @property
     def claimed(self) -> bool:
-        return self._claimed
+        with self._lock:
+            return self._claimed
 
     @property
     def content_digest(self) -> str:
@@ -439,43 +490,83 @@ class ReceiptPublication:
 
     def is_bound_to(self, invocation: ReceiptInvocation) -> bool:
         """Return whether this proof came from the exact prepared invocation."""
-        return (
-            self._invocation is invocation
-            and self._handle.workspace == invocation._workspace
-            and self._handle.event == invocation._event
-            and sha256(self._handle.content).digest() == invocation._content_digest
-        )
+        with self._lock:
+            return self._active and self._invocation is invocation and (
+                invocation._matches_publication(self._handle, self._token)
+            )
+
+    def is_from_invocation(self, invocation: ReceiptInvocation) -> bool:
+        """Return whether this proof was created for ``invocation``."""
+        with self._lock:
+            return self._invocation is invocation
 
     def claim(self, invocation: ReceiptInvocation) -> None:
-        if not self._active:
-            raise OSError("receipt publication proof is no longer active")
-        if self._claimed:
-            raise OSError("receipt publication proof was already claimed")
-        if not self.is_bound_to(invocation):
-            raise OSError("receipt publication belongs to another invocation")
-        self._handle.validate()
-        invocation._claim(_INVOCATION_SEAL)
-        self._claimed = True
+        with self._lock:
+            if not self._active:
+                raise OSError("receipt publication proof is no longer active")
+            if self._claimed:
+                raise OSError("receipt publication proof was already claimed")
+            if self._invocation is not invocation or not invocation._matches_publication(
+                self._handle, self._token
+            ):
+                raise OSError("receipt publication belongs to another invocation")
+            self._handle.validate()
+            invocation._claim(self._token, _INVOCATION_SEAL)
+            self._claimed = True
 
     def validate(self) -> None:
-        if not self._active:
-            raise OSError("receipt publication proof is no longer active")
-        self._handle.validate()
+        with self._lock:
+            if not self._active:
+                raise OSError("receipt publication proof is no longer active")
+            self._handle.validate()
 
     def commit(self) -> None:
-        if not self._active:
-            raise OSError("receipt publication proof is no longer active")
-        self._handle.commit()
+        with self._lock:
+            if not self._active:
+                raise OSError("receipt publication proof is no longer active")
+            if not self._claimed:
+                raise OSError("receipt publication proof was not claimed")
+            if self._settlement is not None:
+                raise OSError("receipt publication was already settled")
+            self._handle.commit()
+            self._settlement = "committed"
 
     def rollback(self) -> None:
-        if not self._active:
-            raise OSError("receipt publication proof is no longer active")
-        self._handle.rollback()
+        with self._lock:
+            if not self._active:
+                raise OSError("receipt publication proof is no longer active")
+            if not self._claimed:
+                raise OSError("receipt publication proof was not claimed")
+            if self._settlement == "rolled-back":
+                raise OSError("receipt publication was already settled")
+            self._handle.rollback()
+            self._settlement = "rolled-back"
+
+    def _discard_unclaimed(self) -> None:
+        """Remove this writer's exact publication during sealed setup failure."""
+        with self._lock:
+            if (
+                not self._active
+                or self._claimed
+                or self._settlement == "discarded"
+            ):
+                return
+            self._handle.rollback()
+            self._settlement = "discarded"
 
     def close(self) -> None:
-        if self._active:
-            self._handle.close()
-            self._active = False
+        with self._lock:
+            if not self._active:
+                return
+            try:
+                if self._settlement is None:
+                    self._handle.rollback()
+            finally:
+                try:
+                    self._handle.close()
+                finally:
+                    self._invocation._close(self._token)
+                    self._active = False
 
 
 def _publish_receipt_handle(
@@ -589,13 +680,15 @@ def write_receipt(
     prepared = invocation or prepare_receipt_invocation(
         workspace_path, event, fields
     )
-    content = prepared._consume(
-        workspace_path,
-        event,
-        fields,
-        _INVOCATION_SEAL,
-    )
+    token: object | None = None
+    publication: ReceiptPublication | None = None
     try:
+        content, token = prepared._consume(
+            workspace_path,
+            event,
+            fields,
+            _INVOCATION_SEAL,
+        )
         if workspace_path.is_symlink() or not workspace_path.is_dir():
             raise OSError("workspace is not a safe directory")
         publication = ReceiptPublication(
@@ -606,8 +699,12 @@ def write_receipt(
                 content,
             ),
             prepared,
+            token,
             _PUBLICATION_SEAL,
         )
+        if not publication.is_bound_to(prepared):
+            publication._discard_unclaimed()
+            raise OSError("receipt workspace changed during publication")
         if retained:
             return publication
         try:
@@ -623,4 +720,22 @@ def write_receipt(
         finally:
             publication.close()
     except (NotImplementedError, TypeError) as error:
+        if publication is not None:
+            try:
+                publication._discard_unclaimed()
+            except OSError:
+                pass
+            publication.close()
+        elif token is not None:
+            prepared._close(token)
         raise OSError("safe receipt publication is unavailable") from error
+    except Exception:
+        if publication is not None:
+            try:
+                publication._discard_unclaimed()
+            except OSError:
+                pass
+            publication.close()
+        elif token is not None:
+            prepared._close(token)
+        raise

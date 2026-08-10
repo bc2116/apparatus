@@ -213,24 +213,36 @@ def _write_owned_receipt(
     fields: dict[str, Any],
 ) -> ReceiptPublication:
     invocation = prepare_receipt_invocation(workspace, event, fields)
-    value = write(workspace, event, fields, invocation=invocation)
-    if not isinstance(value, ReceiptPublication) or not value.is_bound_to(invocation):
-        raise MemoryCommandError(
-            "receipt writer did not return exact publication ownership"
-        )
+    value: object | None = None
     try:
+        value = write(workspace, event, fields, invocation=invocation)
+        if not isinstance(value, ReceiptPublication) or not value.is_bound_to(
+            invocation
+        ):
+            if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+                invocation
+            ):
+                value.close()
+            raise MemoryCommandError(
+                "receipt writer did not return exact publication ownership"
+            )
         value.claim(invocation)
-    except OSError as error:
-        try:
-            value.rollback()
-        except OSError:
-            pass
-        finally:
-            value.close()
+        return value
+    except Exception as error:
+        if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+            invocation
+        ):
+            try:
+                if value.claimed:
+                    value.rollback()
+            finally:
+                value.close()
+        invocation.close()
+        if isinstance(error, MemoryCommandError):
+            raise
         raise MemoryCommandError(
             "receipt writer did not return exact publication ownership"
         ) from error
-    return value
 
 
 def _remove_owned_receipts(

@@ -241,6 +241,16 @@ class PosixWorkspaceAnchor:
             if current >= 0:
                 os.close(current)
 
+    def matches_root_handle(self, root: int) -> bool:
+        """Return whether ``root`` names this anchor's exact workspace object."""
+        try:
+            if self._root < 0 or root < 0:
+                return False
+            status_value = os.fstat(root)
+            return (status_value.st_dev, status_value.st_ino) == self._root_identity
+        except OSError:
+            return False
+
     @staticmethod
     def _parts(relative: str | Path) -> tuple[str, ...]:
         path = Path(relative)
@@ -1181,6 +1191,15 @@ class WindowsWorkspaceAnchor:
             _win_close(current)
             for handle in reversed(ancestors):
                 _win_close(handle)
+
+    def matches_root_handle(self, root: int) -> bool:
+        """Return whether ``root`` names this anchor's exact workspace object."""
+        try:
+            return self._root >= 0 and root >= 0 and _same_windows_object(
+                _win_identity(root), self._root_identity
+            )
+        except OSError:
+            return False
 
     def _directory(
         self,

@@ -213,6 +213,10 @@ def _accept_publication(
     value: object, invocation: ReceiptInvocation
 ) -> ReceiptPublication:
     if not isinstance(value, ReceiptPublication) or not value.is_bound_to(invocation):
+        if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+            invocation
+        ):
+            value.close()
         raise ProfileCommandError(
             "receipt writer did not return exact publication ownership"
         )
@@ -220,9 +224,8 @@ def _accept_publication(
         value.claim(invocation)
     except OSError as error:
         try:
-            value.rollback()
-        except OSError:
-            pass
+            if value.claimed:
+                value.rollback()
         finally:
             value.close()
         raise ProfileCommandError(
@@ -238,8 +241,12 @@ def _publish_owned(
     fields: dict[str, Any],
 ) -> ReceiptPublication:
     invocation = prepare_receipt_invocation(workspace, event, fields)
-    value = write(workspace, event, fields, invocation=invocation)
-    return _accept_publication(value, invocation)
+    try:
+        value = write(workspace, event, fields, invocation=invocation)
+        return _accept_publication(value, invocation)
+    except Exception:
+        invocation.close()
+        raise
 
 
 def _remove_receipts(owned: list[ReceiptPublication]) -> bool:
