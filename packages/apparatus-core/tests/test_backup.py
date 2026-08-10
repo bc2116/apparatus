@@ -114,6 +114,83 @@ def test_export_takes_a_snapshot_first_and_archive_keeps_snapshot_storage(tmp_pa
     assert frontmatter["snapshot_id"] == result.snapshot_id
 
 
+@pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
+def test_unborn_snapshot_cas_preserves_a_concurrent_first_head(tmp_path):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_text("workspace state\n", encoding="utf-8")
+    raced = False
+    concurrent_head: str | None = None
+    observed_expected: str | None = None
+
+    def racing_run(arguments, **kwargs):
+        nonlocal raced, concurrent_head, observed_expected
+        if (
+            len(arguments) == 7
+            and arguments[:4] == ["git", "-C", str(workspace), "update-ref"]
+            and arguments[4] == "HEAD"
+            and not raced
+        ):
+            raced = True
+            observed_expected = arguments[6]
+            empty_tree = subprocess.run(
+                ["git", "-C", str(workspace), "mktree"],
+                input="",
+                check=True,
+                capture_output=True,
+                text=True,
+                env=kwargs["env"],
+            ).stdout.strip()
+            concurrent_head = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(workspace),
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit-tree",
+                    empty_tree,
+                    "-m",
+                    "Concurrent first snapshot",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=kwargs["env"],
+            ).stdout.strip()
+            _git(
+                workspace,
+                "update-ref",
+                "HEAD",
+                concurrent_head,
+                "0" * len(concurrent_head),
+            )
+        return subprocess.run(arguments, **kwargs)
+
+    def racing_take(*args, **kwargs):
+        return snapshots.prepare_snapshot(*args, run=racing_run, **kwargs)
+
+    with pytest.raises(BackupError, match="pre-export snapshot"):
+        export_backup(
+            workspace,
+            destination,
+            take=racing_take,
+            clock=_clock,
+        )
+
+    assert raced
+    assert concurrent_head is not None
+    assert observed_expected == "0" * len(concurrent_head)
+    assert _git(workspace, "rev-parse", "HEAD").stdout.strip() == concurrent_head
+    assert _git(workspace, "show", "-s", "--format=%s", "HEAD").stdout.strip() == (
+        "Concurrent first snapshot"
+    )
+    assert list((workspace / "System" / "receipts").glob("*.md")) == []
+    assert _archives(destination) == []
+
+
 def test_destination_collision_uses_suffix_without_changing_unrelated_file(tmp_path):
     workspace = tmp_path / "workspace"
     destination = tmp_path / "backups"
@@ -307,6 +384,58 @@ def test_failed_archive_rolls_back_prepared_snapshot_and_preserves_index_and_wor
     assert (workspace / ".git/index").read_bytes() == index_before
     assert (workspace / "tracked.txt").read_text(encoding="utf-8") == "worktree\n"
     assert set((workspace / "System/receipts").iterdir()) == receipts_before
+    assert _archives(destination) == []
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX in-place receipt edit probe requires git",
+)
+def test_failed_export_preserves_same_size_concurrent_snapshot_receipt_edit(
+    tmp_path, monkeypatch
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_text("first\n", encoding="utf-8")
+    snapshots.take_snapshot(workspace, label="Initial")
+    (workspace / "note.txt").write_text("changed\n", encoding="utf-8")
+    head_before = _git(workspace, "rev-parse", "HEAD").stdout.strip()
+    edited_path: Path | None = None
+    edited_content: bytes | None = None
+
+    def edit_owned_receipt(*args, **kwargs):
+        nonlocal edited_path, edited_content
+        transaction = snapshots.prepare_snapshot(*args, **kwargs)
+        assert transaction.receipt is not None
+        edited_path = transaction.receipt.path
+        original = edited_path.read_bytes()
+        edited_content = original.replace(b"Snapshot saved", b"Snapshot Saved", 1)
+        assert edited_content != original
+        assert len(edited_content) == len(original)
+        edited_path.write_bytes(edited_content)
+        return transaction
+
+    monkeypatch.setattr(
+        backup_engine,
+        "_write_chunks",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            OSError("injected write failure")
+        ),
+    )
+    with pytest.raises(BackupError, match="could not be rolled back safely"):
+        export_backup(
+            workspace,
+            destination,
+            take=edit_owned_receipt,
+            clock=_clock,
+        )
+
+    assert _git(workspace, "rev-parse", "HEAD").stdout.strip() == head_before
+    assert edited_path is not None
+    assert edited_content is not None
+    assert edited_path.read_bytes() == edited_content
     assert _archives(destination) == []
 
 

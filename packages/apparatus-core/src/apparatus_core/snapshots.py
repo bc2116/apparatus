@@ -9,13 +9,17 @@ import os
 from pathlib import Path
 import re
 import shutil
-import stat
 import subprocess
 import tempfile
 from typing import Any
 
 from apparatus_core.detect import detect_tool
-from apparatus_core.receipts import write_receipt
+from apparatus_core.receipts import (
+    ReceiptInvocation,
+    ReceiptPublication,
+    prepare_receipt_invocation,
+    write_receipt,
+)
 
 
 GENERIC_EMAIL = "snapshots@apparatus.invalid"
@@ -65,7 +69,7 @@ class SnapshotTransaction:
         *,
         previous_head: str | None = None,
         prepared_head: str | None = None,
-        receipt: tuple[Path, tuple[int, int, int]] | None = None,
+        receipt: ReceiptPublication | None = None,
         run: Callable[..., Any] = subprocess.run,
     ) -> None:
         self.workspace = workspace
@@ -78,6 +82,16 @@ class SnapshotTransaction:
 
     def commit(self) -> SnapshotResult:
         """Keep the prepared snapshot."""
+        if self.closed:
+            return self.result
+        if self.receipt is not None:
+            try:
+                self.receipt.commit()
+            except OSError as error:
+                raise SnapshotError(
+                    "The prepared snapshot receipt could not be retained safely."
+                ) from error
+            self.receipt.close()
         self.closed = True
         return self.result
 
@@ -97,14 +111,12 @@ class SnapshotTransaction:
             except Exception as error:  # preserve a concurrent ref instead of overwriting it
                 errors.append(error)
         if self.receipt is not None:
-            path, identity = self.receipt
             try:
-                status = path.lstat()
-                if (status.st_dev, status.st_ino, status.st_size) != identity:
-                    raise SnapshotError("Snapshot receipt changed before rollback.")
-                path.unlink()
-            except FileNotFoundError:
-                pass
+                self.receipt.rollback()
+            except Exception as error:
+                errors.append(error)
+            try:
+                self.receipt.close()
             except Exception as error:
                 errors.append(error)
         self.closed = True
@@ -319,18 +331,50 @@ def _tree_for_head(workspace: Path, head: str | None, *, run: Callable[..., Any]
     return _require_success(_run_git(workspace, ["rev-parse", f"{head}^{{tree}}"], run=run)).strip()
 
 
-def _owned_snapshot_receipt(workspace: Path, path: Path) -> tuple[Path, tuple[int, int, int]]:
-    absolute = Path(os.path.abspath(path))
+ReceiptWriter = Callable[..., object]
+
+
+def _write_owned_snapshot_receipt(
+    write: ReceiptWriter,
+    workspace: Path,
+    fields: dict[str, str],
+) -> ReceiptPublication:
+    invocation: ReceiptInvocation = prepare_receipt_invocation(
+        workspace, "snapshot", fields
+    )
+    value: object | None = None
     try:
-        relative = absolute.relative_to(workspace)
-    except ValueError as error:
-        raise SnapshotReceiptError("Snapshot receipt was not written inside the workspace.") from error
-    if relative.parent != Path("System/receipts"):
-        raise SnapshotReceiptError("Snapshot receipt was not written in the receipts folder.")
-    status = absolute.lstat()
-    if not stat.S_ISREG(status.st_mode):
-        raise SnapshotReceiptError("Snapshot receipt is not a regular file.")
-    return absolute, (status.st_dev, status.st_ino, status.st_size)
+        value = write(
+            workspace,
+            "snapshot",
+            fields,
+            invocation=invocation,
+        )
+        if not isinstance(value, ReceiptPublication) or not value.is_bound_to(
+            invocation
+        ):
+            if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+                invocation
+            ):
+                value.close()
+            raise SnapshotReceiptError(
+                "Snapshot receipt writer did not return exact publication ownership."
+            )
+        value.claim(invocation)
+        return value
+    except Exception as error:
+        if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+            invocation
+        ):
+            try:
+                if value.claimed:
+                    value.rollback()
+            finally:
+                value.close()
+        invocation.close()
+        if isinstance(error, SnapshotReceiptError):
+            raise
+        raise SnapshotReceiptError("Snapshot receipt could not be written.") from error
 
 
 def prepare_snapshot(
@@ -339,7 +383,7 @@ def prepare_snapshot(
     label: str,
     capture: Callable[[Path], None],
     run: Callable[..., Any] = subprocess.run,
-    write: Callable[[str | Path, str, dict[str, str]], Path] = write_receipt,
+    write: ReceiptWriter = write_receipt,
 ) -> SnapshotTransaction:
     """Prepare a rollback-capable snapshot from an independently captured tree.
 
@@ -356,23 +400,24 @@ def prepare_snapshot(
             run=run,
         )
 
-    receipt: tuple[Path, tuple[int, int, int]] | None = None
+    receipt: ReceiptPublication | None = None
     prepared_head: str | None = None
+    published_head: str | None = None
     try:
-        try:
-            receipt_path = write(root, "snapshot", _snapshot_receipt_fields(label))
-            receipt = _owned_snapshot_receipt(root, receipt_path)
-        except (OSError, ValueError) as error:
-            raise SnapshotReceiptError("Snapshot receipt could not be written.") from error
+        receipt = _write_owned_snapshot_receipt(
+            write,
+            root,
+            _snapshot_receipt_fields(label),
+        )
         tree = _captured_tree(root, capture, run=run)
         arguments = ["-c", "commit.gpgsign=false", "commit-tree", tree, "-m", label]
         if previous_head is not None:
             arguments.extend(["-p", previous_head])
         prepared_head = _require_success(_run_git(root, arguments, run=run)).strip()
-        update = ["update-ref", "HEAD", prepared_head]
-        if previous_head is not None:
-            update.append(previous_head)
+        expected_head = previous_head or ("0" * len(prepared_head))
+        update = ["update-ref", "HEAD", prepared_head, expected_head]
         _require_success(_run_git(root, update, run=run))
+        published_head = prepared_head
         result = SnapshotResult(snapshot=_snapshot_from_head(root, run=run))
         return SnapshotTransaction(
             root,
@@ -387,7 +432,7 @@ def prepare_snapshot(
             root,
             SnapshotResult(snapshot=None),
             previous_head=previous_head,
-            prepared_head=prepared_head,
+            prepared_head=published_head,
             receipt=receipt,
             run=run,
         )
