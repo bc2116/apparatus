@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build release files
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      dry_run: ${{ steps.release.outputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Sync workspace
+        run: uv sync --all-packages
+      - name: Check release version and mode
+        id: release
+        env:
+          APPARATUS_RELEASE_MODE: ${{ vars.APPARATUS_RELEASE_MODE }}
+        shell: python
+        run: |
+          import os
+          import re
+          from datetime import date
+          from pathlib import Path
+
+          event = os.environ["GITHUB_EVENT_NAME"]
+          ref_name = os.environ["GITHUB_REF_NAME"]
+          version_text = Path("packages/apparatus-core/pyproject.toml").read_text(encoding="utf-8")
+          match = re.search(r'(?m)^version = "([^"]+)"$', version_text)
+          if match is None:
+              raise SystemExit("packages/apparatus-core/pyproject.toml has no project version")
+          version = match.group(1)
+          if event == "push" and ref_name != f"v{version}":
+              raise SystemExit(
+                  f"release tag {ref_name!r} must exactly match package version v{version}"
+              )
+
+          dry_run = event == "workflow_dispatch" or os.environ.get("APPARATUS_RELEASE_MODE") != "publish"
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+              output.write(f"dry_run={str(dry_run).lower()}\n")
+
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          heading = f"## v{version}"
+          start = changelog.find(heading)
+          if start >= 0:
+              following = changelog.find("\n## ", start + len(heading))
+              notes = changelog[start : None if following < 0 else following].strip()
+          else:
+              notes = (
+                  f"## v{version}\n\n"
+                  f"Release date: {date.today().isoformat()}\n\n"
+                  "Included files: universal payload archive, apparatus-core source distribution, "
+                  "and apparatus-core wheel.\n\n"
+                  "Update CHANGELOG.md with release notes before the next release."
+              )
+          if dry_run:
+              notes = "# Dry-run release — not published to PyPI\n\n" + notes
+          Path("dist/release-notes.md").write_text(notes + "\n", encoding="utf-8")
+      - name: Build universal payload
+        run: uv run python tools/build_payload.py
+      - name: Build apparatus-core distribution
+        run: uv build --package apparatus-core --out-dir dist/packages
+      - name: Upload release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: apparatus-release-${{ steps.release.outputs.version }}
+          if-no-files-found: error
+          path: |
+            dist/apparatus-payload-${{ steps.release.outputs.version }}.zip
+            dist/packages/apparatus_core-${{ steps.release.outputs.version }}.tar.gz
+            dist/packages/apparatus_core-${{ steps.release.outputs.version }}-py3-none-any.whl
+            dist/release-notes.md
+
+  publish-pypi:
+    name: Publish apparatus-core to PyPI
+    needs: build
+    if: >-
+      github.event_name == 'push' &&
+      needs.build.outputs.dry_run == 'false'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@v4
+        with:
+          name: apparatus-release-${{ needs.build.outputs.version }}
+          path: release-files
+      - name: Publish with trusted publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release-files/packages
+
+  github-release:
+    name: Create GitHub Release
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@v4
+        with:
+          name: apparatus-release-${{ needs.build.outputs.version }}
+          path: release-files
+      - name: Create release and attach files
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          prerelease: ${{ needs.build.outputs.dry_run == 'true' }}
+          body_path: release-files/release-notes.md
+          files: |
+            release-files/apparatus-payload-${{ needs.build.outputs.version }}.zip
+            release-files/packages/apparatus_core-${{ needs.build.outputs.version }}.tar.gz
+            release-files/packages/apparatus_core-${{ needs.build.outputs.version }}-py3-none-any.whl

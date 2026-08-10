@@ -63,7 +63,7 @@ on every commit.
 | 18 | [Egress gate v1](PR-18-egress-gate.md) | 4 | ✅ landed | 12 |
 | 19 | [Welcome flow end-to-end](PR-19-welcome-e2e.md) | 4 | ✅ landed | 17, 18, 16 |
 | 20 | [Universal payload builder](PR-20-payload-builder.md) | 5 | ✅ landed | 13, 19 |
-| 21 | [Release pipeline](PR-21-release-pipeline.md) | 5 | ready | 20 |
+| 21 | [Release pipeline](PR-21-release-pipeline.md) | 5 | ✅ landed | 20 |
 | 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | ready | 21 |
 | 23 | [Code-signing and IT one-pager](PR-23-signing-it-onepager.md) | 5 | ready | 22 |
 | 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
