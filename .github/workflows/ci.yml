@@ -16,14 +16,14 @@ jobs:
       - name: Run tests and conformance
         run: uv run pytest
 
-  windows-pr12:
+  windows-safety:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Sync workspace
         run: uv sync --all-packages
-      - name: Run Windows Memory and receipt coverage
+      - name: Run Windows safety coverage
         run: >-
           uv run pytest
           packages/apparatus-core/tests/test_credentials.py
@@ -32,6 +32,8 @@ jobs:
           packages/apparatus-core/tests/test_library_ingest.py
           packages/apparatus-core/tests/test_library_index.py
           packages/apparatus-core/tests/test_render.py
+          packages/apparatus-core/tests/test_egress_gate.py
+          conformance/test_egress_golden.py
           packages/apparatus-core/tests/test_receipts.py::test_write_receipt_is_parseable_and_collision_safe
           packages/apparatus-core/tests/test_receipts.py::test_write_receipt_preserves_caller_fields_in_frontmatter
           packages/apparatus-core/tests/test_memory_commands.py::test_standard_fact_scans_title_and_body_writes_labels_redaction_receipt_and_checks_clean

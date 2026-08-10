@@ -26,10 +26,11 @@ When this PR lands, the load-bearing safety feature of ADR-0004 exists as a
 deterministic command: `apparatus egress check <workspace> <file...>` inspects
 content about to leave the workspace, enumerates labeled items, runs the
 credential-floor scan, exact-matches names and emails drawn from
-`Memory/People/` records against the outbound content, writes a redacted copy
-alongside each original that has findings, records the human's decision in an
-egress receipt, and exits non-zero whenever sensitive items are present and no
-decision has been recorded. Starter
+`Memory/People/` records against the outbound content, offers a safe redacted
+path for each deterministic finding set, transactionally publishes available
+copies on a successful decision-bearing run, records the human's decision in
+an egress receipt, and exits non-zero whenever sensitive items are present and
+no decision has been recorded. Starter
 procedures whose steps are share-shaped (per the taxonomy in
 `docs/spec/egress.md`) are updated to call the gate before anything crosses
 the boundary. "Label, don't block" becomes defensible because the boundary
@@ -47,7 +48,9 @@ check now fires every time.
   receipt writing, exit-code policy.
 - `packages/apparatus-core/src/apparatus_core/commands/egress.py` — new:
   argparse wiring (`register`/`run`) for
-  `apparatus egress check <workspace> <file...> [--decision <value>]`,
+  `apparatus egress check <workspace> <file...> [--destination <target>]
+  [--decision <value>]`, where the decision values are `use-redacted`,
+  `send-original`, and `stop`,
   registered in the `apparatus.commands` entry-point group in
   `packages/apparatus-core/pyproject.toml` per the PR-08 registry contract —
   no second registration path.
@@ -89,24 +92,36 @@ check now fires every time.
    flagged and a name from no People record passing unflagged.
 4. The credential-floor scan reuses the PR-12 detector; findings are reported
    with kind and location.
-5. For every file with findings, a redacted copy is written alongside the
-   original as `<stem>.redacted<suffix>` — matched token replaced, surrounding
-   prose kept (ADR-0004 §4) — leaving the original untouched.
+5. For every file whose findings have deterministic spans, the check offers a
+   redacted-copy path alongside the original — ordinary files use
+   `<stem>.redacted<suffix>`, while files in record-constrained folders use
+   `<stem>-redacted<suffix>` so their filenames remain schema-valid. Matched
+   tokens are replaced and surrounding prose is kept (ADR-0004 §4), leaving
+   the original untouched. The initial no-decision inspection, `stop`, and
+   refused decisions publish no copy, preventing a collision with the required
+   fresh decision-bearing run. Successful `use-redacted` or `send-original`
+   publishes every available copy transactionally. A declared or structural
+   label with no safe span reports deterministic redaction unavailable, writes
+   no misleading copy, and refuses `use-redacted`.
 6. No findings: exit 0; the receipt records a clean pass.
-7. Findings and no `--decision`: exit 1; nothing is approved; the output tells
-   the assistant to present the enumeration and the redacted copy to the human.
+7. Findings and no `--decision`: exit 1; nothing is approved or published; the
+   output tells the assistant to present the enumeration and redacted-copy
+   offer to the human, then make a fresh decision-bearing invocation.
 8. Findings and `--decision use-redacted` or `--decision send-original`
    (credential findings absent — see criterion 9): exit
    0, and the receipt records the decision verbatim as the human's explicit
    choice. The updated procedures forbid the assistant from passing
-   `--decision` without first asking the human.
+   `--decision` without first asking the human. `--decision stop` records the
+   choice and exits 0 without pre-share authorization.
 9. Credential findings are never approvable: `--decision send-original` in the
    presence of a credential finding is refused — exit 1, with a stable
    machine-readable refusal code in the output that tests assert (not prose;
    the PR-08 exit-code convention stays 0/1/2) — the redacted copy remains
    the only egress path, and the receipt records the
-   refusal. Receipts never contain the matched credential text — kind, count,
-   and location only.
+   refusal. A fresh successful `use-redacted` invocation is the only egress
+   path. A refusal requires that fresh explicit choice and never authorizes the
+   prior run. Receipts never contain the matched credential text — kind,
+   count, and location only.
 10. Egress behavior is mode-independent in v1, exactly as `docs/spec/egress.md`
     states: the gate behaves identically under `privacy_mode: standard` and
     `privacy_mode: private` (private mode differs only at Memory-write time),
@@ -114,8 +129,22 @@ check now fires every time.
     copies, receipt content, and exit codes in both modes.
 11. Every run writes one receipt under `System/receipts/` (event `egress`,
     schema-valid via `apparatus check`) naming files checked, findings by kind
-    and count, redacted copies written, and the decision (or its absence).
+    and count, redacted copies written, optional plain-language destination,
+    and the decision (or its absence). It records
+    `anything_left_workspace: false`: this command is inspection/recording
+    only, and successful `send-original`/`use-redacted` is pre-share
+    authorization, not proof of the later outside action.
 12. `uv run pytest` is green.
+13. Frontmatter labels are enumerated independently of pattern matches, and an
+   outbound People record is always structurally labeled. People names use
+   case-sensitive exact Unicode code-point matching with Unicode-aware word
+   boundaries; People emails use case-sensitive exact-value boundaries. No
+   case folding, normalization, or fuzzy matching occurs in v1.
+14. Before writes, the command rejects existing outputs, duplicate sources or
+   outputs, input/output collisions, and every unsafe workspace or People-tree
+   path. It traverses hidden People records and publishes every redacted copy
+   and receipt transactionally, rolling back only invocation-owned artifacts
+   on failure.
 
 ## Conformance and tests
 
@@ -131,6 +160,13 @@ check now fires every time.
   send-original refusal, receipt hygiene); redacted-copy correctness (token
   replaced, prose intact, original unchanged); and mode independence
   (identical behavior on the same inputs in standard and private modes).
+- Native Windows CI runs `test_egress_gate.py` and
+  `conformance/test_egress_golden.py`. Adversarial coverage includes declared
+  label-only content, structural People, hidden/unreadable/symlink/reparse
+  People entries, path substitution, all output collisions, multi-file and
+  receipt rollback, record-folder copies that keep `apparatus check` green,
+  `Al` versus `Also`, destination/stop receipts, procedure decision reruns,
+  ignore independence, and mode independence.
 - Existing fixtures (payload manifest, record schemas) are unchanged except
   the deliberate starter-procedure edits, which change file content only, not
   the payload file set.
@@ -163,3 +199,18 @@ procedures (PR-05), and `check`/receipts (PR-09) arrive transitively.
   reversible default: the decision applies to the whole run's file list, and
   the receipt names every file it covered; per-file decisions can be added
   later as repeated flags.
+- Redacted-copy filename in a record-constrained folder. Smallest reversible
+  default: use `<stem>-redacted<suffix>` there and retain
+  `<stem>.redacted<suffix>` elsewhere; an explicit output option can be added
+  later.
+- Destination and post-action observation. Smallest reversible default:
+  optional `--destination` metadata plus inspect-only receipts with
+  `anything_left_workspace: false`. Decision values record pre-share
+  authorization, never delivery; post-action observation is unavailable in
+  v1.
+- People exact-match semantics. Smallest reversible default: case-sensitive
+  exact code points, Unicode-aware word boundaries for names, and exact-value
+  boundaries for emails. Normalization and fuzzy matching remain later work.
+- Declared labels with no deterministic span. Smallest conservative default:
+  report redaction unavailable, omit that file's copy, and refuse
+  `use-redacted` rather than emit an unchanged sensitive file.

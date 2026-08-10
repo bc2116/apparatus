@@ -1,2 +1,3 @@
 credential/password: 1
+declared-label/pii/email: 1
 label/pii/email: 1
