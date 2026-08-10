@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
 import stat
-from typing import Any, Final
+from typing import Callable, Final
 
 from apparatus_core import records
-from apparatus_core.fs_transactions import PosixWorkspaceAnchor, WindowsWorkspaceAnchor
+from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
 
 
 DEFAULTS: Final = {
@@ -22,79 +23,216 @@ class FeatureProfileError(ValueError):
     """Feature selections cannot be trusted from the workspace profile."""
 
 
+@dataclass(frozen=True)
+class _ProfileRead:
+    """One retained profile and the proof that its pathname is still current."""
+
+    content: bytes
+    current: Callable[[], bool]
+
+
 def _profile_bytes(workspace: Path) -> bytes | None:
-    # A workspace created before profile-controlled features has no profile at
-    # all. Detect only that absence without following a path; any present
-    # profile is still read through the retained no-follow primitive below.
-    try:
-        os.lstat(workspace / "System/profile.yaml")
-    except FileNotFoundError:
-        return None
-    except OSError as error:
-        raise FeatureProfileError(
-            "System/profile.yaml could not be read safely; repair the workspace profile before using this feature"
-        ) from error
-    anchor_type: Any
+    """Read the profile bytes through the platform's safe retained primitive."""
+    profile = _profile_read(workspace)
+    return None if profile is None else profile.content
+
+
+def _profile_read(workspace: Path) -> _ProfileRead | None:
     if os.name == "posix":
-        anchor_type = PosixWorkspaceAnchor
+        return _read_posix_profile(workspace)
     elif os.name == "nt":  # pragma: no cover - exercised by Windows safety CI
-        anchor_type = WindowsWorkspaceAnchor
+        return _read_windows_profile(workspace)
     else:  # pragma: no cover - no safe primitive exists for another platform
         raise FeatureProfileError("feature selections cannot be read safely on this platform")
+
+
+def _read_windows_profile(workspace: Path) -> _ProfileRead | None:
+    """Read a profile through retained Windows handles and prove its pathname is current."""
     try:
-        with anchor_type(workspace) as anchor:
-            content, _identity = anchor.read_file("System/profile.yaml")
-            return content
+        with WindowsWorkspaceAnchor(workspace) as anchor:
+            # The directory check keeps a present System from being treated
+            # as absent; pre-profile workspaces still use compatibility
+            # defaults when the whole profile path is missing.
+            anchor.require_directory("System")
+            try:
+                owned = anchor.capture_file("System/profile.yaml")
+            except FileNotFoundError:
+                return None
+            try:
+                # ``capture_file`` retains the file and parent handles.  The
+                # second proof makes the read fail closed if any current
+                # workspace/System/profile.yaml pathname no longer names that
+                # exact identity and content before a selection can be used.
+                if not anchor.matches_owned(owned):
+                    raise OSError("System/profile.yaml changed while it was read")
+                return _ProfileRead(
+                    owned.content,
+                    lambda: _windows_profile_is_current(
+                        workspace, owned.identity, owned.content
+                    ),
+                )
+            finally:
+                owned.close()
     except FileNotFoundError:
-        # Older workspaces predate profile-controlled feature selections.
+        # Feature selections were added after the standalone snapshot and
+        # Library commands.  A workspace that has not been initialized yet
+        # retains their all-enabled compatibility behavior.
         return None
     except OSError as error:
-        # Some adversarial probes replace os.stat while testing cache cleanup.
-        # Retain the same no-follow semantics without relying on that hook.
-        if os.name == "posix" and "safe descriptor-relative" in str(error):
-            return _read_posix_profile(workspace)
         raise FeatureProfileError(
             "System/profile.yaml could not be read safely; repair the workspace profile before using this feature"
         ) from error
 
 
-def _read_posix_profile(workspace: Path) -> bytes | None:
-    """Use retained no-follow descriptors when test instrumentation hides stat support."""
+def _windows_profile_is_current(workspace: Path, identity: object, content: bytes) -> bool:
+    """Recheck the original Windows profile identity after schema parsing."""
+    try:
+        with WindowsWorkspaceAnchor(workspace) as anchor:
+            anchor.require_directory("System")
+            owned = anchor.capture_file("System/profile.yaml")
+            try:
+                return (
+                    owned.identity == identity
+                    and owned.content == content
+                    and anchor.matches_owned(owned)
+                )
+            finally:
+                owned.close()
+    except OSError:
+        return False
+
+
+def _posix_directory_flags() -> int:
+    if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
+        raise OSError("safe descriptor-relative workspace operations are unavailable")
+    return os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+
+def _open_posix_workspace(workspace: Path) -> int:
+    """Open the absolute workspace path without following any component."""
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     absolute = Path(os.path.abspath(os.fspath(workspace)))
+    if not absolute.is_absolute() or not absolute.anchor:
+        raise OSError("workspace path must be absolute")
     current = os.open(absolute.anchor, flags)
-    descriptor = -1
     try:
-        for part in (*absolute.parts[1:], "System"):
+        for part in absolute.parts[1:]:
             following = os.open(part, flags, dir_fd=current)
             os.close(current)
             current = following
-        descriptor = os.open("profile.yaml", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=current)
+        return current
+    except Exception:
+        os.close(current)
+        raise
+
+
+def _read_posix_regular(parent: int, name: str) -> tuple[bytes, tuple[int, int, int, int]]:
+    """Read one regular file without ever allowing a FIFO open to block."""
+    descriptor = os.open(
+        name,
+        os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0),
+        dir_fd=parent,
+    )
+    try:
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
             raise OSError("System/profile.yaml is not a regular file")
-        content = b"".join(iter(lambda: os.read(descriptor, 65_536), b""))
+        chunks: list[bytes] = []
+        while chunk := os.read(descriptor, 65_536):
+            chunks.append(chunk)
         after = os.fstat(descriptor)
-        if before.st_ino != after.st_ino or before.st_dev != after.st_dev or before.st_size != after.st_size:
+        identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        if identity != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ):
             raise OSError("System/profile.yaml changed while it was read")
-        return content
+        content = b"".join(chunks)
+        if len(content) != after.st_size:
+            raise OSError("System/profile.yaml changed while it was read")
+        return content, identity
+    finally:
+        os.close(descriptor)
+
+
+def _posix_profile_is_current(
+    workspace: Path,
+    root_identity: tuple[int, int],
+    system_identity: tuple[int, int],
+    profile_identity: tuple[int, int, int, int],
+    content: bytes,
+) -> bool:
+    """Prove the retained profile still names current workspace/System/profile.yaml."""
+    root = system = -1
+    try:
+        root = _open_posix_workspace(workspace)
+        root_status = os.fstat(root)
+        if (root_status.st_dev, root_status.st_ino) != root_identity:
+            return False
+        system = os.open("System", _posix_directory_flags(), dir_fd=root)
+        system_status = os.fstat(system)
+        if (system_status.st_dev, system_status.st_ino) != system_identity:
+            return False
+        current, current_identity = _read_posix_regular(system, "profile.yaml")
+        return current_identity == profile_identity and current == content
+    except OSError:
+        return False
+    finally:
+        if system >= 0:
+            os.close(system)
+        if root >= 0:
+            os.close(root)
+
+
+def _read_posix_profile(workspace: Path) -> _ProfileRead | None:
+    """Use retained no-follow descriptors and verify all current path components."""
+    root = system = -1
+    try:
+        root = _open_posix_workspace(workspace)
+        root_status = os.fstat(root)
+        root_identity = (root_status.st_dev, root_status.st_ino)
+        system = os.open("System", _posix_directory_flags(), dir_fd=root)
+        system_status = os.fstat(system)
+        system_identity = (system_status.st_dev, system_status.st_ino)
+        try:
+            content, profile_identity = _read_posix_regular(system, "profile.yaml")
+        except FileNotFoundError:
+            return None
+        if not _posix_profile_is_current(
+            workspace, root_identity, system_identity, profile_identity, content
+        ):
+            raise OSError("System/profile.yaml changed while it was read")
+        return _ProfileRead(
+            content,
+            lambda: _posix_profile_is_current(
+                workspace, root_identity, system_identity, profile_identity, content
+            ),
+        )
     except FileNotFoundError:
+        # Pre-profile workspaces may have neither System nor profile.yaml.
+        # A later pathname disappearance after a retained read is caught by
+        # the currentness proof above and never reaches this compatibility
+        # path.
         return None
     except OSError as error:
         raise FeatureProfileError(
             "System/profile.yaml could not be read safely; repair the workspace profile before using this feature"
         ) from error
     finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-        os.close(current)
+        if system >= 0:
+            os.close(system)
+        if root >= 0:
+            os.close(root)
 
 
 def selections(workspace: str | Path) -> dict[str, bool]:
     """Load only a safely read, schema-valid profile's feature selections."""
-    content = _profile_bytes(Path(workspace))
-    if content is None:
+    profile = _profile_read(Path(workspace))
+    if profile is None:
         return dict(DEFAULTS)
+    content = profile.content
     try:
         data = records.yaml.safe_load(content.decode("utf-8"))
     except UnicodeError as error:
@@ -113,6 +251,13 @@ def selections(workspace: str | Path) -> dict[str, bool]:
             "System/profile.yaml is invalid; repair it before using this feature"
         )
     values = data.get("features")
+    # Parsing is deliberately side-effect free. Before returning a choice,
+    # prove that the exact profile retained above still names the current
+    # workspace/System/profile.yaml through its current parent and root.
+    if not profile.current():
+        raise FeatureProfileError(
+            "System/profile.yaml could not be read safely; repair the workspace profile before using this feature"
+        )
     if values is None:
         return dict(DEFAULTS)
     # Schema validation above guarantees this mapping is complete and boolean.

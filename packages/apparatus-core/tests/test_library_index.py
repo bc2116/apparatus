@@ -6,6 +6,7 @@ import math
 import os
 from pathlib import Path
 import sqlite3
+import stat
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
@@ -619,8 +620,60 @@ def test_windows_writer_lock_rejects_reparse_endpoint(monkeypatch, tmp_path):
         "_win_open",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(FileExistsError()),
     )
+    monkeypatch.setattr(index.time, "sleep", lambda _seconds: pytest.fail("reparse endpoint must not retry"))
     with pytest.raises(index.IndexError, match="writer lock is not private"):
         index.refresh(cache, workspace)
+
+
+def test_windows_writer_lock_retries_only_transient_regular_metadata(monkeypatch, tmp_path):
+    lock = tmp_path / ".apparatus-index.lock"
+    statuses = [
+        os.stat_result((stat.S_IFREG, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+        os.stat_result((stat.S_IFREG, 0, 0, 1, 0, 0, 0, 0, 0, 0)),
+    ]
+    opens = [FileExistsError(), 101]
+    sleeps = []
+    deletes = []
+    def win_open(*_args, **_kwargs):
+        result = opens.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(index.fs_transactions, "_win_open", win_open)
+    monkeypatch.setattr(index.os, "lstat", lambda _path: statuses.pop(0))
+    monkeypatch.setattr(index, "_is_posix", lambda: False)
+    monkeypatch.setattr(index, "is_reparse_path", lambda _path: False)
+    monkeypatch.setattr(index.time, "sleep", sleeps.append)
+    monkeypatch.setattr(index.fs_transactions, "_win_delete_handle", deletes.append)
+    monkeypatch.setattr(index.fs_transactions, "_win_close", lambda _handle: None)
+
+    with index._windows_writer_lock(lock):
+        pass
+
+    assert sleeps == [0.01]
+    assert deletes == [101]
+
+
+def test_windows_writer_lock_rejects_persistent_unsafe_regular_metadata(monkeypatch, tmp_path):
+    lock = tmp_path / ".apparatus-index.lock"
+    unsafe = os.stat_result((stat.S_IFREG, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+    sleeps = []
+    monkeypatch.setattr(
+        index.fs_transactions,
+        "_win_open",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(FileExistsError()),
+    )
+    monkeypatch.setattr(index.os, "lstat", lambda _path: unsafe)
+    monkeypatch.setattr(index, "_is_posix", lambda: False)
+    monkeypatch.setattr(index, "is_reparse_path", lambda _path: False)
+    monkeypatch.setattr(index.time, "sleep", sleeps.append)
+
+    with pytest.raises(index.IndexError, match="writer lock is not private"):
+        with index._windows_writer_lock(lock):
+            pass
+
+    assert sleeps == [0.01, 0.01]
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX mode bits are required for this regression")

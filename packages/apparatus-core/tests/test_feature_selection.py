@@ -3,10 +3,11 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+import shutil
 
 import pytest
 
-from apparatus_core import records
+from apparatus_core import features, records
 from apparatus_core.commands import (
     init,
     library,
@@ -45,6 +46,34 @@ def _receipt_count(workspace: Path, event: str) -> int:
 def _receipt(workspace: Path, event: str) -> tuple[dict, str]:
     path = sorted((workspace / "System/receipts").glob(f"*-{event}*.md"))[-1]
     return records.parse_record(path.read_text(encoding="utf-8"))
+
+
+def _workspace_bytes(workspace: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(workspace).as_posix(): path.read_bytes()
+        for path in workspace.rglob("*")
+        if path.is_file() and not path.is_symlink()
+    }
+
+
+def _assert_profile_failure_has_no_effects(tmp_path, workspace: Path, capsys) -> None:
+    before = _workspace_bytes(workspace)
+    home = tmp_path / "feature-home"
+    assert not home.exists()
+    prior_home = os.environ.get("APPARATUS_HOME")
+    os.environ["APPARATUS_HOME"] = str(home)
+    try:
+        assert library.run(argparse.Namespace(workspace=str(workspace))) == 2
+        assert "profile" in capsys.readouterr().out
+        assert snapshot.run(argparse.Namespace(workspace=str(workspace), label=None)) == 2
+        assert "profile" in capsys.readouterr().out
+    finally:
+        if prior_home is None:
+            os.environ.pop("APPARATUS_HOME", None)
+        else:
+            os.environ["APPARATUS_HOME"] = prior_home
+    assert _workspace_bytes(workspace) == before
+    assert not home.exists()
 
 
 def test_features_mapping_is_closed_and_absence_keeps_defaults(tmp_path):
@@ -211,6 +240,104 @@ def test_invalid_profile_fails_closed_before_feature_machinery_mutates(
     assert sorted((workspace / "System/receipts").glob("*.md")) == receipts_before
     with pytest.raises(ValueError, match="profile"):
         load_ignore_rules(workspace).require_valid()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="FIFOs are a POSIX endpoint")
+def test_fifo_profile_is_rejected_without_blocking_or_any_feature_effects(tmp_path, capsys):
+    workspace = _workspace(tmp_path)
+    profile = workspace / "System/profile.yaml"
+    profile.unlink()
+    os.mkfifo(profile)
+    _assert_profile_failure_has_no_effects(tmp_path, workspace, capsys)
+
+
+@pytest.mark.parametrize("replacement", ["directory", "non_utf8"])
+def test_unsafe_profile_endpoint_has_no_feature_effects(tmp_path, capsys, replacement):
+    workspace = _workspace(tmp_path)
+    profile = workspace / "System/profile.yaml"
+    profile.unlink()
+    if replacement == "directory":
+        profile.mkdir()
+    else:
+        profile.write_bytes(b"\xff")
+    _assert_profile_failure_has_no_effects(tmp_path, workspace, capsys)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="descriptor-currentness probe is POSIX-specific")
+@pytest.mark.parametrize("replacement", ["profile", "system", "workspace"])
+def test_profile_path_replacement_fails_closed_before_selections_return(
+    tmp_path, monkeypatch, replacement
+):
+    workspace = _workspace(tmp_path)
+    original_reader = features._read_posix_regular
+    calls = 0
+
+    def replace_after_retained_read(parent, name):
+        nonlocal calls
+        value = original_reader(parent, name)
+        calls += 1
+        if calls != 1:
+            return value
+        if replacement == "profile":
+            candidate = tmp_path / "replacement-profile.yaml"
+            candidate.write_bytes((workspace / "System/profile.yaml").read_bytes())
+            candidate.replace(workspace / "System/profile.yaml")
+        elif replacement == "system":
+            candidate = tmp_path / "replacement-system"
+            shutil.copytree(workspace / "System", candidate)
+            (workspace / "System").rename(tmp_path / "prior-system")
+            candidate.rename(workspace / "System")
+        else:
+            candidate = tmp_path / "replacement-workspace"
+            shutil.copytree(workspace, candidate)
+            workspace.rename(tmp_path / "prior-workspace")
+            candidate.rename(workspace)
+        return value
+
+    monkeypatch.setattr(features, "_read_posix_regular", replace_after_retained_read)
+    with pytest.raises(features.FeatureProfileError, match="read safely"):
+        features.selections(workspace)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows endpoint coverage")
+def test_windows_nonregular_profile_has_no_feature_effects(tmp_path, capsys):
+    workspace = _workspace(tmp_path)
+    profile = workspace / "System/profile.yaml"
+    profile.unlink()
+    profile.mkdir()
+    _assert_profile_failure_has_no_effects(tmp_path, workspace, capsys)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows reparse coverage")
+def test_windows_reparse_profile_has_no_feature_effects(tmp_path, capsys):
+    workspace = _workspace(tmp_path)
+    profile = workspace / "System/profile.yaml"
+    outside = tmp_path / "outside-profile.yaml"
+    outside.write_bytes(profile.read_bytes())
+    profile.unlink()
+    try:
+        profile.symlink_to(outside)
+    except OSError as error:  # GitHub's Windows runner enables this primitive.
+        pytest.fail(f"Windows safety coverage requires a reparse endpoint: {error}")
+    _assert_profile_failure_has_no_effects(tmp_path, workspace, capsys)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows pathname-currentness coverage")
+def test_windows_profile_replacement_has_no_feature_effects(tmp_path, monkeypatch, capsys):
+    workspace = _workspace(tmp_path)
+    profile = workspace / "System/profile.yaml"
+    candidate = tmp_path / "replacement-profile.yaml"
+    candidate.write_bytes(profile.read_bytes())
+    original_matches = features.WindowsWorkspaceAnchor.matches_owned
+
+    def replace_then_verify(anchor, owned):
+        candidate.replace(profile)
+        return original_matches(anchor, owned)
+
+    monkeypatch.setattr(
+        features.WindowsWorkspaceAnchor, "matches_owned", replace_then_verify
+    )
+    _assert_profile_failure_has_no_effects(tmp_path, workspace, capsys)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows link privilege is runner-dependent")
