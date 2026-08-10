@@ -302,6 +302,7 @@ def _read_descriptor(descriptor: int) -> bytes:
 
 
 def _published_is_owned(
+    workspace: Path,
     root: int,
     system: int,
     receipts: int,
@@ -310,14 +311,34 @@ def _published_is_owned(
 ) -> bool:
     try:
         return (
-            _directory_is_current(root, system, receipts)
+            _directory_is_current(workspace, root, system, receipts)
             and _identity_at(receipts, name) == identity
         )
     except OSError:
         return False
 
 
-def _directory_is_current(root: int, system: int, receipts: int) -> bool:
+def _directory_is_current(
+    workspace: Path, root: int, system: int, receipts: int
+) -> bool:
+    # The held descriptors stay self-consistent even after the workspace root
+    # is renamed away, so fd-relative checks alone accept a detached tree. The
+    # root must also still be the exact object the workspace path resolves to.
+    probe = -1
+    try:
+        probe = os.open(workspace, _directory_flags())
+        probe_status = os.fstat(probe)
+        root_status = os.fstat(root)
+        if (probe_status.st_dev, probe_status.st_ino) != (
+            root_status.st_dev,
+            root_status.st_ino,
+        ):
+            return False
+    except OSError:
+        return False
+    finally:
+        if probe >= 0:
+            os.close(probe)
     current_system = current_receipts = -1
     try:
         current_system, _created = _open_directory(root, "System", create=False)
@@ -380,7 +401,9 @@ class _PosixReceiptPublication:
         if min(self.root, self.system, self.receipts, self.descriptor) < 0:
             raise OSError("receipt publication proof is no longer active")
         if (
-            not _directory_is_current(self.root, self.system, self.receipts)
+            not _directory_is_current(
+                self.workspace, self.root, self.system, self.receipts
+            )
             or not self._descriptor_is_exact()
             or not self._name_is_exact(self.name)
             or (self.ownership_link and not self._name_is_exact(self.ownership_name))
@@ -401,7 +424,9 @@ class _PosixReceiptPublication:
     def rollback(self) -> None:
         if min(self.root, self.system, self.receipts, self.descriptor) < 0:
             raise OSError("receipt publication proof is no longer active")
-        if not _directory_is_current(self.root, self.system, self.receipts):
+        if not _directory_is_current(
+            self.workspace, self.root, self.system, self.receipts
+        ):
             raise OSError("receipt publication parent changed")
         if not self._descriptor_is_exact():
             raise OSError("receipt publication changed before rollback")
@@ -608,7 +633,7 @@ def _publish_receipt_handle(
             )
         finally:
             os.close(temporary)
-        if not _directory_is_current(root, system, receipts):
+        if not _directory_is_current(workspace, root, system, receipts):
             raise OSError("receipt destination changed during publication")
         for collision in range(1, 1_000_000):
             name = _filename(now, event, collision)
@@ -617,13 +642,13 @@ def _publish_receipt_handle(
             except FileExistsError:
                 continue
             if temporary_identity is None or not _published_is_owned(
-                root, system, receipts, name, temporary_identity
+                workspace, root, system, receipts, name, temporary_identity
             ):
                 if temporary_identity is not None:
                     _unlink_if_owned(receipts, name, temporary_identity)
                 raise OSError("receipt destination changed during publication")
             if not _published_is_owned(
-                root, system, receipts, name, temporary_identity
+                workspace, root, system, receipts, name, temporary_identity
             ):
                 raise OSError("receipt identity changed after publication")
             publication_descriptor = os.open(

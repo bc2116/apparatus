@@ -34,8 +34,7 @@ jobs:
           packages/apparatus-core/tests/test_render.py
           packages/apparatus-core/tests/test_egress_gate.py
           conformance/test_egress_golden.py
-          packages/apparatus-core/tests/test_receipts.py::test_write_receipt_is_parseable_and_collision_safe
-          packages/apparatus-core/tests/test_receipts.py::test_write_receipt_preserves_caller_fields_in_frontmatter
+          packages/apparatus-core/tests/test_receipts.py
           packages/apparatus-core/tests/test_memory_commands.py::test_standard_fact_scans_title_and_body_writes_labels_redaction_receipt_and_checks_clean
           packages/apparatus-core/tests/test_memory_commands.py::test_standard_person_scans_name_role_and_body_but_stores_no_structural_fifth_label
           packages/apparatus-core/tests/test_memory_commands.py::test_every_private_add_person_blocks_structurally_with_zero_effects

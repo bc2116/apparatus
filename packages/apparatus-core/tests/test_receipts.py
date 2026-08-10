@@ -288,6 +288,10 @@ def test_concurrent_publication_settlement_allows_one_transition(
     publication.close()
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="Windows anchor name-locks the root; the rename cannot occur there",
+)
 def test_prepared_invocation_rejects_replaced_workspace_object(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -404,6 +408,10 @@ def test_write_receipt_requires_a_known_event_and_summary(tmp_path):
         receipts.write_receipt(tmp_path, "check", {})
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="injects failure via the POSIX write path the Windows backend never calls",
+)
 def test_failed_atomic_publication_removes_its_exact_partial(tmp_path, monkeypatch):
     original = receipts._write_complete
 
@@ -473,6 +481,10 @@ def test_failed_receipt_never_deletes_a_preopen_substituted_directory(
     assert list((system / "held-receipts").iterdir()) == []
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="injects the swap via the POSIX write path the Windows backend never calls",
+)
 def test_receipt_publication_does_not_follow_a_swapped_ancestor(tmp_path, monkeypatch):
     system = tmp_path / "System"
     target = system / "receipts"
@@ -516,6 +528,10 @@ def test_failed_receipt_cleanup_keeps_a_substituted_created_directory(
     assert list(held.iterdir()) == []
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="symlink creation on Windows depends on runner privilege; POSIX-only probe",
+)
 def test_receipt_collision_with_a_symlink_retries_without_following_it(
     tmp_path, monkeypatch
 ):
@@ -566,3 +582,89 @@ def test_receipt_does_not_delete_a_substituted_final_entry(tmp_path, monkeypatch
     assert final.read_bytes() == substituted
     assert held.is_file()
     assert not list(receipt_dir.glob(".apparatus-receipt-*.tmp"))
+
+
+def _swap_fixture(tmp_path):
+    workspace = tmp_path / "workspace"
+    (workspace / "System/receipts").mkdir(parents=True)
+    (workspace / "original.txt").write_bytes(b"original")
+    replacement = tmp_path / "replacement"
+    (replacement / "System/receipts").mkdir(parents=True)
+    (replacement / "foreign.txt").write_bytes(b"foreign")
+    moved = tmp_path / "moved-workspace"
+    return workspace, replacement, moved
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor-window probe")
+def test_workspace_swap_inside_write_window_is_rejected(tmp_path, monkeypatch):
+    workspace, replacement, moved = _swap_fixture(tmp_path)
+    original_tree = _tree(workspace)
+    replacement_tree = _tree(replacement)
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    original_write = receipts._write_complete
+
+    def swap_then_write(descriptor, content):
+        workspace.rename(moved)
+        replacement.rename(workspace)
+        original_write(descriptor, content)
+
+    monkeypatch.setattr(receipts, "_write_complete", swap_then_write)
+    with pytest.raises(OSError, match="destination changed"):
+        receipts.write_receipt(workspace, "check", fields, invocation=invocation)
+
+    assert _tree(moved) == original_tree
+    assert _tree(workspace) == replacement_tree
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor-window probe")
+def test_workspace_swap_inside_link_window_is_rejected(tmp_path, monkeypatch):
+    workspace, replacement, moved = _swap_fixture(tmp_path)
+    original_tree = _tree(workspace)
+    replacement_tree = _tree(replacement)
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    original_link = receipts._link_at
+    swapped = False
+
+    def swap_then_link(parent, source, target):
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            workspace.rename(moved)
+            replacement.rename(workspace)
+        original_link(parent, source, target)
+
+    monkeypatch.setattr(receipts, "_link_at", swap_then_link)
+    with pytest.raises(OSError, match="destination changed"):
+        receipts.write_receipt(workspace, "check", fields, invocation=invocation)
+
+    assert _tree(moved) == original_tree
+    assert _tree(workspace) == replacement_tree
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX rename-swap semantics")
+def test_commit_and_rollback_refuse_after_workspace_swap(tmp_path):
+    workspace, replacement, moved = _swap_fixture(tmp_path)
+    original_tree = _tree(workspace)
+    replacement_tree = _tree(replacement)
+    fields = {"summary": "Check passed."}
+    invocation = receipts.prepare_receipt_invocation(workspace, "check", fields)
+    publication = receipts.write_receipt(
+        workspace, "check", fields, invocation=invocation
+    )
+    publication.claim(invocation)
+    workspace.rename(moved)
+    replacement.rename(workspace)
+
+    with pytest.raises(OSError, match="proof changed"):
+        publication.commit()
+    with pytest.raises(OSError, match="parent changed"):
+        publication.close()
+
+    # The live workspace at the original path is never touched, and the
+    # detached tree keeps every original byte; the failure is loud, not silent.
+    assert _tree(workspace) == replacement_tree
+    detached = _tree(moved)
+    for name, content in original_tree.items():
+        assert detached[name] == content
