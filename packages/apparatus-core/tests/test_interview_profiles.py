@@ -12,6 +12,7 @@ from apparatus_core import records
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import check, init, memory, profile
 from apparatus_core.receipts import write_receipt
+from apparatus_core.render import render_workspace
 
 
 def _init_workspace(path: Path) -> Path:
@@ -21,6 +22,8 @@ def _init_workspace(path: Path) -> Path:
         ),
         available=lambda: False,
     ) == 0
+    # Keep these profile tests independent of checkout line-ending conversion.
+    render_workspace(path)
     return path
 
 
