@@ -757,7 +757,11 @@ class _WindowsWorkspaceAnchor:
                 directory = stat.S_ISDIR(value.st_mode)
                 if not directory and not stat.S_ISREG(value.st_mode):
                     raise BackupError("Workspace contains an unsupported filesystem entry.")
-                handle = _windows_fs._win_open(path, directory=directory)
+                handle = _windows_fs._win_open(
+                    path,
+                    directory=directory,
+                    retain_readable=not directory,
+                )
                 identity = _windows_fs._win_identity(handle)
                 if (identity.volume, identity.index) in self.forbidden_identities:
                     raise BackupError("Destination moved into the workspace during backup export.")
@@ -811,7 +815,11 @@ class _WindowsWorkspaceAnchor:
                         "This workspace uses external snapshot storage and cannot be "
                         "backed up safely."
                     )
-                handle = _windows_fs._win_open(path, directory=directory)
+                handle = _windows_fs._win_open(
+                    path,
+                    directory=directory,
+                    retain_readable=not directory,
+                )
                 identity = _windows_fs._win_identity(handle)
                 if (identity.volume, identity.index) in self.forbidden_identities:
                     raise BackupError("Destination moved into the workspace during backup export.")
