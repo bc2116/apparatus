@@ -40,6 +40,23 @@ selects, switches, or invokes models itself.
     expensive fleet under a cheap lead; `thorough` upgrades verification
     before it upgrades drafting; `fast` tier is permitted only for mechanical
     transformations whose output the lead fully checks.
+  - **The escalation policy** (reactive spend adjustment): the primary
+    signal is a **second blocking review cycle on the same deliverable**;
+    run time far beyond the stated expectation is secondary, corroborating
+    evidence only — never a trigger by itself. Before escalating, classify
+    the review findings: **ambiguity** in the task contract gets fixed in
+    the contract (escalating a model to compensate for an unclear ask
+    wastes spend and hides the real defect); **capability** shortfall gets
+    escalation. Escalation raises the worker one tier and/or one effort
+    step, and the reviewer rises with it so the reviewer is never weaker
+    than the author, at high effort for the re-review. Escalation is sticky
+    for the remainder of that piece of work, noted in that work's receipt,
+    and resets afterward — it never permanently ratchets the dial. Triggers
+    are identical at every spend level: the dial sets starting tiers,
+    evidence adjusts them. Rationale stated in the spec: repeated rework is
+    the most expensive path (a cheap author plus two rework cycles plus
+    repeat reviews costs more than one stronger authorship pass), so
+    escalation is the economizing move, not an overspend.
   - **The roster contract:** concrete model names appear only in the roster
     section of the workspace guidance file, dated, marked advisory, and
     expected to be edited as models change. A roster entry older than the
@@ -47,9 +64,12 @@ selects, switches, or invokes models itself.
     assistant prefers its app's current equivalents by tier.
 - `starter/payload/System/guidance/model-guidance.md` — the shipped guidance
   the assistant reads: the stable mapping rendered in plain language, the
-  spend dial's meaning, and a placeholder roster whose example entries are
-  clearly fictional (e.g. `example-frontier-model`), with instructions to
-  replace them with the models actually available in the user's AI app.
+  spend dial's meaning, the escalation policy in plain language (when work
+  bounces back a second time, step up the model or effort — and step the
+  reviewer up with it; reset when the piece of work is done), and a
+  placeholder roster whose example entries are clearly fictional (e.g.
+  `example-frontier-model`), with instructions to replace them with the
+  models actually available in the user's AI app.
 - `docs/adr/ADR-0001-vocabulary.md` — add the canonical vocabulary row:
   concept "how much model capability and cost to apply", canonical term
   **spend level** with values `frugal` | `balanced` | `thorough`; do not use
@@ -84,7 +104,13 @@ selects, switches, or invokes models itself.
    capabilities (ADR-0003).
 7. Payload manifest and workspace spec updated in this PR, called out in the
    PR description.
-8. `uv run pytest` green.
+8. The escalation policy appears in both the spec and the shipped guidance,
+   and covers: the rework-cycle primary signal, run time as corroborating
+   only, the ambiguity-versus-capability classification step, the
+   reviewer-never-weaker-than-author invariant during escalation, sticky-
+   for-the-work-then-reset behavior, and identical triggers at every spend
+   level.
+9. `uv run pytest` green.
 
 ## Conformance and tests
 
@@ -109,6 +135,10 @@ PR-17 consumes this PR's `spend` key and depends on it.
 
 ## Open decisions
 
+- **Escalation thresholds.** Smallest reversible defaults: escalate on the
+  second blocking review cycle for the same deliverable; treat run time as
+  corroborating only, and only when it exceeds roughly twice the stated
+  expectation.
 - **Staleness window for roster entries.** Smallest reversible default:
   90 days from the roster's dated header.
 - **Guidance file format.** Smallest reversible default: Markdown with a
