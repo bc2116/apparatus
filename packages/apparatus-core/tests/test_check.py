@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import pytest
+
 from apparatus_core.check import CheckResult, Finding, check_workspace
 from apparatus_core.commands import check
 from apparatus_core.render import render_workspace
@@ -169,7 +171,10 @@ def test_command_exit_codes_and_receipt_writing(tmp_path, capsys):
     ) == 0
     assert "check passed" in capsys.readouterr().out
     assert writes[0][1] == "check"
-    assert "Finding codes: none." == writes[0][2]["body"]
+    assert writes[0][2]["body"] == (
+        "Finding codes: none. Ignore rules: built-in defaults; "
+        "System/ignore is missing; skipped 0 path(s) (built-in=0, user=0)."
+    )
 
     missing = tmp_path / "missing"
     assert check.run(argparse.Namespace(workspace=str(missing), no_receipt=True)) == 2
@@ -210,4 +215,85 @@ def test_command_receipt_summary_includes_outcome_count_and_codes(tmp_path):
     ) == 1
     fields = writes[0][2]
     assert "1 finding(s)" in fields["summary"]
-    assert fields["body"] == "Finding codes: missing-required-field."
+    assert fields["body"] == (
+        "Finding codes: missing-required-field. Ignore rules: built-in defaults; "
+        "System/ignore is missing; skipped 0 path(s) (built-in=0, user=0)."
+    )
+
+
+def test_check_fails_closed_on_unsupported_patterns(tmp_path):
+    workspace = _workspace(tmp_path)
+    _goal(workspace)
+    (workspace / "System/ignore").write_text("Goals/finish-sample.md\n!unsupported\n", encoding="utf-8")
+    result = check_workspace(workspace)
+    assert result.records_checked == 0
+    assert result.ignored_paths == 0
+    assert not result.ignore_report.valid
+    assert [(finding.code, finding.path) for finding in result.findings] == [
+        ("ignore-unsupported-pattern", "System/ignore")
+    ]
+
+
+def test_check_can_skip_an_ignored_profile_record(tmp_path):
+    workspace = _workspace(tmp_path)
+    (workspace / "System/profile.yaml").write_text("not: [yaml\n", encoding="utf-8")
+    (workspace / "System/ignore").write_text("System/profile.yaml\n", encoding="utf-8")
+    result = check_workspace(workspace)
+    assert result.ok
+    assert result.ignored_paths == 1
+    assert result.ignore_report.user_paths == 1
+    assert "System/ignore" in result.ignore_report.provenance
+
+
+@pytest.mark.parametrize(
+    "pattern", ["Goals/private", "/Goals/private", "Goals/*"]
+)
+def test_check_prunes_matching_record_directory_and_counts_it_once(
+    monkeypatch, tmp_path, pattern
+):
+    workspace = _workspace(tmp_path)
+    private = workspace / "Goals/private"
+    private.mkdir()
+    records = (private / "one.md", private / "two.md")
+    for record in records:
+        record.write_text("---\nnot: [yaml\n", encoding="utf-8")
+    (workspace / "System/ignore").write_text(f"{pattern}\n", encoding="utf-8")
+    original_read = Path.read_text
+
+    def reject_ignored_record_read(self, *args, **kwargs):
+        if self in records:
+            raise AssertionError("ignored record was opened")
+        return original_read(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", reject_ignored_record_read)
+
+    result = check_workspace(workspace)
+
+    assert result.ok
+    assert result.ignored_paths == 1
+    assert result.ignore_report.user_paths == 1
+    assert result.ignore_report.built_in_paths == 0
+    assert result.ignore_report.provenance == (
+        "built-in defaults and System/ignore (1 user pattern(s))"
+    )
+
+
+def test_check_reports_invalid_ignore_without_reading_records(monkeypatch, tmp_path):
+    workspace = _workspace(tmp_path)
+    goal = _goal(workspace)
+    (workspace / "System/ignore").write_bytes(b"\xff")
+    original_read = Path.read_text
+
+    def reject_record_read(self, *args, **kwargs):
+        if self == goal:
+            raise AssertionError("record content was read")
+        return original_read(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", reject_record_read)
+    result = check_workspace(workspace)
+
+    assert result.records_checked == 0
+    assert not result.ignore_report.valid
+    assert [(finding.code, finding.path) for finding in result.findings] == [
+        ("ignore-file-encoding-error", "System/ignore")
+    ]

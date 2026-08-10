@@ -14,6 +14,8 @@ import pytest
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import library
 from apparatus_core.library.ingest import IngestResult, _safe, ingest_library
+from apparatus_core.library import index
+from apparatus_core import recall
 import apparatus_core.library.ingest as ingest_module
 from apparatus_core.cache import library_cache_root
 import apparatus_core.cache as cache_module
@@ -80,6 +82,132 @@ def test_ingest_is_incremental_and_deletes_stale_cache_pairs(monkeypatch, tmp_pa
     rebuilt = ingest_library(workspace)
     assert rebuilt.counts["extracted"] == 1
     assert (rebuilt.cache / "extractions" / "note.txt.txt").read_text(encoding="utf-8") == "rebuilt"
+
+
+def test_ignore_skips_source_before_open_and_evicts_index_and_recall(monkeypatch, tmp_path):
+    workspace = _workspace(tmp_path / "workspace")
+    monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "apparatus-home"))
+    source = workspace / "Library/private.txt"
+    source.write_text("cobalt sentinel phrase", encoding="utf-8")
+    (workspace / "Library/visible.txt").write_text("ordinary fixture phrase", encoding="utf-8")
+    first = ingest_library(workspace)
+    index.refresh(first.cache, workspace)
+    assert recall.recall(workspace, "cobalt sentinel")["status"] == "grounded"
+    (workspace / "System/ignore").write_text("Library/private.txt\n", encoding="utf-8")
+
+    original_read = ingest_module._read_source
+
+    def fail_if_opened(path, *args, **kwargs):
+        if Path(path) == source:
+            raise AssertionError("an ignored Library source was opened")
+        return original_read(path, *args, **kwargs)
+
+    monkeypatch.setattr(ingest_module, "_read_source", fail_if_opened)
+    result = ingest_library(workspace)
+    assert result.counts["ignored"] == 1
+    assert not (result.cache / "extractions/private.txt.json").exists()
+    index.refresh(result.cache, workspace)
+    assert index.search(result.cache, "cobalt") == []
+    assert recall.recall(workspace, "cobalt sentinel")["status"] == "abstained"
+    receipts = (workspace / "System/receipts").glob("*-library-ingest*.md")
+    assert any(
+        "skipped 1 path(s) (built-in=0, user=1)" in receipt.read_text(encoding="utf-8")
+        for receipt in receipts
+    )
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected_ignored", "visible_ignored"),
+    [
+        ("Library/private", 1, False),
+        ("/Library/private", 1, False),
+        ("Library/*", 2, True),
+    ],
+)
+def test_matching_directory_is_pruned_and_stale_cache_is_removed(
+    monkeypatch, tmp_path, pattern, expected_ignored, visible_ignored
+):
+    workspace = _workspace(tmp_path / "workspace")
+    monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "apparatus-home"))
+    private = workspace / "Library/private"
+    private.mkdir()
+    (private / "secret.txt").write_text("private sentinel", encoding="utf-8")
+    (private / "second.txt").write_text(
+        "second private sentinel", encoding="utf-8"
+    )
+    visible = workspace / "Library/visible.txt"
+    visible.write_text("visible sentinel", encoding="utf-8")
+    first = ingest_library(workspace)
+    stale_record = first.cache / "extractions/private/secret.txt.json"
+    stale_text = first.cache / "extractions/private/secret.txt.txt"
+    second_record = first.cache / "extractions/private/second.txt.json"
+    second_text = first.cache / "extractions/private/second.txt.txt"
+    visible_record = first.cache / "extractions/visible.txt.json"
+    visible_text = first.cache / "extractions/visible.txt.txt"
+    assert stale_record.is_file() and stale_text.is_file()
+    assert second_record.is_file() and second_text.is_file()
+    assert visible_record.is_file() and visible_text.is_file()
+    (workspace / "System/ignore").write_text(f"{pattern}\n", encoding="utf-8")
+
+    original_scandir = ingest_module.os.scandir
+
+    def reject_ignored_directory(path):
+        if not isinstance(path, int) and Path(path) == private:
+            raise AssertionError("ignored directory was traversed")
+        return original_scandir(path)
+
+    monkeypatch.setattr(ingest_module.os, "scandir", reject_ignored_directory)
+    result = ingest_library(workspace)
+
+    assert result.counts["ignored"] == expected_ignored
+    assert result.counts["unchanged"] == (0 if visible_ignored else 1)
+    assert result.ignore_report.skipped_paths == expected_ignored
+    assert result.ignore_report.user_paths == expected_ignored
+    assert result.ignore_report.built_in_paths == 0
+    assert "System/ignore (1 user pattern(s))" in result.ignore_report.provenance
+    assert not stale_record.exists() and not stale_text.exists()
+    assert not second_record.exists() and not second_text.exists()
+    assert visible_record.exists() is not visible_ignored
+    assert visible_text.exists() is not visible_ignored
+    report = (
+        f"skipped {expected_ignored} path(s) "
+        f"(built-in=0, user={expected_ignored})"
+    )
+    assert any(
+        report in receipt.read_text(encoding="utf-8")
+        for receipt in (workspace / "System/receipts").glob(
+            "*-library-ingest*.md"
+        )
+    )
+
+
+def test_builtin_skip_count_and_provenance_are_reported(monkeypatch, tmp_path):
+    workspace = _workspace(tmp_path / "workspace")
+    monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "apparatus-home"))
+    (workspace / "Library/.DS_Store").write_bytes(b"noise")
+
+    result = ingest_library(workspace)
+
+    assert result.counts["ignored"] == 1
+    assert result.ignore_report.built_in_paths == 1
+    assert result.ignore_report.user_paths == 0
+    receipt = next((workspace / "System/receipts").glob("*-library-ingest.md"))
+    content = receipt.read_text(encoding="utf-8")
+    assert "System/ignore is missing" in content
+    assert "built-in=1, user=0" in content
+
+
+def test_invalid_ignore_stops_before_library_open(monkeypatch, tmp_path):
+    workspace = _workspace(tmp_path / "workspace")
+    (workspace / "System/ignore").write_bytes(b"\xff")
+    monkeypatch.setattr(
+        ingest_module,
+        "_open_library_directory",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("Library was opened")),
+    )
+
+    with pytest.raises(ValueError, match="UTF-8"):
+        ingest_library(workspace)
 
 
 def test_ingest_flags_unsupported_and_corrupt_sources_and_command_exits_one(monkeypatch, tmp_path, capsys):
@@ -298,10 +426,10 @@ def test_cache_creation_and_library_root_swap_do_not_escape(monkeypatch, tmp_pat
     source = workspace / "Library/private.txt"; source.write_text("private")
     secret_library = tmp_path / "secret-library"; secret_library.mkdir(); (secret_library / "private.txt").write_text("TOPSECRET")
     original_entries = ingest_module._library_entries
-    def swap_root(library_path, descriptor):
+    def swap_root(library_path, descriptor, rules):
         library_path.rename(workspace / "Library-old")
         library_path.symlink_to(secret_library, target_is_directory=True)
-        return original_entries(library_path, descriptor)
+        return original_entries(library_path, descriptor, rules)
     monkeypatch.setattr(ingest_module, "_library_entries", swap_root)
     result = ingest_library(workspace)
     assert result.counts["error"] == 1
@@ -345,6 +473,7 @@ def test_atomic_identity_and_descriptor_stale_cleanup_resist_substitution(monkey
 def test_windows_publication_mode_and_anchor_close_are_platform_safe(monkeypatch, tmp_path):
     target = tmp_path / "target"; target.write_bytes(b"same")
     workspace = _workspace(tmp_path / "workspace")
+    (workspace / "System/ignore").write_text("# valid\n", encoding="utf-8")
     status = target.stat()
     monkeypatch.setattr(ingest_module.os, "lstat", lambda _path: SimpleNamespace(st_mode=stat.S_IFREG | 0o666, st_nlink=1, st_dev=status.st_dev, st_ino=status.st_ino))
     monkeypatch.setattr(ingest_module, "_requires_private_mode", lambda: False)

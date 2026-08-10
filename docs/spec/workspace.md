@@ -63,6 +63,7 @@ normative in `docs/spec/records.md`, machine-readable in
 | `System/policy/` | now (PR-06) | Both policy overlays ship; `System/profile.yaml`'s `privacy_mode` selects the active one. |
 | `System/receipts/` | now (PR-05); PR-09 machinery | The assistant writes receipts from the first procedure run; CLI machinery also writes them from PR-09. |
 | `System/machine-report.md` | PR-08 | Environment capabilities, written by `doctor`/the bootstrapper. |
+| `System/ignore` | PR-28 | Workspace-relative rules that hide selected paths from Library machinery and record checks; they never change egress or credential redaction. |
 | Workspace instruction canon and shims | now (PR-07) | `AGENTS.md` canon at the workspace root plus `CLAUDE.md`, `.cursor/rules/apparatus.mdc`, and `.github/copilot-instructions.md` shims (ADR-0003). |
 
 ## Placement on disk

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from apparatus_core import records
 from apparatus_core import shims
+from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.render import (
     RenderError,
     is_reparse_path,
@@ -30,6 +31,11 @@ class CheckResult:
 
     findings: tuple[Finding, ...]
     records_checked: int
+    ignore_report: IgnoreReport = field(default_factory=IgnoreReport)
+
+    @property
+    def ignored_paths(self) -> int:
+        return self.ignore_report.skipped_paths
 
     @property
     def ok(self) -> bool:
@@ -62,18 +68,45 @@ def _relative(path: Path, workspace: Path) -> str:
     return path.relative_to(workspace).as_posix()
 
 
-def _record_files(folder: Path) -> list[Path]:
-    """Return Markdown files below *folder*, omitting every dot-directory."""
+def _record_files(
+    folder: Path, workspace: Path, rules: IgnoreRules
+) -> tuple[list[Path], int, int]:
+    """Return visible records and count ignored traversal boundaries once."""
     found: list[Path] = []
-    for path in folder.rglob("*.md"):
-        relative_parts = path.relative_to(folder).parts
-        if path.name.startswith(".") or any(
-            part.startswith(".") for part in relative_parts[:-1]
-        ):
-            continue
-        if path.is_file():
-            found.append(path)
-    return sorted(found)
+    built_in_ignored = 0
+    user_ignored = 0
+
+    def count(classification: str) -> None:
+        nonlocal built_in_ignored, user_ignored
+        if classification == "built-in":
+            built_in_ignored += 1
+        else:
+            user_ignored += 1
+
+    def visit(directory: Path, *, classify_directory: bool = True) -> None:
+        if classify_directory:
+            classification = rules.classification(
+                _relative(directory, workspace), is_directory=True
+            )
+            if classification is not None:
+                count(classification)
+                return
+        for path in sorted(directory.iterdir(), key=lambda item: item.as_posix()):
+            if path.name.startswith(".") or is_reparse_path(path):
+                continue
+            if path.is_dir():
+                visit(path)
+                continue
+            if path.suffix != ".md" or not path.is_file():
+                continue
+            classification = rules.classification(_relative(path, workspace))
+            if classification is not None:
+                count(classification)
+            else:
+                found.append(path)
+
+    visit(folder)
+    return sorted(found), built_in_ignored, user_ignored
 
 
 def _declared_kind(data: dict) -> str | None:
@@ -257,6 +290,17 @@ def check_workspace(
     """Check a workspace tree and its v0 records without changing it."""
     root = Path(workspace)
     findings: list[Finding] = []
+    rules = load_ignore_rules(root)
+    findings.extend(
+        Finding(
+            issue.code,
+            "System/ignore",
+            (f"Line {issue.line}: " if issue.line else "") + issue.message,
+        )
+        for issue in rules.issues
+    )
+    if not rules.valid:
+        return CheckResult(tuple(findings), 0, rules.report())
     for relative, is_directory in REQUIRED_ENTRIES:
         path = root / relative
         exists = path.is_dir() if is_directory else path.is_file()
@@ -270,22 +314,49 @@ def check_workspace(
             )
 
     records_checked = 0
+    built_in_ignored = 0
+    user_ignored = 0
     for relative, kind in RECORD_FOLDERS:
         folder = root / relative
         if not folder.is_dir():
             continue
-        for path in _record_files(folder):
+        paths, folder_built_in, folder_user = _record_files(
+            folder, root, rules
+        )
+        built_in_ignored += folder_built_in
+        user_ignored += folder_user
+        for path in paths:
             records_checked += 1
             findings.extend(_record_findings(path, root, kind))
 
     profile = root / "System/profile.yaml"
     if profile.is_file():
-        records_checked += 1
-        findings.extend(_profile_findings(profile, root))
+        classification = rules.classification(_relative(profile, root))
+        if classification is not None:
+            if classification == "built-in":
+                built_in_ignored += 1
+            else:
+                user_ignored += 1
+        else:
+            records_checked += 1
+            findings.extend(_profile_findings(profile, root))
     machine_report = root / "System/machine-report.md"
     if machine_report.is_file():
-        findings.extend(_machine_report_findings(machine_report, root))
+        classification = rules.classification(_relative(machine_report, root))
+        if classification is not None:
+            if classification == "built-in":
+                built_in_ignored += 1
+            else:
+                user_ignored += 1
+        else:
+            findings.extend(_machine_report_findings(machine_report, root))
 
     findings.extend(_shim_findings(root, shim_registry))
 
-    return CheckResult(tuple(findings), records_checked)
+    return CheckResult(
+        tuple(findings),
+        records_checked,
+        rules.report(
+            built_in_paths=built_in_ignored, user_paths=user_ignored
+        ),
+    )

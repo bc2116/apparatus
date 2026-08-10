@@ -10,6 +10,7 @@ from typing import Any, TypedDict
 
 from apparatus_core.cache import library_cache_root
 from apparatus_core.credentials import RedactionFinding, redact
+from apparatus_core.ignore import IgnoreReport, load_ignore_rules
 from apparatus_core.library import index
 from apparatus_core.receipts import write_receipt
 
@@ -60,7 +61,9 @@ def _redact_receipt_values(
     return redacted_question, redacted_sources, merged
 
 
-def _receipt_fields(envelope: RecallEnvelope) -> dict[str, Any]:
+def _receipt_fields(
+    envelope: RecallEnvelope, ignore_report: IgnoreReport
+) -> dict[str, Any]:
     sources = [item["source"] for item in envelope["evidence"]]
     question, safe_sources, findings = _redact_receipt_values(
         envelope["question"], sources
@@ -79,8 +82,11 @@ def _receipt_fields(envelope: RecallEnvelope) -> dict[str, Any]:
         "evidence_sources": safe_sources,
         "credential_classes": sorted(counts),
         "credential_counts": counts,
+        "ignored_paths": ignore_report.skipped_paths,
+        "ignore_rule_provenance": ignore_report.provenance,
         "body": (
-            "Evidence sources:\n"
+            ignore_report.sentence()
+            + "\n\nEvidence sources:\n"
             + source_details
             + "\n\nCredential-floor redactions:\n"
             + redaction_details
@@ -94,6 +100,7 @@ def recall(
     limit: int = 5,
     *,
     write: Callable[[str | Path, str, dict[str, Any]], Path] = write_receipt,
+    report_ignore: Callable[[IgnoreReport], None] | None = None,
 ) -> RecallEnvelope:
     """Retrieve Library evidence, abstain honestly, and write one receipt."""
     workspace_path = Path(workspace)
@@ -102,10 +109,11 @@ def recall(
     if limit < 1:
         raise ValueError("limit must be positive")
 
+    rules = load_ignore_rules(workspace_path).require_valid()
     cache = library_cache_root(workspace_path)
-    if not index.has_extractions(cache):
+    if not index.has_extractions(cache, rules):
         raise NoExtractionsError
-    index.refresh(cache)
+    ignore_report = index.refresh(cache, workspace_path)
     hits = index.search(cache, question, limit)
     qualifying = [hit for hit in hits if hit.score >= RECALL_ABSTAIN_THRESHOLD]
     evidence: list[Evidence] = [
@@ -119,5 +127,7 @@ def recall(
         "evidence": evidence,
         "generated_at": _timestamp(_utcnow()),
     }
-    write(workspace_path, "recall", _receipt_fields(envelope))
+    write(workspace_path, "recall", _receipt_fields(envelope, ignore_report))
+    if report_ignore is not None:
+        report_ignore(ignore_report)
     return envelope

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -14,12 +14,13 @@ import unicodedata
 
 from apparatus_core.cache import library_cache_root
 from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
+from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION, extract_bytes
 from apparatus_core.receipts import write_receipt
 from apparatus_core.render import is_reparse_path
 
 _NOISE = {".DS_Store", "Thumbs.db", "desktop.ini"}
-_STATUSES = ("scanned", "extracted", "unchanged", "no_text", "unsupported", "error")
+_STATUSES = ("scanned", "ignored", "extracted", "unchanged", "no_text", "unsupported", "error")
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,7 @@ class IngestResult:
     cache: Path
     counts: dict[str, int]
     flagged: tuple[tuple[str, str, str], ...]
+    ignore_report: IgnoreReport = field(default_factory=IgnoreReport)
 
     @property
     def ok(self) -> bool:
@@ -41,13 +43,14 @@ class _TraversalFailure:
 def ingest_library(workspace: str | Path) -> IngestResult:
     """Extract all visible Library sources and write one honest receipt."""
     root = Path(workspace)
+    rules = load_ignore_rules(root).require_valid()
     if is_reparse_path(root) or is_reparse_path(root / "Library"):
         raise ValueError("workspace and Library must not be symbolic links")
     library = root / "Library"
     library_fd = _open_library_directory(library)
     windows_anchor = _windows_source_anchor(root)
     try:
-        return _ingest_library(root, library, library_fd, windows_anchor)
+        return _ingest_library(root, library, library_fd, windows_anchor, rules)
     finally:
         _close_source_anchors(library_fd, windows_anchor)
 
@@ -57,6 +60,7 @@ def _ingest_library(
     library: Path,
     library_fd: int,
     windows_anchor: WindowsWorkspaceAnchor | None,
+    rules: IgnoreRules,
 ) -> IngestResult:
     """Run ingestion while the workspace's source anchor remains retained."""
     cache = library_cache_root(root)
@@ -68,12 +72,33 @@ def _ingest_library(
     counts = {status: 0 for status in _STATUSES}
     flagged: list[tuple[str, str, str]] = []
     seen: set[tuple[str, ...]] = set()
-    entries = _library_entries(library, library_fd)
+    built_in_ignored = 0
+    user_ignored = 0
+    entries = _library_entries(library, library_fd, rules)
     for source in entries:
         if isinstance(source, _TraversalFailure):
             counts["scanned"] += 1
             counts["error"] += 1
             flagged.append((_safe(source.relative), "error", "Library directory could not be traversed"))
+            continue
+        relative = source.relative_to(library).as_posix()
+        try:
+            entry_status = os.lstat(source)
+        except OSError:
+            counts["scanned"] += 1
+            counts["error"] += 1
+            flagged.append((_safe(relative), "error", "source could not be inspected"))
+            continue
+        classification = rules.classification(
+            "Library/" + relative,
+            is_directory=stat.S_ISDIR(entry_status.st_mode),
+        )
+        if classification is not None:
+            counts["ignored"] += 1
+            if classification == "built-in":
+                built_in_ignored += 1
+            else:
+                user_ignored += 1
             continue
         if source.name in _NOISE or any(part.startswith(".") for part in source.relative_to(library).parts):
             continue
@@ -85,8 +110,8 @@ def _ingest_library(
         try:
             source_status = source.stat()
         except OSError:
-            relative = source.relative_to(library).as_posix()
-            counts["scanned"] += 1; counts["error"] += 1
+            counts["scanned"] += 1
+            counts["error"] += 1
             flagged.append((_safe(relative), "error", "source could not be inspected"))
             continue
         if stat.S_ISDIR(source_status.st_mode):
@@ -96,7 +121,6 @@ def _ingest_library(
             counts["scanned"] += 1; counts["error"] += 1
             flagged.append((_safe(relative), "error", "source is not a regular file"))
             continue
-        relative = source.relative_to(library).as_posix()
         seen.add(_portable_key(relative))
         counts["scanned"] += 1
         try:
@@ -139,10 +163,17 @@ def _ingest_library(
         if result.status in {"no_text", "unsupported", "error"}:
             flagged.append((_safe(relative), result.status, _safe(result.error or "no text extracted")))
     _remove_deleted(extractions, seen)
-    body = "Flagged Library files:\n" + ("\n".join(f"- {_safe(path)}: {status}: {_safe(reason)}" for path, status, reason in flagged) if flagged else "- none")
+    ignore_report = rules.report(
+        built_in_paths=built_in_ignored, user_paths=user_ignored
+    )
+    body = (
+        ignore_report.sentence()
+        + "\n\nFlagged Library files:\n"
+        + ("\n".join(f"- {_safe(path)}: {status}: {_safe(reason)}" for path, status, reason in flagged) if flagged else "- none")
+    )
     summary = "Library ingest: " + ", ".join(f"{name}={counts[name]}" for name in _STATUSES) + "."
     write_receipt(root, "library-ingest", {"summary": summary, "body": body})
-    return IngestResult(cache, counts, tuple(flagged))
+    return IngestResult(cache, counts, tuple(flagged), ignore_report)
 
 
 def _windows_source_anchor(root: Path) -> WindowsWorkspaceAnchor | None:
@@ -168,7 +199,9 @@ def _open_library_directory(library: Path) -> int:
         raise ValueError("workspace and Library must not be symbolic links") from error
 
 
-def _library_entries(library: Path, library_fd: int) -> list[Path | _TraversalFailure]:
+def _library_entries(
+    library: Path, library_fd: int, rules: IgnoreRules
+) -> list[Path | _TraversalFailure]:
     """List sources without following symbolic links or Windows junctions."""
     entries: list[Path | _TraversalFailure] = []
 
@@ -183,12 +216,17 @@ def _library_entries(library: Path, library_fd: int) -> list[Path | _TraversalFa
             return
         for child in children:
             entries.append(child)
-            if not is_reparse_path(child):
-                try:
-                    if stat.S_ISDIR(os.lstat(child).st_mode):
-                        visit(child)
-                except OSError:
-                    continue
+            relative = child.relative_to(library).as_posix()
+            try:
+                child_status = os.lstat(child)
+            except OSError:
+                continue
+            is_directory = stat.S_ISDIR(child_status.st_mode)
+            ignored = rules.matches(
+                "Library/" + relative, is_directory=is_directory
+            )
+            if not ignored and not is_reparse_path(child) and is_directory:
+                visit(child)
 
     visit(library)
     return entries

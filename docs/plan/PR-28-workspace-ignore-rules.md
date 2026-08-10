@@ -38,8 +38,11 @@ and tidiness tool; they never weaken the safety gates.
   - **Built-in defaults** (always ignored, not user-editable): OS metadata
     noise (`.DS_Store`, `Thumbs.db`, `desktop.ini`) and the workspace's own
     git internals.
-  - **Reporting:** every verb that skips content because of ignore rules says
-    so in its receipt (counts and rule provenance, not file contents).
+  - **Reporting:** every existing receipt-producing verb that skips content
+    because of ignore rules says so in its receipt (counts and rule
+    provenance, not paths or file contents). Library search has no receipt
+    event in the closed v1 schema, so it reports the same facts in command
+    output without adding an event or changing record schemas.
 - `starter/payload/System/ignore` — shipped with the built-in explanation
   header and the commented default patterns; payload manifest updated.
 - Pattern engine in `packages/apparatus-core` (e.g. `ignore.py`): implement
@@ -90,10 +93,27 @@ and tidiness tool; they never weaken the safety gates.
 
 ## Dependencies
 
-PR-09 (check), PR-14 (Library ingest), PR-15 (Library index), and PR-16
-(recall) must have landed, matching `docs/plan/README.md`.
+PR-09 (check), PR-14 (Library ingest), PR-15 (Library index), PR-16
+(recall), and PR-18 (egress gate) must have landed, matching
+`docs/plan/README.md`.
 
 ## Open decisions
+
+- **Directory-match descendant semantics.** Blocking review cycle 2 exposed an
+  ambiguity between ingest pruning and cache-path matching. The smallest
+  privacy-safe default is: any supported pattern that matches a directory hides
+  that directory and every descendant; trailing `/` means directory-only
+  matching but is not required for descendant exclusion once a directory
+  matches. This remains the documented subset, not full gitignore parity.
+- **Receipt reporting for read-only search.** The receipt event enum is closed
+  and Library search deliberately has no receipt. Smallest reversible default:
+  existing receipt-producing verbs record count and provenance in their
+  receipts, while search reports them in command output. This preserves both
+  the receipt schema and search's established JSON contract.
+- **Egress acceptance sequencing.** Acceptance criterion 5 requires the PR-18
+  egress command and tests, so PR-18 is a dependency even though it was omitted
+  from the prompt's original dependency list. PR-28 does not duplicate egress;
+  it integrates the ignored-file regression after PR-18 lands.
 
 - **Snapshots and ignored paths.** Smallest reversible default: snapshots
   still include ignored paths — recovery-first, matching the "you cannot
