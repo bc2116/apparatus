@@ -241,14 +241,35 @@ jobs:
             throw 'The Windows wrapper log did not record the bootstrap dry-run.'
           }
 
-          $marker = Join-Path $env:RUNNER_TEMP 'apparatus-injection-marker'
-          $hostilePath = "C:\Runner Temp\Apparatus & New-Item '$marker'; trailing\"
+          $marker = Join-Path (Get-Location) 'apparatus-injection-marker'
+          $hostileLog = Join-Path $env:RUNNER_TEMP 'apparatus-installer-hostile.log'
+          $hostilePath = "C:\Runner Temp\Apparatus & New-Item 'apparatus-injection-marker';"
           $hostileExit = Invoke-ApparatusInstaller -Arguments @(
             '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN',
-            "/WORKSPACEPATH=$hostilePath", "/LOG=$log"
+            "/WORKSPACEPATH=$hostilePath", "/LOG=$hostileLog"
           )
-          if ($hostileExit -ne 0 -or (Test-Path -LiteralPath $marker)) {
-            throw 'The Windows wrapper did not preserve a hostile workspace path as one value.'
+          $injectionObserved = Test-Path -LiteralPath $marker
+          if ($hostileExit -ne 0 -or $injectionObserved) {
+            if (Test-Path -LiteralPath $hostileLog) {
+              Get-Content -LiteralPath $hostileLog
+            }
+            throw "The hostile workspace path probe returned exit $hostileExit; injection marker present: $injectionObserved."
+          }
+
+          foreach ($trailingPath in @('C:\Runner Temp\Apparatus\', 'C:\Runner Temp\Apparatus\\')) {
+            $trailingLog = Join-Path $env:RUNNER_TEMP (
+              "apparatus-installer-trailing-$($trailingPath.Length).log"
+            )
+            $trailingExit = Invoke-ApparatusInstaller -Arguments @(
+              '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN',
+              "/WORKSPACEPATH=$trailingPath", "/LOG=$trailingLog"
+            )
+            if ($trailingExit -ne 0) {
+              if (Test-Path -LiteralPath $trailingLog) {
+                Get-Content -LiteralPath $trailingLog
+              }
+              throw "The trailing-backslash workspace path probe returned exit $trailingExit for length $($trailingPath.Length)."
+            }
           }
 
           $reverseLog = Join-Path $env:RUNNER_TEMP 'apparatus-installer-reverse.log'
@@ -260,8 +281,11 @@ jobs:
             throw 'The Windows wrapper changed behavior when workspace path preceded dry-run.'
           }
           $reverseText = Get-Content -LiteralPath $reverseLog -Raw
-          if ($reverseText -notmatch 'Apparatus setup dry-run' -or $reverseText -notmatch 'trailing\\') {
-            throw 'The Windows wrapper lost a reordered option or trailing backslash.'
+          if (
+            $reverseText -notmatch 'Apparatus setup dry-run' -or
+            $reverseText -notmatch [regex]::Escape($hostilePath)
+          ) {
+            throw 'The Windows wrapper lost a reordered option or hostile path character.'
           }
 
           $duplicateExit = Invoke-ApparatusInstaller -Arguments @(
