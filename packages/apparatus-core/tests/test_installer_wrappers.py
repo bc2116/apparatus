@@ -10,6 +10,48 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
+def test_native_wrapper_text_inputs_are_lf_pinned_across_checkouts(tmp_path: Path) -> None:
+    paths = (
+        "installer/windows/bootstrap-apparatus.ps1",
+        "installer/windows/build-installer.ps1",
+        "installer/windows/apparatus-installer.iss",
+        "installer/macos/bootstrap-apparatus.sh",
+        "installer/macos/build-package.sh",
+        "installer/macos/verify-package.sh",
+        "installer/macos/package-scripts/postinstall",
+    )
+    attributes = subprocess.run(
+        ["git", "check-attr", "text", "eol", "--", *paths],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    expected = {
+        f"{path}: {attribute}: {value}"
+        for path in paths
+        for attribute, value in (("text", "set"), ("eol", "lf"))
+    }
+    assert set(attributes) == expected
+
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.autocrlf=true",
+            "checkout-index",
+            f"--prefix={tmp_path}/",
+            "--",
+            paths[0],
+            paths[3],
+        ],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+    )
+    for path in (paths[0], paths[3]):
+        assert (tmp_path / path).read_bytes() == (REPOSITORY_ROOT / path).read_bytes()
+
+
 def test_windows_wrapper_embeds_and_verifies_only_the_canonical_script() -> None:
     definition = (
         REPOSITORY_ROOT / "installer" / "windows" / "apparatus-installer.iss"

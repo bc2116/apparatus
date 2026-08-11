@@ -92,6 +92,8 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert content.count("$startInfo.UseShellExecute = $false") == 2
     assert content.count("$startInfo.ArgumentList.Add($argument)") == 2
     assert content.count("$process.WaitForExit()") == 2
+    assert "apparatus-injection-marker';" in content
+    assert r"@('C:\Runner Temp\Apparatus\', 'C:\Runner Temp\Apparatus\\')" in content
     assert "apparatus-unsigned-windows-installer" in content
     assert "apparatus-signed-windows-installer" in content
     assert "apparatus-unsigned-macos-installer" in content
@@ -157,6 +159,7 @@ def test_signing_documents_pin_operator_configuration_and_it_claims() -> None:
     assert len(one_pager.split()) <= 600
     assert "Releases include an Inno Setup `.exe` and a no-payload macOS `.pkg`" in one_pager
     assert "standard receipt and log metadata" in one_pager
+    assert "`SHA256SUMS` covers the seven distributable artifacts" in one_pager
 
 
 def _release_metadata_script() -> str:
@@ -208,6 +211,8 @@ def test_release_metadata_does_not_prefix_match_changelog_versions(tmp_path: Pat
 
     assert "Release date:" in notes
     assert "Update CHANGELOG.md" in notes
+    assert "bare Windows and macOS bootstrap scripts" in notes
+    assert "Windows and macOS installer wrappers" in notes
     assert "Other notes." not in notes
 
 

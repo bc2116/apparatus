@@ -16,7 +16,8 @@ authentication and keeps its standard receipt and log metadata; its launcher
 runs the bootstrap chain as the logged-in user and installs no system payload.
 Signing gates remain off until certificates are configured. When enabled, the
 outer `.exe` is Authenticode-signed and the outer `.pkg` is Developer ID signed,
-notarized, and stapled. `SHA256SUMS` covers every release file as built.
+notarized, and stapled. `SHA256SUMS` covers the seven distributable artifacts:
+the payload, source distribution, wheel, two bare scripts, `.exe`, and `.pkg`.
 
 ## Workspace data
 

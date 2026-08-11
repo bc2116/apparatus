@@ -65,8 +65,9 @@ jobs:
               notes = (
                   f"## v{version}\n\n"
                   f"Release date: {date.today().isoformat()}\n\n"
-                  "Included files: universal payload archive, apparatus-core source distribution, "
-                  "and apparatus-core wheel.\n\n"
+                  "Included files: universal payload archive, apparatus-core source distribution "
+                  "and wheel, bare Windows and macOS bootstrap scripts, and Windows and macOS "
+                  "installer wrappers.\n\n"
                   "Update CHANGELOG.md with release notes before the next release."
               )
           if dry_run:
