@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 from pathlib import Path, PureWindowsPath
 import re
 import signal
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -20,7 +22,18 @@ WINDOWS_SCRIPT = REPO_ROOT / "installer/windows/bootstrap-apparatus.ps1"
 WINDOWS_TRACE_CONTROLLER = REPO_ROOT / "conformance/windows_bootstrap_syscall_trace.ps1"
 WINDOWS_ETW_TEST = (
     "conformance/test_bootstrap_dry_run.py::"
-    "test_windows_dry_run_has_no_file_registry_or_network_syscalls"
+    "test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls"
+)
+WINDOWS_HOSTED_ETW_SKIP_REASON = (
+    "operator ruling: WPR/ETW is platform-infeasible on hosted Windows runners; "
+    "the scoped filesystem comparison is the primary persistent-object proof"
+)
+WINDOWS_INSTALL_DESTINATIONS = (
+    ("uv executable", (".local", "bin", "uv.exe")),
+    ("managed Python", (".local", "share", "uv", "python")),
+    ("tool packages", (".local", "share", "uv", "tools")),
+    ("tool commands", (".local", "bin")),
+    ("uv cache", (".cache", "uv")),
 )
 MACOS_SANDBOX_PROFILE = """
 (version 1)
@@ -40,6 +53,117 @@ STEP_LABELS = (
     "Doctor:",
     "Network:",
 )
+
+
+@dataclass(frozen=True)
+class _PersistentObjectState:
+    kind: int
+    size: int
+    mtime_ns: int
+    identity: tuple[int, int]
+    permissions: int
+    file_attributes: int | None
+
+
+def _persistent_object_state(metadata: os.stat_result) -> _PersistentObjectState:
+    return _PersistentObjectState(
+        kind=stat.S_IFMT(metadata.st_mode),
+        size=metadata.st_size,
+        mtime_ns=metadata.st_mtime_ns,
+        identity=(metadata.st_dev, metadata.st_ino),
+        permissions=stat.S_IMODE(metadata.st_mode),
+        file_attributes=getattr(metadata, "st_file_attributes", None),
+    )
+
+
+def _persistent_tree(root: Path) -> dict[str, _PersistentObjectState]:
+    """Capture persistent-object metadata without following link-like objects."""
+
+    try:
+        root_metadata = root.stat(follow_symlinks=False)
+    except FileNotFoundError:
+        return {}
+
+    state = {".": _persistent_object_state(root_metadata)}
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    root_is_reparse = bool(
+        getattr(root_metadata, "st_file_attributes", 0) & reparse_flag
+    )
+    if not stat.S_ISDIR(root_metadata.st_mode) or root_is_reparse:
+        return state
+
+    pending = [(root, "")]
+    while pending:
+        current, prefix = pending.pop()
+        with os.scandir(current) as entries:
+            children = sorted(entries, key=lambda entry: entry.name.casefold())
+        for entry in children:
+            relative = f"{prefix}/{entry.name}" if prefix else entry.name
+            metadata = entry.stat(follow_symlinks=False)
+            state[relative] = _persistent_object_state(metadata)
+            is_reparse = bool(
+                getattr(metadata, "st_file_attributes", 0) & reparse_flag
+            )
+            if stat.S_ISDIR(metadata.st_mode) and not is_reparse:
+                pending.append((Path(entry.path), relative))
+    return state
+
+
+def _windows_proof_locations(
+    *,
+    user_profile: Path,
+    target: Path,
+    temp: Path,
+    working: Path,
+) -> dict[str, Path]:
+    locations = {"workspace target": target}
+    locations.update(
+        {
+            f"install destination: {label}": user_profile.joinpath(*parts)
+            for label, parts in WINDOWS_INSTALL_DESTINATIONS
+        }
+    )
+    locations["TEMP"] = temp
+    locations["working directory"] = working
+    return locations
+
+
+def _snapshot_locations(
+    locations: dict[str, Path],
+) -> dict[str, dict[str, _PersistentObjectState]]:
+    return {label: _persistent_tree(path) for label, path in locations.items()}
+
+
+def _snapshot_delta(
+    before: dict[str, dict[str, _PersistentObjectState]],
+    after: dict[str, dict[str, _PersistentObjectState]],
+) -> str:
+    changes: list[str] = []
+    fields = tuple(_PersistentObjectState.__dataclass_fields__)
+    for location in before:
+        old = before[location]
+        new = after[location]
+        for name in sorted(old.keys() - new.keys()):
+            changes.append(f"{location}: removed {name}")
+        for name in sorted(new.keys() - old.keys()):
+            changes.append(f"{location}: created {name}")
+        for name in sorted(old.keys() & new.keys()):
+            changed_fields = [
+                field
+                for field in fields
+                if getattr(old[name], field) != getattr(new[name], field)
+            ]
+            if changed_fields:
+                changes.append(
+                    f"{location}: changed {name} ({', '.join(changed_fields)})"
+                )
+    return "; ".join(changes[:20]) or "no metadata delta"
+
+
+def _is_github_hosted_runner() -> bool:
+    return (
+        os.environ.get("RUNNER_ENVIRONMENT", "").casefold() == "github-hosted"
+    )
 
 
 def _tree(root: Path) -> dict[str, bytes]:
@@ -251,7 +375,7 @@ def test_windows_trace_controller_is_built_in_bounded_and_non_vacuous():
     assert 'GetEnvironmentVariable("SystemRoot", "Machine")' not in controller
 
 
-def test_windows_global_trace_is_isolated_to_bootstrap_ci_job():
+def test_windows_hosted_jobs_use_scoped_filesystem_proof():
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
     windows_safety = workflow.split("\n  windows-safety:\n", 1)[1].split(
         "\n  bootstrap-windows:\n", 1
@@ -268,6 +392,108 @@ def test_windows_global_trace_is_isolated_to_bootstrap_ci_job():
     assert exclusion in bootstrap_windows
     assert selection in bootstrap_windows
     assert workflow.count(WINDOWS_ETW_TEST) == 3
+
+
+def test_optional_etw_witness_skips_only_github_hosted_runners(monkeypatch):
+    monkeypatch.delenv("RUNNER_ENVIRONMENT", raising=False)
+    assert not _is_github_hosted_runner()
+    monkeypatch.setenv("RUNNER_ENVIRONMENT", "self-hosted")
+    assert not _is_github_hosted_runner()
+    monkeypatch.setenv("RUNNER_ENVIRONMENT", "github-hosted")
+    assert _is_github_hosted_runner()
+
+
+def test_windows_filesystem_proof_pins_named_roots_and_compared_fields():
+    windows = WINDOWS_SCRIPT.read_text(encoding="utf-8")
+    declarations = {
+        "uv executable": '$UvBin = Join-Path $UserProfile ".local\\bin\\uv.exe"',
+        "managed Python": '$UvPythonDir = Join-Path $UserProfile ".local\\share\\uv\\python"',
+        "tool packages": '$UvToolDir = Join-Path $UserProfile ".local\\share\\uv\\tools"',
+        "tool commands": '$UvToolBin = Join-Path $UserProfile ".local\\bin"',
+        "uv cache": '$UvCacheDir = Join-Path $UserProfile ".cache\\uv"',
+    }
+    assert {label for label, _parts in WINDOWS_INSTALL_DESTINATIONS} == set(
+        declarations
+    )
+    assert all(declaration in windows for declaration in declarations.values())
+    assert tuple(_PersistentObjectState.__dataclass_fields__) == (
+        "kind",
+        "size",
+        "mtime_ns",
+        "identity",
+        "permissions",
+        "file_attributes",
+    )
+
+
+def test_persistent_tree_detects_absence_name_size_mtime_identity_and_attributes(
+    tmp_path,
+):
+    missing = tmp_path / "missing"
+    assert _persistent_tree(missing) == {}
+    missing.mkdir()
+    assert set(_persistent_tree(missing)) == {"."}
+
+    name_root = tmp_path / "name"
+    name_root.mkdir()
+    old_name = name_root / "old.txt"
+    old_name.write_bytes(b"name")
+    name_before = _persistent_tree(name_root)
+    old_name.rename(name_root / "new.txt")
+    name_after = _persistent_tree(name_root)
+    assert "old.txt" in name_before and "old.txt" not in name_after
+    assert "new.txt" not in name_before and "new.txt" in name_after
+
+    size_root = tmp_path / "size"
+    size_root.mkdir()
+    size_file = size_root / "value.txt"
+    size_file.write_bytes(b"a")
+    size_before = _persistent_tree(size_root)["value.txt"]
+    size_file.write_bytes(b"two")
+    size_after = _persistent_tree(size_root)["value.txt"]
+    assert size_before.size != size_after.size
+
+    mtime_root = tmp_path / "mtime"
+    mtime_root.mkdir()
+    mtime_file = mtime_root / "value.txt"
+    mtime_file.write_bytes(b"same")
+    first_mtime = 1_700_000_000_000_000_000
+    second_mtime = first_mtime + 10_000_000_000
+    os.utime(mtime_file, ns=(first_mtime, first_mtime))
+    mtime_before = _persistent_tree(mtime_root)["value.txt"]
+    os.utime(mtime_file, ns=(second_mtime, second_mtime))
+    mtime_after = _persistent_tree(mtime_root)["value.txt"]
+    assert mtime_before.size == mtime_after.size
+    assert mtime_before.identity == mtime_after.identity
+    assert mtime_before.mtime_ns != mtime_after.mtime_ns
+
+    identity_root = tmp_path / "identity"
+    identity_root.mkdir()
+    identity_file = identity_root / "value.txt"
+    replacement = identity_root / "replacement.tmp"
+    identity_file.write_bytes(b"same")
+    os.utime(identity_file, ns=(first_mtime, first_mtime))
+    identity_before = _persistent_tree(identity_root)["value.txt"]
+    replacement.write_bytes(b"same")
+    os.utime(replacement, ns=(first_mtime, first_mtime))
+    replacement.replace(identity_file)
+    identity_after = _persistent_tree(identity_root)["value.txt"]
+    assert identity_before.size == identity_after.size
+    assert identity_before.mtime_ns == identity_after.mtime_ns
+    assert identity_before.identity != (0, 0)
+    assert identity_after.identity != (0, 0)
+    assert identity_before.identity != identity_after.identity
+
+    attribute_file = identity_root / "attributes.txt"
+    attribute_file.write_bytes(b"attributes")
+    attribute_before = _persistent_tree(identity_root)["attributes.txt"]
+    attribute_file.chmod(stat.S_IREAD)
+    attribute_after = _persistent_tree(identity_root)["attributes.txt"]
+    assert (
+        attribute_before.permissions != attribute_after.permissions
+        or attribute_before.file_attributes != attribute_after.file_attributes
+    )
+    attribute_file.chmod(stat.S_IREAD | stat.S_IWRITE)
 
 
 def test_macos_sandbox_contract_is_generic_and_non_vacuous():
@@ -458,8 +684,130 @@ if (Test-RedirectedTarget 'D:\Child' $values 'C:\Users\Example') {{ exit 34 }}
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows filesystem proof")
+@pytest.mark.parametrize("workspace_present", [False, True], ids=["absent", "present"])
+def test_windows_dry_run_preserves_every_named_filesystem_location(
+    tmp_path,
+    workspace_present,
+):
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is unavailable")
+
+    home = tmp_path / "profile"
+    temp = tmp_path / "temp"
+    working = tmp_path / "working"
+    target = tmp_path / "workspace/Apparatus"
+    for directory in (
+        home,
+        temp,
+        working,
+        home / "AppData/Local",
+        home / "AppData/Roaming",
+    ):
+        directory.mkdir(parents=True, exist_ok=True)
+    if workspace_present:
+        target.mkdir(parents=True)
+        (target / "existing.txt").write_text("preserve me\n", encoding="utf-8")
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "HOME": str(home),
+            "USERPROFILE": str(home),
+            "APPDATA": str(home / "AppData/Roaming"),
+            "LOCALAPPDATA": str(home / "AppData/Local"),
+            "TEMP": str(temp),
+            "TMP": str(temp),
+            "HTTP_PROXY": "http://127.0.0.1:9",
+            "HTTPS_PROXY": "http://127.0.0.1:9",
+            "ALL_PROXY": "http://127.0.0.1:9",
+            "NO_PROXY": "",
+        }
+    )
+    # Bind the proof to the same .NET SpecialFolder root the bootstrap script
+    # uses. Caller-provided HOME/USERPROFILE values are not evidence that this
+    # API resolved the same install root.
+    profile_probe = subprocess.run(
+        [
+            powershell,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "[Console]::Out.Write([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile))",
+        ],
+        cwd=working,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert profile_probe.returncode == 0, profile_probe.stdout + profile_probe.stderr
+    user_profile = Path(profile_probe.stdout)
+    assert user_profile.is_absolute(), "the script's user profile root must be absolute"
+
+    locations = _windows_proof_locations(
+        user_profile=user_profile,
+        target=target,
+        temp=temp,
+        working=working,
+    )
+    assert set(locations) == {
+        "workspace target",
+        "install destination: uv executable",
+        "install destination: managed Python",
+        "install destination: tool packages",
+        "install destination: tool commands",
+        "install destination: uv cache",
+        "TEMP",
+        "working directory",
+    }
+    before = _snapshot_locations(locations)
+    assert bool(before["workspace target"]) is workspace_present
+    for label, objects in before.items():
+        for name, object_state in objects.items():
+            assert object_state.identity != (0, 0), (
+                f"{label}: {name} did not expose a usable file identity"
+            )
+
+    completed = subprocess.run(
+        [
+            powershell,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(WINDOWS_SCRIPT),
+            "-DryRun",
+            "-Path",
+            str(target),
+        ],
+        cwd=working,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "read-only detection; no install, network, or workspace commands" in (
+        completed.stdout
+    )
+    after = _snapshot_locations(locations)
+    assert after == before, _snapshot_delta(before, after)
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows ETW regression")
-def test_windows_dry_run_has_no_file_registry_or_network_syscalls():
+@pytest.mark.skipif(
+    _is_github_hosted_runner(),
+    reason=WINDOWS_HOSTED_ETW_SKIP_REASON,
+)
+def test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls():
     system_root = Path(os.environ["SystemRoot"])
     powershell = system_root / "System32/WindowsPowerShell/v1.0/powershell.exe"
     assert powershell.is_file(), "Windows PowerShell 5.1 is required"

@@ -82,9 +82,12 @@ and honest documentation of their limits.
    attributes of a persistent filesystem object: a file, directory, symbolic
    link, or extended attribute. Character-device I/O under `/dev` is outside
    this boundary, and the proof contract must not enumerate device names.
-   Native CI must enforce the boundary with non-vacuous persistent-object and
-   network canaries; tree and static checks remain defense in depth rather
-   than the primary proof.
+   Native CI must enforce the persistent-object boundary with non-vacuous
+   metadata and identity canaries on Windows and mutation-denial canaries on
+   macOS. The macOS sandbox retains its native network canary. Windows retains
+   static exit-order and source checks in hosted CI and an optional ETW network
+   witness where the platform can run it; static checks remain defense in
+   depth rather than the primary persistent-object proof.
 8. Both scripts fail loudly (nonzero, clear message) on unsupported OS,
    missing shell prerequisites, or a partially blocked chain — never a
    silent half-install; the message always says re-running is safe.
@@ -116,15 +119,16 @@ and honest documentation of their limits.
   canaries. Its generic `/dev` allowance permits character-device data I/O
   only; creation, deletion, rename, metadata, and extended-attribute changes
   remain denied, and no device name is listed.
-- The Windows native proof uses only built-in WPR, ETW, and `tracerpt`. A
-  test-only PowerShell 5.1 controller outside the workspace and installer
-  suspends the cold bootstrap process, contains it in a one-process Job
-  Object, starts file-mode ProcessThread, FileIO, FileIOInit, Registry, and
-  Network tracing before resume, filters exact PID/time events, and fails on
-  file, registry, TCP, or UDP mutation. Separate canaries must prove each
-  provider category, and cleanup must restore sessions and trace artifacts
-  exactly. An incomplete hosted provider or parser is a blocked stop, never a
-  reason to weaken the proof.
+- The primary Windows native proof compares the filesystem before and after
+  dry-run by name, size, modification time, and file identity across every
+  named location: the workspace target, each user-scope install destination,
+  `TEMP`, and the working directory. It covers absent and present roots and
+  uses deterministic mutation canaries for every compared field. It needs no
+  administrator access, global session, or timeout-prone trace lifecycle.
+  The existing built-in WPR/ETW controller remains an optional stronger
+  file/registry/network witness. Hosted runners skip that optional test with a
+  reason recording the operator ruling; Windows environments with working ETW
+  continue to run it.
 - `uv run pytest` green is required.
 
 ## Out of scope
@@ -223,7 +227,26 @@ ETW invocation still failed because the traced cold process did not exit within
 the controller's 30-second wait. The same timeout occurred in pass 1, so
 removing concurrent execution did not close the native proof capability gap.
 
-Both authorized repair passes are exhausted. The required exact-head Windows
-proof and its canaries did not complete, so this PR is a blocked stop requiring
-operator review. It must not be marked landed or merged, and no further repair
-is authorized by this restart contract.
+Both authorized repair passes were exhausted at administrative head `98d1851`,
+and the PR entered a blocked stop for operator review.
+
+## Authorized Windows proof-mechanism restart
+
+The operator reclassified the repeatable hosted-runner ETW timeout as platform
+infeasibility of that proof mechanism, not a capability shortfall and not a
+specification ambiguity. The dry-run guarantee and refined persistent-object
+definition are unchanged. Only the Windows evidence mechanism may change.
+
+The operator authorized a fresh bounded restart at frontier/max author and
+frontier/max reviewer, with the normal two-pass budget. Restart pass 1 replaces
+hosted ETW as the primary Windows witness with the scoped filesystem comparison
+specified above. The ETW controller remains available as an optional stronger
+witness and is skipped on hosted runners with the ruling in its reason string.
+USN-journal machinery is deliberately omitted because it is not needed for the
+deterministic primary proof and must not become an ETW-equivalent subsystem.
+
+Post-ruling recount: all eleven Windows init rollback findings, both earlier
+proof portability findings, Linux CI, macOS native proof, and Windows safety
+coverage remain closed. The sole reopened deliverable is the hosted Windows
+dry-run evidence mechanism. PR-22 stays blocked with this restart in progress
+until the new exact-head native CI evidence and independent review are green.
