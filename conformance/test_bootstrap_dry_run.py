@@ -75,6 +75,11 @@ def test_native_bootstrap_dry_run_is_complete_and_has_zero_effects(tmp_path):
     work = tmp_path / "working"
     home.mkdir()
     work.mkdir()
+    if sys.platform == "win32":
+        # These are harness-owned environment roots. Windows PowerShell creates
+        # them at process startup even when the script is never entered.
+        (home / "AppData/Local").mkdir(parents=True)
+        (home / "AppData/Roaming").mkdir(parents=True)
     target = home / "Projects/Apparatus"
     command = _native_command(home, target)
     environment = os.environ.copy()
