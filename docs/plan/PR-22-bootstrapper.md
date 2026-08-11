@@ -76,18 +76,24 @@ and honest documentation of their limits.
    report in `System/` happen through `apparatus doctor` (PR-08). Script
    output uses ADR-0001 vocabulary (workspace, snapshot, check, AI app).
 7. Dry-run: `-DryRun` / `--dry-run` prints the full plan with the detected
-   state of every step (present/missing), performs no network access and no
-   persistent-filesystem mutation from interpreter entry, and exits 0.
-   Mutation means creating, modifying, deleting, renaming, or changing the
-   attributes of a persistent filesystem object: a file, directory, symbolic
-   link, or extended attribute. Character-device I/O under `/dev` is outside
-   this boundary, and the proof contract must not enumerate device names.
-   Native CI must enforce the persistent-object boundary with non-vacuous
-   metadata and identity canaries on Windows and mutation-denial canaries on
-   macOS. The macOS sandbox retains its native network canary. Windows retains
-   static exit-order and source checks in hosted CI and an optional ETW network
-   witness where the platform can run it; static checks remain defense in
-   depth rather than the primary persistent-object proof.
+   state of every step (present/missing), performs no network access, satisfies
+   the location-tiered persistent-filesystem guarantee from interpreter entry,
+   and exits 0. The workspace target, every user-scope install destination,
+   and the working directory allow no persistent-object mutation: no create,
+   modify, delete, rename, or attribute change of a file, directory, symbolic
+   link, or extended attribute. For `TEMP`, the before/after entry-name set must
+   be identical and every surviving child must retain its complete captured
+   state; the `TEMP` container itself retains kind, size, file identity,
+   permissions, and file attributes. The container's timestamps and transient
+   create-then-delete churn inside `TEMP` are outside the guarantee.
+   Character-device I/O under `/dev` is also outside this boundary, and the
+   proof contract must not enumerate device names. Native CI must enforce these
+   persistent-object tiers with non-vacuous metadata and identity canaries on
+   Windows and mutation-denial canaries on macOS. The macOS sandbox retains its
+   native network canary. Windows retains static exit-order and source checks
+   in hosted CI and an optional ETW network witness where the platform can run
+   it; static checks remain defense in depth rather than the primary
+   persistent-object proof.
 8. Both scripts fail loudly (nonzero, clear message) on unsupported OS,
    missing shell prerequisites, or a partially blocked chain — never a
    silent half-install; the message always says re-running is safe.
@@ -292,9 +298,9 @@ and must not be marked landed or merged under this authorization.
 The operator classified this fourth observed harness-versus-physics instance
 under the escalation rule's third category: **platform infeasibility — fix the
 proof, not the model**. The frontier/max author and reviewer assignments remain
-fixed, with a fresh two-pass budget. The dry-run product guarantee and
-interpreter-entry boundary are unchanged; only the hosted Windows before/after
-evidence contract is refined.
+fixed, with a fresh two-pass budget. The interpreter-entry boundary and
+no-network guarantee are unchanged; the Windows persistent-filesystem guarantee
+and its before/after evidence are refined to the location tiers in criterion 7.
 
 Strict locations — the workspace target, every install destination, and the
 working directory — continue to require exact metadata maps, including
