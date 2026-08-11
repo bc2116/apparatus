@@ -206,17 +206,32 @@ jobs:
             -OutputDirectory dist\windows `
             -Version $env:VERSION
       - name: Exercise wrapped Windows dry-run
-        shell: powershell
+        shell: pwsh
         run: |
+          function Invoke-ApparatusInstaller([string[]] $Arguments) {
+            $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+            $startInfo.FileName = (Resolve-Path '.\dist\windows\apparatus-installer.exe').Path
+            $startInfo.UseShellExecute = $false
+            foreach ($argument in $Arguments) {
+              [void] $startInfo.ArgumentList.Add($argument)
+            }
+            $process = [System.Diagnostics.Process]::Start($startInfo)
+            $process.WaitForExit()
+            return $process.ExitCode
+          }
+
           $log = Join-Path $env:RUNNER_TEMP 'apparatus-installer.log'
-          & .\dist\windows\apparatus-installer.exe `
-            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN "/LOG=$log"
-          $installerExit = $LASTEXITCODE
+          $installerExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN', "/LOG=$log"
+          )
           if ($installerExit -ne 0) {
             if (Test-Path -LiteralPath $log) {
               Get-Content -LiteralPath $log
             }
             throw "Wrapped Windows dry-run failed with exit code $installerExit."
+          }
+          if (-not (Test-Path -LiteralPath $log)) {
+            throw 'The Windows wrapper did not create its requested verification log.'
           }
           $logText = Get-Content -LiteralPath $log -Raw
           if ($logText -notmatch 'Embedded bootstrap SHA-256 verified\.') {
@@ -228,18 +243,20 @@ jobs:
 
           $marker = Join-Path $env:RUNNER_TEMP 'apparatus-injection-marker'
           $hostilePath = "C:\Runner Temp\Apparatus & New-Item '$marker'; trailing\"
-          & .\dist\windows\apparatus-installer.exe `
-            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN `
-            "/WORKSPACEPATH=$hostilePath" "/LOG=$log"
-          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $marker)) {
+          $hostileExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN',
+            "/WORKSPACEPATH=$hostilePath", "/LOG=$log"
+          )
+          if ($hostileExit -ne 0 -or (Test-Path -LiteralPath $marker)) {
             throw 'The Windows wrapper did not preserve a hostile workspace path as one value.'
           }
 
           $reverseLog = Join-Path $env:RUNNER_TEMP 'apparatus-installer-reverse.log'
-          & .\dist\windows\apparatus-installer.exe `
-            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART `
-            "/WORKSPACEPATH=$hostilePath" /DRYRUN "/LOG=$reverseLog"
-          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $marker)) {
+          $reverseExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
+            "/WORKSPACEPATH=$hostilePath", '/DRYRUN', "/LOG=$reverseLog"
+          )
+          if ($reverseExit -ne 0 -or (Test-Path -LiteralPath $marker)) {
             throw 'The Windows wrapper changed behavior when workspace path preceded dry-run.'
           }
           $reverseText = Get-Content -LiteralPath $reverseLog -Raw
@@ -247,22 +264,25 @@ jobs:
             throw 'The Windows wrapper lost a reordered option or trailing backslash.'
           }
 
-          & .\dist\windows\apparatus-installer.exe `
-            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN /DRYRUN
-          if ($LASTEXITCODE -eq 0) {
+          $duplicateExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN', '/DRYRUN'
+          )
+          if ($duplicateExit -eq 0) {
             throw 'The Windows wrapper accepted a duplicate dry-run option.'
           }
-          & .\dist\windows\apparatus-installer.exe `
-            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOTANOPTION
-          if ($LASTEXITCODE -eq 0) {
+          $unknownExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOTANOPTION'
+          )
+          if ($unknownExit -eq 0) {
             throw 'The Windows wrapper accepted an unknown option.'
           }
 
           $unsafeTarget = Join-Path $env:USERPROFILE 'OneDrive\Apparatus'
-          & .\dist\windows\apparatus-installer.exe `
-            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART `
-            "/WORKSPACEPATH=$unsafeTarget" "/LOG=$log"
-          if ($LASTEXITCODE -eq 0) {
+          $unsafeExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
+            "/WORKSPACEPATH=$unsafeTarget", "/LOG=$log"
+          )
+          if ($unsafeExit -eq 0) {
             throw 'The Windows wrapper masked the bootstrap refusal of an unsafe target.'
           }
       - name: Upload unsigned Windows installer
@@ -496,14 +516,32 @@ jobs:
             throw 'The signed installer does not use the exactly configured certificate.'
           }
       - name: Exercise signed Windows installer dry-run
-        shell: powershell
+        shell: pwsh
         run: |
+          function Invoke-ApparatusInstaller([string[]] $Arguments) {
+            $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+            $startInfo.FileName = (Resolve-Path '.\unsigned-windows\apparatus-installer.exe').Path
+            $startInfo.UseShellExecute = $false
+            foreach ($argument in $Arguments) {
+              [void] $startInfo.ArgumentList.Add($argument)
+            }
+            $process = [System.Diagnostics.Process]::Start($startInfo)
+            $process.WaitForExit()
+            return $process.ExitCode
+          }
+
           $log = Join-Path $env:RUNNER_TEMP 'apparatus-signed-installer.log'
-          & .\unsigned-windows\apparatus-installer.exe `
-            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN "/LOG=$log"
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content -LiteralPath $log
-            throw "Signed Windows installer dry-run failed with exit code $LASTEXITCODE."
+          $installerExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN', "/LOG=$log"
+          )
+          if ($installerExit -ne 0) {
+            if (Test-Path -LiteralPath $log) {
+              Get-Content -LiteralPath $log
+            }
+            throw "Signed Windows installer dry-run failed with exit code $installerExit."
+          }
+          if (-not (Test-Path -LiteralPath $log)) {
+            throw 'The signed Windows installer did not create its requested verification log.'
           }
           $logText = Get-Content -LiteralPath $log -Raw
           if (

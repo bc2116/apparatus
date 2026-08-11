@@ -87,6 +87,11 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "2b8734490a83f1ed074022b85d46c5ce9c3e2fbe9b63a45c28a74b478ac3a94f" in content
     assert "Get-AuthenticodeSignature -FilePath $download" in content
     assert "CN=Pyrsys B\\.V\\." in content
+    assert content.count("shell: pwsh") >= 3
+    assert content.count("[System.Diagnostics.ProcessStartInfo]::new()") == 2
+    assert content.count("$startInfo.UseShellExecute = $false") == 2
+    assert content.count("$startInfo.ArgumentList.Add($argument)") == 2
+    assert content.count("$process.WaitForExit()") == 2
     assert "apparatus-unsigned-windows-installer" in content
     assert "apparatus-signed-windows-installer" in content
     assert "apparatus-unsigned-macos-installer" in content
