@@ -212,12 +212,38 @@ def normalize_workspace_relative(value: str | Path) -> Path:
 def _workspace_root_preflight(workspace: Path) -> Path:
     """Canonicalize external ancestors, then establish the workspace boundary."""
     absolute = _absolute_without_resolving(workspace)
-    if absolute.is_symlink():
+    try:
+        final_status = absolute.lstat()
+    except FileNotFoundError:
+        final_status = None
+    if final_status is not None and (
+        absolute.is_symlink()
+        or bool(getattr(final_status, "st_file_attributes", 0) & 0x400)
+    ):
         raise PayloadError("workspace path '.' must not be a symbolic link")
-    canonical = absolute.resolve(strict=False)
-    if canonical.exists() and not canonical.is_dir():
+    if final_status is not None and not absolute.is_dir():
         raise PayloadError("workspace path '.' must be a directory")
-    return canonical
+
+    # The workspace's own final component is a security boundary. Resolving the
+    # whole pathname would follow a Windows junction after the check above and
+    # silently turn its destination into the workspace. Resolve only the
+    # nearest existing external ancestor, then append the target components
+    # lexically so the retained-root executor selects the final object itself.
+    missing: list[str] = []
+    ancestor = absolute.parent if final_status is not None else absolute
+    if final_status is not None:
+        missing.append(absolute.name)
+    while True:
+        try:
+            ancestor.lstat()
+            break
+        except FileNotFoundError:
+            if ancestor == ancestor.parent:
+                raise PayloadError("workspace path has no existing ancestor")
+            missing.append(ancestor.name)
+            ancestor = ancestor.parent
+    canonical_ancestor = ancestor.resolve(strict=True)
+    return canonical_ancestor.joinpath(*reversed(missing))
 
 
 def _check_destination(workspace: Path, relative: Path, expected: str) -> None:

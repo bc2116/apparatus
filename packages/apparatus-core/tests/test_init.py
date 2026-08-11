@@ -4,15 +4,23 @@ import argparse
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import tempfile
 
 import pytest
 
 from apparatus_core import records
+from apparatus_core import init_deploy
 from apparatus_core import payload as payload_module
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import init
-from apparatus_core.overlays import apply_overlay_plan, load_manifest, plan_overlay
+from apparatus_core.overlays import (
+    OverlayPlan,
+    OverlayWrite,
+    apply_overlay_plan,
+    load_manifest,
+    plan_overlay,
+)
 from apparatus_core.payload import (
     PayloadError,
     PayloadFile,
@@ -22,6 +30,10 @@ from apparatus_core.payload import (
     shipped_payload,
 )
 from apparatus_core.receipts import write_receipt
+from apparatus_core.fs_transactions import (
+    ReplacementTransaction,
+    WorkspaceAnchor,
+)
 from apparatus_core.snapshots import SnapshotError, list_snapshots
 
 
@@ -72,6 +84,40 @@ def _custom_payload(root: Path) -> Path:
     payload = root / "payload"
     shutil.copytree(shipped_payload(), payload)
     return payload
+
+
+def _rollback_deployment_plan() -> tuple[PayloadPlan, OverlayPlan, bytes]:
+    payload_plan = PayloadPlan(
+        directories=(Path("System/policy"), Path("Scratch/Nested")),
+        files=(
+            PayloadFile(Path("payload-one.md"), b"payload one\n"),
+            PayloadFile(Path("Scratch/Nested/payload-two.md"), b"payload two\n"),
+        ),
+        placeholders=(Path("System/policy/payload-placeholder.md"),),
+    )
+    overlay_plan = OverlayPlan(
+        writes=(
+            OverlayWrite("System/policy/managed-one.md", b"managed one new\n"),
+            OverlayWrite("System/policy/managed-two.md", b"managed two new\n"),
+        ),
+        removals=(
+            "System/policy/obsolete-one.md",
+            "System/policy/obsolete-two.md",
+        ),
+    )
+    return payload_plan, overlay_plan, b"profile new\n"
+
+
+def _seed_rollback_workspace(workspace: Path) -> None:
+    policy = workspace / "System/policy"
+    policy.mkdir(parents=True)
+    (workspace / "foreign.md").write_bytes(b"foreign\n")
+    (workspace / "System/profile.yaml").write_bytes(b"profile original\n")
+    (policy / "managed-one.md").write_bytes(b"managed one original\n")
+    (policy / "managed-two.md").write_bytes(b"managed two original\n")
+    (policy / "payload-placeholder.md").write_bytes(b"placeholder original\n")
+    (policy / "obsolete-one.md").write_bytes(b"obsolete one original\n")
+    (policy / "obsolete-two.md").write_bytes(b"obsolete two original\n")
 
 
 @pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
@@ -354,7 +400,7 @@ def test_full_init_rejects_payload_root_and_manifest_symlinks(tmp_path, capsys):
     profiles = source_root / "profiles"
     profiles.mkdir()
     outside_manifest = tmp_path / "outside-manifest.yaml"
-    outside_manifest.write_text("manifest sentinel\n", encoding="utf-8")
+    outside_manifest.write_bytes(b"manifest sentinel\n")
     (profiles / "profiles.yaml").symlink_to(outside_manifest)
     second_workspace = tmp_path / "second-workspace"
     assert init.run(_args(second_workspace, payload=str(real_payload)), available=lambda: False) == 2
@@ -706,3 +752,478 @@ def test_sibling_profiles_directory_symlink_is_rejected_by_resolver_and_full_ini
     assert "symbolic link" in output
     assert sentinel.read_bytes() == b"sibling manifest sentinel"
     assert not workspace.exists()
+
+
+def test_direct_deploy_failure_exactly_cleans_invocation_created_root_and_parents(
+    monkeypatch, tmp_path
+):
+    workspace_parent = tmp_path / "invocation-parent"
+    workspace = workspace_parent / "workspace"
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+    original_create = WorkspaceAnchor.create_file
+
+    def fail_during_overlay(anchor, relative, content, mode=0o600, **kwargs):
+        if Path(relative).name == "managed-two.md":
+            raise OSError("injected overlay deployment failure")
+        return original_create(anchor, relative, content, mode, **kwargs)
+
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor,
+        "create_file",
+        fail_during_overlay,
+    )
+    with pytest.raises(OSError, match="injected overlay deployment failure"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert not workspace_parent.exists()
+    assert not list(tmp_path.rglob(".apparatus-memory-*"))
+
+
+@pytest.mark.parametrize(
+    ("operation", "failure_name"),
+    (
+        ("create", "payload-two.md"),
+        ("replace", "managed-two.md"),
+        ("replace", "profile.yaml"),
+        ("replace", "obsolete-one.md"),
+    ),
+)
+def test_direct_deploy_operation_failures_restore_exact_existing_tree(
+    monkeypatch, tmp_path, operation, failure_name
+):
+    workspace = tmp_path / "workspace"
+    _seed_rollback_workspace(workspace)
+    before = _tree_state(workspace)
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+
+    if operation == "create":
+        original = WorkspaceAnchor.create_file
+
+        def fail_operation(anchor, relative, content, mode=0o600, **kwargs):
+            if Path(relative).name == failure_name:
+                raise OSError(f"injected {failure_name} failure")
+            return original(anchor, relative, content, mode, **kwargs)
+
+        monkeypatch.setattr(
+            init_deploy.WorkspaceAnchor,
+            "create_file",
+            fail_operation,
+        )
+    else:
+        original = WorkspaceAnchor.replace_if_unchanged
+
+        def fail_operation(anchor, relative, *args, **kwargs):
+            if Path(relative).name == failure_name:
+                raise OSError(f"injected {failure_name} failure")
+            return original(anchor, relative, *args, **kwargs)
+
+        monkeypatch.setattr(
+            init_deploy.WorkspaceAnchor,
+            "replace_if_unchanged",
+            fail_operation,
+        )
+
+    with pytest.raises(OSError, match=f"injected {failure_name} failure"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert _tree_state(workspace) == before
+    assert not list(workspace.rglob(".apparatus-memory-*"))
+
+
+@pytest.mark.parametrize(
+    ("commit_number", "fail_after_commit"),
+    ((1, False), (1, True), (2, False), (2, True)),
+)
+def test_direct_deploy_commit_failures_restore_earlier_settled_replacements(
+    monkeypatch, tmp_path, commit_number, fail_after_commit
+):
+    workspace = tmp_path / "workspace"
+    _seed_rollback_workspace(workspace)
+    before = _tree_state(workspace)
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+    original_commit = ReplacementTransaction.commit
+    calls = 0
+
+    def fail_commit(transaction):
+        nonlocal calls
+        calls += 1
+        if calls == commit_number:
+            if fail_after_commit:
+                original_commit(transaction)
+            raise OSError("injected replacement commit failure")
+        return original_commit(transaction)
+
+    monkeypatch.setattr(
+        init_deploy.ReplacementTransaction,
+        "commit",
+        fail_commit,
+    )
+    with pytest.raises(OSError, match="injected replacement commit failure"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert calls >= commit_number
+    assert _tree_state(workspace) == before
+    assert not list(workspace.rglob(".apparatus-memory-*"))
+
+
+@pytest.mark.parametrize("fail_after_discard", (False, True))
+def test_direct_deploy_removal_commit_failure_rematerializes_preimage(
+    monkeypatch, tmp_path, fail_after_discard
+):
+    workspace = tmp_path / "workspace"
+    _seed_rollback_workspace(workspace)
+    before = _tree_state(workspace)
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+    original_discard = ReplacementTransaction.discard_backup
+    injected = False
+
+    def fail_discard(transaction):
+        nonlocal injected
+        if not injected and transaction.target.relative.name == "obsolete-one.md":
+            injected = True
+            if fail_after_discard:
+                original_discard(transaction)
+            raise OSError("injected removal commit failure")
+        return original_discard(transaction)
+
+    monkeypatch.setattr(
+        init_deploy.ReplacementTransaction,
+        "discard_backup",
+        fail_discard,
+    )
+    with pytest.raises(OSError, match="injected removal commit failure"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert injected
+    assert _tree_state(workspace) == before
+    assert not list(workspace.rglob(".apparatus-memory-*"))
+
+
+def test_direct_deploy_post_settlement_gate_restores_every_operation(
+    monkeypatch, tmp_path
+):
+    workspace = tmp_path / "workspace"
+    _seed_rollback_workspace(workspace)
+    before = _tree_state(workspace)
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+    original_entry_exists = WorkspaceAnchor.entry_exists
+    obsolete_two_checks = 0
+
+    def fail_post_settlement_gate(anchor, relative):
+        nonlocal obsolete_two_checks
+        if Path(relative).name == "obsolete-two.md":
+            obsolete_two_checks += 1
+            if obsolete_two_checks == 2:
+                raise OSError("injected post-settlement gate failure")
+        return original_entry_exists(anchor, relative)
+
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor,
+        "entry_exists",
+        fail_post_settlement_gate,
+    )
+    with pytest.raises(OSError, match="injected post-settlement gate failure"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert obsolete_two_checks == 2
+    assert _tree_state(workspace) == before
+    assert not list(workspace.rglob(".apparatus-memory-*"))
+
+
+def test_direct_deploy_preserves_foreign_removal_substitution_and_fails_loudly(
+    monkeypatch, tmp_path
+):
+    workspace = tmp_path / "workspace"
+    _seed_rollback_workspace(workspace)
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+    original_discard = ReplacementTransaction.discard_backup
+    target = workspace / "System/policy/obsolete-one.md"
+    foreign = b"concurrent foreign replacement\n"
+    injected = False
+
+    def substitute_then_fail(transaction):
+        nonlocal injected
+        if not injected and transaction.target.relative.name == "obsolete-one.md":
+            injected = True
+            target.write_bytes(foreign)
+            raise OSError("injected foreign removal substitution")
+        return original_discard(transaction)
+
+    monkeypatch.setattr(
+        init_deploy.ReplacementTransaction,
+        "discard_backup",
+        substitute_then_fail,
+    )
+    with pytest.raises(OSError, match="rollback was incomplete"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert injected
+    assert target.read_bytes() == foreign
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows rollback regression")
+def test_windows_direct_deploy_preserves_foreign_file_created_during_rollback(
+    monkeypatch, tmp_path
+):
+    workspace_parent = tmp_path / "invocation-parent"
+    workspace = workspace_parent / "workspace"
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+    original_create = WorkspaceAnchor.create_file
+    original_unlink = WorkspaceAnchor.unlink_owned_if_present
+    foreign = b"concurrent foreign file\n"
+    injected = False
+
+    def fail_during_overlay(anchor, relative, content, mode=0o600, **kwargs):
+        if Path(relative).name == "managed-two.md":
+            raise OSError("injected overlay deployment failure")
+        return original_create(anchor, relative, content, mode, **kwargs)
+
+    def introduce_foreign_file(anchor, owned):
+        nonlocal injected
+        removed = original_unlink(anchor, owned)
+        if not injected and owned.relative == Path("payload-one.md"):
+            injected = True
+            (workspace / "foreign.bin").write_bytes(foreign)
+        return removed
+
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor,
+        "create_file",
+        fail_during_overlay,
+    )
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor,
+        "unlink_owned_if_present",
+        introduce_foreign_file,
+    )
+
+    with pytest.raises(OSError, match="rollback was incomplete"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert injected
+    assert (workspace / "foreign.bin").read_bytes() == foreign
+    assert not list(workspace.rglob(".apparatus-memory-*"))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained-root regression")
+@pytest.mark.parametrize("boundary", ("root", "System", "nested"))
+def test_init_rejects_posix_directory_replacement_and_preserves_foreign_tree(
+    monkeypatch, tmp_path, capsys, boundary
+):
+    workspace = tmp_path / "workspace"
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    capsys.readouterr()
+    target = {
+        "root": workspace,
+        "System": workspace / "System",
+        "nested": workspace / "System/policy",
+    }[boundary]
+    trigger = {
+        "root": workspace / "Welcome.md",
+        "System": workspace / "System/profile.yaml",
+        "nested": workspace / "System/policy/standard.md",
+    }[boundary]
+    trigger.unlink()
+    displaced = tmp_path / f"displaced-{boundary}"
+    foreign = b"foreign tree\n"
+    attempted = False
+    original_create = WorkspaceAnchor.create_file
+
+    def replace_after_create(anchor, relative, content, mode=0o600, **kwargs):
+        nonlocal attempted
+        owned = original_create(anchor, relative, content, mode, **kwargs)
+        if attempted or Path(relative).name.startswith(".apparatus-"):
+            return owned
+        anchor_path = Path(anchor.workspace)
+        should_replace = (
+            (boundary == "root" and anchor_path == workspace)
+            or (boundary == "System" and anchor_path == workspace / "System")
+            or (boundary == "nested" and anchor_path == workspace / "System/policy")
+        )
+        if should_replace:
+            attempted = True
+            target.rename(displaced)
+            target.mkdir(parents=True)
+            (target / "foreign.bin").write_bytes(foreign)
+        return owned
+
+    monkeypatch.setattr(init_deploy.WorkspaceAnchor, "create_file", replace_after_create)
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert attempted
+    assert "could not deploy workspace" in capsys.readouterr().out
+    assert (target / "foreign.bin").read_bytes() == foreign
+    assert not list(target.rglob(".apparatus-init-*.tmp"))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained-root regression")
+@pytest.mark.parametrize("workspace_exists", (False, True))
+def test_workspace_first_object_handoff_rejects_root_substitution(
+    monkeypatch, tmp_path, capsys, workspace_exists
+):
+    workspace = tmp_path / "workspace"
+    if workspace_exists:
+        workspace.mkdir()
+        (workspace / "original.bin").write_bytes(b"original root\n")
+    displaced = tmp_path / "displaced-workspace"
+    foreign = b"foreign root\n"
+    original_open = WorkspaceAnchor.open_directory
+    substituted = False
+
+    def substitute_after_retain(anchor, relative, **kwargs):
+        nonlocal substituted
+        retained = original_open(anchor, relative, **kwargs)
+        if (
+            not substituted
+            and Path(anchor.workspace) == workspace.parent
+            and Path(relative) == Path(workspace.name)
+        ):
+            substituted = True
+            workspace.rename(displaced)
+            workspace.mkdir()
+            (workspace / "foreign.bin").write_bytes(foreign)
+        return retained
+
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor,
+        "open_directory",
+        substitute_after_retain,
+    )
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert substituted
+    assert "could not deploy workspace" in capsys.readouterr().out
+    assert (workspace / "foreign.bin").read_bytes() == foreign
+    assert not list(displaced.rglob(".apparatus-init-*.tmp"))
+    if workspace_exists:
+        assert (displaced / "original.bin").read_bytes() == b"original root\n"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows retained-root regression")
+@pytest.mark.parametrize("boundary", ("root", "System"))
+def test_windows_init_retained_handles_deny_directory_rename(
+    monkeypatch, tmp_path, boundary
+):
+    workspace = tmp_path / "workspace"
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    target = workspace if boundary == "root" else workspace / "System"
+    replacement = tmp_path / f"renamed-{boundary}"
+    attempts: list[str] = []
+    original_matches = WorkspaceAnchor.matches_root_handle
+
+    def attempt_rename(anchor, handle):
+        anchor_path = Path(anchor.workspace)
+        if not attempts and ((boundary == "root" and anchor_path == workspace) or (
+            boundary == "System" and anchor_path == workspace / "System"
+        )):
+            try:
+                target.rename(replacement)
+            except OSError:
+                attempts.append("blocked")
+            else:  # pragma: no cover - exposes a native containment defect
+                attempts.append("renamed")
+        return original_matches(anchor, handle)
+
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor, "matches_root_handle", attempt_rename
+    )
+    assert init.run(
+        _args(workspace, privacy_mode="private"), available=lambda: False
+    ) == 0
+    assert attempts == ["blocked"]
+    assert not replacement.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows reparse regression")
+@pytest.mark.parametrize("boundary", ("workspace", "System", "nested"))
+def test_windows_init_rejects_junction_boundaries_and_preserves_foreign_tree(
+    tmp_path, capsys, boundary
+):
+    outside = tmp_path / f"outside-{boundary}"
+    outside.mkdir()
+    foreign = outside / "foreign.bin"
+    foreign.write_bytes(b"foreign junction\n")
+    workspace = tmp_path / f"workspace-{boundary}"
+    if boundary == "workspace":
+        junction = workspace
+    elif boundary == "System":
+        workspace.mkdir()
+        junction = workspace / "System"
+    else:
+        (workspace / "System").mkdir(parents=True)
+        junction = workspace / "System/policy"
+    completed = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert "could not deploy workspace" in capsys.readouterr().out or boundary == "workspace"
+    assert foreign.read_bytes() == b"foreign junction\n"
+    assert sorted(path.name for path in outside.iterdir()) == ["foreign.bin"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows retained-root regression")
+def test_windows_missing_workspace_identity_mismatch_fails_before_deployment(
+    monkeypatch, tmp_path, capsys
+):
+    workspace = tmp_path / "workspace"
+    original_matches = WorkspaceAnchor.matches_root_handle
+    probes: list[Path] = []
+
+    def reject_workspace(anchor, handle):
+        if Path(anchor.workspace) == workspace:
+            probes.append(Path(anchor.workspace))
+            return False
+        return original_matches(anchor, handle)
+
+    monkeypatch.setattr(init_deploy.WorkspaceAnchor, "matches_root_handle", reject_workspace)
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert probes == [workspace]
+    assert "could not deploy workspace" in capsys.readouterr().out
+    assert not workspace.exists()
+    assert not list(workspace.rglob(".apparatus-init-*.tmp"))
+    assert not (workspace / "Welcome.md").exists()

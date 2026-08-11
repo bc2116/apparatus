@@ -9,17 +9,16 @@ from typing import Any
 
 from apparatus_core import records
 from apparatus_core.detect import detect_sync_redirection
+from apparatus_core.init_deploy import deploy_init_plan
 from apparatus_core.overlays import (
     ManifestError,
     OverlayManifest,
-    apply_overlay_plan,
     canonical_work_types,
     load_manifest,
     plan_overlay,
 )
 from apparatus_core.payload import (
     PayloadError,
-    deploy_missing_payload_files,
     plan_payload_deployment,
     preflight_workspace_paths,
     reject_payload_workspace_overlap,
@@ -116,13 +115,6 @@ def _profile_data(
 
 def _profile_content(profile: dict[str, Any]) -> str:
     return records.yaml.safe_dump(profile, sort_keys=False, allow_unicode=True)
-
-
-def _write_profile(workspace: Path, content: str) -> tuple[str, ...]:
-    target = workspace / "System" / "profile.yaml"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content, encoding="utf-8", newline="\n")
-    return (f"updated {target.relative_to(workspace).as_posix()}",)
 
 
 def _init_receipt_fields(changes: tuple[str, ...], sync: dict[str, Any]) -> dict[str, str]:
@@ -243,10 +235,15 @@ def run(
         return 2
 
     try:
-        changes = list(deploy_missing_payload_files(payload, workspace, payload_plan))
-        changes.extend(apply_overlay_plan(workspace, overlay_plan))
-        if profile_write_required:
-            changes.extend(_write_profile(workspace, profile_content))
+        changes = list(
+            deploy_init_plan(
+                workspace,
+                payload_plan,
+                overlay_plan,
+                profile_content.encode("utf-8"),
+                profile_write_required=profile_write_required,
+            )
+        )
     except Exception:  # pragma: no cover - filesystem failures vary by host
         print("init: could not deploy workspace")
         return 2

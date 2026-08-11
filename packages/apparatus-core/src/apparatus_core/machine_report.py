@@ -5,10 +5,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from apparatus_core import __version__
+from apparatus_core.fs_transactions import WorkspaceAnchor
 
 
 def utc_now() -> datetime:
@@ -86,8 +89,125 @@ def write_machine_report(
     *,
     clock: Callable[[], datetime] = utc_now,
 ) -> Path:
-    """Create System if needed and idempotently replace the machine report."""
-    report_path = Path(workspace) / "System" / "machine-report.md"
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(render_machine_report(detections, clock=clock), encoding="utf-8")
-    return report_path
+    """Publish the report through retained workspace and System identities."""
+    workspace_path = Path(workspace)
+    report_path = workspace_path / "System" / "machine-report.md"
+    content = render_machine_report(detections, clock=clock).encode("utf-8")
+    created_system = None
+    selection_marker = None
+    created_report = None
+    transaction = None
+
+    with WorkspaceAnchor(workspace_path) as workspace_anchor:
+        try:
+            if not workspace_anchor.entry_exists("System"):
+                created_system = workspace_anchor.create_directory("System")
+            marker_relative = Path("System") / (
+                f".apparatus-machine-report-{secrets.token_hex(16)}.tmp"
+            )
+            selection_marker = workspace_anchor.create_file(
+                marker_relative,
+                secrets.token_bytes(32),
+                owned_parent=created_system,
+            )
+            if os.name == "nt" and created_system is not None:
+                # The marker's parent handle shares delete and bridges the exact
+                # new System identity into the nested anchor. Release only the
+                # incompatible creation handle before that anchor is opened.
+                created_system.close()
+                created_system = None
+
+            system_anchor = WorkspaceAnchor(report_path.parent)
+            try:
+                if not system_anchor.matches_root_handle(selection_marker.parent):
+                    raise OSError("machine report System directory changed")
+                workspace_anchor.unlink_owned(selection_marker)
+                selection_marker.close()
+                selection_marker = None
+                if not (
+                    workspace_anchor.root_is_current()
+                    and system_anchor.root_is_current()
+                ):
+                    raise OSError("machine report destination changed")
+
+                if system_anchor.entry_exists("machine-report.md"):
+                    existing = system_anchor.capture_file("machine-report.md")
+                    try:
+                        if existing.content == content:
+                            if not (
+                                workspace_anchor.root_is_current()
+                                and system_anchor.matches_owned(existing)
+                            ):
+                                raise OSError("machine report destination changed")
+                            return report_path
+                        transaction = system_anchor.replace_if_unchanged(
+                            "machine-report.md",
+                            existing.identity,
+                            existing.content,
+                            content,
+                        )
+                    finally:
+                        existing.close()
+                    try:
+                        if not (
+                            workspace_anchor.root_is_current()
+                            and system_anchor.root_is_current()
+                        ):
+                            raise OSError("machine report destination changed")
+                        transaction.validate_commit()
+                        transaction.commit()
+                    except Exception:
+                        transaction.rollback()
+                        raise
+                    finally:
+                        transaction.close()
+                        transaction = None
+                else:
+                    created_report = system_anchor.create_file(
+                        "machine-report.md", content
+                    )
+                    if not (
+                        workspace_anchor.root_is_current()
+                        and system_anchor.matches_owned(created_report)
+                    ):
+                        raise OSError("machine report destination changed")
+                return report_path
+            finally:
+                system_anchor.close()
+        except Exception:
+            if transaction is not None:
+                try:
+                    transaction.rollback()
+                except OSError:
+                    pass
+                transaction.close()
+            if created_report is not None:
+                try:
+                    # The owned System anchor has already closed here only when
+                    # normal control left its block. Its retained parent handle is
+                    # still sufficient for exact-object cleanup on POSIX, while
+                    # Windows deletes through the owned file handle itself.
+                    workspace_anchor.unlink_owned(created_report)
+                except OSError:
+                    pass
+                created_report.close()
+            if selection_marker is not None:
+                try:
+                    workspace_anchor.unlink_owned_if_present(selection_marker)
+                except OSError:
+                    pass
+                selection_marker.close()
+            if created_system is not None:
+                try:
+                    workspace_anchor.remove_owned_directory(created_system)
+                except OSError:
+                    pass
+                created_system.close()
+            raise
+        finally:
+            if created_report is not None:
+                created_report.close()
+            if selection_marker is not None:
+                selection_marker.close()
+            if created_system is not None:
+                created_system.close()

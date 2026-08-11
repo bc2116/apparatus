@@ -23,7 +23,7 @@ ADR-0005 user-scope chain — uv, a uv-managed Python, git detection,
 and `apparatus doctor` — with no admin rights on a typical machine. Both are
 idempotent: re-running is the repair tool. Dry-run flags make both scripts
 smoke-testable in CI without installing anything. Wrapping these scripts into
-signed installer executables is PR-23; this PR delivers the working scripts
+signed installer executables is PR-26; this PR delivers the working scripts
 and honest documentation of their limits.
 
 ## Deliverables
@@ -33,6 +33,8 @@ and honest documentation of their limits.
 - `installer/README.md` — new; how to run each script, what each step does,
   flags, idempotency, limitations (see criteria 9–10).
 - `conformance/test_bootstrap_dry_run.py` — new dry-run smoke test.
+- `conformance/windows_bootstrap_syscall_trace.ps1` — test-only built-in
+  WPR/ETW controller for the Windows syscall boundary.
 - `conformance/README.md` — modified; register the new test.
 - `.github/workflows/ci.yml` — modified; dry-run smoke jobs on
   `windows-latest` and `macos-latest`.
@@ -74,14 +76,31 @@ and honest documentation of their limits.
    report in `System/` happen through `apparatus doctor` (PR-08). Script
    output uses ADR-0001 vocabulary (workspace, snapshot, check, AI app).
 7. Dry-run: `-DryRun` / `--dry-run` prints the full plan with the detected
-   state of every step (present/missing), performs no network access and no
-   writes, and exits 0.
+   state of every step (present/missing), performs no network access, satisfies
+   the location-tiered persistent-filesystem guarantee from interpreter entry,
+   and exits 0. The workspace target, every user-scope install destination,
+   and the working directory allow no persistent-object mutation: no create,
+   modify, delete, rename, or attribute change of a file, directory, symbolic
+   link, or extended attribute. For `TEMP`, the before/after entry-name set must
+   be identical and every surviving child must retain its complete captured
+   state; the `TEMP` container itself retains kind, size, file identity,
+   permissions, and file attributes. The container's timestamps and transient
+   create-then-delete churn inside `TEMP` are outside the guarantee.
+   Character-device I/O under `/dev` is also outside this boundary, and the
+   proof contract must not enumerate device names. Native CI must enforce these
+   persistent-object tiers with non-vacuous metadata and identity canaries on
+   Windows and mutation-denial canaries on macOS. The macOS sandbox retains its
+   native network canary. Windows retains static exit-order and source checks
+   in hosted CI and an optional ETW network witness where the platform can run
+   it; static checks remain defense in depth rather than the primary
+   persistent-object proof.
 8. Both scripts fail loudly (nonzero, clear message) on unsupported OS,
    missing shell prerequisites, or a partially blocked chain — never a
    silent half-install; the message always says re-running is safe.
 9. `installer/README.md` documents limitations honestly: unsigned scripts and
    how to run them anyway (`powershell -ExecutionPolicy Bypass -File …`;
-   signing lands in PR-23); locked-down machines where the toolchain cannot
+   signing lands in PR-23 and signed wrappers land in PR-26); locked-down
+   machines where the toolchain cannot
    install fall back to the degraded files-only workspace mode that `doctor`
    reports — a fallback, not a design center (ADR-0005). The README is
    user-facing text: ADR-0001 vocabulary throughout, no AI app brand names.
@@ -97,20 +116,44 @@ and honest documentation of their limits.
   Skips cleanly when the required interpreter (pwsh/bash) is unavailable on
   the host. Register it in `conformance/README.md`.
 - `.github/workflows/ci.yml` gains two smoke jobs: `windows-latest` running
-  `pwsh -File installer/windows/bootstrap-apparatus.ps1 -DryRun` and
-  `macos-latest` running `bash installer/macos/bootstrap-apparatus.sh
-  --dry-run`; both must pass without network installs.
+  Windows PowerShell 5.1 with `-NoProfile` and `macos-latest` running a
+  controlled `/bin/bash` environment; both must pass without network installs.
+- The macOS native proof launches `/bin/bash` from interpreter entry through
+  `/usr/bin/sandbox-exec`, denies persistent-object mutation and `network*`
+  with no logging and `SIGKILL`, closes every descriptor except standard
+  input/output/error, and proves both denial categories with separate
+  canaries. Its generic `/dev` allowance permits character-device data I/O
+  only; creation, deletion, rename, metadata, and extended-attribute changes
+  remain denied, and no device name is listed.
+- The primary Windows native proof compares the filesystem before and after
+  dry-run with location-tiered semantics. The workspace target, each user-scope
+  install destination, and the working directory retain exact metadata maps,
+  including their container metadata. For `TEMP`, the before/after entry-name
+  set must be identical and every surviving child retains its full captured
+  state; the `TEMP` container entry `.` retains kind, size, file identity,
+  permissions, and file attributes, while its own modification timestamp is
+  excluded. The before/after witness also excludes transient create-then-delete
+  churn inside `TEMP`. Deterministic canaries prove both the strict locations
+  and this narrow container-timestamp distinction. The proof needs no
+  administrator access, global session, or timeout-prone trace lifecycle. The
+  existing built-in WPR/ETW controller remains an optional stronger
+  file/registry/network witness. Hosted runners skip that optional test with a
+  reason recording the operator ruling; Windows environments with working ETW
+  continue to run it.
 - `uv run pytest` green is required.
 
 ## Out of scope
 
-- No signed executables, no `.exe`/`.pkg` wrapping, no notarization (PR-23).
+- No signed executables, no `.exe`/`.pkg` wrapping, no notarization (PR-23 and
+  PR-26).
 - No Linux bootstrapper in v0.
 - No elevation/admin path beyond the honest failure message.
 - No bundled MinGit or any vendored git (see Open decisions).
 - No pack catalog UI on re-run (ADR-0005 §5 — later work).
-- No changes to `apparatus init`, `doctor`, or core behavior; the scripts
-  only orchestrate existing verbs.
+- No general changes to `apparatus init`, `doctor`, or core behavior; the
+  operator-authorized repair may harden only the init deployment transaction
+  and machine-report publication by reusing the existing retained-root
+  primitives.
 
 ## Dependencies
 
@@ -126,3 +169,150 @@ and honest documentation of their limits.
   can add MinGit bundling without changing the script's interface. Record
   this interim default against the open question in design brief §14; the
   question stays open until real locked-down-machine data decides it.
+- Idempotency and the required fresh doctor run leave one narrow tension:
+  doctor timestamps the current machine report, so a completed re-run cannot
+  be byte-identical at that one generated file. The smallest reversible
+  default is that bootstrap and tool repair are idempotent and existing user
+  files are preserved, while doctor intentionally refreshes
+  `System/machine-report.md`; byte-identical no-op behavior is not promised for
+  that report. This records the existing behavior without expanding core.
+- Operator ruling for the repair: retained-root hardening is authorized only
+  for the core init deployment path, using the existing `WorkspaceAnchor`
+  primitive family. Snapshot and receipt behavior remain outside this grant
+  except exact cleanup fallout caused directly by the deployment transaction.
+- Operator ruling for dry-run: zero mutation begins at interpreter entry. The
+  pre-interpreter shell stage may only read state and write stdout/stderr; it
+  runs no installer, network, or workspace command and leaves no persistent
+  artifact.
+- Operator ruling for UNC dry-run: Windows UNC targets remain lexical and
+  uninspected before the dry-run exit. No existence, attribute, or SMB probe
+  may touch the target.
+
+## Authorized restart
+
+The operator authorized a fresh two-pass restart after the prior blocked stop.
+This branch records restart pass 2 of 2. The narrow core authorization,
+interpreter-entry boundary, pre-interpreter promises, and UNC ruling above are
+unchanged.
+
+Before recounting failures, the operator refined the mutation boundary to the
+persistent-filesystem definition in criterion 7. Under that definition, the
+previous macOS interpreter-startup stop does not survive: character-device
+data I/O under `/dev` is outside scope. The proof uses one generic subtree
+allowance and names no device, while keeping every persistent-object mutation
+and all network activity denied with non-vacuous canaries.
+
+Two installer-harness failures from the prior exact-head Windows run do
+survive the refined ruling: the controller's machine-scoped environment lookup
+did not resolve the trusted Windows system directory, and a macOS-only native
+path check was not platform-gated. Restart pass 1 repairs those proof defects
+without weakening either boundary.
+
+The same exact-head run had eleven init rollback failures: the
+invocation-created-root case reported four incomplete cleanup operations, and
+ten replacement, removal, or final-gate cases reported one each. Retained
+Win32 file and parent handles outlived their exact rollback operations and
+blocked later cleanup. Restart pass 1 releases each settled proof handle before
+ancestor cleanup and adds a native Windows regression proving that a concurrent
+foreign file is preserved and reported rather than removed. PR-22 stays blocked
+and must not be marked landed or merged during this pass.
+
+At restart-pass-1 head `f301bf6`, CI run `31509417123` closed all eleven core
+rollback failures: Windows safety completed 381 tests with 69 skips before its
+sole ETW failure. The remaining failures came from scheduling the same
+machine-global WPR/ETW proof concurrently in both Windows jobs. The dedicated
+bootstrap job timed out, while the safety job detected that the shared session
+state was not restored exactly. This is a CI-topology capability shortfall, not
+a contract ambiguity or permission to weaken the proof.
+
+Restart pass 2 excludes the global test explicitly from `windows-safety`,
+retains every other listed safety test there, and runs the ETW node exactly
+once as a dedicated invocation in `bootstrap-windows` after the other bootstrap
+checks. A static conformance regression pins that selection topology.
+
+At restart-pass-2 implementation head
+`cb9b66d61916cc29cd6c87bbdc73855c48492b8e`, CI run `31510839370` passed the
+Linux, macOS bootstrap, and Windows safety jobs. Windows safety completed 382
+tests with 69 skips and one intentional ETW deselection. The dedicated Windows
+ETW invocation still failed because the traced cold process did not exit within
+the controller's 30-second wait. The same timeout occurred in pass 1, so
+removing concurrent execution did not close the native proof capability gap.
+
+Both authorized repair passes were exhausted at administrative head `98d1851`,
+and the PR entered a blocked stop for operator review.
+
+## Authorized Windows proof-mechanism restart
+
+The operator reclassified the repeatable hosted-runner ETW timeout as platform
+infeasibility of that proof mechanism, not a capability shortfall and not a
+specification ambiguity. The dry-run guarantee and refined persistent-object
+definition are unchanged. Only the Windows evidence mechanism may change.
+
+The operator authorized a fresh bounded restart at frontier/max author and
+frontier/max reviewer, with the normal two-pass budget. Restart pass 1 replaces
+hosted ETW as the primary Windows witness with the scoped filesystem comparison
+specified above. The ETW controller remains available as an optional stronger
+witness and is skipped on hosted runners with the ruling in its reason string.
+USN-journal machinery is deliberately omitted because it is not needed for the
+deterministic primary proof and must not become an ETW-equivalent subsystem.
+
+Post-ruling recount: all eleven Windows init rollback findings, both earlier
+proof portability findings, Linux CI, macOS native proof, and Windows safety
+coverage remain closed. The sole reopened deliverable is the hosted Windows
+dry-run evidence mechanism. PR-22 stays blocked with this restart in progress
+until the new exact-head native CI evidence and independent review are green.
+
+Restart pass 1 at exact head `98b0845` replaced the primary witness and removed
+proof-level subprocess timeouts. CI run `31517125863` then exposed three scoped
+test defects. Cached `DirEntry.stat` metadata returned zero file identities for
+Windows files; the isolated `TEMP` root retained a modification-time change;
+and the bootstrap job's final skipped optional-ETW invocation masked the broad
+pytest failure. Windows safety failed and preserved the true run disposition;
+Linux and macOS remained green.
+
+Restart pass 2 uses path-based `os.stat` for the documented Windows file-index
+identity, adds a cold interpreter baseline plus a git-suppressed diagnostic to
+classify any surviving `TEMP` mutation without ignoring it, and propagates each
+native pytest exit code before the optional ETW invocation. The root modification
+time remains part of the comparison, and no warm-up or exclusion narrows the
+interpreter-entry boundary.
+
+At restart-pass-2 exact head `e9b5137`, CI run `31517987400` confirmed that the
+identity repair works and that failures now propagate correctly. The cold
+Windows PowerShell baseline, before loading the bootstrap script, changed only
+the isolated `TEMP` root's modification time. The exact bootstrap dry-run then
+produced the same sole delta with an absent workspace and git present, a present
+workspace and git present, and an absent workspace with git suppressed from
+`PATH`. No compared name, size, file identity, permissions, file attributes, or
+other root changed.
+
+The mutation therefore occurs from the hosted Windows PowerShell interpreter
+baseline and is independent of Apparatus and git. Ignoring the `TEMP` root's
+modification time or warming the process would narrow the operator's explicit
+interpreter-entry and comparison contract, so neither is allowed. Both fresh
+repair passes are exhausted. PR-22 returns to a blocked stop for operator review
+and must not be marked landed or merged under this authorization.
+
+## Authorized Windows location-tier proof restart
+
+The operator classified this fourth observed harness-versus-physics instance
+under the escalation rule's third category: **platform infeasibility — fix the
+proof, not the model**. The frontier/max author and reviewer assignments remain
+fixed, with a fresh two-pass budget. The interpreter-entry boundary and
+no-network guarantee are unchanged; the Windows persistent-filesystem guarantee
+and its before/after evidence are refined to the location tiers in criterion 7.
+
+Strict locations — the workspace target, every install destination, and the
+working directory — continue to require exact metadata maps, including
+container timestamps. `TEMP` uses the location tier specified in the native
+proof above: its entry-name set must survive unchanged; every surviving child
+retains its complete captured state; and its container entry `.` retains all
+captured non-timestamp fields while excluding only the container's own
+modification timestamp. Transient entries created and deleted between the two
+snapshots are outside this witness. This refinement responds to the proven
+hosted PowerShell baseline behavior and does not permit any looser comparison
+for workspace, installation, working-directory, or `TEMP` child objects.
+
+This branch records pass 1 of 2 for the location-tier proof restart. PR-22 stays
+blocked with restart in progress until exact-head native CI and independent
+frontier/max review accept the repair.

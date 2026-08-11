@@ -285,7 +285,10 @@ is the intended flagship first pack because it proves the pack interface.
 - The word "procedure": validate against real information workers; candidate
   alternatives ("playbook", "routine") — decide before beta, changing later is
   costly (ADR-0001 governs today).
-- Portable git strategy on Windows (bundled MinGit vs. detect-and-skip) and
-  snapshot behavior when git is absent (PR-10/PR-22).
+- Portable git strategy on Windows remains open pending locked-down-machine
+  evidence. Bootstrapper v1 takes the smallest reversible default: detect git
+  on `PATH` and use it; when absent, continue and let the machine report mark
+  snapshots unavailable. A later release can add bundled git without changing
+  the script interface (PR-10/PR-22).
 - Signing certificate logistics and timing (PR-23).
 - Pack catalog format and trust model for third-party packs (post-alpha).

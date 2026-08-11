@@ -58,6 +58,8 @@ jobs:
           conformance/test_egress_golden.py
           packages/apparatus-core/tests/test_backup.py
           packages/apparatus-core/tests/test_receipts.py
+          packages/apparatus-core/tests/test_machine_report.py
+          packages/apparatus-core/tests/test_init.py
           packages/apparatus-core/tests/test_memory_commands.py::test_standard_fact_scans_title_and_body_writes_labels_redaction_receipt_and_checks_clean
           packages/apparatus-core/tests/test_memory_commands.py::test_standard_person_scans_name_role_and_body_but_stores_no_structural_fifth_label
           packages/apparatus-core/tests/test_memory_commands.py::test_every_private_add_person_blocks_structurally_with_zero_effects
@@ -67,3 +69,33 @@ jobs:
           conformance/test_welcome_e2e.py
           packages/apparatus-core/tests/test_feature_selection.py
           conformance/test_payload_archive.py
+          conformance/test_bootstrap_dry_run.py
+          --deselect conformance/test_bootstrap_dry_run.py::test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls
+
+  bootstrap-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Sync workspace
+        run: uv sync --all-packages
+      - name: Run Windows bootstrap dry-run checks
+        shell: pwsh
+        run: |
+          powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File installer/windows/bootstrap-apparatus.ps1 -DryRun
+          uv run pytest conformance/test_bootstrap_dry_run.py --deselect conformance/test_bootstrap_dry_run.py::test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run pytest conformance/test_bootstrap_dry_run.py::test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  bootstrap-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Sync workspace
+        run: uv sync --all-packages
+      - name: Run macOS bootstrap dry-run checks
+        run: |
+          /usr/bin/env -u BASH_ENV -u ENV /bin/bash installer/macos/bootstrap-apparatus.sh --dry-run
+          uv run pytest conformance/test_bootstrap_dry_run.py
