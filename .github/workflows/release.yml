@@ -156,7 +156,9 @@ jobs:
     if: >-
       needs.build.result == 'success' &&
       vars.APPARATUS_SIGN_WINDOWS == 'enabled'
-    runs-on: ${{ vars.APPARATUS_WINDOWS_SIGNING_RUNNER }}
+    # Routing happens before an environment is opened, so these fixed labels
+    # are repository-level configuration rather than environment variables.
+    runs-on: [self-hosted, Windows, X64, apparatus-signing-windows]
     environment: signing
     permissions:
       contents: read
@@ -169,8 +171,11 @@ jobs:
       - name: Verify signing-runner configuration
         shell: pwsh
         env:
+          # OPERATOR: protected `signing` environment metadata; never key material.
           APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT }}
+          # OPERATOR: exact publisher subject approved during certificate enrollment.
           APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT }}
+          # OPERATOR: RFC 3161 endpoint approved by the certificate provider.
           APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL: ${{ vars.APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL }}
         run: |
           foreach ($name in @(
@@ -182,29 +187,115 @@ jobs:
               throw "Set $name on the protected signing environment."
             }
           }
-      - name: Sign with the provisioned hardware-backed key
+          if ($env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT -cnotmatch '^[A-F0-9]{40}$') {
+            throw 'The signing certificate thumbprint must be exactly 40 uppercase hexadecimal characters.'
+          }
+      - name: Resolve trusted signtool, validate the certificate, and sign
         shell: pwsh
         env:
+          # OPERATOR: protected `signing` environment metadata; never key material.
           APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT }}
+          # OPERATOR: exact publisher subject approved during certificate enrollment.
           APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT }}
+          # OPERATOR: RFC 3161 endpoint approved by the certificate provider.
           APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL: ${{ vars.APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $certificate = Get-ChildItem "Cert:\CurrentUser\My\$env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT"
-          if ($null -eq $certificate -or $certificate.Subject -ne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT) {
-            throw 'The provisioned CurrentUser signing certificate does not match the configured subject and thumbprint.'
+          $sdkBin = 'C:\Program Files (x86)\Windows Kits\10\bin'
+          $versionDirectories = @(
+            Get-ChildItem -LiteralPath $sdkBin -Directory |
+              Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+              Sort-Object { [version]$_.Name } -Descending
+          )
+          $candidates = @(
+            $versionDirectories |
+              ForEach-Object { Join-Path $_.FullName 'x64\signtool.exe' } |
+              Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+          )
+          if ($candidates.Count -eq 0) {
+            throw "No x64 Windows SDK signtool exists below $sdkBin."
           }
-          & signtool.exe sign /sha1 $certificate.Thumbprint /fd SHA256 `
+          $signTool = Get-Item -LiteralPath $candidates[0]
+          $trustedPrefix = $sdkBin.TrimEnd('\') + '\'
+          if (-not $signTool.FullName.StartsWith(
+            $trustedPrefix,
+            [StringComparison]::OrdinalIgnoreCase
+          )) {
+            throw 'Resolved signtool escaped the trusted Windows SDK directory.'
+          }
+          $toolSignature = Get-AuthenticodeSignature -FilePath $signTool.FullName
+          if ($toolSignature.Status -ne 'Valid') {
+            throw "Windows SDK signtool signature status was $($toolSignature.Status)."
+          }
+          # OPERATOR: provision this dedicated runner's CurrentUser store with
+          # the enrolled hardware- or cloud-KSP-backed certificate.
+          $matches = @(
+            Get-ChildItem 'Cert:\CurrentUser\My' |
+              Where-Object {
+                $_.Thumbprint -ceq $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT
+              }
+          )
+          if ($matches.Count -ne 1) {
+            throw 'Exactly one CurrentUser certificate must match the configured thumbprint.'
+          }
+          $certificate = $matches[0]
+          if ($certificate.Subject -cne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT) {
+            throw 'The signing certificate subject does not exactly match the protected configuration.'
+          }
+          $now = [DateTime]::UtcNow
+          if (
+            $certificate.NotBefore.ToUniversalTime() -gt $now -or
+            $certificate.NotAfter.ToUniversalTime() -lt $now
+          ) {
+            throw 'The signing certificate is outside its validity window.'
+          }
+          $ekuExtensions = @(
+            $certificate.Extensions |
+              Where-Object { $_.Oid.Value -eq '2.5.29.37' }
+          )
+          if ($ekuExtensions.Count -ne 1) {
+            throw 'The signing certificate must have one Enhanced Key Usage extension.'
+          }
+          $codeSigningEkus = @(
+            $ekuExtensions[0].EnhancedKeyUsages |
+              Where-Object { $_.Value -eq '1.3.6.1.5.5.7.3.3' }
+          )
+          if ($codeSigningEkus.Count -ne 1) {
+            throw 'The signing certificate lacks the Code Signing EKU.'
+          }
+          if (-not $certificate.HasPrivateKey) {
+            throw 'The signing certificate has no accessible private key.'
+          }
+          $privateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate)
+          if ($null -eq $privateKey) {
+            $privateKey = [System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPrivateKey($certificate)
+          }
+          if ($null -eq $privateKey) {
+            throw 'The signing certificate private-key handle cannot be opened.'
+          }
+          $privateKey.Dispose()
+          & $signTool.FullName sign /sha1 $certificate.Thumbprint /fd SHA256 `
             /tr $env:APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 `
             'release-files/installer/windows/bootstrap-apparatus.ps1'
           if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE." }
       - name: Verify Windows signature
         shell: pwsh
+        env:
+          # OPERATOR: compare the output to the protected enrollment metadata.
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT }}
+          # OPERATOR: compare the output to the protected enrollment metadata.
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT }}
         run: |
           $signature = Get-AuthenticodeSignature `
             -FilePath 'release-files/installer/windows/bootstrap-apparatus.ps1'
           if ($signature.Status -ne 'Valid') {
             throw "Authenticode signature status was $($signature.Status)."
+          }
+          if (
+            $signature.SignerCertificate.Thumbprint -cne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT -or
+            $signature.SignerCertificate.Subject -cne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT
+          ) {
+            throw 'The signed script does not use the exactly configured certificate.'
           }
       - name: Upload signed Windows bootstrap script
         uses: actions/upload-artifact@v4
@@ -292,9 +383,19 @@ jobs:
           name: apparatus-release-inputs-${{ needs.build.outputs.version }}
           path: release-inputs
       - name: Normalize release inputs
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          SDIST_NAME: ${{ needs.build.outputs.sdist_name }}
+          WHEEL_NAME: ${{ needs.build.outputs.wheel_name }}
         run: |
           set -euo pipefail
-          cp -a release-inputs/. final-release/
+          mkdir final-release
+          cp "release-inputs/apparatus-payload-${VERSION}.zip" final-release/
+          cp "release-inputs/packages/${SDIST_NAME}" final-release/
+          cp "release-inputs/packages/${WHEEL_NAME}" final-release/
+          cp release-inputs/release-notes.md final-release/
+          cp release-inputs/installer/windows/bootstrap-apparatus.ps1 final-release/
+          cp release-inputs/installer/macos/bootstrap-apparatus.sh final-release/
       - name: Replace Windows bootstrap script when signed
         if: needs.sign-windows-bootstrap.result == 'success'
         uses: actions/download-artifact@v4
@@ -303,7 +404,7 @@ jobs:
           path: signed-windows
       - name: Install signed Windows bootstrap script
         if: needs.sign-windows-bootstrap.result == 'success'
-        run: cp signed-windows/bootstrap-apparatus.ps1 final-release/installer/windows/bootstrap-apparatus.ps1
+        run: cp signed-windows/bootstrap-apparatus.ps1 final-release/bootstrap-apparatus.ps1
       - name: Replace macOS installer package when signed
         if: needs.sign-macos-bootstrap.outputs.package_signed == 'true'
         uses: actions/download-artifact@v4
@@ -312,7 +413,7 @@ jobs:
           path: signed-macos
       - name: Install signed macOS installer package
         if: needs.sign-macos-bootstrap.outputs.package_signed == 'true'
-        run: cp signed-macos/apparatus-installer.pkg final-release/installer/macos/apparatus-installer.pkg
+        run: cp signed-macos/apparatus-installer.pkg final-release/apparatus-installer.pkg
       - name: Generate SHA256SUMS
         env:
           VERSION: ${{ needs.build.outputs.version }}
@@ -323,15 +424,16 @@ jobs:
           cd final-release
           release_files=(
             "apparatus-payload-${VERSION}.zip" \
-            "packages/${SDIST_NAME}" \
-            "packages/${WHEEL_NAME}" \
-            "installer/windows/bootstrap-apparatus.ps1" \
-            "installer/macos/bootstrap-apparatus.sh"
+            "${SDIST_NAME}" \
+            "${WHEEL_NAME}" \
+            "bootstrap-apparatus.ps1" \
+            "bootstrap-apparatus.sh"
           )
-          if [[ -f installer/macos/apparatus-installer.pkg ]]; then
-            release_files+=("installer/macos/apparatus-installer.pkg")
+          if [[ -f apparatus-installer.pkg ]]; then
+            release_files+=("apparatus-installer.pkg")
           fi
           shasum -a 256 "${release_files[@]}" > SHA256SUMS
+          shasum -a 256 --check SHA256SUMS
       - name: Upload final release files
         uses: actions/upload-artifact@v4
         with:
@@ -356,10 +458,19 @@ jobs:
         with:
           name: apparatus-release-${{ needs.build.outputs.version }}
           path: release-files
+      - name: Stage only Python distributions
+        env:
+          SDIST_NAME: ${{ needs.build.outputs.sdist_name }}
+          WHEEL_NAME: ${{ needs.build.outputs.wheel_name }}
+        run: |
+          set -euo pipefail
+          mkdir python-packages
+          cp "release-files/${SDIST_NAME}" python-packages/
+          cp "release-files/${WHEEL_NAME}" python-packages/
       - name: Publish with trusted publishing
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: release-files/packages
+          packages-dir: python-packages
 
   github-release:
     name: Create GitHub Release
@@ -394,14 +505,14 @@ jobs:
           fi
           release_files=(
             "release-files/apparatus-payload-${VERSION}.zip"
-            "release-files/packages/${SDIST_NAME}"
-            "release-files/packages/${WHEEL_NAME}"
-            "release-files/installer/windows/bootstrap-apparatus.ps1"
-            "release-files/installer/macos/bootstrap-apparatus.sh"
+            "release-files/${SDIST_NAME}"
+            "release-files/${WHEEL_NAME}"
+            "release-files/bootstrap-apparatus.ps1"
+            "release-files/bootstrap-apparatus.sh"
             "release-files/SHA256SUMS"
           )
-          if [[ -f release-files/installer/macos/apparatus-installer.pkg ]]; then
-            release_files+=("release-files/installer/macos/apparatus-installer.pkg")
+          if [[ -f release-files/apparatus-installer.pkg ]]; then
+            release_files+=("release-files/apparatus-installer.pkg")
           fi
           gh release create "v${VERSION}" \
             --repo "$GH_REPO" \

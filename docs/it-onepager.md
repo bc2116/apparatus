@@ -9,8 +9,11 @@ and `%USERPROFILE%\.local\share\uv\tools`. On macOS they live under
 `~/.local/bin`, `~/.local/share/uv/python`, and `~/.local/share/uv/tools`.
 If git is already present, Apparatus uses it for snapshots; setup does not
 install or modify git. Nothing is installed system-wide. The released setup
-scripts are currently unsigned; checksums are published, and the signing
-pipeline remains gated off while certificates are pending.
+scripts are currently unsigned. No `.exe` or `.pkg` installer exists yet;
+setup uses the released PowerShell and shell scripts. Checksums are published,
+and the signing pipeline remains gated off while certificates are pending.
+Windows signing applies to the PowerShell script. macOS signing and
+notarization apply only when a future `.pkg` exists.
 
 ## Workspace data
 

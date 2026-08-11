@@ -1,10 +1,10 @@
 # Signing runbook
 
-This runbook enables release signing after the operator has acquired the
-required identities. It does not put certificates, keys, passwords, or
-notarization credentials in this repository.
+This runbook covers identity acquisition, enrollment, and release enablement.
+It does not put certificates, keys, passwords, or notarization credentials in
+this repository.
 
-## 1. Choose the signing service
+## 1. Choose and enroll with a signing service
 
 For Windows, choose either a standard code-signing certificate, an EV
 code-signing certificate, or a cloud-signing service. A standard certificate
@@ -13,6 +13,22 @@ established publisher reputation can shorten that warning period, but neither
 removes it by promise: a valid signature still accrues reputation over time.
 Cloud signing can keep the private key in the provider's service instead of in
 GitHub.
+
+Windows procurement and enrollment are explicit operator steps:
+
+1. Compare public certificate authorities and cloud-signing services for
+   platform support, identity-validation requirements, hardware or cloud KSP
+   integration, renewal, timestamp service, and stable-subject renewal.
+2. Apply for a public code-signing identity in the legal publisher name that
+   IT should see.
+3. Complete the CA or service's organization or individual identity checks,
+   including its required registration records and independently verified
+   contact details, then accept its subscriber agreement.
+4. Complete the hardware-token or cloud-KSP enrollment ceremony. Do not export
+   the resulting private key.
+5. Use the provider console and Windows certificate tools to confirm the issued
+   certificate has the approved subject, the Code Signing EKU, a current
+   validity window, and a working private-key association.
 
 For macOS, enroll in the Apple Developer Program and obtain a Developer ID
 Installer identity. A future `.pkg` must be signed, submitted for Apple
@@ -23,18 +39,36 @@ until the package wrapper exists.
 ## 2. Store the material outside this repository
 
 Create a protected GitHub environment named `signing` with required reviewers.
-For Windows, provision an operator-controlled signing runner whose CurrentUser
-certificate store exposes the public code-signing certificate through its
-hardware- or cloud-backed key provider. Configure the protected environment
-with its runner label, certificate thumbprint, certificate subject, and
-timestamp URL. The workflow invokes native `signtool` against that provisioned
-key; no PFX, key, password, or provider-specific action is stored here. Store
-the macOS signing
-identity and its password there, plus the Apple ID, team ID, and app-specific
-password used to create the ephemeral notarization profile on the runner when a
-package is available. The workflow refers only to named secrets. Do not add
-certificate files, keys, passwords, notarization credentials, or copied secret
-values to a branch, issue, pull request, or release notes.
+For Windows, register a dedicated x64 Windows runner to this repository with
+the fixed labels `self-hosted`, `Windows`, `X64`, and
+`apparatus-signing-windows`. Environment-level variables cannot select a runner
+because GitHub resolves `runs-on` before opening the environment. Restrict the
+runner to this repository and reviewed releases from the protected default
+branch; never route pull requests, fork code, or unrelated workloads to it.
+Keep its service account and workspace isolated, and take the runner offline
+outside reviewed release windows. Its CurrentUser certificate store exposes
+the public code-signing certificate through its hardware- or cloud-backed KSP.
+The workflow resolves the validly signed x64 `signtool.exe` from the
+administrator-controlled Windows SDK directory and never executes a configured
+command path.
+
+Set protected environment variables
+`APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT`,
+`APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT`, and
+`APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL`. These are certificate metadata, not
+private material. The workflow invokes native `signtool` against the
+certificate store; no PFX, key, password, provider-specific action, public
+cloud identity token, or arbitrary command path is stored here.
+
+When a macOS package exists, store its signing and notarization values under
+these six exact `signing` environment secret names:
+`APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64`,
+`APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD`,
+`APPARATUS_MACOS_SIGNING_IDENTITY`, `APPARATUS_MACOS_NOTARY_APPLE_ID`,
+`APPARATUS_MACOS_NOTARY_TEAM_ID`, and
+`APPARATUS_MACOS_NOTARY_APP_PASSWORD`. Do not add certificate files, keys,
+passwords, notarization credentials, or copied secret values to a branch,
+issue, pull request, or release notes.
 
 ## 3. Enable Windows signing
 
@@ -44,9 +78,9 @@ values to a branch, issue, pull request, or release notes.
 2. Configure the timestamp server approved by the certificate provider. A
    timestamp lets a validly signed historical release remain verifiable after
    the certificate expires.
-3. Provision the operator-controlled runner with a hardware- or cloud-KSP
-   backed key in `Cert:\CurrentUser\My`. In the protected environment set
-   `APPARATUS_WINDOWS_SIGNING_RUNNER`,
+3. Provision the dedicated, isolated runner with a hardware- or cloud-KSP
+   backed key in `Cert:\CurrentUser\My`. Confirm its fixed repository-level
+   runner labels and Windows SDK installation. In the protected environment set
    `APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT`,
    `APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT`, and
    `APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL`.

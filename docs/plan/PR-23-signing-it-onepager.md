@@ -135,8 +135,11 @@ otherwise.
   remains open while signing must be configuration rather than engineering.
   The smallest provider-neutral boundary is an operator-provisioned Windows
   runner with a hardware- or cloud-KSP-backed certificate in its CurrentUser
-  certificate store; the workflow receives only its label, certificate subject
-  and thumbprint, and timestamp URL, then uses native `signtool`.
+  certificate store. Job routing uses fixed repository-level self-hosted runner
+  labels because environment variables are unavailable when GitHub schedules a
+  job. Protected environment variables supply only certificate subject,
+  thumbprint, and timestamp URL after the job reaches the gated environment;
+  the workflow resolves native `signtool` below the trusted Windows SDK path.
 
 - Installer-executable wrapping technology (`.exe`/`.pkg` around the
   scripts): genuinely undecided and entangled with certificate logistics
