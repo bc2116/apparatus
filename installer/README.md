@@ -59,6 +59,10 @@ See the complete detected plan without downloading or changing anything:
 bash macos/bootstrap-apparatus.sh --dry-run
 ```
 
+Dry-run begins at script interpreter entry. It performs read-only detection and
+prints to standard output or standard error, but runs no installer, makes no
+network request, runs no workspace command, and leaves no persistent file.
+
 The script refuses symbolic-link boundaries and locations inside iCloud Drive.
 Live workspace state must not sit in a sync engine. Use one-way snapshot export
 for backup.
@@ -82,10 +86,17 @@ Setup permits only these sources:
 
 - the official uv installers at `https://astral.sh/uv/install.ps1` and
   `https://astral.sh/uv/install.sh`;
+- the installers' current official redirects at
+  `https://releases.astral.sh/installers/uv/latest/uv-installer.ps1` and
+  `https://releases.astral.sh/installers/uv/latest/uv-installer.sh`;
+- uv release files at
+  `https://releases.astral.sh/github/uv/releases/download`, with the official
+  `https://github.com/astral-sh/uv/releases/download` fallback;
 - uv's documented managed-Python distributions at
   `https://github.com/astral-sh/python-build-standalone/releases/download`;
-- the PyPI index at `https://pypi.org/simple` for `apparatus-core` and its
-  declared package dependencies.
+- the PyPI index at `https://pypi.org/simple` and its package-file host at
+  `https://files.pythonhosted.org` for `apparatus-core` and its declared
+  package dependencies.
 
 There is no telemetry. Setup sends no workspace content, machine report,
 credentials, or personal data to those sources.
@@ -94,7 +105,7 @@ credentials, or personal data to those sources.
 
 These scripts are unsigned. The Windows command above uses a process-only
 execution-policy bypass; it does not change the machine policy. Signed wrappers
-land in the next installer phase.
+land in PR-26.
 
 Some managed devices block downloads, script execution, or user-scope tool
 installation. The script stops instead of requesting elevation and always says

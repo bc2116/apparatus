@@ -85,6 +85,34 @@ def test_report_rejects_symlink_boundaries_without_touching_outside(tmp_path, re
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor regression")
+def test_report_rejects_system_substitution_during_anchored_selection(
+    monkeypatch, tmp_path
+):
+    workspace = tmp_path / "workspace"
+    system = workspace / "System"
+    system.mkdir(parents=True)
+    displaced = tmp_path / "displaced-system"
+    foreign = b"foreign\n"
+    original_create = WorkspaceAnchor.create_file
+
+    def substitute_after_marker(anchor, relative, content, mode=0o600, **kwargs):
+        owned = original_create(anchor, relative, content, mode, **kwargs)
+        if Path(relative).name.startswith(".apparatus-machine-report-"):
+            system.rename(displaced)
+            system.mkdir()
+            (system / "machine-report.md").write_bytes(foreign)
+        return owned
+
+    monkeypatch.setattr(machine_report.WorkspaceAnchor, "create_file", substitute_after_marker)
+
+    with pytest.raises(OSError, match="System directory changed"):
+        write_machine_report(workspace, _detections(), clock=_clock)
+
+    assert (system / "machine-report.md").read_bytes() == foreign
+    assert not list(displaced.glob(".apparatus-machine-report-*.tmp"))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor regression")
 @pytest.mark.parametrize("replaced", ["root", "System"])
 def test_report_rolls_back_when_destination_is_replaced_after_create(
     monkeypatch, tmp_path, replaced

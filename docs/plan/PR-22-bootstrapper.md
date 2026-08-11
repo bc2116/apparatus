@@ -23,7 +23,7 @@ ADR-0005 user-scope chain — uv, a uv-managed Python, git detection,
 and `apparatus doctor` — with no admin rights on a typical machine. Both are
 idempotent: re-running is the repair tool. Dry-run flags make both scripts
 smoke-testable in CI without installing anything. Wrapping these scripts into
-signed installer executables is PR-23; this PR delivers the working scripts
+signed installer executables is PR-26; this PR delivers the working scripts
 and honest documentation of their limits.
 
 ## Deliverables
@@ -81,7 +81,8 @@ and honest documentation of their limits.
    silent half-install; the message always says re-running is safe.
 9. `installer/README.md` documents limitations honestly: unsigned scripts and
    how to run them anyway (`powershell -ExecutionPolicy Bypass -File …`;
-   signing lands in PR-23); locked-down machines where the toolchain cannot
+   signing lands in PR-23 and signed wrappers land in PR-26); locked-down
+   machines where the toolchain cannot
    install fall back to the degraded files-only workspace mode that `doctor`
    reports — a fallback, not a design center (ADR-0005). The README is
    user-facing text: ADR-0001 vocabulary throughout, no AI app brand names.
@@ -104,13 +105,16 @@ and honest documentation of their limits.
 
 ## Out of scope
 
-- No signed executables, no `.exe`/`.pkg` wrapping, no notarization (PR-23).
+- No signed executables, no `.exe`/`.pkg` wrapping, no notarization (PR-23 and
+  PR-26).
 - No Linux bootstrapper in v0.
 - No elevation/admin path beyond the honest failure message.
 - No bundled MinGit or any vendored git (see Open decisions).
 - No pack catalog UI on re-run (ADR-0005 §5 — later work).
-- No changes to `apparatus init`, `doctor`, or core behavior; the scripts
-  only orchestrate existing verbs.
+- No general changes to `apparatus init`, `doctor`, or core behavior; the
+  operator-authorized repair may harden only the init deployment transaction
+  and machine-report publication by reusing the existing retained-root
+  primitives.
 
 ## Dependencies
 
@@ -133,3 +137,11 @@ and honest documentation of their limits.
   files are preserved, while doctor intentionally refreshes
   `System/machine-report.md`; byte-identical no-op behavior is not promised for
   that report. This records the existing behavior without expanding core.
+- Operator ruling for the repair: retained-root hardening is authorized only
+  for the core init deployment path, using the existing `WorkspaceAnchor`
+  primitive family. Snapshot and receipt behavior remain outside this grant
+  except exact cleanup fallout caused directly by the deployment transaction.
+- Operator ruling for dry-run: zero mutation begins at interpreter entry. The
+  pre-interpreter shell stage may only read state and write stdout/stderr; it
+  runs no installer, network, or workspace command and leaves no persistent
+  artifact.

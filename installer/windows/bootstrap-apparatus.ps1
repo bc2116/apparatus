@@ -12,8 +12,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $UvInstallUrl = "https://astral.sh/uv/install.ps1"
+$UvInstallRedirectUrl = "https://releases.astral.sh/installers/uv/latest/uv-installer.ps1"
+$UvReleaseSource = "https://releases.astral.sh/github/uv/releases/download"
+$UvReleaseFallback = "https://github.com/astral-sh/uv/releases/download"
 $PythonSource = "https://github.com/astral-sh/python-build-standalone/releases/download"
 $PyPiIndex = "https://pypi.org/simple"
+$PyPiFiles = "https://files.pythonhosted.org"
 $PythonRequest = "3.12"
 
 function Stop-Setup([string] $Message) {
@@ -39,18 +43,29 @@ try {
     } else {
         [IO.Path]::GetFullPath((Join-Path (Get-Location).ProviderPath $Path))
     }
-    $Target = [IO.Path]::GetFullPath($Target).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    $Target = [IO.Path]::GetFullPath($Target)
+    $TargetRoot = [IO.Path]::GetPathRoot($Target)
+    while ($Target.Length -gt $TargetRoot.Length -and $Target.EndsWith([string] [IO.Path]::DirectorySeparatorChar)) {
+        $Target = $Target.Substring(0, $Target.Length - 1)
+    }
 } catch {
     Stop-Setup "The workspace location is not valid."
 }
 
 function Test-ReparseBoundary([string] $Candidate) {
+    $Candidate = [IO.Path]::GetFullPath($Candidate)
     $Root = [IO.Path]::GetPathRoot($Candidate)
     $Current = $Root
     foreach ($Part in $Candidate.Substring($Root.Length).Split([IO.Path]::DirectorySeparatorChar, [StringSplitOptions]::RemoveEmptyEntries)) {
         $Current = Join-Path $Current $Part
-        $Item = Get-Item -LiteralPath $Current -Force -ErrorAction SilentlyContinue
-        if ($null -ne $Item -and ($Item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        try {
+            $Attributes = [IO.File]::GetAttributes($Current)
+        } catch [IO.FileNotFoundException] {
+            break
+        } catch [IO.DirectoryNotFoundException] {
+            break
+        }
+        if ($Attributes -band [IO.FileAttributes]::ReparsePoint) {
             return $false
         }
     }
@@ -59,35 +74,60 @@ function Test-ReparseBoundary([string] $Candidate) {
 
 $TargetSafe = $true
 $TargetReason = "outside redirected sync folders"
-if (-not (Test-ReparseBoundary $Target)) {
-    $TargetSafe = $false
-    $TargetReason = "blocked: the location passes through a link or reparse point"
+try {
+    if (-not (Test-ReparseBoundary $Target)) {
+        $TargetSafe = $false
+        $TargetReason = "blocked: the location passes through a link or reparse point"
+    }
+} catch {
+    Stop-Setup "The workspace location could not be inspected safely."
 }
 
-$Components = $Target.Split([IO.Path]::DirectorySeparatorChar, [StringSplitOptions]::RemoveEmptyEntries)
+$Separators = [char[]] @([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+$Components = $Target.Split($Separators, [StringSplitOptions]::RemoveEmptyEntries)
 if ($Components | Where-Object { $_ -match '^(?i:OneDrive)(?:\s*-.*)?$' }) {
     $TargetSafe = $false
     $TargetReason = "blocked: the location is inside OneDrive"
 }
 
 function Test-PathWithin([string] $Candidate, [string] $Parent) {
-    try {
-        $FullCandidate = [IO.Path]::GetFullPath($Candidate).TrimEnd('\') + '\'
-        $FullParent = [IO.Path]::GetFullPath($Parent).TrimEnd('\') + '\'
-        return $FullCandidate.StartsWith($FullParent, [StringComparison]::OrdinalIgnoreCase)
-    } catch {
-        return $false
+    $FullCandidate = [IO.Path]::GetFullPath($Candidate)
+    $FullParent = [IO.Path]::GetFullPath($Parent)
+    $CandidateRoot = [IO.Path]::GetPathRoot($FullCandidate)
+    $ParentRoot = [IO.Path]::GetPathRoot($FullParent)
+    while ($FullCandidate.Length -gt $CandidateRoot.Length -and $FullCandidate.EndsWith('\')) {
+        $FullCandidate = $FullCandidate.Substring(0, $FullCandidate.Length - 1)
     }
+    while ($FullParent.Length -gt $ParentRoot.Length -and $FullParent.EndsWith('\')) {
+        $FullParent = $FullParent.Substring(0, $FullParent.Length - 1)
+    }
+    return ($FullCandidate + '\').StartsWith(($FullParent + '\'), [StringComparison]::OrdinalIgnoreCase)
 }
 
-$ShellFolders = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+$ShellFolders = "Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+$RegistryKey = $null
 try {
-    $Redirected = Get-ItemProperty -LiteralPath $ShellFolders -ErrorAction Stop
+    $RegistryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($ShellFolders, $false)
+    if ($null -eq $RegistryKey) {
+        $RedirectedNames = @()
+    } else {
+        $RedirectedNames = @($RegistryKey.GetValueNames())
+    }
     foreach ($Name in @("Personal", "Desktop")) {
-        $Property = $Redirected.PSObject.Properties[$Name]
-        if ($null -ne $Property) {
-            $Value = $Property.Value
-            $Expanded = [Environment]::ExpandEnvironmentVariables([string] $Value)
+        if ($RedirectedNames -contains $Name) {
+            $Value = $RegistryKey.GetValue($Name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            if ($Value -isnot [string] -or [string]::IsNullOrWhiteSpace($Value)) {
+                throw "malformed redirected-folder state"
+            }
+            $Expanded = [Text.RegularExpressions.Regex]::Replace(
+                $Value,
+                '%USERPROFILE%',
+                [Text.RegularExpressions.MatchEvaluator] { param($Match) $UserProfile },
+                [Text.RegularExpressions.RegexOptions]::IgnoreCase
+            )
+            if ($Expanded -match '%[^%]+%' -or -not [IO.Path]::IsPathRooted($Expanded)) {
+                throw "malformed redirected-folder state"
+            }
             if (Test-PathWithin $Target $Expanded) {
                 $TargetSafe = $false
                 $TargetReason = "blocked: the location is inside redirected Documents or Desktop"
@@ -95,9 +135,9 @@ try {
         }
     }
 } catch {
-    if ($_.Exception.Message -like "Apparatus setup stopped:*") { throw }
-    # Missing policy state is normal on an unmanaged profile. A present but
-    # unreadable key is handled by doctor after the target itself is checked.
+    Stop-Setup "Redirected Documents and Desktop state could not be inspected safely."
+} finally {
+    if ($null -ne $RegistryKey) { $RegistryKey.Dispose() }
 }
 
 $UvBin = Join-Path $UserProfile ".local\bin\uv.exe"
@@ -162,7 +202,7 @@ $UvPath = Find-Uv
 $GitCommand = Get-Command git.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($DryRun) {
-    Write-Output "Apparatus setup dry-run (detection only; no commands will run)"
+    Write-Output "Apparatus setup dry-run (read-only detection; no install, network, or workspace commands)"
     Write-State "Operating system" "present (Windows)"
     Write-State "Target safety" $(if ($TargetSafe) { "present ($Target; $TargetReason)" } else { "missing ($Target; $TargetReason)" })
     Write-State "uv" $(if ($null -ne $UvPath) { "present" } else { "missing (install planned)" })
@@ -205,6 +245,7 @@ $env:UV_DEFAULT_INDEX = $PyPiIndex
 $env:UV_NO_CONFIG = "1"
 $env:UV_MANAGED_PYTHON = "1"
 $env:UV_PYTHON_INSTALL_MIRROR = $PythonSource
+$env:UV_NO_MODIFY_PATH = "1"
 
 if ($null -ne $UvPath) {
     try {
@@ -273,6 +314,23 @@ if (-not (Test-Path -LiteralPath $ApparatusBin -PathType Leaf)) {
 if (-not (Test-ReparseBoundary $ApparatusBin)) {
     Stop-Setup "The Apparatus command is redirected through a reparse point."
 }
+
+$ControlledPath = [Collections.Generic.List[string]]::new()
+$ControlledPath.Add($UvToolBin)
+if ($null -ne $GitCommand) {
+    $GitDirectory = [IO.Path]::GetDirectoryName($GitCommand.Source)
+    if (-not [string]::IsNullOrWhiteSpace($GitDirectory) -and -not $ControlledPath.Contains($GitDirectory)) {
+        $ControlledPath.Add($GitDirectory)
+    }
+}
+$SystemDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::System)
+if ([string]::IsNullOrWhiteSpace($SystemDirectory)) {
+    Stop-Setup "The Windows system command location could not be resolved."
+}
+$ControlledPath.Add($SystemDirectory)
+$WindowsDirectory = [IO.Directory]::GetParent($SystemDirectory).FullName
+if (-not $ControlledPath.Contains($WindowsDirectory)) { $ControlledPath.Add($WindowsDirectory) }
+$env:PATH = $ControlledPath -join ";"
 
 if (Test-WorkspacePresent) {
     Write-Output "The existing workspace is intact; init is not needed."

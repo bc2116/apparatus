@@ -4,8 +4,12 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 readonly UV_INSTALL_URL="https://astral.sh/uv/install.sh"
+readonly UV_INSTALL_REDIRECT_URL="https://releases.astral.sh/installers/uv/latest/uv-installer.sh"
+readonly UV_RELEASE_SOURCE="https://releases.astral.sh/github/uv/releases/download"
+readonly UV_RELEASE_FALLBACK="https://github.com/astral-sh/uv/releases/download"
 readonly PYTHON_SOURCE="https://github.com/astral-sh/python-build-standalone/releases/download"
 readonly PYPI_INDEX="https://pypi.org/simple"
+readonly PYPI_FILES="https://files.pythonhosted.org"
 readonly PYTHON_REQUEST="3.12"
 
 DRY_RUN=0
@@ -69,18 +73,18 @@ esac
 while [[ $target != / && $target == */ ]]; do target=${target%/}; done
 
 check_no_symlink_components() {
-  local path=$1 current="" part
-  local old_ifs=$IFS
-  IFS=/
-  for part in ${path#/}; do
+  local path=$1 current="" part remaining=${1#/}
+  while [[ -n $remaining ]]; do
+    case $remaining in
+      */*) part=${remaining%%/*}; remaining=${remaining#*/} ;;
+      *) part=$remaining; remaining="" ;;
+    esac
     [[ -n $part && $part != . ]] || continue
     current="$current/$part"
     if [[ -L $current ]]; then
-      IFS=$old_ifs
       return 1
     fi
   done
-  IFS=$old_ifs
   return 0
 }
 
@@ -157,7 +161,7 @@ state_line() {
 uv_path=$(find_uv || true)
 git_path=$(type -P git 2>/dev/null || true)
 if ((DRY_RUN)); then
-  printf 'Apparatus setup dry-run (detection only; no commands will run)\n'
+  printf 'Apparatus setup dry-run (read-only detection; no install, network, or workspace commands)\n'
   state_line "Operating system" "present (macOS)"
   if ((target_safe)); then
     state_line "Target safety" "present ($target; $target_reason)"
@@ -210,6 +214,7 @@ export UV_TOOL_BIN_DIR="$UV_TOOL_BIN"
 export UV_CACHE_DIR="$UV_CACHE_DIR"
 export UV_DEFAULT_INDEX="$PYPI_INDEX" UV_NO_CONFIG=1
 export UV_MANAGED_PYTHON=1 UV_PYTHON_INSTALL_MIRROR="$PYTHON_SOURCE"
+export UV_NO_MODIFY_PATH=1
 unset INSTALLER_DOWNLOAD_URL VIRTUAL_ENV
 
 if [[ -n $uv_path ]] && ! "$uv_path" --version >/dev/null 2>&1; then
@@ -220,7 +225,7 @@ if [[ -z $uv_path ]]; then
   [[ -x /usr/bin/curl ]] || fail "curl is required to install uv."
   printf 'Installing uv in your user profile...\n'
   if ! /usr/bin/curl -q --proto '=https' --tlsv1.2 -LsSf "$UV_INSTALL_URL" | \
-      /usr/bin/env UV_INSTALL_DIR="$UV_INSTALL_DIR" sh; then
+      /usr/bin/env UV_INSTALL_DIR="$UV_INSTALL_DIR" UV_NO_MODIFY_PATH=1 /bin/sh; then
     fail "uv could not be installed. A download or device policy may be blocking it."
   fi
   uv_path=$UV_BIN
@@ -263,6 +268,16 @@ else
 fi
 [[ -x $APPARATUS_BIN && ! -d $APPARATUS_BIN ]] || \
   fail "The Apparatus command is missing after installation."
+
+doctor_path="$UV_TOOL_BIN:/usr/bin:/bin:/usr/sbin:/sbin"
+if [[ -n $git_path ]]; then
+  git_directory=${git_path%/*}
+  case ":$doctor_path:" in
+    *":$git_directory:"*) ;;
+    *) doctor_path="$UV_TOOL_BIN:$git_directory:/usr/bin:/bin:/usr/sbin:/sbin" ;;
+  esac
+fi
+export PATH=$doctor_path
 
 if workspace_present; then
   printf 'The existing workspace is intact; init is not needed.\n'

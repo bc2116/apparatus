@@ -419,11 +419,42 @@ class PosixWorkspaceAnchor:
         *,
         owned_parent: PosixOwnedDirectory | None = None,
     ) -> PosixOwnedFile:
-        del owned_parent
         if not self.root_is_current():
             raise OSError("workspace root changed")
+        if owned_parent is not None:
+            if (
+                Path(relative).parent != owned_parent.relative
+                or owned_parent.parent < 0
+                or not self._parent_is_current(
+                    owned_parent.relative, owned_parent.parent
+                )
+            ):
+                raise OSError("invocation-owned parent directory changed")
+            try:
+                current = os.stat(
+                    owned_parent.name,
+                    dir_fd=owned_parent.parent,
+                    follow_symlinks=False,
+                )
+            except OSError as error:
+                raise OSError("invocation-owned parent directory changed") from error
+            if (
+                current.st_dev,
+                current.st_ino,
+            ) != (
+                owned_parent.device,
+                owned_parent.inode,
+            ):
+                raise OSError("invocation-owned parent directory changed")
         parent, name = self._parent(relative)
         try:
+            if owned_parent is not None:
+                current = os.fstat(parent)
+                if (current.st_dev, current.st_ino) != (
+                    owned_parent.device,
+                    owned_parent.inode,
+                ):
+                    raise OSError("invocation-owned parent directory changed")
             identity_value = self._write_at(parent, name, content, mode)
             owned = PosixOwnedFile(
                 Path(relative), parent, name, identity_value, content

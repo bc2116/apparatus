@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from apparatus_core import __version__
@@ -93,26 +94,42 @@ def write_machine_report(
     report_path = workspace_path / "System" / "machine-report.md"
     content = render_machine_report(detections, clock=clock).encode("utf-8")
     created_system = None
+    selection_marker = None
     created_report = None
     transaction = None
 
     with WorkspaceAnchor(workspace_path) as workspace_anchor:
         try:
-            if not workspace_anchor.directory_exists("System"):
+            if not workspace_anchor.entry_exists("System"):
                 created_system = workspace_anchor.create_directory("System")
-                if os.name == "nt":
-                    # A newly created Win32 directory owner requests DELETE
-                    # access. Release that creation-only handle before the
-                    # nested anchor opens the same directory without delete
-                    # sharing. The workspace anchor still pins the root and an
-                    # empty directory is deliberately left on later failure.
-                    created_system.close()
-                    created_system = None
+            marker_relative = Path("System") / (
+                f".apparatus-machine-report-{secrets.token_hex(16)}.tmp"
+            )
+            selection_marker = workspace_anchor.create_file(
+                marker_relative,
+                secrets.token_bytes(32),
+                owned_parent=created_system,
+            )
+            if os.name == "nt" and created_system is not None:
+                # The marker's parent handle shares delete and bridges the exact
+                # new System identity into the nested anchor. Release only the
+                # incompatible creation handle before that anchor is opened.
+                created_system.close()
+                created_system = None
 
-            # A second anchor retains the exact System directory selected above.
-            # Root and System may still be renamed on POSIX, but a later identity
-            # check rejects that replacement and cleanup stays descriptor-relative.
-            with WorkspaceAnchor(report_path.parent) as system_anchor:
+            system_anchor = WorkspaceAnchor(report_path.parent)
+            try:
+                if not system_anchor.matches_root_handle(selection_marker.parent):
+                    raise OSError("machine report System directory changed")
+                workspace_anchor.unlink_owned(selection_marker)
+                selection_marker.close()
+                selection_marker = None
+                if not (
+                    workspace_anchor.root_is_current()
+                    and system_anchor.root_is_current()
+                ):
+                    raise OSError("machine report destination changed")
+
                 if system_anchor.entry_exists("machine-report.md"):
                     existing = system_anchor.capture_file("machine-report.md")
                     try:
@@ -154,7 +171,9 @@ def write_machine_report(
                         and system_anchor.matches_owned(created_report)
                     ):
                         raise OSError("machine report destination changed")
-            return report_path
+                return report_path
+            finally:
+                system_anchor.close()
         except Exception:
             if transaction is not None:
                 try:
@@ -172,6 +191,12 @@ def write_machine_report(
                 except OSError:
                     pass
                 created_report.close()
+            if selection_marker is not None:
+                try:
+                    workspace_anchor.unlink_owned_if_present(selection_marker)
+                except OSError:
+                    pass
+                selection_marker.close()
             if created_system is not None:
                 try:
                     workspace_anchor.remove_owned_directory(created_system)
@@ -182,5 +207,7 @@ def write_machine_report(
         finally:
             if created_report is not None:
                 created_report.close()
+            if selection_marker is not None:
+                selection_marker.close()
             if created_system is not None:
                 created_system.close()

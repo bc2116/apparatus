@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -124,7 +125,7 @@ def test_native_bootstrap_dry_run_is_complete_and_has_zero_effects(tmp_path):
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
-    assert "detection only; no commands will run" in completed.stdout
+    assert "read-only detection; no install, network, or workspace commands" in completed.stdout
     assert all(label in completed.stdout for label in STEP_LABELS)
     assert all(
         word in completed.stdout
@@ -139,19 +140,88 @@ def test_bootstrap_sources_and_payload_boundary_are_explicit():
     macos = MACOS_SCRIPT.read_text(encoding="utf-8")
     windows = WINDOWS_SCRIPT.read_text(encoding="utf-8")
     readme = (REPO_ROOT / "installer/README.md").read_text(encoding="utf-8")
-    combined = macos + windows
-
-    for source in (
+    scripts = macos + windows
+    combined = scripts + readme
+    allowed_sources = {
         "https://astral.sh/uv/install.sh",
         "https://astral.sh/uv/install.ps1",
+        "https://releases.astral.sh/installers/uv/latest/uv-installer.sh",
+        "https://releases.astral.sh/installers/uv/latest/uv-installer.ps1",
+        "https://releases.astral.sh/github/uv/releases/download",
+        "https://github.com/astral-sh/uv/releases/download",
         "https://github.com/astral-sh/python-build-standalone/releases/download",
         "https://pypi.org/simple",
-    ):
-        assert source in combined or source in readme
-    assert "apparatus init" not in combined  # invoked as an argument array, never a shell string
-    assert "--payload" not in combined
-    assert "apparatus-payload" not in combined
-    assert "sudo" not in combined.casefold()
+        "https://files.pythonhosted.org",
+    }
+    assert set(re.findall(r"https://[^\s`\"']+", combined)) == allowed_sources
+    assert "apparatus init" not in scripts  # invoked as an argument array, never a shell string
+    assert "--payload" not in scripts
+    assert "apparatus-payload" not in scripts
+    assert "sudo" not in scripts.casefold()
+
+
+def test_dry_run_exit_precedes_every_mutating_or_network_stage():
+    macos = MACOS_SCRIPT.read_text(encoding="utf-8")
+    windows = WINDOWS_SCRIPT.read_text(encoding="utf-8")
+
+    macos_exit = macos.index("if ((DRY_RUN)); then")
+    macos_exit = macos.index("exit 0", macos_exit)
+    for token in ("/usr/bin/curl", '"$APPARATUS_BIN" init', '"$APPARATUS_BIN" doctor'):
+        assert macos.index(token) > macos_exit
+
+    windows_exit = windows.index("if ($DryRun)")
+    windows_exit = windows.index("exit 0", windows_exit)
+    for token in ("Invoke-RestMethod", "Invoke-Expression", "& $ApparatusBin init", "& $ApparatusBin doctor"):
+        assert windows.index(token) > windows_exit
+
+    assert "UV_NO_MODIFY_PATH=1 /bin/sh" in macos
+    assert '$env:UV_NO_MODIFY_PATH = "1"' in windows
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows path regression")
+def test_windows_dry_run_preserves_drive_and_unc_roots(tmp_path):
+    home = tmp_path / "profile"
+    home.mkdir()
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "HOME": str(home),
+            "USERPROFILE": str(home),
+            "APPDATA": str(home / "AppData/Roaming"),
+            "LOCALAPPDATA": str(home / "AppData/Local"),
+        }
+    )
+    pwsh = shutil.which("powershell") or shutil.which("pwsh")
+    if pwsh is None:
+        pytest.skip("PowerShell is unavailable")
+
+    drive_root = Path(tmp_path.anchor)
+    targets = [str(drive_root)]
+    drive = drive_root.drive.rstrip(":")
+    unc_root = f"\\\\localhost\\{drive}$\\"
+    if Path(unc_root).exists():
+        targets.append(unc_root)
+
+    for target in targets:
+        completed = subprocess.run(
+            [
+                pwsh,
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(WINDOWS_SCRIPT),
+                "-DryRun",
+                "-Path",
+                target,
+            ],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stdout + completed.stderr
+        assert f"present ({target}" in completed.stdout
 
 
 def test_macos_script_has_valid_bash_syntax():

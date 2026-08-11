@@ -4,11 +4,13 @@ import argparse
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import tempfile
 
 import pytest
 
 from apparatus_core import records
+from apparatus_core import init_deploy
 from apparatus_core import payload as payload_module
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import init
@@ -22,6 +24,7 @@ from apparatus_core.payload import (
     shipped_payload,
 )
 from apparatus_core.receipts import write_receipt
+from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.snapshots import SnapshotError, list_snapshots
 
 
@@ -706,3 +709,173 @@ def test_sibling_profiles_directory_symlink_is_rejected_by_resolver_and_full_ini
     assert "symbolic link" in output
     assert sentinel.read_bytes() == b"sibling manifest sentinel"
     assert not workspace.exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained-root regression")
+@pytest.mark.parametrize("boundary", ("root", "System", "nested"))
+def test_init_rejects_posix_directory_replacement_and_preserves_foreign_tree(
+    monkeypatch, tmp_path, capsys, boundary
+):
+    workspace = tmp_path / "workspace"
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    capsys.readouterr()
+    target = {
+        "root": workspace,
+        "System": workspace / "System",
+        "nested": workspace / "System/policy",
+    }[boundary]
+    trigger = {
+        "root": workspace / "Welcome.md",
+        "System": workspace / "System/profile.yaml",
+        "nested": workspace / "System/policy/standard.md",
+    }[boundary]
+    trigger.unlink()
+    displaced = tmp_path / f"displaced-{boundary}"
+    foreign = b"foreign tree\n"
+    attempted = False
+    original_create = WorkspaceAnchor.create_file
+
+    def replace_after_create(anchor, relative, content, mode=0o600, **kwargs):
+        nonlocal attempted
+        owned = original_create(anchor, relative, content, mode, **kwargs)
+        if attempted or Path(relative).name.startswith(".apparatus-"):
+            return owned
+        anchor_path = Path(anchor.workspace)
+        should_replace = (
+            (boundary == "root" and anchor_path == workspace)
+            or (boundary == "System" and anchor_path == workspace / "System")
+            or (boundary == "nested" and anchor_path == workspace / "System/policy")
+        )
+        if should_replace:
+            attempted = True
+            target.rename(displaced)
+            target.mkdir(parents=True)
+            (target / "foreign.bin").write_bytes(foreign)
+        return owned
+
+    monkeypatch.setattr(init_deploy.WorkspaceAnchor, "create_file", replace_after_create)
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert attempted
+    assert "could not deploy workspace" in capsys.readouterr().out
+    assert (target / "foreign.bin").read_bytes() == foreign
+    assert not list(target.rglob(".apparatus-init-*.tmp"))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained-root regression")
+def test_missing_workspace_handoff_rejects_substitution_and_cleans_marker(
+    monkeypatch, tmp_path, capsys
+):
+    workspace = tmp_path / "workspace"
+    displaced = tmp_path / "displaced-workspace"
+    foreign = b"foreign root\n"
+    original_create = WorkspaceAnchor.create_file
+    substituted = False
+
+    def substitute_after_marker(anchor, relative, content, mode=0o600, **kwargs):
+        nonlocal substituted
+        owned = original_create(anchor, relative, content, mode, **kwargs)
+        relative_path = Path(relative)
+        if (
+            not substituted
+            and relative_path.parent == Path("workspace")
+            and relative_path.name.startswith(".apparatus-init-")
+        ):
+            substituted = True
+            workspace.rename(displaced)
+            workspace.mkdir()
+            (workspace / "foreign.bin").write_bytes(foreign)
+        return owned
+
+    monkeypatch.setattr(init_deploy.WorkspaceAnchor, "create_file", substitute_after_marker)
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert substituted
+    assert "could not deploy workspace" in capsys.readouterr().out
+    assert (workspace / "foreign.bin").read_bytes() == foreign
+    assert not list(displaced.glob(".apparatus-init-*.tmp"))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows retained-root regression")
+@pytest.mark.parametrize("boundary", ("root", "System"))
+def test_windows_init_retained_handles_deny_directory_rename(
+    monkeypatch, tmp_path, boundary
+):
+    workspace = tmp_path / "workspace"
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    target = workspace if boundary == "root" else workspace / "System"
+    replacement = tmp_path / f"renamed-{boundary}"
+    attempts: list[str] = []
+    original_create = WorkspaceAnchor.create_file
+
+    def attempt_rename(anchor, relative, content, mode=0o600, **kwargs):
+        owned = original_create(anchor, relative, content, mode, **kwargs)
+        if attempts or Path(relative).name.startswith(".apparatus-"):
+            return owned
+        anchor_path = Path(anchor.workspace)
+        if (boundary == "root" and anchor_path == workspace) or (
+            boundary == "System" and anchor_path == workspace / "System"
+        ):
+            try:
+                target.rename(replacement)
+            except OSError:
+                attempts.append("blocked")
+            else:  # pragma: no cover - exposes a native containment defect
+                attempts.append("renamed")
+        return owned
+
+    monkeypatch.setattr(init_deploy.WorkspaceAnchor, "create_file", attempt_rename)
+    assert init.run(
+        _args(workspace, privacy_mode="private"), available=lambda: False
+    ) == 0
+    assert attempts == ["blocked"]
+    assert not replacement.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows reparse regression")
+@pytest.mark.parametrize("boundary", ("workspace", "System", "nested"))
+def test_windows_init_rejects_junction_boundaries_and_preserves_foreign_tree(
+    tmp_path, capsys, boundary
+):
+    outside = tmp_path / f"outside-{boundary}"
+    outside.mkdir()
+    foreign = outside / "foreign.bin"
+    foreign.write_bytes(b"foreign junction\n")
+    workspace = tmp_path / f"workspace-{boundary}"
+    if boundary == "workspace":
+        junction = workspace
+    elif boundary == "System":
+        workspace.mkdir()
+        junction = workspace / "System"
+    else:
+        (workspace / "System").mkdir(parents=True)
+        junction = workspace / "System/policy"
+    completed = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert "symbolic link" in capsys.readouterr().out or boundary == "workspace"
+    assert foreign.read_bytes() == b"foreign junction\n"
+    assert sorted(path.name for path in outside.iterdir()) == ["foreign.bin"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows retained-root regression")
+def test_windows_missing_workspace_identity_mismatch_fails_before_deployment(
+    monkeypatch, tmp_path, capsys
+):
+    workspace = tmp_path / "workspace"
+    original_matches = WorkspaceAnchor.matches_root_handle
+
+    def reject_workspace(anchor, handle):
+        if Path(anchor.workspace) == workspace:
+            return False
+        return original_matches(anchor, handle)
+
+    monkeypatch.setattr(init_deploy.WorkspaceAnchor, "matches_root_handle", reject_workspace)
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert "could not deploy workspace" in capsys.readouterr().out
+    assert not list(workspace.rglob(".apparatus-init-*.tmp"))
+    assert not (workspace / "Welcome.md").exists()
