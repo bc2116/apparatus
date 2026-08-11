@@ -126,3 +126,10 @@ and honest documentation of their limits.
   can add MinGit bundling without changing the script's interface. Record
   this interim default against the open question in design brief §14; the
   question stays open until real locked-down-machine data decides it.
+- Idempotency and the required fresh doctor run leave one narrow tension:
+  doctor timestamps the current machine report, so a completed re-run cannot
+  be byte-identical at that one generated file. The smallest reversible
+  default is that bootstrap and tool repair are idempotent and existing user
+  files are preserved, while doctor intentionally refreshes
+  `System/machine-report.md`; byte-identical no-op behavior is not promised for
+  that report. This records the existing behavior without expanding core.
