@@ -51,8 +51,8 @@ def _native_command(home: Path, target: Path) -> list[str]:
         uv.chmod(0o700)
         return [bash, str(MACOS_SCRIPT), "--dry-run", "--path", str(target)]
     if sys.platform == "win32":
-        # Windows PowerShell is the declared 5.1 baseline and does not create
-        # PowerShell 7's StartupProfileData cache under redirected LOCALAPPDATA.
+        # Windows PowerShell is the declared 5.1 baseline; the direct workflow
+        # smoke also runs the same script under PowerShell 7.
         pwsh = shutil.which("powershell") or shutil.which("pwsh")
         if pwsh is None:
             pytest.skip("PowerShell is unavailable on this Windows host")
@@ -97,6 +97,20 @@ def test_native_bootstrap_dry_run_is_complete_and_has_zero_effects(tmp_path):
             "NO_PROXY": "",
         }
     )
+    if sys.platform == "win32":
+        # Both native PowerShell families may publish interpreter-owned startup
+        # data on first use. Warm the selected interpreter in the exact test
+        # environment, then bracket only the complete bootstrap invocation.
+        warmed = subprocess.run(
+            [command[0], "-NoProfile", "-NonInteractive", "-Command", "exit"],
+            cwd=work,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        assert warmed.returncode == 0, warmed.stdout + warmed.stderr
     before = _tree(tmp_path)
 
     completed = subprocess.run(
