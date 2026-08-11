@@ -290,7 +290,10 @@ def test_unborn_snapshot_cas_preserves_a_concurrent_first_head(tmp_path):
         return subprocess.run(arguments, **kwargs)
 
     def racing_take(*args, **kwargs):
-        return snapshots.prepare_snapshot(*args, run=racing_run, **kwargs)
+        # Replace the export's anchored runner: this probe exercises the
+        # unborn-history CAS semantics with its own racing git runner.
+        kwargs["run"] = racing_run
+        return snapshots.prepare_snapshot(*args, **kwargs)
 
     with pytest.raises(BackupError, match="pre-export snapshot"):
         export_backup(
@@ -2030,3 +2033,100 @@ def test_windows_destination_is_never_listed(tmp_path, monkeypatch):
     monkeypatch.setattr(backup_engine.os, "listdir", guarded_listdir)
     export_backup(workspace, destination, available=lambda: False, clock=_clock)
     assert unrelated.read_bytes() == b"unchanged"
+
+
+@pytest.mark.parametrize(
+    ("marker", "content"),
+    [
+        ("commondir", "../external-history\n"),
+        ("objects/info/alternates", "../../../external-objects\n"),
+    ],
+)
+@pytest.mark.skipif(not HAS_GIT, reason="late history-marker probe requires git")
+def test_history_marker_inserted_after_archive_write_is_rejected(
+    tmp_path,
+    monkeypatch,
+    marker,
+    content,
+):
+    """Doctrine probe: the success gate re-runs the marker scan.
+
+    Insertion AFTER the archive walk completes must still fail the export
+    before any success is authorized — a check that does not re-run at the
+    final commit point is a hope, not a guarantee.
+    """
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace)
+    marker_path = workspace / ".git" / marker
+    original_write_archive = backup_engine._write_archive
+    injected = False
+
+    def write_then_insert(source, owned, transient_paths=()):
+        nonlocal injected
+        assert not injected
+        size = original_write_archive(source, owned, transient_paths)
+        marker_path.parent.mkdir(parents=True, exist_ok=True)
+        marker_path.write_text(content, encoding="utf-8")
+        injected = True
+        return size
+
+    monkeypatch.setattr(backup_engine, "_write_archive", write_then_insert)
+
+    with pytest.raises(BackupError):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert injected
+    assert marker_path.read_text(encoding="utf-8") == content
+    assert _archives(destination) == []
+    assert not list((workspace / "System" / "receipts").glob("*-backup-export.md"))
+    marker_path.unlink()
+    _assert_prepared_failure_state(workspace, expected)
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX root-swap anchoring probe requires git",
+)
+def test_root_swap_before_snapshot_never_mutates_foreign_repository(tmp_path):
+    """An early root replacement must never let export commit into a foreign repo."""
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    _prepared_failure_state(workspace)
+
+    foreign = tmp_path / "foreign"
+    foreign.mkdir()
+    (foreign / "note.txt").write_bytes(b"foreign notes")
+    assert _git(foreign, "init").returncode == 0
+    assert _git(foreign, "add", "-A").returncode == 0
+    assert (
+        _git(
+            foreign,
+            "-c",
+            "user.name=Foreign Owner",
+            "-c",
+            "user.email=foreign@example.com",
+            "commit",
+            "-m",
+            "foreign baseline",
+        ).returncode
+        == 0
+    )
+    foreign_git_state = _files(foreign / ".git")
+
+    moved = tmp_path / "moved-workspace"
+
+    def swapping_take(root, **kwargs):
+        workspace.rename(moved)
+        foreign.rename(workspace)
+        return backup_engine.prepare_snapshot(root, **kwargs)
+
+    with pytest.raises(BackupError):
+        export_backup(workspace, destination, take=swapping_take, clock=_clock)
+
+    # The foreign repository (now sitting at the workspace path) must be
+    # byte-identical: no snapshot commit, no config or object mutation.
+    assert _files(workspace / ".git") == foreign_git_state
+    assert _archives(destination) == []

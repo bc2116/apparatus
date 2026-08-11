@@ -9,6 +9,7 @@ from pathlib import Path
 import os
 import re
 import stat
+import subprocess
 import zipfile
 from typing import Any, BinaryIO
 
@@ -1509,6 +1510,21 @@ def _require_success_checkpoint(
             source.handle
         ) or not destination_anchor.matches_root_handle(target.handle):
             raise BackupError("Destination identity changed during backup export.")
+        # A check that does not re-run at the final commit point is a hope,
+        # not a guarantee: external-history markers (alternates, commondir,
+        # gitfile redirects) inserted after the early scans must fail the
+        # export here, before any success is authorized.
+        final_storage = source.snapshot_storage()
+        if final_storage == "external":
+            raise BackupError(
+                "This workspace uses external snapshot storage and cannot be "
+                "backed up safely."
+            )
+        if final_storage == "unsafe" or (
+            transaction is not None and final_storage != "standalone"
+        ):
+            raise BackupError("Workspace snapshot storage is not safe to archive.")
+        source.validate_snapshot_history()
         owned.validate_name()
         if transaction is not None:
             if durable:
@@ -1526,6 +1542,103 @@ def _require_success_checkpoint(
         raise
     except (OSError, SnapshotError) as error:
         raise BackupError("Backup success checks could not be completed safely.") from error
+
+
+def _git_redirects_absent(source: Any) -> None:
+    """O(1) POSIX probe: refuse top-level snapshot-store redirection markers.
+
+    The full `validate_snapshot_history` walk runs at entry, after the
+    snapshot, and at every success gate; running it around every git call
+    made the snapshot step quadratic in workspace size. The only markers a
+    racing insertion can use to redirect a git invocation are at the top of
+    the store — a `.git` gitfile, `commondir`, alternates, or an external
+    config — so this probe checks exactly those, descriptor-anchored.
+    """
+    git_dir = -1
+    try:
+        try:
+            git_dir = os.open(
+                ".git", _posix_directory_flags(), dir_fd=source.handle
+            )
+        except FileNotFoundError:
+            return
+        except OSError as error:
+            raise BackupError(
+                "Workspace snapshot storage is not safe to archive."
+            ) from error
+        for relative in (
+            "commondir",
+            "objects/info/alternates",
+            "objects/info/http-alternates",
+        ):
+            try:
+                os.stat(relative, dir_fd=git_dir, follow_symlinks=False)
+            except (FileNotFoundError, NotADirectoryError):
+                continue
+            raise BackupError(
+                "This workspace uses external snapshot history and cannot be "
+                "backed up safely."
+            )
+        config_handle = -1
+        try:
+            config_handle = os.open("config", _posix_file_flags(), dir_fd=git_dir)
+        except FileNotFoundError:
+            return
+        except OSError as error:
+            raise BackupError(
+                "Workspace snapshot storage is not safe to archive."
+            ) from error
+        try:
+            chunks: list[bytes] = []
+            while True:
+                chunk = os.read(config_handle, 65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        finally:
+            os.close(config_handle)
+        if _config_uses_external_history(b"".join(chunks)):
+            raise BackupError(
+                "This workspace uses external snapshot history and cannot be "
+                "backed up safely."
+            )
+    finally:
+        if git_dir >= 0:
+            os.close(git_dir)
+
+
+def _anchored_snapshot_runner(source: Any) -> Callable[..., Any]:
+    """Run snapshot git commands anchored to the pinned workspace object.
+
+    The load-bearing guard is `require_path_current()` before and after
+    every invocation: a swapped root fails loudly before git spawns. On
+    POSIX, `git -C <path>` is additionally rewritten to `git -C .` with the
+    child fchdir()ed to the held descriptor, so the exec-time window cannot
+    re-resolve the path into a replacement tree; the Windows anchor
+    name-locks the root instead, so the rename cannot occur there at all.
+    A shallow redirect probe refuses top-level marker insertion around each
+    call; the full history walk runs at entry and at every success gate.
+    """
+
+    def run(*args: Any, **kwargs: Any) -> Any:
+        source.require_path_current()
+        if os.name != "nt":
+            _git_redirects_absent(source)
+            if args and isinstance(args[0], (list, tuple)):
+                argv = list(args[0])
+                if len(argv) >= 3 and argv[0] == "git" and argv[1] == "-C":
+                    argv[2] = "."
+                    args = (argv, *args[1:])
+            handle = source.handle
+            kwargs["cwd"] = "."
+            kwargs["preexec_fn"] = lambda: os.fchdir(handle)
+        result = subprocess.run(*args, **kwargs)
+        if os.name != "nt":
+            _git_redirects_absent(source)
+        source.require_path_current()
+        return result
+
+    return run
 
 
 def export_backup(
@@ -1578,6 +1691,7 @@ def export_backup(
                             label=f"Before backup export {timestamp}",
                             capture=source.copy_snapshot_content,
                             anchor=workspace_anchor,
+                            run=_anchored_snapshot_runner(source),
                         )
                     except BackupError:
                         raise
