@@ -99,7 +99,9 @@ def _persistent_tree(root: Path) -> dict[str, _PersistentObjectState]:
             children = sorted(entries, key=lambda entry: entry.name.casefold())
         for entry in children:
             relative = f"{prefix}/{entry.name}" if prefix else entry.name
-            metadata = entry.stat(follow_symlinks=False)
+            # DirEntry.stat intentionally returns zero st_dev/st_ino on
+            # Windows. os.stat performs the handle-backed identity query.
+            metadata = os.stat(entry.path, follow_symlinks=False)
             state[relative] = _persistent_object_state(metadata)
             is_reparse = bool(
                 getattr(metadata, "st_file_attributes", 0) & reparse_flag
@@ -392,6 +394,9 @@ def test_windows_hosted_jobs_use_scoped_filesystem_proof():
     assert exclusion in bootstrap_windows
     assert selection in bootstrap_windows
     assert workflow.count(WINDOWS_ETW_TEST) == 3
+    assert bootstrap_windows.count(
+        "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+    ) == 2
 
 
 def test_optional_etw_witness_skips_only_github_hosted_runners(monkeypatch):
@@ -685,21 +690,68 @@ if (Test-RedirectedTarget 'D:\Child' $values 'C:\Users\Example') {{ exit 34 }}
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows filesystem proof")
-@pytest.mark.parametrize("workspace_present", [False, True], ids=["absent", "present"])
+def test_windows_powershell_baseline_preserves_temp_and_working_directory(
+    tmp_path,
+):
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is unavailable")
+
+    temp = tmp_path / "temp"
+    working = tmp_path / "working"
+    temp.mkdir()
+    working.mkdir()
+    environment = os.environ.copy()
+    environment.update({"TEMP": str(temp), "TMP": str(temp)})
+    locations = {"TEMP": temp, "working directory": working}
+    before = _snapshot_locations(locations)
+
+    completed = subprocess.run(
+        [
+            powershell,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            "exit",
+        ],
+        cwd=working,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    after = _snapshot_locations(locations)
+    assert after == before, "PowerShell baseline: " + _snapshot_delta(before, after)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows filesystem proof")
+@pytest.mark.parametrize(
+    ("workspace_present", "git_on_path"),
+    [(False, True), (True, True), (False, False)],
+    ids=["absent-git", "present-git", "absent-no-git"],
+)
 def test_windows_dry_run_preserves_every_named_filesystem_location(
     tmp_path,
     workspace_present,
+    git_on_path,
 ):
     powershell = shutil.which("powershell") or shutil.which("pwsh")
     if powershell is None:
         pytest.skip("PowerShell is unavailable")
 
     home = tmp_path / "profile"
+    probe_temp = tmp_path / "profile-probe-temp"
     temp = tmp_path / "temp"
     working = tmp_path / "working"
     target = tmp_path / "workspace/Apparatus"
     for directory in (
         home,
+        probe_temp,
         temp,
         working,
         home / "AppData/Local",
@@ -717,8 +769,8 @@ def test_windows_dry_run_preserves_every_named_filesystem_location(
             "USERPROFILE": str(home),
             "APPDATA": str(home / "AppData/Roaming"),
             "LOCALAPPDATA": str(home / "AppData/Local"),
-            "TEMP": str(temp),
-            "TMP": str(temp),
+            "TEMP": str(probe_temp),
+            "TMP": str(probe_temp),
             "HTTP_PROXY": "http://127.0.0.1:9",
             "HTTPS_PROXY": "http://127.0.0.1:9",
             "ALL_PROXY": "http://127.0.0.1:9",
@@ -746,6 +798,17 @@ def test_windows_dry_run_preserves_every_named_filesystem_location(
     assert profile_probe.returncode == 0, profile_probe.stdout + profile_probe.stderr
     user_profile = Path(profile_probe.stdout)
     assert user_profile.is_absolute(), "the script's user profile root must be absolute"
+    environment["TEMP"] = str(temp)
+    environment["TMP"] = str(temp)
+    if not git_on_path:
+        system_root = Path(os.environ["SystemRoot"])
+        environment["PATH"] = os.pathsep.join(
+            (
+                str(system_root / "System32"),
+                str(system_root),
+                str(system_root / "System32/WindowsPowerShell/v1.0"),
+            )
+        )
 
     locations = _windows_proof_locations(
         user_profile=user_profile,

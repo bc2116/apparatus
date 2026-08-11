@@ -84,7 +84,9 @@ jobs:
         run: |
           powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File installer/windows/bootstrap-apparatus.ps1 -DryRun
           uv run pytest conformance/test_bootstrap_dry_run.py --deselect conformance/test_bootstrap_dry_run.py::test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           uv run pytest conformance/test_bootstrap_dry_run.py::test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   bootstrap-macos:
     runs-on: macos-latest

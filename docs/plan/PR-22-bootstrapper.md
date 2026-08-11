@@ -250,3 +250,18 @@ proof portability findings, Linux CI, macOS native proof, and Windows safety
 coverage remain closed. The sole reopened deliverable is the hosted Windows
 dry-run evidence mechanism. PR-22 stays blocked with this restart in progress
 until the new exact-head native CI evidence and independent review are green.
+
+Restart pass 1 at exact head `98b0845` replaced the primary witness and removed
+proof-level subprocess timeouts. CI run `31517125863` then exposed three scoped
+test defects. Cached `DirEntry.stat` metadata returned zero file identities for
+Windows files; the isolated `TEMP` root retained a modification-time change;
+and the bootstrap job's final skipped optional-ETW invocation masked the broad
+pytest failure. Windows safety failed and preserved the true run disposition;
+Linux and macOS remained green.
+
+Restart pass 2 uses path-based `os.stat` for the documented Windows file-index
+identity, adds a cold interpreter baseline plus a git-suppressed diagnostic to
+classify any surviving `TEMP` mutation without ignoring it, and propagates each
+native pytest exit code before the optional ETW invocation. The root modification
+time remains part of the comparison, and no warm-up or exclusion narrows the
+interpreter-entry boundary. Native CI evidence remains pending.
