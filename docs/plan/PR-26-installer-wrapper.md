@@ -82,7 +82,10 @@ machine to a doctor-verified workspace with no terminal.
    comparing checksums by hand.
 6. The bootstrap scripts remain directly runnable and byte-identical to the
    repository copies; CI fails the wrapper build if the embedded script
-   drifts from the script in the repository (byte comparison).
+   drifts from the script in the repository. macOS proves this with a direct
+   byte comparison after package expansion. Windows bakes the canonical
+   script's SHA-256 into the compiled wrapper, hashes the runtime-extracted
+   script before every launch, and fails on any mismatch.
 7. Wrapper builds are reproducible in CI from repository content plus
    version-pinned tooling; no unpinned downloads in the build jobs. For native
    installer containers, reproducible means a repeatable pinned build recipe
@@ -101,9 +104,9 @@ machine to a doctor-verified workspace with no terminal.
 ## Conformance and tests
 
 - No conformance fixture changes; workspace protocol behavior is untouched.
-- CI gains wrapper build jobs on `windows-latest` and `macos-latest` in the
-  release workflow's dry-run mode, including the embedded-script byte
-  comparison of criterion 6.
+- CI gains wrapper build jobs on the fixed `windows-2025` and `macos-15`
+  runner labels in the release workflow's dry-run mode, including the
+  embedded-script equality proofs of criterion 6.
 - The PR-22 dry-run smoke tests keep passing unchanged.
 - Verification is by rehearsal and review: run the release workflow via
   `workflow_dispatch` with signing variables unset and record in the PR
