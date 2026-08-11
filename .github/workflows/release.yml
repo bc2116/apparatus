@@ -129,23 +129,223 @@ jobs:
           with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
               output.write(f"sdist_name={sdists[0].name}\n")
               output.write(f"wheel_name={wheels[0].name}\n")
+      - name: Stage normalized release files
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          SDIST_NAME: ${{ steps.packages.outputs.sdist_name }}
+          WHEEL_NAME: ${{ steps.packages.outputs.wheel_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release-files/packages dist/release-files/installer/windows dist/release-files/installer/macos
+          cp "dist/apparatus-payload-${VERSION}.zip" dist/release-files/
+          cp "dist/packages/${SDIST_NAME}" dist/release-files/packages/
+          cp "dist/packages/${WHEEL_NAME}" dist/release-files/packages/
+          cp dist/release-notes.md dist/release-files/
+          cp installer/windows/bootstrap-apparatus.ps1 dist/release-files/installer/windows/
+          cp installer/macos/bootstrap-apparatus.sh dist/release-files/installer/macos/
       - name: Upload release files
         uses: actions/upload-artifact@v4
         with:
-          name: apparatus-release-${{ steps.release.outputs.version }}
+          name: apparatus-release-inputs-${{ steps.release.outputs.version }}
           if-no-files-found: error
-          path: |
-            dist/apparatus-payload-${{ steps.release.outputs.version }}.zip
-            dist/packages/${{ steps.packages.outputs.sdist_name }}
-            dist/packages/${{ steps.packages.outputs.wheel_name }}
-            dist/release-notes.md
+          path: dist/release-files
+
+  sign-windows-bootstrap:
+    name: Sign Windows bootstrap script
+    needs: build
+    if: >-
+      needs.build.result == 'success' &&
+      vars.APPARATUS_SIGN_WINDOWS == 'enabled'
+    runs-on: ${{ vars.APPARATUS_WINDOWS_SIGNING_RUNNER }}
+    environment: signing
+    permissions:
+      contents: read
+    steps:
+      - name: Download release inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: apparatus-release-inputs-${{ needs.build.outputs.version }}
+          path: release-files
+      - name: Verify signing-runner configuration
+        shell: pwsh
+        env:
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT }}
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT }}
+          APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL: ${{ vars.APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL }}
+        run: |
+          foreach ($name in @(
+            'APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT',
+            'APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT',
+            'APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL'
+          )) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Set $name on the protected signing environment."
+            }
+          }
+      - name: Sign with the provisioned hardware-backed key
+        shell: pwsh
+        env:
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT }}
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT }}
+          APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL: ${{ vars.APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $certificate = Get-ChildItem "Cert:\CurrentUser\My\$env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT"
+          if ($null -eq $certificate -or $certificate.Subject -ne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT) {
+            throw 'The provisioned CurrentUser signing certificate does not match the configured subject and thumbprint.'
+          }
+          & signtool.exe sign /sha1 $certificate.Thumbprint /fd SHA256 `
+            /tr $env:APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 `
+            'release-files/installer/windows/bootstrap-apparatus.ps1'
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE." }
+      - name: Verify Windows signature
+        shell: pwsh
+        run: |
+          $signature = Get-AuthenticodeSignature `
+            -FilePath 'release-files/installer/windows/bootstrap-apparatus.ps1'
+          if ($signature.Status -ne 'Valid') {
+            throw "Authenticode signature status was $($signature.Status)."
+          }
+      - name: Upload signed Windows bootstrap script
+        uses: actions/upload-artifact@v4
+        with:
+          name: apparatus-signed-windows-bootstrap-${{ needs.build.outputs.version }}
+          if-no-files-found: error
+          path: release-files/installer/windows/bootstrap-apparatus.ps1
+
+  sign-macos-bootstrap:
+    name: Prepare macOS signing and notarization
+    needs: build
+    if: >-
+      needs.build.result == 'success' &&
+      vars.APPARATUS_SIGN_MACOS == 'enabled'
+    runs-on: macos-latest
+    environment: signing
+    outputs:
+      package_signed: ${{ steps.sign-package.outputs.package_signed }}
+    steps:
+      - name: Download release inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: apparatus-release-inputs-${{ needs.build.outputs.version }}
+          path: release-files
+      - name: Sign and notarize a future installer package
+        id: sign-package
+        shell: bash
+        env:
+          # OPERATOR: a shell script has no applicable Developer ID signature.
+          # When PR-26 supplies a .pkg, add these named secrets to `signing`.
+          APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64 }}
+          APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD }}
+          APPARATUS_MACOS_SIGNING_IDENTITY: ${{ secrets.APPARATUS_MACOS_SIGNING_IDENTITY }}
+          APPARATUS_MACOS_NOTARY_APPLE_ID: ${{ secrets.APPARATUS_MACOS_NOTARY_APPLE_ID }}
+          APPARATUS_MACOS_NOTARY_TEAM_ID: ${{ secrets.APPARATUS_MACOS_NOTARY_TEAM_ID }}
+          APPARATUS_MACOS_NOTARY_APP_PASSWORD: ${{ secrets.APPARATUS_MACOS_NOTARY_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          package_path='release-files/installer/macos/apparatus-installer.pkg'
+          if [[ ! -f "$package_path" ]]; then
+            echo 'No macOS package is released yet; the shell bootstrap script remains unsigned.'
+            echo 'package_signed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # OPERATOR: import the Developer ID Installer certificate from the
+          # protected environment into a temporary keychain before this step.
+          certificate_path="$RUNNER_TEMP/apparatus-signing.p12"
+          keychain_path="$RUNNER_TEMP/apparatus-signing.keychain-db"
+          trap 'rm -f "$certificate_path"; security delete-keychain "$keychain_path" || true' EXIT
+          printf '%s' "$APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
+          security create-keychain -p "$APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD" "$keychain_path"
+          security unlock-keychain -p "$APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -k "$keychain_path" \
+            -P "$APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD" -T /usr/bin/productsign
+          productsign --keychain "$keychain_path" --sign "$APPARATUS_MACOS_SIGNING_IDENTITY" \
+            "$package_path" "$package_path.signed"
+          mv "$package_path.signed" "$package_path"
+          xcrun notarytool store-credentials apparatus-notary \
+            --apple-id "$APPARATUS_MACOS_NOTARY_APPLE_ID" \
+            --team-id "$APPARATUS_MACOS_NOTARY_TEAM_ID" \
+            --password "$APPARATUS_MACOS_NOTARY_APP_PASSWORD"
+          xcrun notarytool submit "$package_path" --keychain-profile apparatus-notary --wait
+          xcrun stapler staple "$package_path"
+          echo 'package_signed=true' >> "$GITHUB_OUTPUT"
+      - name: Upload signed macOS installer package
+        if: steps.sign-package.outputs.package_signed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apparatus-signed-macos-installer-${{ needs.build.outputs.version }}
+          if-no-files-found: error
+          path: release-files/installer/macos/apparatus-installer.pkg
+
+  assemble-release:
+    name: Assemble release files and checksums
+    needs: [build, sign-windows-bootstrap, sign-macos-bootstrap]
+    if: >-
+      always() && needs.build.result == 'success' &&
+      (needs.sign-windows-bootstrap.result == 'success' || needs.sign-windows-bootstrap.result == 'skipped') &&
+      (needs.sign-macos-bootstrap.result == 'success' || needs.sign-macos-bootstrap.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: apparatus-release-inputs-${{ needs.build.outputs.version }}
+          path: release-inputs
+      - name: Normalize release inputs
+        run: |
+          set -euo pipefail
+          cp -a release-inputs/. final-release/
+      - name: Replace Windows bootstrap script when signed
+        if: needs.sign-windows-bootstrap.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: apparatus-signed-windows-bootstrap-${{ needs.build.outputs.version }}
+          path: signed-windows
+      - name: Install signed Windows bootstrap script
+        if: needs.sign-windows-bootstrap.result == 'success'
+        run: cp signed-windows/bootstrap-apparatus.ps1 final-release/installer/windows/bootstrap-apparatus.ps1
+      - name: Replace macOS installer package when signed
+        if: needs.sign-macos-bootstrap.outputs.package_signed == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: apparatus-signed-macos-installer-${{ needs.build.outputs.version }}
+          path: signed-macos
+      - name: Install signed macOS installer package
+        if: needs.sign-macos-bootstrap.outputs.package_signed == 'true'
+        run: cp signed-macos/apparatus-installer.pkg final-release/installer/macos/apparatus-installer.pkg
+      - name: Generate SHA256SUMS
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          SDIST_NAME: ${{ needs.build.outputs.sdist_name }}
+          WHEEL_NAME: ${{ needs.build.outputs.wheel_name }}
+        run: |
+          set -euo pipefail
+          cd final-release
+          release_files=(
+            "apparatus-payload-${VERSION}.zip" \
+            "packages/${SDIST_NAME}" \
+            "packages/${WHEEL_NAME}" \
+            "installer/windows/bootstrap-apparatus.ps1" \
+            "installer/macos/bootstrap-apparatus.sh"
+          )
+          if [[ -f installer/macos/apparatus-installer.pkg ]]; then
+            release_files+=("installer/macos/apparatus-installer.pkg")
+          fi
+          shasum -a 256 "${release_files[@]}" > SHA256SUMS
+      - name: Upload final release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: apparatus-release-${{ needs.build.outputs.version }}
+          if-no-files-found: error
+          path: final-release
 
   publish-pypi:
     name: Publish apparatus-core to PyPI
-    needs: build
+    needs: [build, assemble-release]
     if: >-
       github.event_name == 'push' &&
-      needs.build.outputs.dry_run == 'false'
+      needs.build.outputs.dry_run == 'false' &&
+      needs.assemble-release.result == 'success'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -163,10 +363,11 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: [build, publish-pypi]
+    needs: [build, publish-pypi, assemble-release]
     if: >-
       always() && github.event_name == 'push' &&
       needs.build.result == 'success' &&
+      needs.assemble-release.result == 'success' &&
       (needs.build.outputs.dry_run == 'true' || needs.publish-pypi.result == 'success')
     runs-on: ubuntu-latest
     permissions:
@@ -191,11 +392,20 @@ jobs:
           if [[ "$DRY_RUN" == "true" ]]; then
             prerelease=(--prerelease)
           fi
+          release_files=(
+            "release-files/apparatus-payload-${VERSION}.zip"
+            "release-files/packages/${SDIST_NAME}"
+            "release-files/packages/${WHEEL_NAME}"
+            "release-files/installer/windows/bootstrap-apparatus.ps1"
+            "release-files/installer/macos/bootstrap-apparatus.sh"
+            "release-files/SHA256SUMS"
+          )
+          if [[ -f release-files/installer/macos/apparatus-installer.pkg ]]; then
+            release_files+=("release-files/installer/macos/apparatus-installer.pkg")
+          fi
           gh release create "v${VERSION}" \
             --repo "$GH_REPO" \
             --title "v${VERSION}" \
             --notes-file "release-files/release-notes.md" \
             "${prerelease[@]}" \
-            "release-files/apparatus-payload-${VERSION}.zip" \
-            "release-files/packages/${SDIST_NAME}" \
-            "release-files/packages/${WHEEL_NAME}"
+            "${release_files[@]}"

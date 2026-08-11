@@ -54,13 +54,27 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "uv build --package apparatus-core --out-dir dist/packages" in content
     assert "release tag {ref_name!r} must exactly match package version" in content
     assert "softprops/action-gh-release" not in content
-    assert "dist/apparatus-payload-${{ steps.release.outputs.version }}.zip" in content
-    assert "dist/packages/${{ steps.packages.outputs.sdist_name }}" in content
-    assert "dist/packages/${{ steps.packages.outputs.wheel_name }}" in content
+    assert 'cp "dist/apparatus-payload-${VERSION}.zip" dist/release-files/' in content
+    assert 'cp "dist/packages/${SDIST_NAME}" dist/release-files/packages/' in content
+    assert 'cp "dist/packages/${WHEEL_NAME}" dist/release-files/packages/' in content
     assert '"release-files/packages/${SDIST_NAME}"' in content
     assert '"release-files/packages/${WHEEL_NAME}"' in content
     assert "apparatus_core-${VERSION}.tar.gz" not in content
     assert "apparatus_core-${VERSION}-py3-none-any.whl" not in content
+    assert 'vars.APPARATUS_SIGN_WINDOWS == \'enabled\'' in content
+    assert 'vars.APPARATUS_SIGN_MACOS == \'enabled\'' in content
+    assert "runs-on: ${{ vars.APPARATUS_WINDOWS_SIGNING_RUNNER }}" in content
+    assert "Cert:\\CurrentUser\\My" in content
+    assert "signtool.exe sign /sha1" in content
+    assert '"installer/windows/bootstrap-apparatus.ps1"' in content
+    assert '"installer/macos/bootstrap-apparatus.sh"' in content
+    assert "> SHA256SUMS" in content
+    assert "path: dist/release-files" in content
+    assert "cp -a release-inputs/. final-release/" in content
+    assert "needs: [build, assemble-release]" in content
+    assert "xcrun notarytool store-credentials apparatus-notary" in content
+    assert 'release_files+=("installer/macos/apparatus-installer.pkg")' in content
+    assert 'release_files+=("release-files/installer/macos/apparatus-installer.pkg")' in content
 
 
 def _release_metadata_script() -> str:
@@ -138,8 +152,12 @@ def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path:
         "apparatus-payload-0.0.1.zip",
         "packages/apparatus_core-0.0.1.tar.gz",
         "packages/apparatus_core-0.0.1-py3-none-any.whl",
+        "installer/windows/bootstrap-apparatus.ps1",
+        "installer/macos/bootstrap-apparatus.sh",
+        "SHA256SUMS",
     ):
         path = tmp_path / "release-files" / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("test", encoding="utf-8")
 
     repository = "owner/repository; touch should-not-exist"
@@ -163,11 +181,19 @@ def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path:
 
     arguments = captured.read_text(encoding="utf-8").splitlines()
     assert arguments[:5] == ["release", "create", "v0.0.1", "--repo", repository]
+    assert "release-files/installer/windows/bootstrap-apparatus.ps1" in arguments
+    assert "release-files/installer/macos/bootstrap-apparatus.sh" in arguments
+    assert "release-files/SHA256SUMS" in arguments
     assert not (tmp_path / "should-not-exist").exists()
 
 
 def _github_release_is_eligible(
-    *, build_result: str, dry_run: str, publish_result: str, event: str = "push"
+    *,
+    build_result: str,
+    assemble_result: str,
+    dry_run: str,
+    publish_result: str,
+    event: str = "push",
 ) -> bool:
     workflow = yaml.safe_load(
         (REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(
@@ -179,6 +205,7 @@ def _github_release_is_eligible(
         "always()": True,
         "github.event_name == 'push'": event == "push",
         "needs.build.result == 'success'": build_result == "success",
+        "needs.assemble-release.result == 'success'": assemble_result == "success",
         "needs.build.outputs.dry_run == 'true'": dry_run == "true",
         "needs.publish-pypi.result == 'success'": publish_result == "success",
     }
@@ -191,19 +218,22 @@ def _github_release_is_eligible(
 
 def test_github_release_requires_a_successful_build_for_every_path() -> None:
     assert not _github_release_is_eligible(
-        build_result="failure", dry_run="true", publish_result="skipped"
+        build_result="failure", assemble_result="skipped", dry_run="true", publish_result="skipped"
     )
     assert not _github_release_is_eligible(
-        build_result="failure", dry_run="false", publish_result="success"
-    )
-    assert _github_release_is_eligible(
-        build_result="success", dry_run="true", publish_result="skipped"
-    )
-    assert _github_release_is_eligible(
-        build_result="success", dry_run="false", publish_result="success"
+        build_result="failure", assemble_result="skipped", dry_run="false", publish_result="success"
     )
     assert not _github_release_is_eligible(
-        build_result="success", dry_run="false", publish_result="failure"
+        build_result="success", assemble_result="failure", dry_run="true", publish_result="skipped"
+    )
+    assert _github_release_is_eligible(
+        build_result="success", assemble_result="success", dry_run="true", publish_result="skipped"
+    )
+    assert _github_release_is_eligible(
+        build_result="success", assemble_result="success", dry_run="false", publish_result="success"
+    )
+    assert not _github_release_is_eligible(
+        build_result="success", assemble_result="success", dry_run="false", publish_result="failure"
     )
 
 

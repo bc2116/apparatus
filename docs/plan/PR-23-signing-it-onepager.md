@@ -77,9 +77,10 @@ otherwise.
    per-OS user-profile paths); where workspace data lives
    (`C:\Projects\Apparatus` / `~/Projects/Apparatus`, plain files, never
    inside sync-redirected folders); what leaves the machine and via what
-   channel (nothing, except content the user shares through their own AI
-   app; Apparatus itself makes no network calls after install; install-time
-   downloads listed with their sources); the privacy model summary per
+   channel (Apparatus makes no post-install network calls; content leaves only
+   through an explicit user-approved external channel, such as AI-app sharing,
+   export/copy/publish/upload, send-shaped handoff, or one-way snapshot export;
+   install-time downloads listed with their sources); the privacy model summary per
    ADR-0004 (label at write, enforce at egress, credential floor never
    relaxed, private mode, external actions are drafts until approved);
    receipts (`System/receipts/` — every check, redaction, snapshot, and
@@ -123,6 +124,19 @@ otherwise.
 - PR-22 (bootstrapper v1), per the status table in `docs/plan/README.md`.
 
 ## Open decisions
+
+- **Specification ambiguity — outbound wording:** acceptance criterion 5's
+  original “nothing except” wording conflicts with the landed one-way snapshot
+  export. The smallest truthful default is: Apparatus makes no post-install
+  network calls; content leaves only through an explicit user-approved external
+  channel, such as AI-app sharing, export/copy/publish/upload, send-shaped
+  handoff, or one-way snapshot export.
+- **Specification ambiguity — Windows signing provider:** certificate vendor
+  remains open while signing must be configuration rather than engineering.
+  The smallest provider-neutral boundary is an operator-provisioned Windows
+  runner with a hardware- or cloud-KSP-backed certificate in its CurrentUser
+  certificate store; the workflow receives only its label, certificate subject
+  and thumbprint, and timestamp URL, then uses native `signtool`.
 
 - Installer-executable wrapping technology (`.exe`/`.pkg` around the
   scripts): genuinely undecided and entangled with certificate logistics
