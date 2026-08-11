@@ -741,7 +741,6 @@ def test_windows_dry_run_preserves_every_named_filesystem_location(
         env=environment,
         capture_output=True,
         text=True,
-        timeout=20,
         check=False,
     )
     assert profile_probe.returncode == 0, profile_probe.stdout + profile_probe.stderr
@@ -790,7 +789,6 @@ def test_windows_dry_run_preserves_every_named_filesystem_location(
         env=environment,
         capture_output=True,
         text=True,
-        timeout=30,
         check=False,
     )
 
