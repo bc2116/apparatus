@@ -54,13 +54,79 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "uv build --package apparatus-core --out-dir dist/packages" in content
     assert "release tag {ref_name!r} must exactly match package version" in content
     assert "softprops/action-gh-release" not in content
-    assert "dist/apparatus-payload-${{ steps.release.outputs.version }}.zip" in content
-    assert "dist/packages/${{ steps.packages.outputs.sdist_name }}" in content
-    assert "dist/packages/${{ steps.packages.outputs.wheel_name }}" in content
-    assert '"release-files/packages/${SDIST_NAME}"' in content
-    assert '"release-files/packages/${WHEEL_NAME}"' in content
+    assert 'cp "dist/apparatus-payload-${VERSION}.zip" dist/release-files/' in content
+    assert 'cp "dist/packages/${SDIST_NAME}" dist/release-files/packages/' in content
+    assert 'cp "dist/packages/${WHEEL_NAME}" dist/release-files/packages/' in content
+    assert '"release-files/${SDIST_NAME}"' in content
+    assert '"release-files/${WHEEL_NAME}"' in content
     assert "apparatus_core-${VERSION}.tar.gz" not in content
     assert "apparatus_core-${VERSION}-py3-none-any.whl" not in content
+    assert 'vars.APPARATUS_SIGN_WINDOWS == \'enabled\'' in content
+    assert 'vars.APPARATUS_SIGN_MACOS == \'enabled\'' in content
+    assert "runs-on: [self-hosted, Windows, X64, apparatus-signing-windows]" in content
+    assert "APPARATUS_WINDOWS_SIGNING_RUNNER" not in content
+    assert "Cert:\\CurrentUser\\My" in content
+    assert "$sdkBin = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'" in content
+    assert "Get-AuthenticodeSignature -FilePath $signTool.FullName" in content
+    assert "& $signTool.FullName sign /sha1" in content
+    assert "APPARATUS_SIGNTOOL_PATH" not in content
+    assert ".Thumbprint -ceq" in content
+    assert ".Subject -cne" in content
+    assert ".NotBefore.ToUniversalTime()" in content
+    assert ".NotAfter.ToUniversalTime()" in content
+    assert "1.3.6.1.5.5.7.3.3" in content
+    assert ".HasPrivateKey" in content
+    assert "GetRSAPrivateKey" in content
+    assert "installer/windows/bootstrap-apparatus.ps1" in content
+    assert "installer/macos/bootstrap-apparatus.sh" in content
+    assert "> SHA256SUMS" in content
+    assert "shasum -a 256 --check SHA256SUMS" in content
+    assert "path: dist/release-files" in content
+    assert 'cp "release-inputs/packages/${SDIST_NAME}" final-release/' in content
+    assert 'cp "release-inputs/packages/${WHEEL_NAME}" final-release/' in content
+    assert "needs: [build, assemble-release]" in content
+    assert "xcrun notarytool store-credentials apparatus-notary" in content
+    assert 'release_files+=("apparatus-installer.pkg")' in content
+    assert 'release_files+=("release-files/apparatus-installer.pkg")' in content
+    assert content.count("OPERATOR:") >= 10
+
+
+def test_signing_documents_pin_operator_configuration_and_it_claims() -> None:
+    runbook = (REPOSITORY_ROOT / "docs" / "signing-runbook.md").read_text(
+        encoding="utf-8"
+    )
+    for secret_name in (
+        "APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64",
+        "APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD",
+        "APPARATUS_MACOS_SIGNING_IDENTITY",
+        "APPARATUS_MACOS_NOTARY_APPLE_ID",
+        "APPARATUS_MACOS_NOTARY_TEAM_ID",
+        "APPARATUS_MACOS_NOTARY_APP_PASSWORD",
+    ):
+        assert secret_name in runbook
+    assert (
+        "Complete the CA or service's organization or individual identity checks" in runbook
+    )
+    assert "Environment-level variables cannot select a runner" in runbook
+    assert "never route pull requests, fork code, or unrelated workloads" in runbook
+    assert "APPARATUS_WINDOWS_SIGNING_RUNNER" not in runbook
+
+    one_pager = (REPOSITORY_ROOT / "docs" / "it-onepager.md").read_text(
+        encoding="utf-8"
+    )
+    headings = [
+        "## What gets installed and where",
+        "## Workspace data",
+        "## Network and channels",
+        "## Privacy model",
+        "## Receipts",
+        "## Clean uninstall",
+    ]
+    positions = [one_pager.index(heading) for heading in headings]
+    assert positions == sorted(positions)
+    assert len(one_pager.split()) <= 600
+    assert "No `.exe` or `.pkg` installer exists yet" in one_pager
+    assert "macOS signing and\nnotarization apply only when a future `.pkg` exists" in one_pager
 
 
 def _release_metadata_script() -> str:
@@ -131,15 +197,19 @@ def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path:
         encoding="utf-8",
     )
     fake_gh.chmod(0o755)
-    release_files = tmp_path / "release-files" / "packages"
-    release_files.mkdir(parents=True)
+    release_files = tmp_path / "release-files"
+    release_files.mkdir()
     for relative_path in (
         "release-notes.md",
         "apparatus-payload-0.0.1.zip",
-        "packages/apparatus_core-0.0.1.tar.gz",
-        "packages/apparatus_core-0.0.1-py3-none-any.whl",
+        "apparatus_core-0.0.1.tar.gz",
+        "apparatus_core-0.0.1-py3-none-any.whl",
+        "bootstrap-apparatus.ps1",
+        "bootstrap-apparatus.sh",
+        "SHA256SUMS",
     ):
         path = tmp_path / "release-files" / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("test", encoding="utf-8")
 
     repository = "owner/repository; touch should-not-exist"
@@ -163,11 +233,97 @@ def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path:
 
     arguments = captured.read_text(encoding="utf-8").splitlines()
     assert arguments[:5] == ["release", "create", "v0.0.1", "--repo", repository]
+    assert "release-files/bootstrap-apparatus.ps1" in arguments
+    assert "release-files/bootstrap-apparatus.sh" in arguments
+    assert "release-files/SHA256SUMS" in arguments
     assert not (tmp_path / "should-not-exist").exists()
 
 
+def _job_step_run(job_name: str, step_name: str) -> str:
+    workflow = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    steps = workflow["jobs"][job_name]["steps"]
+    return next(step["run"] for step in steps if step.get("name") == step_name)
+
+
+def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Path) -> None:
+    version = "0.0.1"
+    sdist_name = "apparatus_core-0.0.1.tar.gz"
+    wheel_name = "apparatus_core-0.0.1-py3-none-any.whl"
+    release_inputs = tmp_path / "release-inputs"
+    files = {
+        f"apparatus-payload-{version}.zip": b"payload",
+        f"packages/{sdist_name}": b"sdist",
+        f"packages/{wheel_name}": b"wheel",
+        "release-notes.md": b"notes",
+        "installer/windows/bootstrap-apparatus.ps1": b"unsigned windows",
+        "installer/macos/bootstrap-apparatus.sh": b"macos",
+    }
+    for relative_path, contents in files.items():
+        path = release_inputs / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(contents)
+
+    environment = {
+        **os.environ,
+        "VERSION": version,
+        "SDIST_NAME": sdist_name,
+        "WHEEL_NAME": wheel_name,
+    }
+    subprocess.run(
+        ["bash", "-c", _job_step_run("assemble-release", "Normalize release inputs")],
+        cwd=tmp_path,
+        env=environment,
+        check=True,
+    )
+    signed_windows = tmp_path / "signed-windows" / "bootstrap-apparatus.ps1"
+    signed_windows.parent.mkdir()
+    signed_windows.write_bytes(b"signed windows")
+    subprocess.run(
+        [
+            "bash",
+            "-c",
+            _job_step_run("assemble-release", "Install signed Windows bootstrap script"),
+        ],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(
+        ["bash", "-c", _job_step_run("assemble-release", "Generate SHA256SUMS")],
+        cwd=tmp_path,
+        env=environment,
+        check=True,
+    )
+
+    final_release = tmp_path / "final-release"
+    checksum_text = (final_release / "SHA256SUMS").read_text(encoding="utf-8")
+    checksum_names = {line.split(maxsplit=1)[1] for line in checksum_text.splitlines()}
+    assert checksum_names == {
+        f"apparatus-payload-{version}.zip",
+        sdist_name,
+        wheel_name,
+        "bootstrap-apparatus.ps1",
+        "bootstrap-apparatus.sh",
+    }
+    assert all("/" not in name and "\\" not in name for name in checksum_names)
+    assert (final_release / "bootstrap-apparatus.ps1").read_bytes() == b"signed windows"
+    subprocess.run(
+        ["shasum", "-a", "256", "--check", "SHA256SUMS"],
+        cwd=final_release,
+        check=True,
+    )
+
+
 def _github_release_is_eligible(
-    *, build_result: str, dry_run: str, publish_result: str, event: str = "push"
+    *,
+    build_result: str,
+    assemble_result: str,
+    dry_run: str,
+    publish_result: str,
+    event: str = "push",
 ) -> bool:
     workflow = yaml.safe_load(
         (REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(
@@ -179,6 +335,7 @@ def _github_release_is_eligible(
         "always()": True,
         "github.event_name == 'push'": event == "push",
         "needs.build.result == 'success'": build_result == "success",
+        "needs.assemble-release.result == 'success'": assemble_result == "success",
         "needs.build.outputs.dry_run == 'true'": dry_run == "true",
         "needs.publish-pypi.result == 'success'": publish_result == "success",
     }
@@ -191,19 +348,22 @@ def _github_release_is_eligible(
 
 def test_github_release_requires_a_successful_build_for_every_path() -> None:
     assert not _github_release_is_eligible(
-        build_result="failure", dry_run="true", publish_result="skipped"
+        build_result="failure", assemble_result="skipped", dry_run="true", publish_result="skipped"
     )
     assert not _github_release_is_eligible(
-        build_result="failure", dry_run="false", publish_result="success"
-    )
-    assert _github_release_is_eligible(
-        build_result="success", dry_run="true", publish_result="skipped"
-    )
-    assert _github_release_is_eligible(
-        build_result="success", dry_run="false", publish_result="success"
+        build_result="failure", assemble_result="skipped", dry_run="false", publish_result="success"
     )
     assert not _github_release_is_eligible(
-        build_result="success", dry_run="false", publish_result="failure"
+        build_result="success", assemble_result="failure", dry_run="true", publish_result="skipped"
+    )
+    assert _github_release_is_eligible(
+        build_result="success", assemble_result="success", dry_run="true", publish_result="skipped"
+    )
+    assert _github_release_is_eligible(
+        build_result="success", assemble_result="success", dry_run="false", publish_result="success"
+    )
+    assert not _github_release_is_eligible(
+        build_result="success", assemble_result="success", dry_run="false", publish_result="failure"
     )
 
 

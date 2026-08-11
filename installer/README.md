@@ -104,9 +104,13 @@ credentials, or personal data to those sources.
 
 ## Current limitations
 
-These scripts are unsigned. The Windows command above uses a process-only
-execution-policy bypass; it does not change the machine policy. Signed wrappers
-land in PR-26.
+These scripts are currently unsigned. Each release publishes `SHA256SUMS` for
+the payload, packages, and both scripts. The signing pipeline is present but
+gated off while Apparatus acquires certificates; enabling it will sign the
+Windows script, while a future signed macOS package is planned separately.
+The Windows command above uses a process-only execution-policy bypass; it does
+not change the machine policy. See the [IT reviewer one-pager](../docs/it-onepager.md)
+and [signing runbook](../docs/signing-runbook.md).
 
 Some managed devices block downloads, script execution, or user-scope tool
 installation. The script stops instead of requesting elevation and always says
