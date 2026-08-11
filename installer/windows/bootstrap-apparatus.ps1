@@ -51,6 +51,7 @@ try {
 } catch {
     Stop-Setup "The workspace location is not valid."
 }
+$TargetIsUnc = $TargetRoot.StartsWith("\\", [StringComparison]::Ordinal)
 
 function Test-ReparseBoundary([string] $Candidate) {
     $Candidate = [IO.Path]::GetFullPath($Candidate)
@@ -75,9 +76,11 @@ function Test-ReparseBoundary([string] $Candidate) {
 $TargetSafe = $true
 $TargetReason = "outside redirected sync folders"
 try {
-    if (-not (Test-ReparseBoundary $Target)) {
+    if (-not ($DryRun -and $TargetIsUnc) -and -not (Test-ReparseBoundary $Target)) {
         $TargetSafe = $false
         $TargetReason = "blocked: the location passes through a link or reparse point"
+    } elseif ($DryRun -and $TargetIsUnc) {
+        $TargetReason = "UNC target preserved lexically; safety inspection deferred"
     }
 } catch {
     Stop-Setup "The workspace location could not be inspected safely."
@@ -101,7 +104,39 @@ function Test-PathWithin([string] $Candidate, [string] $Parent) {
     while ($FullParent.Length -gt $ParentRoot.Length -and $FullParent.EndsWith('\')) {
         $FullParent = $FullParent.Substring(0, $FullParent.Length - 1)
     }
-    return ($FullCandidate + '\').StartsWith(($FullParent + '\'), [StringComparison]::OrdinalIgnoreCase)
+    if (-not $CandidateRoot.Equals($ParentRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        return $false
+    }
+    if ($FullCandidate.Equals($FullParent, [StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+    $Boundary = if ($FullParent.EndsWith('\')) { $FullParent } else { $FullParent + '\' }
+    return $FullCandidate.StartsWith($Boundary, [StringComparison]::OrdinalIgnoreCase)
+}
+
+function Test-RedirectedTarget(
+    [string] $Candidate,
+    [System.Collections.IDictionary] $Values,
+    [string] $Profile
+) {
+    foreach ($Name in @("Personal", "Desktop")) {
+        if (-not $Values.Contains($Name)) { continue }
+        $Value = $Values[$Name]
+        if ($Value -isnot [string] -or [string]::IsNullOrWhiteSpace($Value)) {
+            throw "malformed redirected-folder state"
+        }
+        $Expanded = [Text.RegularExpressions.Regex]::Replace(
+            $Value,
+            '%USERPROFILE%',
+            [Text.RegularExpressions.MatchEvaluator] { param($Match) $Profile },
+            [Text.RegularExpressions.RegexOptions]::IgnoreCase
+        )
+        if ($Expanded -match '%[^%]+%' -or -not [IO.Path]::IsPathRooted($Expanded)) {
+            throw "malformed redirected-folder state"
+        }
+        if (Test-PathWithin $Candidate $Expanded) { return $true }
+    }
+    return $false
 }
 
 $ShellFolders = "Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
@@ -113,26 +148,18 @@ try {
     } else {
         $RedirectedNames = @($RegistryKey.GetValueNames())
     }
+    $RedirectedValues = @{}
     foreach ($Name in @("Personal", "Desktop")) {
-        if ($RedirectedNames -contains $Name) {
-            $Value = $RegistryKey.GetValue($Name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
-            if ($Value -isnot [string] -or [string]::IsNullOrWhiteSpace($Value)) {
-                throw "malformed redirected-folder state"
-            }
-            $Expanded = [Text.RegularExpressions.Regex]::Replace(
-                $Value,
-                '%USERPROFILE%',
-                [Text.RegularExpressions.MatchEvaluator] { param($Match) $UserProfile },
-                [Text.RegularExpressions.RegexOptions]::IgnoreCase
-            )
-            if ($Expanded -match '%[^%]+%' -or -not [IO.Path]::IsPathRooted($Expanded)) {
-                throw "malformed redirected-folder state"
-            }
-            if (Test-PathWithin $Target $Expanded) {
-                $TargetSafe = $false
-                $TargetReason = "blocked: the location is inside redirected Documents or Desktop"
-            }
-        }
+        if ($RedirectedNames -notcontains $Name) { continue }
+        $RedirectedValues[$Name] = $RegistryKey.GetValue(
+            $Name,
+            $null,
+            [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
+        )
+    }
+    if (Test-RedirectedTarget $Target $RedirectedValues $UserProfile) {
+        $TargetSafe = $false
+        $TargetReason = "blocked: the location is inside redirected Documents or Desktop"
     }
 } catch {
     Stop-Setup "Redirected Documents and Desktop state could not be inspected safely."
@@ -151,6 +178,19 @@ function Find-Uv {
     if ((Test-Path -LiteralPath $UvBin -PathType Leaf) -and -not ((Get-Item -LiteralPath $UvBin -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
         return $UvBin
     }
+    return $null
+}
+
+function Find-Git {
+    $Command = Get-Command git.exe -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -eq $Command) { return $null }
+    try {
+        $Version = & $Command.Source --version 2>&1
+        if ($LASTEXITCODE -eq 0 -and [string] $Version -match '^git version \S+') {
+            return $Command.Source
+        }
+    } catch {}
     return $null
 }
 
@@ -199,7 +239,7 @@ function Write-State([string] $Step, [string] $State) {
 }
 
 $UvPath = Find-Uv
-$GitCommand = Get-Command git.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$GitPath = Find-Git
 
 if ($DryRun) {
     Write-Output "Apparatus setup dry-run (read-only detection; no install, network, or workspace commands)"
@@ -207,12 +247,12 @@ if ($DryRun) {
     Write-State "Target safety" $(if ($TargetSafe) { "present ($Target; $TargetReason)" } else { "missing ($Target; $TargetReason)" })
     Write-State "uv" $(if ($null -ne $UvPath) { "present" } else { "missing (install planned)" })
     Write-State "Managed Python" $(if (Test-ManagedPython) { "present" } else { "missing (install planned)" })
-    Write-State "Git" $(if ($null -ne $GitCommand) { "present" } else { "missing (snapshots unavailable; continue planned)" })
+    Write-State "Git" $(if ($null -ne $GitPath) { "present" } else { "missing (snapshots unavailable; continue planned)" })
     Write-State "Apparatus tool" $(if (Test-Path -LiteralPath $ApparatusBin -PathType Leaf) { "present (upgrade planned)" } else { "missing (install planned)" })
-    Write-State "Workspace" $(if (-not $TargetSafe) { "missing (blocked until a safe target is chosen)" } elseif (Test-WorkspacePresent) { "present (init skip planned)" } else { "missing (non-destructive init planned)" })
+    Write-State "Workspace" $(if (-not $TargetSafe) { "missing (blocked until a safe target is chosen)" } elseif ($TargetIsUnc) { "missing (state inspection deferred; non-destructive init planned)" } elseif (Test-WorkspacePresent) { "present (init skip planned)" } else { "missing (non-destructive init planned)" })
     Write-State "Doctor" $(if ($TargetSafe) { "planned (report verification follows)" } else { "planned after target repair" })
     Write-State "Network" "planned only for missing/upgrade steps from approved sources"
-    exit 0
+    return
 }
 
 if (-not $TargetSafe) {
@@ -295,7 +335,7 @@ if (Test-ManagedPythonReady) {
     Invoke-Uv -Arguments @("python", "install", "--no-config", "--managed-python", "--mirror", $PythonSource, $PythonRequest)
 }
 
-if ($null -ne $GitCommand) {
+if ($null -ne $GitPath) {
     Write-Output "Git is present; snapshots can be checked."
 } else {
     Write-Output "Git was not found. Setup will continue and doctor will record snapshots as unavailable."
@@ -317,8 +357,8 @@ if (-not (Test-ReparseBoundary $ApparatusBin)) {
 
 $ControlledPath = [Collections.Generic.List[string]]::new()
 $ControlledPath.Add($UvToolBin)
-if ($null -ne $GitCommand) {
-    $GitDirectory = [IO.Path]::GetDirectoryName($GitCommand.Source)
+if ($null -ne $GitPath) {
+    $GitDirectory = [IO.Path]::GetDirectoryName($GitPath)
     if (-not [string]::IsNullOrWhiteSpace($GitDirectory) -and -not $ControlledPath.Contains($GitDirectory)) {
         $ControlledPath.Add($GitDirectory)
     }
@@ -362,7 +402,7 @@ if ($ReportText -notmatch '(?m)^uv: ".+"\r?$') {
 if ($ReportText -notmatch '(?m)^  at_risk: false\r?$') {
     Stop-Setup "Doctor reported that the workspace is inside a sync engine."
 }
-if ($null -eq $GitCommand) {
+if ($null -eq $GitPath) {
     if ($DoctorStatus -notin @(0, 1)) { Stop-Setup "Doctor could not complete the workspace check." }
     if ($ReportText -notmatch '(?m)^git: null\r?$' -or $ReportText -notmatch '(?m)^snapshots: "unavailable"\r?$') {
         Stop-Setup "Doctor did not record the expected git-absent snapshot state."

@@ -13,6 +13,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MACOS_SCRIPT = REPO_ROOT / "installer/macos/bootstrap-apparatus.sh"
 WINDOWS_SCRIPT = REPO_ROOT / "installer/windows/bootstrap-apparatus.ps1"
+WINDOWS_TRACE_CONTROLLER = REPO_ROOT / "conformance/windows_bootstrap_syscall_trace.ps1"
 STEP_LABELS = (
     "Operating system:",
     "Target safety:",
@@ -170,12 +171,77 @@ def test_dry_run_exit_precedes_every_mutating_or_network_stage():
         assert macos.index(token) > macos_exit
 
     windows_exit = windows.index("if ($DryRun)")
-    windows_exit = windows.index("exit 0", windows_exit)
+    windows_exit = windows.index("return", windows_exit)
     for token in ("Invoke-RestMethod", "Invoke-Expression", "& $ApparatusBin init", "& $ApparatusBin doctor"):
         assert windows.index(token) > windows_exit
 
-    assert "UV_NO_MODIFY_PATH=1 /bin/sh" in macos
+    assert "PATH=/usr/bin:/bin:/usr/sbin:/sbin" in macos
+    assert "BASH_ENV= ENV= /bin/sh" in macos
     assert '$env:UV_NO_MODIFY_PATH = "1"' in windows
+
+
+def test_windows_trace_controller_is_built_in_bounded_and_non_vacuous():
+    controller = WINDOWS_TRACE_CONTROLLER.read_text(encoding="utf-8")
+
+    for token in (
+        "powershell.exe",
+        "wpr.exe",
+        "tracerpt.exe",
+        "logman.exe",
+        "CREATE_SUSPENDED",
+        "JOB_OBJECT_LIMIT_ACTIVE_PROCESS",
+        "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
+        '<Keyword Value="ProcessThread" Strict="true" />',
+        '<Keyword Value="FileIO" Strict="true" />',
+        '<Keyword Value="FileIOInit" Strict="true" />',
+        '<Keyword Value="Registry" Strict="true" />',
+        '<Keyword Value="NetworkTrace" Strict="true" />',
+        '"-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass"',
+        "FileIO/FileIOInit providers did not observe the file canary",
+        "Registry provider did not observe the registry canary",
+        "Network provider did not observe the TCP canary",
+        "ETW/WPR sessions were not restored exactly",
+        "trace artifacts survived cleanup",
+    ):
+        assert token in controller
+    assert not re.search(r"(?i)invoke-(?:webrequest|restmethod)|start-bitstransfer", controller)
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="native macOS git regression")
+def test_macos_broken_git_stub_degrades_to_absent(tmp_path):
+    home = tmp_path / "profile"
+    hostile = tmp_path / "hostile"
+    home.mkdir()
+    hostile.mkdir()
+    git = hostile / "git"
+    git.write_text("#!/bin/sh\nprintf 'not a usable git\\n'\n", encoding="utf-8")
+    git.chmod(0o700)
+    environment = {
+        "HOME": str(home),
+        "PATH": f"{hostile}:/usr/bin:/bin:/usr/sbin:/sbin",
+        "BASH_ENV": "",
+        "ENV": "",
+        "LANG": "C",
+        "LC_ALL": "C",
+    }
+    completed = subprocess.run(
+        [
+            "/bin/bash",
+            str(MACOS_SCRIPT),
+            "--dry-run",
+            "--path",
+            str(home / "Projects/Apparatus"),
+        ],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    git_line = next(line for line in completed.stdout.splitlines() if "Git:" in line)
+    assert "missing" in git_line
+    assert str(hostile) not in completed.stdout
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows path regression")
@@ -198,9 +264,8 @@ def test_windows_dry_run_preserves_drive_and_unc_roots(tmp_path):
     drive_root = Path(tmp_path.anchor)
     targets = [str(drive_root)]
     drive = drive_root.drive.rstrip(":")
-    unc_root = f"\\\\localhost\\{drive}$\\"
-    if Path(unc_root).exists():
-        targets.append(unc_root)
+    unc_root = "\\\\apparatus.invalid\\lexical-share\\"
+    targets.append(unc_root)
 
     for target in targets:
         completed = subprocess.run(
@@ -228,6 +293,101 @@ def test_windows_dry_run_preserves_drive_and_unc_roots(tmp_path):
         assert PureWindowsPath(reported) == PureWindowsPath(target)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows path regression")
+def test_windows_redirected_roots_match_equal_and_descendant_targets(tmp_path):
+    pwsh = shutil.which("powershell") or shutil.which("pwsh")
+    if pwsh is None:
+        pytest.skip("PowerShell is unavailable")
+    script = str(WINDOWS_SCRIPT).replace("'", "''")
+    command = rf"""
+$null = . '{script}' -DryRun -Path 'C:\Apparatus'
+$cases = @(
+    @('C:\', 'C:\', $true),
+    @('C:\Child', 'C:\', $true),
+    @('D:\Child', 'C:\', $false),
+    @('\\server\share\', '\\server\share\', $true),
+    @('\\server\share\Child', '\\server\share\', $true),
+    @('\\server\other\Child', '\\server\share\', $false)
+)
+foreach ($case in $cases) {{
+    if ((Test-PathWithin $case[0] $case[1]) -ne $case[2]) {{ exit 31 }}
+}}
+$values = @{{ Personal = 'C:\'; Desktop = '\\server\share\' }}
+if (-not (Test-RedirectedTarget 'C:\Child' $values 'C:\Users\Example')) {{ exit 32 }}
+if (-not (Test-RedirectedTarget '\\server\share\Child' $values 'C:\Users\Example')) {{ exit 33 }}
+if (Test-RedirectedTarget 'D:\Child' $values 'C:\Users\Example') {{ exit 34 }}
+"""
+    completed = subprocess.run(
+        [pwsh, "-NoProfile", "-NonInteractive", "-Command", command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows ETW regression")
+def test_windows_dry_run_has_no_file_registry_or_network_syscalls():
+    system_root = Path(os.environ["SystemRoot"])
+    powershell = system_root / "System32/WindowsPowerShell/v1.0/powershell.exe"
+    assert powershell.is_file(), "Windows PowerShell 5.1 is required"
+
+    completed = subprocess.run(
+        [
+            str(powershell),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(WINDOWS_TRACE_CONTROLLER),
+            "-BootstrapScript",
+            str(WINDOWS_SCRIPT),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=240,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "Windows dry-run syscall proof passed" in completed.stdout
+
+
+def test_macos_lexical_normalization_and_installer_child_path_are_hardened(tmp_path):
+    macos = MACOS_SCRIPT.read_text(encoding="utf-8")
+    assert "lexically_normalize_absolute" in macos
+    assert "env -i HOME=\"$HOME\" PATH=/usr/bin:/bin:/usr/sbin:/sbin" in macos
+
+    hostile = tmp_path / "hostile"
+    hostile.mkdir()
+    marker = tmp_path / "hostile-ran"
+    command = hostile / "uname"
+    command.write_text(f"#!/bin/sh\nprintf hostile > '{marker}'\n", encoding="utf-8")
+    command.chmod(0o700)
+    completed = subprocess.run(
+        [
+            "/usr/bin/env",
+            "-i",
+            f"HOME={tmp_path}",
+            "PATH=/usr/bin:/bin:/usr/sbin:/sbin",
+            "BASH_ENV=",
+            "ENV=",
+            "/bin/sh",
+            "-c",
+            "uname >/dev/null",
+        ],
+        env={"PATH": str(hostile)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert not marker.exists()
+
+
 def test_macos_script_has_valid_bash_syntax():
     bash = shutil.which("bash")
     if bash is None:
@@ -245,10 +405,14 @@ def test_windows_script_parses_when_powershell_is_available():
     pwsh = shutil.which("powershell") or shutil.which("pwsh")
     if pwsh is None:
         pytest.skip("PowerShell is unavailable")
+    files = ",".join(f"'{path}'" for path in (WINDOWS_SCRIPT, WINDOWS_TRACE_CONTROLLER))
     parser = (
+        "$failed=$false; "
+        f"foreach ($path in @({files})) {{ "
         "$e=$null; $t=$null; "
-        f"[System.Management.Automation.Language.Parser]::ParseFile('{WINDOWS_SCRIPT}',[ref]$t,[ref]$e) > $null; "
-        "if ($e.Count) { $e | ForEach-Object { Write-Error $_ }; exit 1 }"
+        "[System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$t,[ref]$e) > $null; "
+        "if ($e.Count) { $failed=$true; $e | ForEach-Object { Write-Error $_ } } }; "
+        "if ($failed) { exit 1 }"
     )
     completed = subprocess.run(
         [pwsh, "-NoProfile", "-Command", parser],

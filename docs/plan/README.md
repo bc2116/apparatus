@@ -64,7 +64,7 @@ on every commit.
 | 19 | [Welcome flow end-to-end](PR-19-welcome-e2e.md) | 4 | ✅ landed | 17, 18, 16 |
 | 20 | [Universal payload builder](PR-20-payload-builder.md) | 5 | ✅ landed | 13, 19 |
 | 21 | [Release pipeline](PR-21-release-pipeline.md) | 5 | ✅ landed | 20 |
-| 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | ✅ landed | 21, 30 |
+| 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | blocked — operator ruling required | 21, 30 |
 | 23 | [Code-signing and IT one-pager](PR-23-signing-it-onepager.md) | 5 | ready | 22 |
 | 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
 | 25 | [Snapshot export (backup) v1](PR-25-snapshot-export.md) | 4 | ✅ landed | 10 |

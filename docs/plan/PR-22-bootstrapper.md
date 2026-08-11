@@ -33,6 +33,8 @@ and honest documentation of their limits.
 - `installer/README.md` — new; how to run each script, what each step does,
   flags, idempotency, limitations (see criteria 9–10).
 - `conformance/test_bootstrap_dry_run.py` — new dry-run smoke test.
+- `conformance/windows_bootstrap_syscall_trace.ps1` — test-only built-in
+  WPR/ETW controller for the Windows syscall boundary.
 - `conformance/README.md` — modified; register the new test.
 - `.github/workflows/ci.yml` — modified; dry-run smoke jobs on
   `windows-latest` and `macos-latest`.
@@ -75,7 +77,9 @@ and honest documentation of their limits.
    output uses ADR-0001 vocabulary (workspace, snapshot, check, AI app).
 7. Dry-run: `-DryRun` / `--dry-run` prints the full plan with the detected
    state of every step (present/missing), performs no network access and no
-   writes, and exits 0.
+   writes from interpreter entry, and exits 0. Native CI must enforce this at
+   the syscall boundary with non-vacuous write and network canaries; tree and
+   static checks remain defense in depth rather than the primary proof.
 8. Both scripts fail loudly (nonzero, clear message) on unsupported OS,
    missing shell prerequisites, or a partially blocked chain — never a
    silent half-install; the message always says re-running is safe.
@@ -98,9 +102,21 @@ and honest documentation of their limits.
   Skips cleanly when the required interpreter (pwsh/bash) is unavailable on
   the host. Register it in `conformance/README.md`.
 - `.github/workflows/ci.yml` gains two smoke jobs: `windows-latest` running
-  `pwsh -File installer/windows/bootstrap-apparatus.ps1 -DryRun` and
-  `macos-latest` running `bash installer/macos/bootstrap-apparatus.sh
-  --dry-run`; both must pass without network installs.
+  Windows PowerShell 5.1 with `-NoProfile` and `macos-latest` running a
+  controlled `/bin/bash` environment; both must pass without network installs.
+- The macOS native proof launches `/bin/bash` from interpreter entry through
+  `/usr/bin/sandbox-exec`, denies `file-write*` and `network*` with no logging
+  and `SIGKILL`, closes every descriptor except standard input/output/error,
+  and proves both denial categories with separate canaries.
+- The Windows native proof uses only built-in WPR, ETW, and `tracerpt`. A
+  test-only PowerShell 5.1 controller outside the workspace and installer
+  suspends the cold bootstrap process, contains it in a one-process Job
+  Object, starts file-mode ProcessThread, FileIO, FileIOInit, Registry, and
+  Network tracing before resume, filters exact PID/time events, and fails on
+  file, registry, TCP, or UDP mutation. Separate canaries must prove each
+  provider category, and cleanup must restore sessions and trace artifacts
+  exactly. An incomplete hosted provider or parser is a blocked stop, never a
+  reason to weaken the proof.
 - `uv run pytest` green is required.
 
 ## Out of scope
@@ -145,3 +161,20 @@ and honest documentation of their limits.
   pre-interpreter shell stage may only read state and write stdout/stderr; it
   runs no installer, network, or workspace command and leaves no persistent
   artifact.
+- Operator ruling for UNC dry-run: Windows UNC targets remain lexical and
+  uninspected before the dry-run exit. No existence, attribute, or SMB probe
+  may touch the target.
+
+## Blocked-stop disposition
+
+Final repair pass 2 of 2 is exhausted. The native syscall contract above is
+unchanged, and this PR must not be marked landed or merged without an operator
+ruling.
+
+On the available macOS runner, the literal no-exception sandbox profile kills
+both `/usr/bin/true` and `/bin/bash` before the bootstrap script can run: the
+dynamic loader opens `/dev/dtracehelper`, and Bash also opens `/dev/tty`. No
+device exceptions are authorized. Tree comparison and static ordering checks
+remain defense in depth and do not replace the required syscall proof. The
+Windows native proof also remains pending exact-head CI; a provider, parser, or
+substantive proof failure is a blocked stop, not grounds to weaken the proof.

@@ -18,20 +18,20 @@ The scripts do not download a separate payload.
 Open PowerShell in the folder containing the script, then run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1
 ```
 
 The default workspace location is `C:\Projects\Apparatus`. Use a different
 location with `-Path`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1 -Path "D:\Work\Apparatus"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1 -Path "D:\Work\Apparatus"
 ```
 
 See the complete detected plan without downloading or changing anything:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1 -DryRun
 ```
 
 The script refuses OneDrive path components, redirected Documents or Desktop
@@ -43,20 +43,20 @@ sync engine. Use one-way snapshot export for backup.
 Open Terminal in the folder containing the script, then run:
 
 ```bash
-bash macos/bootstrap-apparatus.sh
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash macos/bootstrap-apparatus.sh
 ```
 
 The default workspace location is `~/Projects/Apparatus`. Use a different
 location with `--path`:
 
 ```bash
-bash macos/bootstrap-apparatus.sh --path "$HOME/Work/Apparatus"
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash macos/bootstrap-apparatus.sh --path "$HOME/Work/Apparatus"
 ```
 
 See the complete detected plan without downloading or changing anything:
 
 ```bash
-bash macos/bootstrap-apparatus.sh --dry-run
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash macos/bootstrap-apparatus.sh --dry-run
 ```
 
 Dry-run begins at script interpreter entry. It performs read-only detection and

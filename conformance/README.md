@@ -26,7 +26,7 @@ python3 conformance/payload_check.py
 | `fixtures/welcome-e2e/profile-configured.yaml` | Configured standard-mode interview answers that seed two People records and one Goal | PR-19 |
 | `fixtures/welcome-e2e/library/reference-note.md` | One citable fact plus fictional People and credential-floor content for the welcome story | PR-19 |
 | `test_payload_archive.py` | The universal archive file set, rendered shims, embedded hashes, portable metadata, and reproducibility | PR-20 |
-| `test_bootstrap_dry_run.py` | Native Windows and macOS bootstrap plans, zero-effect dry-run behavior, syntax, and approved source boundaries | PR-22 |
+| `test_bootstrap_dry_run.py`, `windows_bootstrap_syscall_trace.ps1` | Native Windows and macOS bootstrap plans, syscall-level dry-run checks and canaries, syntax, and approved source boundaries | PR-22 |
 
 ## The rule
 

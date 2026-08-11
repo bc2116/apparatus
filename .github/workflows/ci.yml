@@ -81,7 +81,7 @@ jobs:
       - name: Run Windows bootstrap dry-run checks
         shell: pwsh
         run: |
-          pwsh -NoProfile -File installer/windows/bootstrap-apparatus.ps1 -DryRun
+          powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File installer/windows/bootstrap-apparatus.ps1 -DryRun
           uv run pytest conformance/test_bootstrap_dry_run.py
 
   bootstrap-macos:
@@ -93,5 +93,5 @@ jobs:
         run: uv sync --all-packages
       - name: Run macOS bootstrap dry-run checks
         run: |
-          bash installer/macos/bootstrap-apparatus.sh --dry-run
+          /usr/bin/env -u BASH_ENV -u ENV /bin/bash installer/macos/bootstrap-apparatus.sh --dry-run
           uv run pytest conformance/test_bootstrap_dry_run.py

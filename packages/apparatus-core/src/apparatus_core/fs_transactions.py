@@ -222,7 +222,17 @@ def _open_posix_absolute_directory(path: Path) -> int:
 class PosixWorkspaceAnchor:
     """Workspace operations rooted at one no-follow POSIX descriptor chain."""
 
-    def __init__(self, workspace: Path):
+    def __init__(
+        self,
+        workspace: Path,
+        *,
+        ancestor_shares_delete: bool = False,
+        root_shares_delete: bool = False,
+    ):
+        # These options are a cross-platform handoff contract. POSIX descriptor
+        # operations do not have Win32-style sharing modes.
+        del ancestor_shares_delete
+        del root_shares_delete
         self.workspace = Path(os.path.abspath(os.fspath(workspace)))
         self._root = _open_posix_absolute_directory(self.workspace)
         status_value = os.fstat(self._root)
@@ -267,6 +277,10 @@ class PosixWorkspaceAnchor:
             return (status_value.st_dev, status_value.st_ino) == self._root_identity
         except OSError:
             return False
+
+    def child_ancestor_shares_delete(self) -> bool:
+        """Return the Win32 chain-sharing requirement for a child anchor."""
+        return False
 
     def contains_anchored_root(self, candidate: PosixWorkspaceAnchor) -> bool:
         """Return whether this root contains ``candidate`` by object identity."""
@@ -322,7 +336,14 @@ class PosixWorkspaceAnchor:
             os.close(current)
             raise
 
-    def open_directory(self, relative: str | Path) -> int:
+    def open_directory(
+        self,
+        relative: str | Path,
+        *,
+        shares_delete: bool = False,
+    ) -> int:
+        # The option is meaningful only to the Win32 backend.
+        del shares_delete
         if not self.root_is_current():
             raise OSError("workspace root changed")
         parent, name = self._parent(relative)
@@ -334,6 +355,10 @@ class PosixWorkspaceAnchor:
             os.close(descriptor)
             raise OSError("workspace root changed")
         return descriptor
+
+    @staticmethod
+    def close_directory(handle: int) -> None:
+        os.close(handle)
 
     def require_directory(self, relative: str | Path) -> None:
         descriptor = self.open_directory(relative)
@@ -1176,7 +1201,12 @@ def _win_create_directory(path: Path) -> bool:
     raise _win_error("safe receipt directory could not be created")
 
 
-def _win_open_absolute_directory_chain(path: Path) -> tuple[int, list[int]]:
+def _win_open_absolute_directory_chain(
+    path: Path,
+    *,
+    ancestor_shares_delete: bool = False,
+    root_shares_delete: bool = False,
+) -> tuple[int, list[int]]:
     absolute = Path(os.path.abspath(os.fspath(path)))
     if not absolute.is_absolute() or not absolute.anchor:
         raise OSError("workspace path must be absolute")
@@ -1184,9 +1214,19 @@ def _win_open_absolute_directory_chain(path: Path) -> tuple[int, list[int]]:
     current = _win_open(current_path, directory=True)
     ancestors: list[int] = []
     try:
-        for part in absolute.parts[1:]:
+        parts = absolute.parts[1:]
+        for index, part in enumerate(parts):
             following_path = current_path / part
-            following = _win_open(following_path, directory=True)
+            shares_delete = (
+                root_shares_delete
+                if index == len(parts) - 1
+                else ancestor_shares_delete
+            )
+            following = _win_open(
+                following_path,
+                directory=True,
+                lock_name=not shares_delete,
+            )
             ancestors.append(current)
             current = following
             current_path = following_path
@@ -1379,10 +1419,20 @@ class WindowsReplacementTransaction:
 class WindowsWorkspaceAnchor:
     """Containment-safe Windows workspace backend using retained Win32 handles."""
 
-    def __init__(self, workspace: Path):
+    def __init__(
+        self,
+        workspace: Path,
+        *,
+        ancestor_shares_delete: bool = False,
+        root_shares_delete: bool = False,
+    ):
         self.workspace = Path(os.path.abspath(os.fspath(workspace)))
+        self._ancestor_shares_delete = ancestor_shares_delete
+        self._root_shares_delete = root_shares_delete
         self._root, self._chain_handles = _win_open_absolute_directory_chain(
-            self.workspace
+            self.workspace,
+            ancestor_shares_delete=self._ancestor_shares_delete,
+            root_shares_delete=self._root_shares_delete,
         )
         self._root_identity = _win_identity(self._root)
         if not self.root_is_current():
@@ -1407,7 +1457,11 @@ class WindowsWorkspaceAnchor:
         current = -1
         ancestors: list[int] = []
         try:
-            current, ancestors = _win_open_absolute_directory_chain(self.workspace)
+            current, ancestors = _win_open_absolute_directory_chain(
+                self.workspace,
+                ancestor_shares_delete=self._ancestor_shares_delete,
+                root_shares_delete=self._root_shares_delete,
+            )
             return _same_windows_object(
                 _win_identity(current), self._root_identity
             )
@@ -1426,6 +1480,10 @@ class WindowsWorkspaceAnchor:
             )
         except OSError:
             return False
+
+    def child_ancestor_shares_delete(self) -> bool:
+        """Keep aliases compatible with invocation-owned ancestor handles."""
+        return self._ancestor_shares_delete or self._root_shares_delete
 
     def contains_anchored_root(self, candidate: WindowsWorkspaceAnchor) -> bool:
         """Return whether this root contains ``candidate`` by object identity."""
@@ -1483,6 +1541,23 @@ class WindowsWorkspaceAnchor:
             _win_close(current)
             raise
 
+    def open_directory(
+        self,
+        relative: str | Path,
+        *,
+        shares_delete: bool = False,
+    ) -> int:
+        """Retain one exact child directory selected below this anchor."""
+        _path, handle = self._directory(
+            relative,
+            final_shares_delete=shares_delete,
+        )
+        return handle
+
+    @staticmethod
+    def close_directory(handle: int) -> None:
+        _win_close(handle)
+
     def _parent(
         self,
         relative: str | Path,
@@ -1492,7 +1567,11 @@ class WindowsWorkspaceAnchor:
         parts = _safe_parts(relative)
         if len(parts) == 1:
             parent_path = self.workspace
-            parent = _win_open(parent_path, directory=True)
+            parent = _win_open(
+                parent_path,
+                directory=True,
+                lock_name=not self._root_shares_delete,
+            )
             if not _same_windows_object(_win_identity(parent), self._root_identity):
                 _win_close(parent)
                 raise OSError("workspace root changed")

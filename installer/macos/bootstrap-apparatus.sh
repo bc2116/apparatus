@@ -67,10 +67,26 @@ fi
 
 [[ $target != *$'\n'* && $target != *$'\r'* ]] || \
   fail "The workspace location contains unsupported characters."
-case "/${target#/}/" in
-  */../*) fail "The workspace location must not contain '..' components." ;;
-esac
-while [[ $target != / && $target == */ ]]; do target=${target%/}; done
+
+lexically_normalize_absolute() {
+  local input=$1 remaining=${1#/} part output=""
+  [[ $input == /* ]] || return 1
+  while [[ -n $remaining ]]; do
+    case $remaining in
+      */*) part=${remaining%%/*}; remaining=${remaining#*/} ;;
+      *) part=$remaining; remaining="" ;;
+    esac
+    case $part in
+      ""|.) continue ;;
+      ..) return 1 ;;
+      *) output="$output/$part" ;;
+    esac
+  done
+  printf '%s' "${output:-/}"
+}
+
+target=$(lexically_normalize_absolute "$target") || \
+  fail "The workspace location must not contain '..' components."
 
 check_no_symlink_components() {
   local path=$1 current="" part remaining=${1#/}
@@ -94,7 +110,8 @@ if ! check_no_symlink_components "$target"; then
   target_safe=0
   target_reason="blocked: the location passes through a symbolic link"
 fi
-icloud="$HOME/Library/Mobile Documents"
+icloud=$(lexically_normalize_absolute "$HOME/Library/Mobile Documents") || \
+  fail "The iCloud Drive boundary could not be normalized."
 case "$target/" in
   "$icloud/"*)
     target_safe=0
@@ -116,6 +133,19 @@ find_uv() {
     return 0
   fi
   return 1
+}
+
+find_git() {
+  local candidate version
+  candidate=$(type -P git || true)
+  [[ -n $candidate && -x $candidate && ! -d $candidate ]] || return 1
+  check_no_symlink_components "$candidate" || return 1
+  version=$(
+    PATH=/usr/bin:/bin:/usr/sbin:/sbin BASH_ENV= ENV= \
+      "$candidate" --version 2>&1
+  ) || return 1
+  [[ $version == "git version "* ]] || return 1
+  printf '%s' "$candidate"
 }
 
 managed_python_present() {
@@ -159,7 +189,7 @@ state_line() {
 }
 
 uv_path=$(find_uv || true)
-git_path=$(type -P git 2>/dev/null || true)
+git_path=$(find_git || true)
 if ((DRY_RUN)); then
   printf 'Apparatus setup dry-run (read-only detection; no install, network, or workspace commands)\n'
   state_line "Operating system" "present (macOS)"
@@ -225,7 +255,9 @@ if [[ -z $uv_path ]]; then
   [[ -x /usr/bin/curl ]] || fail "curl is required to install uv."
   printf 'Installing uv in your user profile...\n'
   if ! /usr/bin/curl -q --proto '=https' --tlsv1.2 -LsSf "$UV_INSTALL_URL" | \
-      /usr/bin/env UV_INSTALL_DIR="$UV_INSTALL_DIR" UV_NO_MODIFY_PATH=1 /bin/sh; then
+      /usr/bin/env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+        UV_INSTALL_DIR="$UV_INSTALL_DIR" UV_NO_MODIFY_PATH=1 \
+        BASH_ENV= ENV= /bin/sh; then
     fail "uv could not be installed. A download or device policy may be blocking it."
   fi
   uv_path=$UV_BIN
