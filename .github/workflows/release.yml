@@ -185,10 +185,11 @@ jobs:
             throw "Pinned Inno Setup installation failed with exit code $($process.ExitCode)."
           }
           $compiler = Join-Path $installDirectory 'ISCC.exe'
-          $compilerVersion = (Get-Item -LiteralPath $compiler).VersionInfo.ProductVersion
-          Write-Output "Pinned Inno Setup compiler version: $compilerVersion"
-          if ($compilerVersion -notmatch '^7\.0\.2(?:\.|$)') {
-            throw "Pinned Inno Setup compiler has unexpected version $compilerVersion."
+          $compilerBanner = (& $compiler '/?' 2>&1 | Out-String)
+          Write-Output $compilerBanner
+          if ($compilerBanner -notmatch 'Inno Setup 7 Command-Line Compiler' -or
+              $compilerBanner -notmatch '7\.0\.2') {
+            throw 'Pinned Inno Setup compiler did not report the expected 7.0.2 banner.'
           }
           "INNO_COMPILER=$compiler" >> $env:GITHUB_ENV
       - name: Build Windows installer
