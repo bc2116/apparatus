@@ -186,10 +186,15 @@ jobs:
           }
           $compiler = Join-Path $installDirectory 'ISCC.exe'
           $compilerBanner = (& $compiler '/?' 2>&1 | Out-String)
+          $compilerHelpExitCode = $LASTEXITCODE
           Write-Output $compilerBanner
+          if ($compilerHelpExitCode -ne 1) {
+            throw "Pinned Inno Setup compiler help returned unexpected exit code $compilerHelpExitCode."
+          }
           if ($compilerBanner -notmatch 'Inno Setup 7 \(32-bit\) Command-Line Compiler') {
             throw 'Pinned Inno Setup compiler did not report the expected major version and architecture.'
           }
+          $global:LASTEXITCODE = 0
           "INNO_COMPILER=$compiler" >> $env:GITHUB_ENV
       - name: Build Windows installer
         shell: powershell
