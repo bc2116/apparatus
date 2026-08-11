@@ -82,9 +82,16 @@ machine to a doctor-verified workspace with no terminal.
    comparing checksums by hand.
 6. The bootstrap scripts remain directly runnable and byte-identical to the
    repository copies; CI fails the wrapper build if the embedded script
-   drifts from the script in the repository (byte comparison).
+   drifts from the script in the repository. macOS proves this with a direct
+   byte comparison after package expansion. Windows bakes the canonical
+   script's SHA-256 into the compiled wrapper, hashes the runtime-extracted
+   script before every launch, and fails on any mismatch.
 7. Wrapper builds are reproducible in CI from repository content plus
-   version-pinned tooling; no unpinned downloads in the build jobs.
+   version-pinned tooling; no unpinned downloads in the build jobs. For native
+   installer containers, reproducible means a repeatable pinned build recipe
+   with exact embedded-script verification before and after signing. It does
+   not promise bit-identical outer `.exe` or `.pkg` bytes because native
+   packaging metadata, signatures, and notarization may vary.
 8. No certificate, key, password, or secret value appears anywhere in the
    repository; signing secrets stay referenced by name only, exactly as
    PR-23 established.
@@ -97,9 +104,9 @@ machine to a doctor-verified workspace with no terminal.
 ## Conformance and tests
 
 - No conformance fixture changes; workspace protocol behavior is untouched.
-- CI gains wrapper build jobs on `windows-latest` and `macos-latest` in the
-  release workflow's dry-run mode, including the embedded-script byte
-  comparison of criterion 6.
+- CI gains wrapper build jobs on the fixed `windows-2025` and `macos-15`
+  runner labels in the release workflow's dry-run mode, including the
+  embedded-script equality proofs of criterion 6.
 - The PR-22 dry-run smoke tests keep passing unchanged.
 - Verification is by rehearsal and review: run the release workflow via
   `workflow_dispatch` with signing variables unset and record in the PR
@@ -148,6 +155,15 @@ machine to a doctor-verified workspace with no terminal.
   Record whichever defaults survive implementation against design brief §14
   in this PR.
 - Whether the Windows `.exe` presents an installer UI or runs as a console
-  launcher. Smallest reversible default: console launcher — it matches the
-  script's own interaction model, and a graphical flow can wrap the same
-  artifact later without changing the signing or release contract.
+  launcher. Implementation showed that the chosen Inno Setup host supplies a
+  native installer surface. The smallest surviving default is its minimal
+  progress interface, with no onboarding choices or bootstrap logic added; it
+  captures and displays the script's plain-language failure output. A future
+  graphical flow can wrap the same script without changing the signing or
+  release contract.
+- **Specification ambiguity — reproducible native containers.** Native package
+  builders and signing services can add timestamps or other container metadata,
+  so “reproducible” cannot truthfully require bit-identical outer bytes. The
+  smallest useful interpretation is the one in criterion 7: fixed build inputs
+  and tooling, a repeatable native build recipe, and byte-exact verification of
+  the embedded canonical scripts both before and after signing.

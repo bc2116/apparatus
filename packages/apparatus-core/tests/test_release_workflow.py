@@ -79,6 +79,36 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "GetRSAPrivateKey" in content
     assert "installer/windows/bootstrap-apparatus.ps1" in content
     assert "installer/macos/bootstrap-apparatus.sh" in content
+    assert "dist/windows/apparatus-installer.exe" in content
+    assert "dist/macos/apparatus-installer.pkg" in content
+    assert "runs-on: windows-2025" in content
+    assert "runs-on: macos-15" in content
+    assert "INNO_SETUP_VERSION: '7.0.2'" in content
+    assert "2b8734490a83f1ed074022b85d46c5ce9c3e2fbe9b63a45c28a74b478ac3a94f" in content
+    assert "Get-AuthenticodeSignature -FilePath $download" in content
+    assert "CN=Pyrsys B\\.V\\." in content
+    assert content.count("shell: pwsh") >= 3
+    assert content.count("[System.Diagnostics.ProcessStartInfo]::new()") == 2
+    assert content.count("$startInfo.UseShellExecute = $false") == 2
+    assert content.count("$startInfo.ArgumentList.Add($argument)") == 2
+    assert content.count("$process.WaitForExit()") == 2
+    assert "apparatus-injection-marker';" in content
+    assert r"@('C:\Runner Temp\Apparatus\', 'C:\Runner Temp\Apparatus\\')" in content
+    assert "apparatus-unsigned-windows-installer" in content
+    assert "apparatus-signed-windows-installer" in content
+    assert "apparatus-unsigned-macos-installer" in content
+    assert "apparatus-signed-macos-installer" in content
+    assert "'unsigned-windows/apparatus-installer.exe'" in content
+    assert "productsign --keychain" in content
+    assert '--keychain "$keychain_path"' in content
+    assert "security set-key-partition-list" in content
+    assert 'pkgutil --check-signature "$package_path"' in content
+    assert 'spctl --assess --type install --verbose=2 "$package_path"' in content
+    assert 'xcrun stapler validate "$package_path"' in content
+    assert "needs.build-windows-installer.result == 'success'" in content
+    assert "needs.build-macos-installer.result == 'success'" in content
+    assert "canary-uid=$runner_uid" in content
+    assert "canary-path=/usr/bin:/bin:/usr/sbin:/sbin" in content
     assert "> SHA256SUMS" in content
     assert "shasum -a 256 --check SHA256SUMS" in content
     assert "path: dist/release-files" in content
@@ -86,8 +116,10 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert 'cp "release-inputs/packages/${WHEEL_NAME}" final-release/' in content
     assert "needs: [build, assemble-release]" in content
     assert "xcrun notarytool store-credentials apparatus-notary" in content
-    assert 'release_files+=("apparatus-installer.pkg")' in content
-    assert 'release_files+=("release-files/apparatus-installer.pkg")' in content
+    assert '"apparatus-installer.exe"' in content
+    assert '"apparatus-installer.pkg"' in content
+    assert '"release-files/apparatus-installer.exe"' in content
+    assert '"release-files/apparatus-installer.pkg"' in content
     assert content.count("OPERATOR:") >= 10
 
 
@@ -125,8 +157,9 @@ def test_signing_documents_pin_operator_configuration_and_it_claims() -> None:
     positions = [one_pager.index(heading) for heading in headings]
     assert positions == sorted(positions)
     assert len(one_pager.split()) <= 600
-    assert "No `.exe` or `.pkg` installer exists yet" in one_pager
-    assert "macOS signing and\nnotarization apply only when a future `.pkg` exists" in one_pager
+    assert "Releases include an Inno Setup `.exe` and a no-payload macOS `.pkg`" in one_pager
+    assert "standard receipt and log metadata" in one_pager
+    assert "`SHA256SUMS` covers the seven distributable artifacts" in one_pager
 
 
 def _release_metadata_script() -> str:
@@ -178,6 +211,8 @@ def test_release_metadata_does_not_prefix_match_changelog_versions(tmp_path: Pat
 
     assert "Release date:" in notes
     assert "Update CHANGELOG.md" in notes
+    assert "bare Windows and macOS bootstrap scripts" in notes
+    assert "Windows and macOS installer wrappers" in notes
     assert "Other notes." not in notes
 
 
@@ -206,6 +241,8 @@ def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path:
         "apparatus_core-0.0.1-py3-none-any.whl",
         "bootstrap-apparatus.ps1",
         "bootstrap-apparatus.sh",
+        "apparatus-installer.exe",
+        "apparatus-installer.pkg",
         "SHA256SUMS",
     ):
         path = tmp_path / "release-files" / relative_path
@@ -235,6 +272,8 @@ def test_github_release_uses_explicit_quoted_repo_without_git_checkout(tmp_path:
     assert arguments[:5] == ["release", "create", "v0.0.1", "--repo", repository]
     assert "release-files/bootstrap-apparatus.ps1" in arguments
     assert "release-files/bootstrap-apparatus.sh" in arguments
+    assert "release-files/apparatus-installer.exe" in arguments
+    assert "release-files/apparatus-installer.pkg" in arguments
     assert "release-files/SHA256SUMS" in arguments
     assert not (tmp_path / "should-not-exist").exists()
 
@@ -266,6 +305,12 @@ def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Pat
         path = release_inputs / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(contents)
+    unsigned_windows = tmp_path / "unsigned-windows" / "apparatus-installer.exe"
+    unsigned_windows.parent.mkdir()
+    unsigned_windows.write_bytes(b"unsigned windows installer")
+    unsigned_macos = tmp_path / "unsigned-macos" / "apparatus-installer.pkg"
+    unsigned_macos.parent.mkdir()
+    unsigned_macos.write_bytes(b"unsigned macos installer")
 
     environment = {
         **os.environ,
@@ -279,14 +324,14 @@ def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Pat
         env=environment,
         check=True,
     )
-    signed_windows = tmp_path / "signed-windows" / "bootstrap-apparatus.ps1"
+    signed_windows = tmp_path / "signed-windows" / "apparatus-installer.exe"
     signed_windows.parent.mkdir()
     signed_windows.write_bytes(b"signed windows")
     subprocess.run(
         [
             "bash",
             "-c",
-            _job_step_run("assemble-release", "Install signed Windows bootstrap script"),
+            _job_step_run("assemble-release", "Install signed Windows installer"),
         ],
         cwd=tmp_path,
         check=True,
@@ -307,9 +352,11 @@ def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Pat
         wheel_name,
         "bootstrap-apparatus.ps1",
         "bootstrap-apparatus.sh",
+        "apparatus-installer.exe",
+        "apparatus-installer.pkg",
     }
     assert all("/" not in name and "\\" not in name for name in checksum_names)
-    assert (final_release / "bootstrap-apparatus.ps1").read_bytes() == b"signed windows"
+    assert (final_release / "apparatus-installer.exe").read_bytes() == b"signed windows"
     subprocess.run(
         ["shasum", "-a", "256", "--check", "SHA256SUMS"],
         cwd=final_release,

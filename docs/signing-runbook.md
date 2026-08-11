@@ -31,10 +31,8 @@ Windows procurement and enrollment are explicit operator steps:
    validity window, and a working private-key association.
 
 For macOS, enroll in the Apple Developer Program and obtain a Developer ID
-Installer identity. A future `.pkg` must be signed, submitted for Apple
-notarization, and stapled before release. The current macOS bootstrapper is a
-shell script; Developer ID signing does not apply to it, so it remains unsigned
-until the package wrapper exists.
+Installer identity. The release `.pkg` is the signed macOS artifact. The flat
+shell-script fallback remains unsigned and is covered by `SHA256SUMS`.
 
 ## 2. Store the material outside this repository
 
@@ -60,8 +58,8 @@ private material. The workflow invokes native `signtool` against the
 certificate store; no PFX, key, password, provider-specific action, public
 cloud identity token, or arbitrary command path is stored here.
 
-When a macOS package exists, store its signing and notarization values under
-these six exact `signing` environment secret names:
+Store macOS signing and notarization values under these six exact `signing`
+environment secret names:
 `APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64`,
 `APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD`,
 `APPARATUS_MACOS_SIGNING_IDENTITY`, `APPARATUS_MACOS_NOTARY_APPLE_ID`,
@@ -85,23 +83,25 @@ issue, pull request, or release notes.
    `APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT`, and
    `APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL`.
 4. Set repository variable `APPARATUS_SIGN_WINDOWS` to `enabled`.
-5. Run a release `workflow_dispatch` dry-run first. Verify that the signed
-   PowerShell script has a valid Authenticode signature, replaces the unsigned
-   release copy, and has a new entry in `SHA256SUMS`. Only then use the normal
-   tagged release path.
+5. Run a release `workflow_dispatch` dry-run first. Verify that
+   `apparatus-installer.exe` has a valid Authenticode signature, still passes
+   the embedded-script integrity and dry-run checks, replaces the unsigned
+   release copy, and has the matching entry in `SHA256SUMS`. The flat
+   PowerShell script remains an unsigned, checksummed fallback. Only then use
+   the normal tagged release path.
 
 ## 4. Enable macOS package signing
 
-1. Do not set `APPARATUS_SIGN_MACOS` until a packaged installer exists. The
-   current script-only release has no macOS signing output.
-2. Add the Developer ID identity plus the Apple ID, team ID, and app-specific
+1. Add the Developer ID Installer identity plus the Apple ID, team ID, and app-specific
    password for notarization to `signing`. The workflow creates its
    `apparatus-notary` keychain profile on the fresh runner.
-3. Set repository variable `APPARATUS_SIGN_MACOS` to `enabled` and run a
+2. Set repository variable `APPARATUS_SIGN_MACOS` to `enabled` and run a
    `workflow_dispatch` dry-run. Verify the package is Developer ID signed,
-   notarized, stapled, replaces the unsigned package, and is re-listed in
-   `SHA256SUMS`.
-4. Keep the certificate subject stable across releases so IT can use durable
+   notarized, stapled, still contains the exact repository bootstrap script,
+   replaces the unsigned package, and has the matching entry in `SHA256SUMS`.
+   Verify with `pkgutil --check-signature`, `spctl --assess --type install`,
+   and `xcrun stapler validate` before a tagged release.
+3. Keep the certificate subject stable across releases so IT can use durable
    publisher rules where its macOS controls require them.
 
 ## 5. Record the result
