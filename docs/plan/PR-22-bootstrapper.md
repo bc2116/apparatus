@@ -120,12 +120,17 @@ and honest documentation of their limits.
   only; creation, deletion, rename, metadata, and extended-attribute changes
   remain denied, and no device name is listed.
 - The primary Windows native proof compares the filesystem before and after
-  dry-run by name, size, modification time, and file identity across every
-  named location: the workspace target, each user-scope install destination,
-  `TEMP`, and the working directory. It covers absent and present roots and
-  uses deterministic mutation canaries for every compared field. It needs no
-  administrator access, global session, or timeout-prone trace lifecycle.
-  The existing built-in WPR/ETW controller remains an optional stronger
+  dry-run with location-tiered semantics. The workspace target, each user-scope
+  install destination, and the working directory retain exact metadata maps,
+  including their container metadata. For `TEMP`, the before/after entry-name
+  set must be identical and every surviving child retains its full captured
+  state; the `TEMP` container entry `.` retains kind, size, file identity,
+  permissions, and file attributes, while its own modification timestamp is
+  excluded. The before/after witness also excludes transient create-then-delete
+  churn inside `TEMP`. Deterministic canaries prove both the strict locations
+  and this narrow container-timestamp distinction. The proof needs no
+  administrator access, global session, or timeout-prone trace lifecycle. The
+  existing built-in WPR/ETW controller remains an optional stronger
   file/registry/network witness. Hosted runners skip that optional test with a
   reason recording the operator ruling; Windows environments with working ETW
   continue to run it.
@@ -281,3 +286,27 @@ modification time or warming the process would narrow the operator's explicit
 interpreter-entry and comparison contract, so neither is allowed. Both fresh
 repair passes are exhausted. PR-22 returns to a blocked stop for operator review
 and must not be marked landed or merged under this authorization.
+
+## Authorized Windows location-tier proof restart
+
+The operator classified this fourth observed harness-versus-physics instance
+under the escalation rule's third category: **platform infeasibility — fix the
+proof, not the model**. The frontier/max author and reviewer assignments remain
+fixed, with a fresh two-pass budget. The dry-run product guarantee and
+interpreter-entry boundary are unchanged; only the hosted Windows before/after
+evidence contract is refined.
+
+Strict locations — the workspace target, every install destination, and the
+working directory — continue to require exact metadata maps, including
+container timestamps. `TEMP` uses the location tier specified in the native
+proof above: its entry-name set must survive unchanged; every surviving child
+retains its complete captured state; and its container entry `.` retains all
+captured non-timestamp fields while excluding only the container's own
+modification timestamp. Transient entries created and deleted between the two
+snapshots are outside this witness. This refinement responds to the proven
+hosted PowerShell baseline behavior and does not permit any looser comparison
+for workspace, installation, working-directory, or `TEMP` child objects.
+
+This branch records pass 1 of 2 for the location-tier proof restart. PR-22 stays
+blocked with restart in progress until exact-head native CI and independent
+frontier/max review accept the repair.

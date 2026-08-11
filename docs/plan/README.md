@@ -64,7 +64,7 @@ on every commit.
 | 19 | [Welcome flow end-to-end](PR-19-welcome-e2e.md) | 4 | ✅ landed | 17, 18, 16 |
 | 20 | [Universal payload builder](PR-20-payload-builder.md) | 5 | ✅ landed | 13, 19 |
 | 21 | [Release pipeline](PR-21-release-pipeline.md) | 5 | ✅ landed | 20 |
-| 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | blocked — operator review required | 21, 30 |
+| 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | blocked — restart in progress | 21, 30 |
 | 23 | [Code-signing and IT one-pager](PR-23-signing-it-onepager.md) | 5 | ready | 22 |
 | 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
 | 25 | [Snapshot export (backup) v1](PR-25-snapshot-export.md) | 4 | ✅ landed | 10 |
@@ -106,15 +106,20 @@ latency-optimized.
 - **Escalation rule (learned in execution):** when a slice's author–review
   loop hits a **second blocking rework cycle on the same deliverable**,
   first classify the findings — contract ambiguity gets fixed in the prompt
-  or spec before any more authoring; capability shortfall gets escalation.
-  Escalate the author one tier (strong → frontier) and/or one effort step,
-  and raise the reviewer with it (reviewer never weaker than author, high
-  effort for the re-review). Run time far beyond a slice's reasonable
-  expectation is corroborating evidence, never a trigger by itself. The
-  escalation holds for the remainder of that slice and resets for the next.
-  Economics: repeated rework is the most expensive path — a cheap author
-  plus two rework cycles plus repeat reviews costs more than one stronger
-  authorship pass, so escalating promptly is the frugal move.
+  or spec before any more authoring; capability shortfall gets model
+  escalation; **platform infeasibility gets a proof or platform-mechanism
+  repair — fix the proof, not the model**. Escalate a capability-shortfall
+  author one tier (strong → frontier) and/or one effort step, and raise the
+  reviewer with it (reviewer never weaker than author, high effort for the
+  re-review). Run time far beyond a slice's reasonable expectation is
+  corroborating evidence, never a trigger by itself. The escalation holds for
+  the remainder of that slice and resets for the next. Economics: repeated
+  rework is the most expensive path — a cheap author plus two rework cycles
+  plus repeat reviews costs more than one stronger authorship pass, so
+  escalating promptly is the frugal move. The PR-22 / PR #25 proof chain
+  (`98d1851` → `f9ba8d0`) established platform infeasibility as this third
+  classification after the fourth observed harness-versus-physics instance;
+  its frontier author and reviewer remain fixed while the proof is repaired.
 
 ## Post-alpha (deliberately not in this plan)
 

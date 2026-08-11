@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import os
 from pathlib import Path, PureWindowsPath
 import re
@@ -140,9 +140,22 @@ def _snapshot_delta(
     before: dict[str, dict[str, _PersistentObjectState]],
     after: dict[str, dict[str, _PersistentObjectState]],
 ) -> str:
+    """Return changes rejected by the Windows location-tiered proof.
+
+    Workspace, install, and working-directory locations retain exact metadata
+    maps. TEMP retains the exact entry-name set and full child metadata, while
+    its container entry keeps every captured field except its own modification
+    timestamp. A before/after comparison intentionally cannot attest transient
+    create-then-delete churn inside TEMP.
+    """
+
     changes: list[str] = []
     fields = tuple(_PersistentObjectState.__dataclass_fields__)
-    for location in before:
+    for location in sorted(before.keys() - after.keys()):
+        changes.append(f"removed location {location}")
+    for location in sorted(after.keys() - before.keys()):
+        changes.append(f"created location {location}")
+    for location in sorted(before.keys() & after.keys()):
         old = before[location]
         new = after[location]
         for name in sorted(old.keys() - new.keys()):
@@ -150,16 +163,21 @@ def _snapshot_delta(
         for name in sorted(new.keys() - old.keys()):
             changes.append(f"{location}: created {name}")
         for name in sorted(old.keys() & new.keys()):
+            compared_fields = fields
+            if location == "TEMP" and name == ".":
+                compared_fields = tuple(
+                    field for field in fields if field != "mtime_ns"
+                )
             changed_fields = [
                 field
-                for field in fields
+                for field in compared_fields
                 if getattr(old[name], field) != getattr(new[name], field)
             ]
             if changed_fields:
                 changes.append(
                     f"{location}: changed {name} ({', '.join(changed_fields)})"
                 )
-    return "; ".join(changes[:20]) or "no metadata delta"
+    return "; ".join(changes[:20])
 
 
 def _is_github_hosted_runner() -> bool:
@@ -501,6 +519,105 @@ def test_persistent_tree_detects_absence_name_size_mtime_identity_and_attributes
     attribute_file.chmod(stat.S_IREAD | stat.S_IWRITE)
 
 
+def test_windows_location_tiered_snapshot_comparison_is_non_vacuous():
+    temp_root = _PersistentObjectState(
+        kind=stat.S_IFDIR,
+        size=0,
+        mtime_ns=100,
+        identity=(1, 1),
+        permissions=0o700,
+        file_attributes=16,
+    )
+    child = _PersistentObjectState(
+        kind=stat.S_IFREG,
+        size=7,
+        mtime_ns=200,
+        identity=(1, 2),
+        permissions=0o600,
+        file_attributes=32,
+    )
+    strict_root = _PersistentObjectState(
+        kind=stat.S_IFDIR,
+        size=0,
+        mtime_ns=300,
+        identity=(1, 3),
+        permissions=0o700,
+        file_attributes=16,
+    )
+    before = {
+        "TEMP": {".": temp_root, "survivor.txt": child},
+        "working directory": {".": strict_root},
+    }
+
+    allowed = {
+        "TEMP": {
+            ".": replace(temp_root, mtime_ns=temp_root.mtime_ns + 1),
+            "survivor.txt": child,
+        },
+        "working directory": {".": strict_root},
+    }
+    assert _snapshot_delta(before, allowed) == ""
+
+    non_timestamp_changes = {
+        "kind": stat.S_IFREG,
+        "size": 1,
+        "identity": (1, 9),
+        "permissions": 0o500,
+        "file_attributes": 2,
+    }
+    for field, value in non_timestamp_changes.items():
+        changed_root = replace(temp_root, **{field: value})
+        after = {
+            "TEMP": {".": changed_root, "survivor.txt": child},
+            "working directory": {".": strict_root},
+        }
+        assert f"TEMP: changed . ({field})" in _snapshot_delta(before, after)
+
+    changed_child = replace(child, mtime_ns=child.mtime_ns + 1)
+    child_delta = _snapshot_delta(
+        before,
+        {
+            "TEMP": {".": temp_root, "survivor.txt": changed_child},
+            "working directory": {".": strict_root},
+        },
+    )
+    assert "TEMP: changed survivor.txt (mtime_ns)" in child_delta
+
+    removed_child_delta = _snapshot_delta(
+        before,
+        {
+            "TEMP": {".": temp_root},
+            "working directory": {".": strict_root},
+        },
+    )
+    assert "TEMP: removed survivor.txt" in removed_child_delta
+
+    created_child_delta = _snapshot_delta(
+        before,
+        {
+            "TEMP": {
+                ".": temp_root,
+                "survivor.txt": child,
+                "created.txt": child,
+            },
+            "working directory": {".": strict_root},
+        },
+    )
+    assert "TEMP: created created.txt" in created_child_delta
+
+    changed_strict_root = replace(
+        strict_root, mtime_ns=strict_root.mtime_ns + 1
+    )
+    strict_delta = _snapshot_delta(
+        before,
+        {
+            "TEMP": {".": temp_root, "survivor.txt": child},
+            "working directory": {".": changed_strict_root},
+        },
+    )
+    assert "working directory: changed . (mtime_ns)" in strict_delta
+
+
 def test_macos_sandbox_contract_is_generic_and_non_vacuous():
     assert "(deny file-write* (with no-log) (with send-signal SIGKILL))" in (
         MACOS_SANDBOX_PROFILE
@@ -690,9 +807,7 @@ if (Test-RedirectedTarget 'D:\Child' $values 'C:\Users\Example') {{ exit 34 }}
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows filesystem proof")
-def test_windows_powershell_baseline_preserves_temp_and_working_directory(
-    tmp_path,
-):
+def test_windows_powershell_baseline_respects_location_tiered_proof(tmp_path):
     powershell = shutil.which("powershell") or shutil.which("pwsh")
     if powershell is None:
         pytest.skip("PowerShell is unavailable")
@@ -726,7 +841,8 @@ def test_windows_powershell_baseline_preserves_temp_and_working_directory(
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     after = _snapshot_locations(locations)
-    assert after == before, "PowerShell baseline: " + _snapshot_delta(before, after)
+    delta = _snapshot_delta(before, after)
+    assert not delta, "PowerShell baseline: " + delta
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows filesystem proof")
@@ -860,7 +976,8 @@ def test_windows_dry_run_preserves_every_named_filesystem_location(
         completed.stdout
     )
     after = _snapshot_locations(locations)
-    assert after == before, _snapshot_delta(before, after)
+    delta = _snapshot_delta(before, after)
+    assert not delta, delta
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows ETW regression")
