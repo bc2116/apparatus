@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import re
 import shutil
 import subprocess
@@ -221,7 +221,11 @@ def test_windows_dry_run_preserves_drive_and_unc_roots(tmp_path):
             check=False,
         )
         assert completed.returncode == 0, completed.stdout + completed.stderr
-        assert f"present ({target}" in completed.stdout
+        target_line = next(
+            line for line in completed.stdout.splitlines() if "Target safety:" in line
+        )
+        reported = target_line.split("present (", 1)[1].split(";", 1)[0]
+        assert PureWindowsPath(reported) == PureWindowsPath(target)
 
 
 def test_macos_script_has_valid_bash_syntax():
