@@ -15,6 +15,7 @@ apparatus = "apparatus_core.cli:main"
 ap = "apparatus_core.cli:main"
 
 [project.entry-points."apparatus.commands"]
+backup = "apparatus_core.commands.backup:register"
 check = "apparatus_core.commands.check:register"
 doctor = "apparatus_core.commands.doctor:register"
 egress = "apparatus_core.commands.egress:register"

@@ -1,4 +1,9 @@
-"""Small platform primitives for containment-safe filesystem transactions."""
+"""Small platform primitives for containment-safe filesystem transactions.
+
+A check not repeated at the final success boundary is hope, not a guarantee;
+success checkpoints reverify identity and containment through retained
+descriptors or handles.
+"""
 
 from __future__ import annotations
 
@@ -72,8 +77,12 @@ class PosixOwnedFile:
 
     def close(self) -> None:
         if self.parent >= 0:
-            os.close(self.parent)
+            parent = self.parent
             self.parent = -1
+            try:
+                os.close(parent)
+            except OSError:
+                pass
 
 
 @dataclass
@@ -88,8 +97,12 @@ class PosixOwnedDirectory:
 
     def close(self) -> None:
         if self.parent >= 0:
-            os.close(self.parent)
+            parent = self.parent
             self.parent = -1
+            try:
+                os.close(parent)
+            except OSError:
+                pass
 
 
 @dataclass
@@ -220,8 +233,12 @@ class PosixWorkspaceAnchor:
 
     def close(self) -> None:
         if self._root >= 0:
-            os.close(self._root)
+            root = self._root
             self._root = -1
+            try:
+                os.close(root)
+            except OSError:
+                pass
 
     def __enter__(self) -> PosixWorkspaceAnchor:  # noqa: PYI034
         return self
@@ -250,6 +267,36 @@ class PosixWorkspaceAnchor:
             return (status_value.st_dev, status_value.st_ino) == self._root_identity
         except OSError:
             return False
+
+    def contains_anchored_root(self, candidate: PosixWorkspaceAnchor) -> bool:
+        """Return whether this root contains ``candidate`` by object identity."""
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        current = os.dup(candidate._root)
+        try:
+            while True:
+                current_status = os.fstat(current)
+                if (current_status.st_dev, current_status.st_ino) == (
+                    self._root_identity
+                ):
+                    result = True
+                    break
+                parent = os.open("..", _posix_directory_flags(), dir_fd=current)
+                parent_status = os.fstat(parent)
+                if (parent_status.st_dev, parent_status.st_ino) == (
+                    current_status.st_dev,
+                    current_status.st_ino,
+                ):
+                    os.close(parent)
+                    result = False
+                    break
+                os.close(current)
+                current = parent
+        finally:
+            os.close(current)
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        return result
 
     @staticmethod
     def _parts(relative: str | Path) -> tuple[str, ...]:
@@ -450,7 +497,13 @@ class PosixWorkspaceAnchor:
             )
         )
 
-    def capture_file(self, relative: str | Path) -> PosixOwnedFile:
+    def capture_file(
+        self,
+        relative: str | Path,
+        *,
+        publication_compatible: bool = False,
+    ) -> PosixOwnedFile:
+        del publication_compatible
         if not self.root_is_current():
             raise OSError("workspace root changed")
         parent, name = self._parent(relative)
@@ -473,6 +526,130 @@ class PosixWorkspaceAnchor:
         self._unlink_at_owned(
             owned.parent, owned.name, owned.identity, owned.content
         )
+
+    def unlink_owned_if_present(self, owned: PosixOwnedFile) -> bool:
+        """Delete the exact retained file, accepting only its proven absence."""
+        try:
+            current_content, current_identity = self._read_at(
+                owned.parent, owned.name
+            )
+        except FileNotFoundError:
+            return False
+        except OSError as error:
+            raise OSError("owned workspace file changed before cleanup") from error
+        if current_identity != owned.identity or current_content != owned.content:
+            raise OSError("owned workspace file changed before cleanup")
+        os.unlink(owned.name, dir_fd=owned.parent)
+        return True
+
+    def unlink_owned_alias_if_present(self, owned: PosixOwnedFile) -> bool:
+        """Delete an invocation-only alias by immutable object identity."""
+        try:
+            current = os.stat(
+                owned.name,
+                dir_fd=owned.parent,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            return False
+        if (current.st_dev, current.st_ino) != (
+            owned.identity.device,
+            owned.identity.inode,
+        ):
+            raise OSError("owned workspace alias changed before cleanup")
+        os.unlink(owned.name, dir_fd=owned.parent)
+        return True
+
+    def restore_owned_if_unchanged(
+        self,
+        owned: PosixOwnedFile,
+        replacement: bytes,
+    ) -> None:
+        """Replace an exact retained file through its possibly detached parent."""
+        if not self._matches(
+            owned.parent,
+            owned.name,
+            owned.identity,
+            owned.content,
+        ):
+            raise OSError("owned workspace file changed before restoration")
+        current = os.stat(
+            owned.name,
+            dir_fd=owned.parent,
+            follow_symlinks=False,
+        )
+        temporary = f".apparatus-restore-{secrets.token_hex(16)}.tmp"
+        replacement_identity: PosixIdentity | None = None
+        exchanged = False
+        try:
+            replacement_identity = self._write_at(
+                owned.parent,
+                temporary,
+                replacement,
+                stat.S_IMODE(current.st_mode),
+            )
+            if not self._matches(
+                owned.parent,
+                owned.name,
+                owned.identity,
+                owned.content,
+            ):
+                raise OSError("owned workspace file changed before restoration")
+            exchange_names(owned.parent, temporary, owned.name)
+            exchanged = True
+            if not self._matches(
+                owned.parent,
+                owned.name,
+                replacement_identity,
+                replacement,
+            ) or not self._matches(
+                owned.parent,
+                temporary,
+                owned.identity,
+                owned.content,
+            ):
+                raise OSError("owned workspace file changed during restoration")
+            self._unlink_at_owned(
+                owned.parent,
+                temporary,
+                owned.identity,
+                owned.content,
+            )
+            exchanged = False
+            os.fsync(owned.parent)
+        except Exception:
+            if exchanged:
+                try:
+                    if (
+                        replacement_identity is not None
+                        and self._matches(
+                            owned.parent,
+                            owned.name,
+                            replacement_identity,
+                            replacement,
+                        )
+                        and self._matches(
+                            owned.parent,
+                            temporary,
+                            owned.identity,
+                            owned.content,
+                        )
+                    ):
+                        exchange_names(owned.parent, temporary, owned.name)
+                        exchanged = False
+                except OSError:
+                    pass
+            if not exchanged and replacement_identity is not None:
+                try:
+                    self._unlink_at_owned(
+                        owned.parent,
+                        temporary,
+                        replacement_identity,
+                        replacement,
+                    )
+                except OSError:
+                    pass
+            raise
 
     def _unlink_at_owned(
         self,
@@ -1010,6 +1187,7 @@ class WindowsOwnedFile:
     content: bytes
     handle: int
     parent_shares_delete: bool = False
+    publication_compatible: bool = False
 
     def close(self) -> None:
         if self.handle >= 0:
@@ -1218,6 +1396,26 @@ class WindowsWorkspaceAnchor:
         except OSError:
             return False
 
+    def contains_anchored_root(self, candidate: WindowsWorkspaceAnchor) -> bool:
+        """Return whether this root contains ``candidate`` by object identity."""
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        if self._root < 0 or candidate._root < 0:
+            raise OSError("anchored directory proof is no longer active")
+        if not _same_windows_object(
+            _win_identity(self._root), self._root_identity
+        ) or not _same_windows_object(
+            _win_identity(candidate._root), candidate._root_identity
+        ):
+            raise OSError("anchored directory identity changed")
+        result = any(
+            _same_windows_object(_win_identity(handle), self._root_identity)
+            for handle in (candidate._root, *candidate._chain_handles)
+        )
+        if not self.root_is_current() or not candidate.root_is_current():
+            raise OSError("anchored directory path changed")
+        return result
+
     def _directory(
         self,
         relative: str | Path,
@@ -1288,11 +1486,16 @@ class WindowsWorkspaceAnchor:
             return True
 
     @staticmethod
-    def _read_locked(path: Path) -> tuple[bytes, WindowsIdentity, int]:
+    def _read_locked(
+        path: Path,
+        *,
+        publication_compatible: bool = False,
+    ) -> tuple[bytes, WindowsIdentity, int]:
         handle = _win_open(
             path,
             directory=False,
-            lock_name=False,
+            lock_name=publication_compatible,
+            retain_readable=publication_compatible,
         )
         try:
             before = _win_identity(handle)
@@ -1485,14 +1688,28 @@ class WindowsWorkspaceAnchor:
             _win_close(handle)
             _win_close(parent)
 
-    def capture_file(self, relative: str | Path) -> WindowsOwnedFile:
+    def capture_file(
+        self,
+        relative: str | Path,
+        *,
+        publication_compatible: bool = False,
+    ) -> WindowsOwnedFile:
         if not self.root_is_current():
             raise OSError("workspace root changed")
         parent_path, parent, name = self._parent(relative)
         try:
-            content, identity, handle = self._read_locked(parent_path / name)
+            content, identity, handle = self._read_locked(
+                parent_path / name,
+                publication_compatible=publication_compatible,
+            )
             owned = WindowsOwnedFile(
-                Path(relative), parent, parent_path / name, identity, content, handle
+                Path(relative),
+                parent,
+                parent_path / name,
+                identity,
+                content,
+                handle,
+                publication_compatible=publication_compatible,
             )
             if not self._parent_is_current(Path(relative), parent):
                 owned.close()
@@ -1508,10 +1725,13 @@ class WindowsWorkspaceAnchor:
         path: Path,
         identity: WindowsIdentity,
         content: bytes,
+        *,
+        publication_compatible: bool = False,
     ) -> bool:
         try:
             current, current_identity, handle = WindowsWorkspaceAnchor._read_locked(
-                path
+                path,
+                publication_compatible=publication_compatible,
             )
             _win_close(handle)
         except OSError:
@@ -1522,7 +1742,12 @@ class WindowsWorkspaceAnchor:
         return (
             owned.handle >= 0
             and _win_identity(owned.handle) == owned.identity
-            and self._matches_path(owned.path, owned.identity, owned.content)
+            and self._matches_path(
+                owned.path,
+                owned.identity,
+                owned.content,
+                publication_compatible=owned.publication_compatible,
+            )
         )
 
     def unlink_owned(self, owned: WindowsOwnedFile) -> None:
@@ -1533,6 +1758,106 @@ class WindowsWorkspaceAnchor:
         _win_delete_handle(owned.handle)
         _win_close(owned.handle)
         owned.handle = -1
+
+    def unlink_owned_if_present(self, owned: WindowsOwnedFile) -> bool:
+        """Delete the exact retained file, accepting only its proven absence."""
+        if owned.handle < 0 or _win_identity(owned.handle) != owned.identity:
+            raise OSError("owned workspace file changed before cleanup")
+        if self._matches_path(
+            owned.path,
+            owned.identity,
+            owned.content,
+            publication_compatible=owned.publication_compatible,
+        ):
+            if owned.publication_compatible:
+                # Publication proofs intentionally request only read access so
+                # they coexist with the receipt writer's retained handle. Drop
+                # that proof, reopen by name with DELETE access, and reverify
+                # immutable identity plus content before deleting anything.
+                _win_close(owned.handle)
+                owned.handle = -1
+                deletion = -1
+                try:
+                    current, identity, deletion = self._read_locked(owned.path)
+                except FileNotFoundError:
+                    return False
+                try:
+                    if identity != owned.identity or current != owned.content:
+                        raise OSError(
+                            "owned workspace file changed before cleanup"
+                        )
+                    _win_delete_handle(deletion)
+                    return True
+                finally:
+                    _win_close(deletion)
+            self.unlink_owned(owned)
+            return True
+        try:
+            os.lstat(owned.path)
+        except FileNotFoundError:
+            # A prior exact-owner rollback can remove the name while this
+            # independent proof handle remains open. Reassert deletion on the
+            # retained object so its last handle cannot strand it.
+            if owned.publication_compatible:
+                _win_close(owned.handle)
+                owned.handle = -1
+            else:
+                _win_delete_handle(owned.handle)
+            return False
+        # The public name now belongs to something else. Delete only the held
+        # invocation object and report the preserved substitution loudly.
+        if owned.publication_compatible:
+            _win_close(owned.handle)
+            owned.handle = -1
+        else:
+            _win_delete_handle(owned.handle)
+        raise OSError("owned workspace file changed before cleanup")
+
+    def unlink_owned_alias_if_present(self, owned: WindowsOwnedFile) -> bool:
+        """Delete an invocation-only alias by immutable object identity."""
+        if owned.handle < 0 or not _same_windows_object(
+            _win_identity(owned.handle), owned.identity
+        ):
+            raise OSError("owned workspace alias changed before cleanup")
+        try:
+            current = _win_open(owned.path, directory=False, lock_name=False)
+        except FileNotFoundError:
+            _win_delete_handle(owned.handle)
+            return False
+        try:
+            if not _same_windows_object(_win_identity(current), owned.identity):
+                raise OSError("owned workspace alias changed before cleanup")
+        finally:
+            _win_close(current)
+        _win_delete_handle(owned.handle)
+        _win_close(owned.handle)
+        owned.handle = -1
+        return True
+
+    def restore_owned_if_unchanged(
+        self,
+        owned: WindowsOwnedFile,
+        replacement: bytes,
+    ) -> None:
+        """Replace an exact retained file while Win32 keeps its parent stable."""
+        if not self._matches_owned(owned):
+            raise OSError("owned workspace file changed before restoration")
+        # ReplaceFileW cannot replace a file while our read/write-excluding
+        # proof remains open. The retained directory chain keeps the parent
+        # stable; the conditional replacement immediately reopens and
+        # revalidates identity and content before publishing the restoration.
+        _win_close(owned.handle)
+        owned.handle = -1
+        transaction = self.replace_if_unchanged(
+            owned.relative,
+            owned.identity,
+            owned.content,
+            replacement,
+        )
+        try:
+            transaction.commit()
+        finally:
+            transaction.close()
 
     def matches_owned(self, owned: WindowsOwnedFile) -> bool:
         return (

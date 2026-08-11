@@ -11,6 +11,20 @@ from apparatus_core.fs_transactions import (
 )
 
 
+def test_workspace_anchors_compare_containment_by_object_identity(tmp_path):
+    workspace = tmp_path / "workspace"
+    inside = workspace / "inside"
+    outside = tmp_path / "outside"
+    inside.mkdir(parents=True)
+    outside.mkdir()
+
+    with fs_transactions.WorkspaceAnchor(workspace) as workspace_anchor:
+        with fs_transactions.WorkspaceAnchor(inside) as inside_anchor:
+            assert workspace_anchor.contains_anchored_root(inside_anchor)
+        with fs_transactions.WorkspaceAnchor(outside) as outside_anchor:
+            assert not workspace_anchor.contains_anchored_root(outside_anchor)
+
+
 def test_windows_replace_uses_only_supported_flags(monkeypatch, tmp_path):
     class FakeKernel:
         arguments = None
