@@ -51,7 +51,9 @@ def _native_command(home: Path, target: Path) -> list[str]:
         uv.chmod(0o700)
         return [bash, str(MACOS_SCRIPT), "--dry-run", "--path", str(target)]
     if sys.platform == "win32":
-        pwsh = shutil.which("pwsh") or shutil.which("powershell")
+        # Windows PowerShell is the declared 5.1 baseline and does not create
+        # PowerShell 7's StartupProfileData cache under redirected LOCALAPPDATA.
+        pwsh = shutil.which("powershell") or shutil.which("pwsh")
         if pwsh is None:
             pytest.skip("PowerShell is unavailable on this Windows host")
         return [
@@ -147,7 +149,7 @@ def test_macos_script_has_valid_bash_syntax():
 
 
 def test_windows_script_parses_when_powershell_is_available():
-    pwsh = shutil.which("pwsh") or shutil.which("powershell")
+    pwsh = shutil.which("powershell") or shutil.which("pwsh")
     if pwsh is None:
         pytest.skip("PowerShell is unavailable")
     parser = (
