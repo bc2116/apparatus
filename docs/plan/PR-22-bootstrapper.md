@@ -176,7 +176,7 @@ and honest documentation of their limits.
 ## Authorized restart
 
 The operator authorized a fresh two-pass restart after the prior blocked stop.
-This branch records restart pass 1 of 2. The narrow core authorization,
+This branch records restart pass 2 of 2. The narrow core authorization,
 interpreter-entry boundary, pre-interpreter promises, and UNC ruling above are
 unchanged.
 
@@ -191,8 +191,7 @@ Two installer-harness failures from the prior exact-head Windows run do
 survive the refined ruling: the controller's machine-scoped environment lookup
 did not resolve the trusted Windows system directory, and a macOS-only native
 path check was not platform-gated. Restart pass 1 repairs those proof defects
-without weakening either boundary. Native Windows ETW/provider/parser evidence
-and the full Windows safety suite remain pending CI.
+without weakening either boundary.
 
 The same exact-head run had eleven init rollback failures: the
 invocation-created-root case reported four incomplete cleanup operations, and
@@ -202,3 +201,19 @@ blocked later cleanup. Restart pass 1 releases each settled proof handle before
 ancestor cleanup and adds a native Windows regression proving that a concurrent
 foreign file is preserved and reported rather than removed. PR-22 stays blocked
 and must not be marked landed or merged during this pass.
+
+At restart-pass-1 head `f301bf6`, CI run `31509417123` closed all eleven core
+rollback failures: Windows safety completed 381 tests with 69 skips before its
+sole ETW failure. The remaining failures came from scheduling the same
+machine-global WPR/ETW proof concurrently in both Windows jobs. The dedicated
+bootstrap job timed out, while the safety job detected that the shared session
+state was not restored exactly. This is a CI-topology capability shortfall, not
+a contract ambiguity or permission to weaken the proof.
+
+Restart pass 2 excludes the global test explicitly from `windows-safety`,
+retains every other listed safety test there, and runs the ETW node exactly
+once as a dedicated invocation in `bootstrap-windows` after the other bootstrap
+checks. A static conformance regression pins that selection topology. Native
+Windows evidence remains pending CI. No further repair pass remains: any new
+substantive blocker is a blocked stop, and PR-22 must not be marked landed or
+merged without green exact-head evidence.

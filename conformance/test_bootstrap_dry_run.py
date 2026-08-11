@@ -12,11 +12,16 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+CI_WORKFLOW = REPO_ROOT / ".github/workflows/ci.yml"
 MACOS_SCRIPT = REPO_ROOT / "installer/macos/bootstrap-apparatus.sh"
 MACOS_NETWORK_CANARY = Path("/usr/bin/nc")
 MACOS_SANDBOX = Path("/usr/bin/sandbox-exec")
 WINDOWS_SCRIPT = REPO_ROOT / "installer/windows/bootstrap-apparatus.ps1"
 WINDOWS_TRACE_CONTROLLER = REPO_ROOT / "conformance/windows_bootstrap_syscall_trace.ps1"
+WINDOWS_ETW_TEST = (
+    "conformance/test_bootstrap_dry_run.py::"
+    "test_windows_dry_run_has_no_file_registry_or_network_syscalls"
+)
 MACOS_SANDBOX_PROFILE = """
 (version 1)
 (allow default)
@@ -244,6 +249,25 @@ def test_windows_trace_controller_is_built_in_bounded_and_non_vacuous():
         assert token in controller
     assert not re.search(r"(?i)invoke-(?:webrequest|restmethod)|start-bitstransfer", controller)
     assert 'GetEnvironmentVariable("SystemRoot", "Machine")' not in controller
+
+
+def test_windows_global_trace_is_isolated_to_bootstrap_ci_job():
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+    windows_safety = workflow.split("\n  windows-safety:\n", 1)[1].split(
+        "\n  bootstrap-windows:\n", 1
+    )[0]
+    bootstrap_windows = workflow.split("\n  bootstrap-windows:\n", 1)[1].split(
+        "\n  bootstrap-macos:\n", 1
+    )[0]
+
+    exclusion = f"--deselect {WINDOWS_ETW_TEST}"
+    selection = f"uv run pytest {WINDOWS_ETW_TEST}"
+    assert windows_safety.count(WINDOWS_ETW_TEST) == 1
+    assert exclusion in windows_safety
+    assert bootstrap_windows.count(WINDOWS_ETW_TEST) == 2
+    assert exclusion in bootstrap_windows
+    assert selection in bootstrap_windows
+    assert workflow.count(WINDOWS_ETW_TEST) == 3
 
 
 def test_macos_sandbox_contract_is_generic_and_non_vacuous():

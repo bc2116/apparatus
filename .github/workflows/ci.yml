@@ -70,6 +70,7 @@ jobs:
           packages/apparatus-core/tests/test_feature_selection.py
           conformance/test_payload_archive.py
           conformance/test_bootstrap_dry_run.py
+          --deselect conformance/test_bootstrap_dry_run.py::test_windows_dry_run_has_no_file_registry_or_network_syscalls
 
   bootstrap-windows:
     runs-on: windows-latest
@@ -82,7 +83,8 @@ jobs:
         shell: pwsh
         run: |
           powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File installer/windows/bootstrap-apparatus.ps1 -DryRun
-          uv run pytest conformance/test_bootstrap_dry_run.py
+          uv run pytest conformance/test_bootstrap_dry_run.py --deselect conformance/test_bootstrap_dry_run.py::test_windows_dry_run_has_no_file_registry_or_network_syscalls
+          uv run pytest conformance/test_bootstrap_dry_run.py::test_windows_dry_run_has_no_file_registry_or_network_syscalls
 
   bootstrap-macos:
     runs-on: macos-latest
