@@ -1,7 +1,14 @@
-# Apparatus setup scripts
+# Apparatus installers and setup scripts
 
-These scripts create or repair an Apparatus workspace without administrator
-access on a typical machine. They work in this order:
+The primary setup path is the released installer for your operating system:
+
+- `apparatus-installer.exe` on Windows;
+- `apparatus-installer.pkg` on macOS.
+
+Double-click the installer and follow the operating-system prompts. Each
+installer carries the corresponding setup script unchanged, runs it, and then
+removes its temporary copy. The scripts create or repair an Apparatus workspace
+in this order:
 
 1. install uv in the current user's profile when it is missing;
 2. install a uv-managed Python when it is missing;
@@ -13,50 +20,86 @@ access on a typical machine. They work in this order:
 The installed `apparatus-core` package contains the universal workspace payload.
 The scripts do not download a separate payload.
 
-## Windows
+## Windows installer
 
-Open PowerShell in the folder containing the script, then run:
+Double-click `apparatus-installer.exe` for the default setup. The wrapper uses
+Inno Setup's minimal native progress interface, runs without elevation, installs
+no wrapper payload or uninstaller, and leaves all setup decisions to the
+embedded PowerShell script.
+
+For a wrapper dry-run or a different workspace location, pass the wrapper's
+strictly checked options from PowerShell or Command Prompt. `/DRYRUN` maps to
+the script's `-DryRun`; `/WORKSPACEPATH=` maps to `-Path`:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1
+.\apparatus-installer.exe /DRYRUN
+.\apparatus-installer.exe /WORKSPACEPATH="D:\Work\Apparatus"
+.\apparatus-installer.exe /DRYRUN /WORKSPACEPATH="D:\Work\Apparatus"
+```
+
+Duplicate or unknown options are rejected, and the wrapper returns the setup
+script's nonzero status if setup stops.
+
+### PowerShell script fallback
+
+Each release also includes `bootstrap-apparatus.ps1` as a flat fallback file.
+Open PowerShell in the folder containing it, then run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-apparatus.ps1
 ```
 
 The default workspace location is `C:\Projects\Apparatus`. Use a different
 location with `-Path`:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1 -Path "D:\Work\Apparatus"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-apparatus.ps1 -Path "D:\Work\Apparatus"
 ```
 
 See the complete detected plan without downloading or changing anything:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\windows\bootstrap-apparatus.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-apparatus.ps1 -DryRun
 ```
 
 The script refuses OneDrive path components, redirected Documents or Desktop
 locations, and reparse-point boundaries. Live workspace state must not sit in a
 sync engine. Use one-way snapshot export for backup.
 
-## macOS
+## macOS installer
 
-Open Terminal in the folder containing the script, then run:
+Double-click `apparatus-installer.pkg` for the default setup. macOS Installer
+may require an administrator authentication prompt even though the package has
+no payload. Its launcher identifies the logged-in user and runs the complete
+bootstrap chain in that user's session and with that user's identity; the chain
+never runs as root. All chain writes remain in the user profile or the workspace
+target. macOS retains its standard package receipt and may retain Installer log
+metadata, but the wrapper installs no application, service, daemon, or other
+system payload.
+
+The native package interface has no safe custom-option channel. Use the flat
+shell-script fallback when you need `--dry-run` or `--path`.
+
+### Shell script fallback
+
+Each release also includes `bootstrap-apparatus.sh` as a flat fallback file.
+Open Terminal in the folder containing it, then run:
 
 ```bash
-/usr/bin/env -u BASH_ENV -u ENV /bin/bash macos/bootstrap-apparatus.sh
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash bootstrap-apparatus.sh
 ```
 
 The default workspace location is `~/Projects/Apparatus`. Use a different
 location with `--path`:
 
 ```bash
-/usr/bin/env -u BASH_ENV -u ENV /bin/bash macos/bootstrap-apparatus.sh --path "$HOME/Work/Apparatus"
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash bootstrap-apparatus.sh --path "$HOME/Work/Apparatus"
 ```
 
 See the complete detected plan without downloading or changing anything:
 
 ```bash
-/usr/bin/env -u BASH_ENV -u ENV /bin/bash macos/bootstrap-apparatus.sh --dry-run
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash bootstrap-apparatus.sh --dry-run
 ```
 
 Dry-run begins at script interpreter entry. It performs read-only detection and
@@ -104,13 +147,15 @@ credentials, or personal data to those sources.
 
 ## Current limitations
 
-These scripts are currently unsigned. Each release publishes `SHA256SUMS` for
-the payload, packages, and both scripts. The signing pipeline is present but
-gated off while Apparatus acquires certificates; enabling it will sign the
-Windows script, while a future signed macOS package is planned separately.
-The Windows command above uses a process-only execution-policy bypass; it does
-not change the machine policy. See the [IT reviewer one-pager](../docs/it-onepager.md)
-and [signing runbook](../docs/signing-runbook.md).
+Wrapper signing is implemented but gated off while Apparatus acquires
+certificates. With a gate unset, releases still build and checksum both
+unsigned wrappers and both fallback scripts. When enabled, Authenticode signs
+the outer Windows `.exe`; Developer ID signs the outer macOS `.pkg`, which is
+then notarized and stapled. No release should be described as signed unless its
+gate ran successfully and its signature was verified. The PowerShell fallback
+command above uses a process-only execution-policy bypass; it does not change
+machine policy. See the [IT reviewer one-pager](../docs/it-onepager.md) and
+[signing runbook](../docs/signing-runbook.md).
 
 Some managed devices block downloads, script execution, or user-scope tool
 installation. The script stops instead of requesting elevation and always says

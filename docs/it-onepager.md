@@ -8,12 +8,15 @@ under `%USERPROFILE%\.local\bin`, `%USERPROFILE%\.local\share\uv\python`,
 and `%USERPROFILE%\.local\share\uv\tools`. On macOS they live under
 `~/.local/bin`, `~/.local/share/uv/python`, and `~/.local/share/uv/tools`.
 If git is already present, Apparatus uses it for snapshots; setup does not
-install or modify git. Nothing is installed system-wide. The released setup
-scripts are currently unsigned. No `.exe` or `.pkg` installer exists yet;
-setup uses the released PowerShell and shell scripts. Checksums are published,
-and the signing pipeline remains gated off while certificates are pending.
-Windows signing applies to the PowerShell script. macOS signing and
-notarization apply only when a future `.pkg` exists.
+install or modify git. Nothing in the toolchain is installed system-wide.
+Releases include an Inno Setup `.exe` and a no-payload macOS `.pkg`, plus the
+bare scripts as fallbacks. The Windows wrapper extracts its script temporarily
+and installs no wrapper component. macOS Installer may request administrator
+authentication and keeps its standard receipt and log metadata; its launcher
+runs the bootstrap chain as the logged-in user and installs no system payload.
+Signing gates remain off until certificates are configured. When enabled, the
+outer `.exe` is Authenticode-signed and the outer `.pkg` is Developer ID signed,
+notarized, and stapled. `SHA256SUMS` covers every release file as built.
 
 ## Workspace data
 
@@ -52,4 +55,6 @@ snapshot, and egress decision.
 ## Clean uninstall
 
 Remove the uv tool, then remove uv if desired, and delete or archive the
-workspace folder. There is no system-wide component to undo.
+workspace folder. Windows has no wrapper component to remove. The macOS package
+installs no payload; macOS may retain its ordinary Installer receipt and logs,
+which an authorized administrator can manage with standard OS controls.

@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -euo pipefail
+
+fail() {
+  printf 'Apparatus setup stopped: %s\n' "$1" >&2
+  printf 'Re-running is safe. See installer/README.md for help.\n' >&2
+  exit 1
+}
+
+[[ $(/usr/bin/id -u) -eq 0 ]] || fail "The macOS package launcher did not start correctly."
+
+script_directory=$(/usr/bin/dirname "$0")
+bootstrap="$script_directory/bootstrap-apparatus.sh"
+[[ -f $bootstrap && -x $bootstrap ]] || fail "The packaged bootstrap script is missing."
+
+console_user=$(/usr/bin/stat -f '%Su' /dev/console) || \
+  fail "The logged-in user could not be identified."
+[[ $console_user =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || \
+  fail "The logged-in user identity is not supported."
+[[ $console_user != root && $console_user != loginwindow && $console_user != nobody ]] || \
+  fail "Sign in to a user account before running this package."
+
+console_uid=$(/usr/bin/id -u "$console_user") || \
+  fail "The logged-in user identity could not be resolved."
+[[ $console_uid =~ ^[0-9]+$ && $console_uid -gt 0 ]] || \
+  fail "The logged-in user identity is not safe to use."
+user_directory=/Users
+console_home=$(
+  /usr/bin/dscl . -read "$user_directory/$console_user" NFSHomeDirectory 2>/dev/null |
+    /usr/bin/sed -E 's/^NFSHomeDirectory:[[:space:]]*//'
+) || fail "The logged-in user profile could not be resolved."
+[[ -n $console_home && $console_home == /* && $console_home != *$'\n'* && \
+   -d $console_home && ! -L $console_home ]] || \
+  fail "The logged-in user profile is unavailable."
+[[ $(/usr/bin/stat -f '%u' "$console_home") == "$console_uid" ]] || \
+  fail "The logged-in user does not own the resolved profile."
+
+printf 'Starting Apparatus setup for %s.\n' "$console_user"
+cd /
+/bin/cat "$bootstrap" | \
+  /bin/launchctl asuser "$console_uid" \
+    /usr/bin/sudo -u "$console_user" -- \
+    /usr/bin/env -i \
+      HOME="$console_home" USER="$console_user" LOGNAME="$console_user" \
+      PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+      /bin/bash -s --

@@ -18,8 +18,8 @@ jobs:
       sdist_name: ${{ steps.packages.outputs.sdist_name }}
       wheel_name: ${{ steps.packages.outputs.wheel_name }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - name: Sync workspace
         run: uv sync --all-packages
       - name: Check release version and mode
@@ -144,17 +144,207 @@ jobs:
           cp installer/windows/bootstrap-apparatus.ps1 dist/release-files/installer/windows/
           cp installer/macos/bootstrap-apparatus.sh dist/release-files/installer/macos/
       - name: Upload release files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: apparatus-release-inputs-${{ steps.release.outputs.version }}
           if-no-files-found: error
           path: dist/release-files
 
-  sign-windows-bootstrap:
-    name: Sign Windows bootstrap script
+  build-windows-installer:
+    name: Build Windows installer wrapper
     needs: build
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pinned Inno Setup
+        shell: pwsh
+        env:
+          INNO_SETUP_VERSION: '7.0.2'
+          INNO_SETUP_SHA256: 2b8734490a83f1ed074022b85d46c5ce9c3e2fbe9b63a45c28a74b478ac3a94f
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $download = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNO_SETUP_VERSION-x86.exe"
+          $uri = "https://github.com/jrsoftware/issrc/releases/download/is-$($env:INNO_SETUP_VERSION.Replace('.', '_'))/innosetup-$env:INNO_SETUP_VERSION-x86.exe"
+          Invoke-WebRequest -Uri $uri -OutFile $download
+          $actual = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -cne $env:INNO_SETUP_SHA256) {
+            throw "Pinned Inno Setup download hash mismatch: $actual"
+          }
+          $signature = Get-AuthenticodeSignature -FilePath $download
+          if ($signature.Status -ne 'Valid') {
+            throw "Pinned Inno Setup signature status was $($signature.Status)."
+          }
+          if ($signature.SignerCertificate.Subject -notmatch '(^|, )CN=Pyrsys B\.V\.(,|$)') {
+            throw 'Pinned Inno Setup does not have the expected publisher signature.'
+          }
+          $installDirectory = Join-Path $env:RUNNER_TEMP 'inno-setup'
+          $process = Start-Process -FilePath $download -Wait -PassThru -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDirectory"
+          )
+          if ($process.ExitCode -ne 0) {
+            throw "Pinned Inno Setup installation failed with exit code $($process.ExitCode)."
+          }
+          $compiler = Join-Path $installDirectory 'ISCC.exe'
+          $compilerVersion = (Get-Item -LiteralPath $compiler).VersionInfo.ProductVersion
+          Write-Output "Pinned Inno Setup compiler version: $compilerVersion"
+          if ($compilerVersion -notmatch '^7\.0\.2(?:\.|$)') {
+            throw "Pinned Inno Setup compiler has unexpected version $compilerVersion."
+          }
+          "INNO_COMPILER=$compiler" >> $env:GITHUB_ENV
+      - name: Build Windows installer
+        shell: powershell
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          .\installer\windows\build-installer.ps1 `
+            -Compiler $env:INNO_COMPILER `
+            -OutputDirectory dist\windows `
+            -Version $env:VERSION
+      - name: Exercise wrapped Windows dry-run
+        shell: powershell
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'apparatus-installer.log'
+          & .\dist\windows\apparatus-installer.exe `
+            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN "/LOG=$log"
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content -LiteralPath $log
+            throw "Wrapped Windows dry-run failed with exit code $LASTEXITCODE."
+          }
+          $logText = Get-Content -LiteralPath $log -Raw
+          if ($logText -notmatch 'Embedded bootstrap SHA-256 verified\.') {
+            throw 'The Windows wrapper log did not record embedded-script verification.'
+          }
+          if ($logText -notmatch 'Apparatus setup dry-run') {
+            throw 'The Windows wrapper log did not record the bootstrap dry-run.'
+          }
+
+          $marker = Join-Path $env:RUNNER_TEMP 'apparatus-injection-marker'
+          $hostilePath = "C:\Runner Temp\Apparatus & New-Item '$marker'; trailing\"
+          & .\dist\windows\apparatus-installer.exe `
+            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN `
+            "/WORKSPACEPATH=$hostilePath" "/LOG=$log"
+          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $marker)) {
+            throw 'The Windows wrapper did not preserve a hostile workspace path as one value.'
+          }
+
+          $reverseLog = Join-Path $env:RUNNER_TEMP 'apparatus-installer-reverse.log'
+          & .\dist\windows\apparatus-installer.exe `
+            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART `
+            "/WORKSPACEPATH=$hostilePath" /DRYRUN "/LOG=$reverseLog"
+          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $marker)) {
+            throw 'The Windows wrapper changed behavior when workspace path preceded dry-run.'
+          }
+          $reverseText = Get-Content -LiteralPath $reverseLog -Raw
+          if ($reverseText -notmatch 'Apparatus setup dry-run' -or $reverseText -notmatch 'trailing\\') {
+            throw 'The Windows wrapper lost a reordered option or trailing backslash.'
+          }
+
+          & .\dist\windows\apparatus-installer.exe `
+            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN /DRYRUN
+          if ($LASTEXITCODE -eq 0) {
+            throw 'The Windows wrapper accepted a duplicate dry-run option.'
+          }
+          & .\dist\windows\apparatus-installer.exe `
+            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOTANOPTION
+          if ($LASTEXITCODE -eq 0) {
+            throw 'The Windows wrapper accepted an unknown option.'
+          }
+
+          $unsafeTarget = Join-Path $env:USERPROFILE 'OneDrive\Apparatus'
+          & .\dist\windows\apparatus-installer.exe `
+            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART `
+            "/WORKSPACEPATH=$unsafeTarget" "/LOG=$log"
+          if ($LASTEXITCODE -eq 0) {
+            throw 'The Windows wrapper masked the bootstrap refusal of an unsafe target.'
+          }
+      - name: Upload unsigned Windows installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: apparatus-unsigned-windows-installer-${{ needs.build.outputs.version }}
+          if-no-files-found: error
+          path: dist/windows/apparatus-installer.exe
+
+  build-macos-installer:
+    name: Build macOS installer wrapper
+    needs: build
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build and verify macOS installer
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          sw_vers
+          shasum -a 256 /usr/bin/pkgbuild /usr/bin/productbuild
+          installer/macos/build-package.sh \
+            --output dist/macos/apparatus-installer.pkg \
+            --version "$VERSION"
+          /usr/bin/env -u BASH_ENV -u ENV /bin/bash \
+            installer/macos/bootstrap-apparatus.sh --dry-run
+      - name: Exercise packaged dispatcher fail-closed path
+        run: |
+          set -euo pipefail
+          probe_directory="$RUNNER_TEMP/apparatus-dispatcher-probe"
+          mkdir "$probe_directory"
+          probe="$probe_directory/postinstall"
+          cp installer/macos/bootstrap-apparatus.sh "$probe_directory/bootstrap-apparatus.sh"
+          chmod 0755 "$probe_directory/bootstrap-apparatus.sh"
+          /usr/bin/sed \
+            "s|console_user=\$(/usr/bin/stat -f '%Su' /dev/console)|console_user=loginwindow|" \
+            installer/macos/package-scripts/postinstall > "$probe"
+          chmod 0755 "$probe"
+          set +e
+          output=$(sudo "$probe" 2>&1)
+          status=$?
+          set -e
+          [[ $status -ne 0 ]]
+          [[ $output == *'Sign in to a user account before running this package.'* ]]
+          [[ $output == *'Re-running is safe.'* ]]
+          [[ $output != *'Apparatus setup dry-run'* ]]
+      - name: Exercise packaged dispatcher identity drop
+        run: |
+          set -euo pipefail
+          probe_directory="$RUNNER_TEMP/apparatus-dispatcher-positive"
+          mkdir "$probe_directory"
+          probe="$probe_directory/postinstall"
+          runner_user=$(id -un)
+          runner_uid=$(id -u)
+          runner_home=$HOME
+          /usr/bin/sed \
+            "s|console_user=\$(/usr/bin/stat -f '%Su' /dev/console)|console_user='$runner_user'|" \
+            installer/macos/package-scripts/postinstall > "$probe"
+          chmod 0755 "$probe"
+          canary="$probe_directory/bootstrap-apparatus.sh"
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'printf "canary-uid=%s\n" "$(/usr/bin/id -u)"' \
+            'printf "canary-home=%s\n" "$HOME"' \
+            'printf "canary-user=%s\n" "$USER"' \
+            'printf "canary-logname=%s\n" "$LOGNAME"' \
+            'printf "canary-path=%s\n" "$PATH"' > "$canary"
+          chmod 0755 "$canary"
+          output=$(sudo "$probe" 2>&1)
+          [[ $runner_uid -gt 0 ]]
+          [[ $output == *"canary-uid=$runner_uid"* ]]
+          [[ $output == *"canary-home=$runner_home"* ]]
+          [[ $output == *"canary-user=$runner_user"* ]]
+          [[ $output == *"canary-logname=$runner_user"* ]]
+          [[ $output == *'canary-path=/usr/bin:/bin:/usr/sbin:/sbin'* ]]
+          [[ $output != *'canary-uid=0'* ]]
+      - name: Upload unsigned macOS installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: apparatus-unsigned-macos-installer-${{ needs.build.outputs.version }}
+          if-no-files-found: error
+          path: dist/macos/apparatus-installer.pkg
+
+  sign-windows-installer:
+    name: Sign Windows installer
+    needs: [build, build-windows-installer]
     if: >-
       needs.build.result == 'success' &&
+      needs.build-windows-installer.result == 'success' &&
       vars.APPARATUS_SIGN_WINDOWS == 'enabled'
     # Routing happens before an environment is opened, so these fixed labels
     # are repository-level configuration rather than environment variables.
@@ -163,11 +353,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Download release inputs
-        uses: actions/download-artifact@v4
+      - name: Download unsigned Windows installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: apparatus-release-inputs-${{ needs.build.outputs.version }}
-          path: release-files
+          name: apparatus-unsigned-windows-installer-${{ needs.build.outputs.version }}
+          path: unsigned-windows
       - name: Verify signing-runner configuration
         shell: pwsh
         env:
@@ -276,7 +466,7 @@ jobs:
           $privateKey.Dispose()
           & $signTool.FullName sign /sha1 $certificate.Thumbprint /fd SHA256 `
             /tr $env:APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 `
-            'release-files/installer/windows/bootstrap-apparatus.ps1'
+            'unsigned-windows/apparatus-installer.exe'
           if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE." }
       - name: Verify Windows signature
         shell: pwsh
@@ -287,7 +477,7 @@ jobs:
           APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT }}
         run: |
           $signature = Get-AuthenticodeSignature `
-            -FilePath 'release-files/installer/windows/bootstrap-apparatus.ps1'
+            -FilePath 'unsigned-windows/apparatus-installer.exe'
           if ($signature.Status -ne 'Valid') {
             throw "Authenticode signature status was $($signature.Status)."
           }
@@ -295,37 +485,52 @@ jobs:
             $signature.SignerCertificate.Thumbprint -cne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT -or
             $signature.SignerCertificate.Subject -cne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT
           ) {
-            throw 'The signed script does not use the exactly configured certificate.'
+            throw 'The signed installer does not use the exactly configured certificate.'
           }
-      - name: Upload signed Windows bootstrap script
-        uses: actions/upload-artifact@v4
+      - name: Exercise signed Windows installer dry-run
+        shell: powershell
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'apparatus-signed-installer.log'
+          & .\unsigned-windows\apparatus-installer.exe `
+            /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN "/LOG=$log"
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content -LiteralPath $log
+            throw "Signed Windows installer dry-run failed with exit code $LASTEXITCODE."
+          }
+          $logText = Get-Content -LiteralPath $log -Raw
+          if (
+            $logText -notmatch 'Embedded bootstrap SHA-256 verified\.' -or
+            $logText -notmatch 'Apparatus setup dry-run'
+          ) {
+            throw 'The signed Windows installer did not verify and run its embedded bootstrap.'
+          }
+      - name: Upload signed Windows installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: apparatus-signed-windows-bootstrap-${{ needs.build.outputs.version }}
+          name: apparatus-signed-windows-installer-${{ needs.build.outputs.version }}
           if-no-files-found: error
-          path: release-files/installer/windows/bootstrap-apparatus.ps1
+          path: unsigned-windows/apparatus-installer.exe
 
-  sign-macos-bootstrap:
-    name: Prepare macOS signing and notarization
-    needs: build
+  sign-macos-installer:
+    name: Sign and notarize macOS installer
+    needs: [build, build-macos-installer]
     if: >-
       needs.build.result == 'success' &&
+      needs.build-macos-installer.result == 'success' &&
       vars.APPARATUS_SIGN_MACOS == 'enabled'
-    runs-on: macos-latest
+    runs-on: macos-15
     environment: signing
-    outputs:
-      package_signed: ${{ steps.sign-package.outputs.package_signed }}
     steps:
-      - name: Download release inputs
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Download unsigned macOS installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: apparatus-release-inputs-${{ needs.build.outputs.version }}
-          path: release-files
-      - name: Sign and notarize a future installer package
-        id: sign-package
+          name: apparatus-unsigned-macos-installer-${{ needs.build.outputs.version }}
+          path: unsigned-macos
+      - name: Sign, notarize, and staple installer package
         shell: bash
         env:
-          # OPERATOR: a shell script has no applicable Developer ID signature.
-          # When PR-26 supplies a .pkg, add these named secrets to `signing`.
+          # OPERATOR: protected `signing` environment values; never repository content.
           APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64 }}
           APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD }}
           APPARATUS_MACOS_SIGNING_IDENTITY: ${{ secrets.APPARATUS_MACOS_SIGNING_IDENTITY }}
@@ -334,14 +539,16 @@ jobs:
           APPARATUS_MACOS_NOTARY_APP_PASSWORD: ${{ secrets.APPARATUS_MACOS_NOTARY_APP_PASSWORD }}
         run: |
           set -euo pipefail
-          package_path='release-files/installer/macos/apparatus-installer.pkg'
-          if [[ ! -f "$package_path" ]]; then
-            echo 'No macOS package is released yet; the shell bootstrap script remains unsigned.'
-            echo 'package_signed=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # OPERATOR: import the Developer ID Installer certificate from the
-          # protected environment into a temporary keychain before this step.
+          package_path='unsigned-macos/apparatus-installer.pkg'
+          for name in \
+            APPARATUS_MACOS_SIGNING_CERTIFICATE_BASE64 \
+            APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD \
+            APPARATUS_MACOS_SIGNING_IDENTITY \
+            APPARATUS_MACOS_NOTARY_APPLE_ID \
+            APPARATUS_MACOS_NOTARY_TEAM_ID \
+            APPARATUS_MACOS_NOTARY_APP_PASSWORD; do
+            [[ -n ${!name:-} ]] || { echo "Set $name on the protected signing environment." >&2; exit 1; }
+          done
           certificate_path="$RUNNER_TEMP/apparatus-signing.p12"
           keychain_path="$RUNNER_TEMP/apparatus-signing.keychain-db"
           trap 'rm -f "$certificate_path"; security delete-keychain "$keychain_path" || true' EXIT
@@ -350,38 +557,57 @@ jobs:
           security unlock-keychain -p "$APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD" "$keychain_path"
           security import "$certificate_path" -k "$keychain_path" \
             -P "$APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD" -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$APPARATUS_MACOS_SIGNING_CERTIFICATE_PASSWORD" "$keychain_path"
           productsign --keychain "$keychain_path" --sign "$APPARATUS_MACOS_SIGNING_IDENTITY" \
             "$package_path" "$package_path.signed"
           mv "$package_path.signed" "$package_path"
           xcrun notarytool store-credentials apparatus-notary \
+            --keychain "$keychain_path" \
             --apple-id "$APPARATUS_MACOS_NOTARY_APPLE_ID" \
             --team-id "$APPARATUS_MACOS_NOTARY_TEAM_ID" \
             --password "$APPARATUS_MACOS_NOTARY_APP_PASSWORD"
-          xcrun notarytool submit "$package_path" --keychain-profile apparatus-notary --wait
+          xcrun notarytool submit "$package_path" --keychain "$keychain_path" \
+            --keychain-profile apparatus-notary --wait
           xcrun stapler staple "$package_path"
-          echo 'package_signed=true' >> "$GITHUB_OUTPUT"
+          pkgutil --check-signature "$package_path"
+          spctl --assess --type install --verbose=2 "$package_path"
+          xcrun stapler validate "$package_path"
+      - name: Re-verify signed macOS package payload
+        run: installer/macos/verify-package.sh unsigned-macos/apparatus-installer.pkg
       - name: Upload signed macOS installer package
-        if: steps.sign-package.outputs.package_signed == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: apparatus-signed-macos-installer-${{ needs.build.outputs.version }}
           if-no-files-found: error
-          path: release-files/installer/macos/apparatus-installer.pkg
+          path: unsigned-macos/apparatus-installer.pkg
 
   assemble-release:
     name: Assemble release files and checksums
-    needs: [build, sign-windows-bootstrap, sign-macos-bootstrap]
+    needs: [build, build-windows-installer, build-macos-installer, sign-windows-installer, sign-macos-installer]
     if: >-
       always() && needs.build.result == 'success' &&
-      (needs.sign-windows-bootstrap.result == 'success' || needs.sign-windows-bootstrap.result == 'skipped') &&
-      (needs.sign-macos-bootstrap.result == 'success' || needs.sign-macos-bootstrap.result == 'skipped')
+      needs.build-windows-installer.result == 'success' &&
+      needs.build-macos-installer.result == 'success' &&
+      (needs.sign-windows-installer.result == 'success' || needs.sign-windows-installer.result == 'skipped') &&
+      (needs.sign-macos-installer.result == 'success' || needs.sign-macos-installer.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Download release inputs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: apparatus-release-inputs-${{ needs.build.outputs.version }}
           path: release-inputs
+      - name: Download unsigned Windows installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: apparatus-unsigned-windows-installer-${{ needs.build.outputs.version }}
+          path: unsigned-windows
+      - name: Download unsigned macOS installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: apparatus-unsigned-macos-installer-${{ needs.build.outputs.version }}
+          path: unsigned-macos
       - name: Normalize release inputs
         env:
           VERSION: ${{ needs.build.outputs.version }}
@@ -396,23 +622,25 @@ jobs:
           cp release-inputs/release-notes.md final-release/
           cp release-inputs/installer/windows/bootstrap-apparatus.ps1 final-release/
           cp release-inputs/installer/macos/bootstrap-apparatus.sh final-release/
-      - name: Replace Windows bootstrap script when signed
-        if: needs.sign-windows-bootstrap.result == 'success'
-        uses: actions/download-artifact@v4
+          cp unsigned-windows/apparatus-installer.exe final-release/
+          cp unsigned-macos/apparatus-installer.pkg final-release/
+      - name: Download signed Windows installer
+        if: needs.sign-windows-installer.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: apparatus-signed-windows-bootstrap-${{ needs.build.outputs.version }}
+          name: apparatus-signed-windows-installer-${{ needs.build.outputs.version }}
           path: signed-windows
-      - name: Install signed Windows bootstrap script
-        if: needs.sign-windows-bootstrap.result == 'success'
-        run: cp signed-windows/bootstrap-apparatus.ps1 final-release/bootstrap-apparatus.ps1
-      - name: Replace macOS installer package when signed
-        if: needs.sign-macos-bootstrap.outputs.package_signed == 'true'
-        uses: actions/download-artifact@v4
+      - name: Install signed Windows installer
+        if: needs.sign-windows-installer.result == 'success'
+        run: cp signed-windows/apparatus-installer.exe final-release/apparatus-installer.exe
+      - name: Download signed macOS installer
+        if: needs.sign-macos-installer.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: apparatus-signed-macos-installer-${{ needs.build.outputs.version }}
           path: signed-macos
       - name: Install signed macOS installer package
-        if: needs.sign-macos-bootstrap.outputs.package_signed == 'true'
+        if: needs.sign-macos-installer.result == 'success'
         run: cp signed-macos/apparatus-installer.pkg final-release/apparatus-installer.pkg
       - name: Generate SHA256SUMS
         env:
@@ -427,15 +655,14 @@ jobs:
             "${SDIST_NAME}" \
             "${WHEEL_NAME}" \
             "bootstrap-apparatus.ps1" \
-            "bootstrap-apparatus.sh"
+            "bootstrap-apparatus.sh" \
+            "apparatus-installer.exe" \
+            "apparatus-installer.pkg"
           )
-          if [[ -f apparatus-installer.pkg ]]; then
-            release_files+=("apparatus-installer.pkg")
-          fi
           shasum -a 256 "${release_files[@]}" > SHA256SUMS
           shasum -a 256 --check SHA256SUMS
       - name: Upload final release files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: apparatus-release-${{ needs.build.outputs.version }}
           if-no-files-found: error
@@ -454,7 +681,7 @@ jobs:
       id-token: write
     steps:
       - name: Download release files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: apparatus-release-${{ needs.build.outputs.version }}
           path: release-files
@@ -485,7 +712,7 @@ jobs:
       contents: write
     steps:
       - name: Download release files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: apparatus-release-${{ needs.build.outputs.version }}
           path: release-files
@@ -509,11 +736,10 @@ jobs:
             "release-files/${WHEEL_NAME}"
             "release-files/bootstrap-apparatus.ps1"
             "release-files/bootstrap-apparatus.sh"
+            "release-files/apparatus-installer.exe"
+            "release-files/apparatus-installer.pkg"
             "release-files/SHA256SUMS"
           )
-          if [[ -f release-files/apparatus-installer.pkg ]]; then
-            release_files+=("release-files/apparatus-installer.pkg")
-          fi
           gh release create "v${VERSION}" \
             --repo "$GH_REPO" \
             --title "v${VERSION}" \

@@ -291,4 +291,15 @@ is the intended flagship first pack because it proves the pack interface.
   snapshots unavailable. A later release can add bundled git without changing
   the script interface (PR-10/PR-22).
 - Signing certificate logistics and timing (PR-23).
+- Installer wrappers use the smallest native release shapes that survived
+  PR-26 implementation: Inno Setup on Windows and `pkgbuild` plus
+  `productbuild` on macOS. The Windows wrapper uses Inno Setup's minimal native
+  progress interface rather than claiming a console-only experience; a future
+  graphical onboarding flow can replace that presentation without changing the
+  bootstrap scripts or signing boundary. The macOS package is no-payload and
+  leaves only the operating system's unavoidable receipt and log metadata.
+  For these native containers, reproducible means a repeatable CI recipe from
+  repository inputs and fixed runner/tool selections with exact embedded-script
+  verification. It does not promise identical outer `.exe` or `.pkg` bytes:
+  native packaging metadata and later signatures or notarization may vary.
 - Pack catalog format and trust model for third-party packs (post-alpha).

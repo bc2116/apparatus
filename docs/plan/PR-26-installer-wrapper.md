@@ -84,7 +84,11 @@ machine to a doctor-verified workspace with no terminal.
    repository copies; CI fails the wrapper build if the embedded script
    drifts from the script in the repository (byte comparison).
 7. Wrapper builds are reproducible in CI from repository content plus
-   version-pinned tooling; no unpinned downloads in the build jobs.
+   version-pinned tooling; no unpinned downloads in the build jobs. For native
+   installer containers, reproducible means a repeatable pinned build recipe
+   with exact embedded-script verification before and after signing. It does
+   not promise bit-identical outer `.exe` or `.pkg` bytes because native
+   packaging metadata, signatures, and notarization may vary.
 8. No certificate, key, password, or secret value appears anywhere in the
    repository; signing secrets stay referenced by name only, exactly as
    PR-23 established.
@@ -148,6 +152,15 @@ machine to a doctor-verified workspace with no terminal.
   Record whichever defaults survive implementation against design brief §14
   in this PR.
 - Whether the Windows `.exe` presents an installer UI or runs as a console
-  launcher. Smallest reversible default: console launcher — it matches the
-  script's own interaction model, and a graphical flow can wrap the same
-  artifact later without changing the signing or release contract.
+  launcher. Implementation showed that the chosen Inno Setup host supplies a
+  native installer surface. The smallest surviving default is its minimal
+  progress interface, with no onboarding choices or bootstrap logic added; it
+  captures and displays the script's plain-language failure output. A future
+  graphical flow can wrap the same script without changing the signing or
+  release contract.
+- **Specification ambiguity — reproducible native containers.** Native package
+  builders and signing services can add timestamps or other container metadata,
+  so “reproducible” cannot truthfully require bit-identical outer bytes. The
+  smallest useful interpretation is the one in criterion 7: fixed build inputs
+  and tooling, a repeatable native build recipe, and byte-exact verification of
+  the embedded canonical scripts both before and after signing.
