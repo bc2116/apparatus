@@ -89,7 +89,7 @@ latency-optimized.
   design-sensitive surfaces: product voice, the safety spec and gates, the
   hostile-environment installer. (PR-04 belonged to this class and has
   landed.)
-- **Strong tier, medium-high effort:** PR-08–11, 13–17, 20, 21, 25–29 —
+- **Strong tier, medium-high effort:** PR-08–11, 13–17, 20, 21, 25–30 —
   well-specified implementation work; the prompts carry checkable acceptance
   criteria precisely so this tier can land them. Run PR-19 at high effort
   (integration debugging).

@@ -114,7 +114,8 @@ and honest documentation of their limits.
 
 ## Dependencies
 
-- PR-21 (release pipeline), per the status table in `docs/plan/README.md`.
+- PR-21 (release pipeline) and PR-30 (embedded universal payload), per the
+  status table in `docs/plan/README.md`.
 
 ## Open decisions
 
