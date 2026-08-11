@@ -211,9 +211,12 @@ jobs:
           $log = Join-Path $env:RUNNER_TEMP 'apparatus-installer.log'
           & .\dist\windows\apparatus-installer.exe `
             /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DRYRUN "/LOG=$log"
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content -LiteralPath $log
-            throw "Wrapped Windows dry-run failed with exit code $LASTEXITCODE."
+          $installerExit = $LASTEXITCODE
+          if ($installerExit -ne 0) {
+            if (Test-Path -LiteralPath $log) {
+              Get-Content -LiteralPath $log
+            }
+            throw "Wrapped Windows dry-run failed with exit code $installerExit."
           }
           $logText = Get-Content -LiteralPath $log -Raw
           if ($logText -notmatch 'Embedded bootstrap SHA-256 verified\.') {
