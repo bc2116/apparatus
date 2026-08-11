@@ -203,7 +203,8 @@ Decision record: ADR-0005. Summary:
 
 - Users never clone this repository. Releases produce: PyPI packages
   (`apparatus-core`, packs), a universal starter payload, and a signed
-  per-OS **bootstrapper** (exe/pkg).
+  per-OS **bootstrapper** (exe/pkg). `apparatus-core` embeds the same payload
+  and profiles byte-for-byte; the release archive is their files-only form.
 - The bootstrapper is **user-scope first**: uv → managed Python → portable git →
   `apparatus-core` → workspace creation — none of which requires admin rights on
   a typical machine. Elevation is the exception path. It detects installed AI

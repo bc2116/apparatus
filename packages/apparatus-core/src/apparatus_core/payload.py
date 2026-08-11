@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import resources
 import os
 from pathlib import Path, PurePosixPath
 from typing import Iterable
@@ -12,17 +13,26 @@ class PayloadError(ValueError):
     """A starter payload cannot safely be used for workspace deployment."""
 
 
-def checkout_root() -> Path:
-    """Return the repository root when core is running from this checkout."""
-    return Path(__file__).resolve().parents[4]
+def _embedded_starter_path(*parts: str) -> Path:
+    """Resolve committed package data for ordinary filesystem installations."""
+    try:
+        resource = resources.files("apparatus_core").joinpath("starter", *parts)
+        value = os.fspath(resource)
+    except (ModuleNotFoundError, TypeError) as error:
+        raise PayloadError(
+            "embedded starter package data is unavailable as a filesystem resource"
+        ) from error
+    return _absolute_without_resolving(Path(value))
 
 
 def shipped_payload() -> Path:
-    return checkout_root() / "starter" / "payload"
+    """Return the payload committed inside the installed apparatus-core package."""
+    return _embedded_starter_path("payload")
 
 
 def shipped_profiles_manifest() -> Path:
-    return checkout_root() / "starter" / "profiles" / "profiles.yaml"
+    """Return the embedded profiles manifest paired with the shipped payload."""
+    return _embedded_starter_path("profiles", "profiles.yaml")
 
 
 def _absolute_without_resolving(path: Path) -> Path:
@@ -62,7 +72,7 @@ def canonical_source_file(path: str | Path, description: str) -> Path:
 
 
 def resolve_payload(value: str | Path | None) -> Path:
-    """Resolve an explicit payload or the checkout's shipped payload."""
+    """Resolve an explicit payload or the installed package's embedded payload."""
     payload = Path(value) if value is not None else shipped_payload()
     try:
         return canonical_source_directory(payload, "payload source path")
@@ -90,7 +100,9 @@ def resolve_profiles_manifest(payload: str | Path) -> Path:
     if shipped.is_symlink():
         raise PayloadError("profiles manifest must not be a symbolic link")
     if not shipped.is_file():
-        raise PayloadError("profiles manifest was not found beside the payload or in this checkout")
+        raise PayloadError(
+            "profiles manifest was not found beside the payload or in embedded package data"
+        )
     return canonical_source_file(shipped, "profiles manifest path")
 
 

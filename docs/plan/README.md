@@ -64,7 +64,7 @@ on every commit.
 | 19 | [Welcome flow end-to-end](PR-19-welcome-e2e.md) | 4 | ✅ landed | 17, 18, 16 |
 | 20 | [Universal payload builder](PR-20-payload-builder.md) | 5 | ✅ landed | 13, 19 |
 | 21 | [Release pipeline](PR-21-release-pipeline.md) | 5 | ✅ landed | 20 |
-| 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | ready | 21 |
+| 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | ready | 21, 30 |
 | 23 | [Code-signing and IT one-pager](PR-23-signing-it-onepager.md) | 5 | ready | 22 |
 | 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
 | 25 | [Snapshot export (backup) v1](PR-25-snapshot-export.md) | 4 | ready | 10 |
@@ -72,6 +72,7 @@ on every commit.
 | 27 | [Model and spend guidance v1](PR-27-model-spend-guidance.md) | 1 | ✅ landed | 04 |
 | 28 | [Workspace ignore rules v1](PR-28-workspace-ignore-rules.md) | 4 | ✅ landed | 09, 14, 15, 16, 18 |
 | 29 | [First-run feature selection](PR-29-first-run-feature-selection.md) | 4 | ✅ landed | 17, 27, 28 |
+| 30 | [Embed payload in apparatus-core](PR-30-embed-payload-wheel.md) | 5 | ✅ landed | 20 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`.
@@ -88,7 +89,7 @@ latency-optimized.
   design-sensitive surfaces: product voice, the safety spec and gates, the
   hostile-environment installer. (PR-04 belonged to this class and has
   landed.)
-- **Strong tier, medium-high effort:** PR-08–11, 13–17, 20, 21, 25–29 —
+- **Strong tier, medium-high effort:** PR-08–11, 13–17, 20, 21, 25–30 —
   well-specified implementation work; the prompts carry checkable acceptance
   criteria precisely so this tier can land them. Run PR-19 at high effort
   (integration debugging).

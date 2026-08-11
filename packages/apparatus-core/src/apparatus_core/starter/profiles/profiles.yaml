@@ -1,0 +1,43 @@
+# Declarative profile overlays for the universal starter payload.
+privacy_modes:
+  standard: System/policy/standard.md
+  private: System/policy/private.md
+work_types:
+  analysis:
+    - System/procedures/welcome.md
+    - System/procedures/produce-deliverable.md
+    - System/procedures/research-and-summarize.md
+    - System/procedures/review-against-checklist.md
+    - System/procedures/weekly-review.md
+  quality:
+    - System/procedures/welcome.md
+    - System/procedures/produce-deliverable.md
+    - System/procedures/research-and-summarize.md
+    - System/procedures/review-against-checklist.md
+    - System/procedures/weekly-review.md
+  project-management:
+    - System/procedures/welcome.md
+    - System/procedures/produce-deliverable.md
+    - System/procedures/research-and-summarize.md
+    - System/procedures/review-against-checklist.md
+    - System/procedures/weekly-review.md
+  support:
+    - System/procedures/welcome.md
+    - System/procedures/produce-deliverable.md
+    - System/procedures/research-and-summarize.md
+    - System/procedures/review-against-checklist.md
+    - System/procedures/weekly-review.md
+  writing:
+    - System/procedures/welcome.md
+    - System/procedures/produce-deliverable.md
+    - System/procedures/research-and-summarize.md
+    - System/procedures/review-against-checklist.md
+    - System/procedures/weekly-review.md
+default:
+  privacy_mode: standard
+  work_types:
+    - analysis
+    - quality
+    - project-management
+    - support
+    - writing
