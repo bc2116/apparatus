@@ -423,6 +423,11 @@ def deploy_init_plan(
                         transaction.rollback()
                 except Exception as error:
                     cleanup_errors.append(error)
+                finally:
+                    # Win32 defers deletion while retained file and parent
+                    # handles remain open. Release each settled proof before
+                    # cleaning invocation-owned ancestor directories.
+                    transaction.close()
 
             for transaction in reversed(transactions):
                 try:
@@ -435,12 +440,16 @@ def deploy_init_plan(
                         transaction.rollback()
                 except Exception as error:
                     cleanup_errors.append(error)
+                finally:
+                    transaction.close()
 
             for item in reversed(created_files):
                 try:
                     item.anchor.unlink_owned_if_present(item.owned)
                 except Exception as error:
                     cleanup_errors.append(error)
+                finally:
+                    item.owned.close()
 
             for item in reversed(created_directories):
                 item.child.close()
@@ -448,6 +457,10 @@ def deploy_init_plan(
                     item.anchor.remove_owned_directory(item.owned)
                 except Exception as error:
                     cleanup_errors.append(error)
+                finally:
+                    # A child's retained parent handle can otherwise keep its
+                    # parent's deletion pending on Windows until too late.
+                    item.owned.close()
 
             if cleanup_errors:
                 raise OSError(

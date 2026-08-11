@@ -77,9 +77,14 @@ and honest documentation of their limits.
    output uses ADR-0001 vocabulary (workspace, snapshot, check, AI app).
 7. Dry-run: `-DryRun` / `--dry-run` prints the full plan with the detected
    state of every step (present/missing), performs no network access and no
-   writes from interpreter entry, and exits 0. Native CI must enforce this at
-   the syscall boundary with non-vacuous write and network canaries; tree and
-   static checks remain defense in depth rather than the primary proof.
+   persistent-filesystem mutation from interpreter entry, and exits 0.
+   Mutation means creating, modifying, deleting, renaming, or changing the
+   attributes of a persistent filesystem object: a file, directory, symbolic
+   link, or extended attribute. Character-device I/O under `/dev` is outside
+   this boundary, and the proof contract must not enumerate device names.
+   Native CI must enforce the boundary with non-vacuous persistent-object and
+   network canaries; tree and static checks remain defense in depth rather
+   than the primary proof.
 8. Both scripts fail loudly (nonzero, clear message) on unsupported OS,
    missing shell prerequisites, or a partially blocked chain — never a
    silent half-install; the message always says re-running is safe.
@@ -105,9 +110,12 @@ and honest documentation of their limits.
   Windows PowerShell 5.1 with `-NoProfile` and `macos-latest` running a
   controlled `/bin/bash` environment; both must pass without network installs.
 - The macOS native proof launches `/bin/bash` from interpreter entry through
-  `/usr/bin/sandbox-exec`, denies `file-write*` and `network*` with no logging
-  and `SIGKILL`, closes every descriptor except standard input/output/error,
-  and proves both denial categories with separate canaries.
+  `/usr/bin/sandbox-exec`, denies persistent-object mutation and `network*`
+  with no logging and `SIGKILL`, closes every descriptor except standard
+  input/output/error, and proves both denial categories with separate
+  canaries. Its generic `/dev` allowance permits character-device data I/O
+  only; creation, deletion, rename, metadata, and extended-attribute changes
+  remain denied, and no device name is listed.
 - The Windows native proof uses only built-in WPR, ETW, and `tracerpt`. A
   test-only PowerShell 5.1 controller outside the workspace and installer
   suspends the cold bootstrap process, contains it in a one-process Job
@@ -165,16 +173,32 @@ and honest documentation of their limits.
   uninspected before the dry-run exit. No existence, attribute, or SMB probe
   may touch the target.
 
-## Blocked-stop disposition
+## Authorized restart
 
-Final repair pass 2 of 2 is exhausted. The native syscall contract above is
-unchanged, and this PR must not be marked landed or merged without an operator
-ruling.
+The operator authorized a fresh two-pass restart after the prior blocked stop.
+This branch records restart pass 1 of 2. The narrow core authorization,
+interpreter-entry boundary, pre-interpreter promises, and UNC ruling above are
+unchanged.
 
-On the available macOS runner, the literal no-exception sandbox profile kills
-both `/usr/bin/true` and `/bin/bash` before the bootstrap script can run: the
-dynamic loader opens `/dev/dtracehelper`, and Bash also opens `/dev/tty`. No
-device exceptions are authorized. Tree comparison and static ordering checks
-remain defense in depth and do not replace the required syscall proof. The
-Windows native proof also remains pending exact-head CI; a provider, parser, or
-substantive proof failure is a blocked stop, not grounds to weaken the proof.
+Before recounting failures, the operator refined the mutation boundary to the
+persistent-filesystem definition in criterion 7. Under that definition, the
+previous macOS interpreter-startup stop does not survive: character-device
+data I/O under `/dev` is outside scope. The proof uses one generic subtree
+allowance and names no device, while keeping every persistent-object mutation
+and all network activity denied with non-vacuous canaries.
+
+Two installer-harness failures from the prior exact-head Windows run do
+survive the refined ruling: the controller's machine-scoped environment lookup
+did not resolve the trusted Windows system directory, and a macOS-only native
+path check was not platform-gated. Restart pass 1 repairs those proof defects
+without weakening either boundary. Native Windows ETW/provider/parser evidence
+and the full Windows safety suite remain pending CI.
+
+The same exact-head run had eleven init rollback failures: the
+invocation-created-root case reported four incomplete cleanup operations, and
+ten replacement, removal, or final-gate cases reported one each. Retained
+Win32 file and parent handles outlived their exact rollback operations and
+blocked later cleanup. Restart pass 1 releases each settled proof handle before
+ancestor cleanup and adds a native Windows regression proving that a concurrent
+foreign file is preserved and reported rather than removed. PR-22 stays blocked
+and must not be marked landed or merged during this pass.

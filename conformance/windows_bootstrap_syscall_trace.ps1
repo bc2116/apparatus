@@ -21,10 +21,11 @@ if (-not [IO.File]::Exists($BootstrapScript)) {
     Stop-TraceProof "the bootstrap script was not found."
 }
 
-$SystemRoot = [Environment]::GetEnvironmentVariable("SystemRoot", "Machine")
-if ([string]::IsNullOrWhiteSpace($SystemRoot)) {
+$SystemDirectory = [Environment]::SystemDirectory
+if ([string]::IsNullOrWhiteSpace($SystemDirectory) -or -not [IO.Path]::IsPathRooted($SystemDirectory)) {
     Stop-TraceProof "the trusted Windows system root is unavailable."
 }
+$SystemRoot = [IO.Directory]::GetParent($SystemDirectory).FullName
 $PowerShell = Join-Path $SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
 $Wpr = Join-Path $SystemRoot "System32\wpr.exe"
 $Tracerpt = Join-Path $SystemRoot "System32\tracerpt.exe"

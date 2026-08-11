@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path, PureWindowsPath
 import re
+import signal
 import shutil
 import subprocess
 import sys
@@ -12,8 +13,17 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MACOS_SCRIPT = REPO_ROOT / "installer/macos/bootstrap-apparatus.sh"
+MACOS_NETWORK_CANARY = Path("/usr/bin/nc")
+MACOS_SANDBOX = Path("/usr/bin/sandbox-exec")
 WINDOWS_SCRIPT = REPO_ROOT / "installer/windows/bootstrap-apparatus.ps1"
 WINDOWS_TRACE_CONTROLLER = REPO_ROOT / "conformance/windows_bootstrap_syscall_trace.ps1"
+MACOS_SANDBOX_PROFILE = """
+(version 1)
+(allow default)
+(deny file-write* (with no-log) (with send-signal SIGKILL))
+(allow file-write-data (subpath "/dev"))
+(deny network* (with no-log) (with send-signal SIGKILL))
+""".strip()
 STEP_LABELS = (
     "Operating system:",
     "Target safety:",
@@ -70,6 +80,33 @@ def _native_command(home: Path, target: Path) -> list[str]:
             str(target),
         ]
     pytest.skip("bootstrap dry-run is native to Windows and macOS")
+
+
+def _run_macos_sandbox(
+    arguments: list[str],
+    *,
+    cwd: Path,
+    environment: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            str(MACOS_SANDBOX),
+            "-p",
+            MACOS_SANDBOX_PROFILE,
+            "/bin/bash",
+            "--noprofile",
+            "--norc",
+            *arguments,
+        ],
+        cwd=cwd,
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+        close_fds=True,
+    )
 
 
 def test_native_bootstrap_dry_run_is_complete_and_has_zero_effects(tmp_path):
@@ -188,6 +225,7 @@ def test_windows_trace_controller_is_built_in_bounded_and_non_vacuous():
         "wpr.exe",
         "tracerpt.exe",
         "logman.exe",
+        "[Environment]::SystemDirectory",
         "CREATE_SUSPENDED",
         "JOB_OBJECT_LIMIT_ACTIVE_PROCESS",
         "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
@@ -205,6 +243,76 @@ def test_windows_trace_controller_is_built_in_bounded_and_non_vacuous():
     ):
         assert token in controller
     assert not re.search(r"(?i)invoke-(?:webrequest|restmethod)|start-bitstransfer", controller)
+    assert 'GetEnvironmentVariable("SystemRoot", "Machine")' not in controller
+
+
+def test_macos_sandbox_contract_is_generic_and_non_vacuous():
+    assert "(deny file-write* (with no-log) (with send-signal SIGKILL))" in (
+        MACOS_SANDBOX_PROFILE
+    )
+    assert "(allow file-write-data (subpath \"/dev\"))" in MACOS_SANDBOX_PROFILE
+    assert "(deny network* (with no-log) (with send-signal SIGKILL))" in (
+        MACOS_SANDBOX_PROFILE
+    )
+    assert MACOS_SANDBOX_PROFILE.count("/dev") == 1
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="native macOS syscall regression")
+def test_macos_dry_run_has_no_persistent_object_or_network_mutations(tmp_path):
+    assert MACOS_SANDBOX.is_file(), "the built-in macOS sandbox is required"
+    assert MACOS_NETWORK_CANARY.is_file(), "the built-in network canary is required"
+
+    home = tmp_path / "profile"
+    work = tmp_path / "working"
+    home.mkdir()
+    work.mkdir()
+    target = home / "Projects/Apparatus"
+    environment = {
+        "HOME": str(home),
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "BASH_ENV": "",
+        "ENV": "",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "HTTP_PROXY": "http://127.0.0.1:9",
+        "HTTPS_PROXY": "http://127.0.0.1:9",
+        "ALL_PROXY": "http://127.0.0.1:9",
+        "NO_PROXY": "",
+    }
+    before = _tree(tmp_path)
+
+    completed = _run_macos_sandbox(
+        [str(MACOS_SCRIPT), "--dry-run", "--path", str(target)],
+        cwd=work,
+        environment=environment,
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "read-only detection; no install, network, or workspace commands" in (
+        completed.stdout
+    )
+    assert all(label in completed.stdout for label in STEP_LABELS)
+    assert _tree(tmp_path) == before
+    assert not target.exists()
+
+    persistent_canary = tmp_path / "persistent-canary"
+    file_environment = dict(environment)
+    file_environment["APPARATUS_PERSISTENT_CANARY"] = str(persistent_canary)
+    file_canary = _run_macos_sandbox(
+        ["-c", 'printf canary > "$APPARATUS_PERSISTENT_CANARY"'],
+        cwd=work,
+        environment=file_environment,
+    )
+    assert file_canary.returncode == -signal.SIGKILL
+    assert not persistent_canary.exists()
+
+    network_canary = _run_macos_sandbox(
+        ["-c", f"exec {MACOS_NETWORK_CANARY} -z 127.0.0.1 9"],
+        cwd=work,
+        environment=environment,
+    )
+    assert network_canary.returncode == -signal.SIGKILL
+    assert _tree(tmp_path) == before
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="native macOS git regression")
@@ -356,11 +464,14 @@ def test_windows_dry_run_has_no_file_registry_or_network_syscalls():
     assert "Windows dry-run syscall proof passed" in completed.stdout
 
 
-def test_macos_lexical_normalization_and_installer_child_path_are_hardened(tmp_path):
+def test_macos_lexical_normalization_and_installer_child_path_are_hardened():
     macos = MACOS_SCRIPT.read_text(encoding="utf-8")
     assert "lexically_normalize_absolute" in macos
     assert "env -i HOME=\"$HOME\" PATH=/usr/bin:/bin:/usr/sbin:/sbin" in macos
 
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="native macOS path regression")
+def test_macos_installer_child_uses_controlled_path(tmp_path):
     hostile = tmp_path / "hostile"
     hostile.mkdir()
     marker = tmp_path / "hostile-ran"
@@ -377,7 +488,7 @@ def test_macos_lexical_normalization_and_installer_child_path_are_hardened(tmp_p
             "ENV=",
             "/bin/sh",
             "-c",
-            "uname >/dev/null",
+            "uname",
         ],
         env={"PATH": str(hostile)},
         capture_output=True,

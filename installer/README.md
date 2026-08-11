@@ -61,7 +61,8 @@ See the complete detected plan without downloading or changing anything:
 
 Dry-run begins at script interpreter entry. It performs read-only detection and
 prints to standard output or standard error, but runs no installer, makes no
-network request, runs no workspace command, and leaves no persistent file.
+network request, runs no workspace command, and makes no persistent filesystem
+change.
 
 The script refuses symbolic-link boundaries and locations inside iCloud Drive.
 Live workspace state must not sit in a sync engine. Use one-way snapshot export

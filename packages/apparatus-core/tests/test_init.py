@@ -997,6 +997,56 @@ def test_direct_deploy_preserves_foreign_removal_substitution_and_fails_loudly(
     assert target.read_bytes() == foreign
 
 
+@pytest.mark.skipif(os.name != "nt", reason="native Windows rollback regression")
+def test_windows_direct_deploy_preserves_foreign_file_created_during_rollback(
+    monkeypatch, tmp_path
+):
+    workspace_parent = tmp_path / "invocation-parent"
+    workspace = workspace_parent / "workspace"
+    payload_plan, overlay_plan, profile_content = _rollback_deployment_plan()
+    original_create = WorkspaceAnchor.create_file
+    original_unlink = WorkspaceAnchor.unlink_owned_if_present
+    foreign = b"concurrent foreign file\n"
+    injected = False
+
+    def fail_during_overlay(anchor, relative, content, mode=0o600, **kwargs):
+        if Path(relative).name == "managed-two.md":
+            raise OSError("injected overlay deployment failure")
+        return original_create(anchor, relative, content, mode, **kwargs)
+
+    def introduce_foreign_file(anchor, owned):
+        nonlocal injected
+        removed = original_unlink(anchor, owned)
+        if not injected and owned.relative == Path("payload-one.md"):
+            injected = True
+            (workspace / "foreign.bin").write_bytes(foreign)
+        return removed
+
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor,
+        "create_file",
+        fail_during_overlay,
+    )
+    monkeypatch.setattr(
+        init_deploy.WorkspaceAnchor,
+        "unlink_owned_if_present",
+        introduce_foreign_file,
+    )
+
+    with pytest.raises(OSError, match="rollback was incomplete"):
+        init_deploy.deploy_init_plan(
+            workspace,
+            payload_plan,
+            overlay_plan,
+            profile_content,
+            profile_write_required=True,
+        )
+
+    assert injected
+    assert (workspace / "foreign.bin").read_bytes() == foreign
+    assert not list(workspace.rglob(".apparatus-memory-*"))
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX retained-root regression")
 @pytest.mark.parametrize("boundary", ("root", "System", "nested"))
 def test_init_rejects_posix_directory_replacement_and_preserves_foreign_tree(
