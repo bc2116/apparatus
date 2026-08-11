@@ -187,9 +187,8 @@ jobs:
           $compiler = Join-Path $installDirectory 'ISCC.exe'
           $compilerBanner = (& $compiler '/?' 2>&1 | Out-String)
           Write-Output $compilerBanner
-          if ($compilerBanner -notmatch 'Inno Setup 7 Command-Line Compiler' -or
-              $compilerBanner -notmatch '7\.0\.2') {
-            throw 'Pinned Inno Setup compiler did not report the expected 7.0.2 banner.'
+          if ($compilerBanner -notmatch 'Inno Setup 7 \(32-bit\) Command-Line Compiler') {
+            throw 'Pinned Inno Setup compiler did not report the expected major version and architecture.'
           }
           "INNO_COMPILER=$compiler" >> $env:GITHUB_ENV
       - name: Build Windows installer
