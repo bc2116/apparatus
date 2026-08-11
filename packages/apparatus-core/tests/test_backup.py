@@ -13,7 +13,7 @@ import zipfile
 
 import pytest
 
-from apparatus_core import records, snapshots
+from apparatus_core import fs_transactions, records, snapshots
 from apparatus_core import backup as backup_engine
 from apparatus_core.backup import BackupError, export_backup
 from apparatus_core.commands import backup
@@ -65,6 +65,62 @@ def _status_paths(workspace: Path) -> set[str]:
         for line in _git(workspace, "status", "--porcelain").stdout.splitlines()
         if len(line) > 3
     }
+
+
+def _head_or_none(workspace: Path) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(workspace), "rev-parse", "--verify", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            name: value
+            for name, value in os.environ.items()
+            if not name.casefold().startswith("git_")
+        },
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _prepared_failure_state(workspace: Path, *, history: str = "existing") -> dict[str, object]:
+    workspace.mkdir()
+    tracked = workspace / "tracked.txt"
+    if history == "existing":
+        tracked.write_bytes(b"initial\n")
+        snapshots.take_snapshot(workspace, label="Initial")
+        tracked.write_bytes(b"staged\n")
+        _git(workspace, "add", "tracked.txt")
+        tracked.write_bytes(b"worktree\n")
+    elif history == "unborn":
+        snapshots.ensure_snapshot_store(workspace)
+        tracked.write_bytes(b"unborn worktree\n")
+    else:  # pragma: no cover - test helper contract
+        raise AssertionError(f"unknown history state: {history}")
+    index = workspace / ".git" / "index"
+    receipts = workspace / "System" / "receipts"
+    return {
+        "head": _head_or_none(workspace),
+        "index": index.read_bytes() if index.exists() else None,
+        "tracked": tracked.read_bytes(),
+        "receipts": _files(receipts) if receipts.exists() else {},
+        "status": _git(workspace, "status", "--porcelain").stdout,
+    }
+
+
+def _assert_prepared_failure_state(workspace: Path, expected: dict[str, object]) -> None:
+    index = workspace / ".git" / "index"
+    receipts = workspace / "System" / "receipts"
+    assert _head_or_none(workspace) == expected["head"]
+    if expected["index"] is None:
+        assert not index.exists()
+    else:
+        assert index.read_bytes() == expected["index"]
+    assert (workspace / "tracked.txt").read_bytes() == expected["tracked"]
+    assert (_files(receipts) if receipts.exists() else {}) == expected["receipts"]
+    assert _git(workspace, "status", "--porcelain").stdout == expected["status"]
+    if receipts.exists():
+        assert not list(receipts.glob(".apparatus-receipt-*.tmp"))
+    assert not list((workspace / ".git").rglob(".apparatus-restore-*.tmp"))
 
 
 _LATE_DESTINATION_MOVE_STAGES = (
@@ -537,6 +593,586 @@ def test_windows_late_destination_move_is_blocked_non_vacuously(
     assert result.archive.is_file()
     assert not moved_destination.exists()
     assert not list(workspace.rglob("apparatus-backup-*.zip"))
+
+
+@pytest.mark.parametrize(
+    ("marker", "content"),
+    [
+        ("commondir", "../external-history\n"),
+        ("objects/info/alternates", "../../../external-objects\n"),
+    ],
+)
+@pytest.mark.skipif(not HAS_GIT, reason="concurrent history-marker probe requires git")
+def test_concurrent_history_indirection_inserted_at_archive_traversal_is_rejected(
+    tmp_path,
+    monkeypatch,
+    marker,
+    content,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace)
+    marker_path = workspace / ".git" / marker
+    original_write_archive = backup_engine._write_archive
+    injected = False
+
+    def insert_history_marker(source, owned, transient_paths=()):
+        nonlocal injected
+        assert not injected
+        marker_path.parent.mkdir(parents=True, exist_ok=True)
+        marker_path.write_text(content, encoding="utf-8")
+        injected = True
+        return original_write_archive(source, owned, transient_paths)
+
+    monkeypatch.setattr(backup_engine, "_write_archive", insert_history_marker)
+
+    with pytest.raises(BackupError, match="external snapshot history"):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert injected
+    assert marker_path.read_text(encoding="utf-8") == content
+    assert _archives(destination) == []
+    assert not list((workspace / "System" / "receipts").glob("*-backup-export.md"))
+    marker_path.unlink()
+    _assert_prepared_failure_state(workspace, expected)
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX same-inode committed receipt mutation probe requires git",
+)
+def test_committed_backup_receipt_same_length_mutation_never_returns_success(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace)
+    original_commit = backup_engine.ReceiptPublication.commit
+    mutated_path: Path | None = None
+    mutated_content: bytes | None = None
+    original_inode: int | None = None
+
+    def commit_then_mutate(publication):
+        nonlocal mutated_path, mutated_content, original_inode
+        result = original_commit(publication)
+        if "-backup-export" in publication.path.name:
+            mutated_path = publication.path
+            original = mutated_path.read_bytes()
+            mutated_content = original.replace(b"Backup exported", b"Backup Exported", 1)
+            assert mutated_content != original
+            assert len(mutated_content) == len(original)
+            original_inode = mutated_path.stat().st_ino
+            mutated_path.write_bytes(mutated_content)
+            assert mutated_path.stat().st_ino == original_inode
+        return result
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "commit",
+        commit_then_mutate,
+    )
+
+    with pytest.raises(BackupError, match="exact cleanup"):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert mutated_path is not None
+    assert mutated_content is not None
+    assert mutated_path.read_bytes() == mutated_content
+    assert mutated_path.stat().st_ino == original_inode
+    assert _archives(destination) == []
+    assert _head_or_none(workspace) == expected["head"]
+    assert (workspace / ".git" / "index").read_bytes() == expected["index"]
+    assert (workspace / "tracked.txt").read_bytes() == expected["tracked"]
+    for relative, content_before in expected["receipts"].items():
+        assert (workspace / "System" / "receipts" / relative).read_bytes() == content_before
+    assert not list(
+        (workspace / "System" / "receipts").glob(".apparatus-receipt-*.tmp")
+    )
+
+
+@pytest.mark.skipif(
+    os.name != "nt" or not HAS_GIT,
+    reason="native Win32 committed receipt write-lock proof requires git",
+)
+def test_windows_committed_backup_receipt_mutation_is_blocked_non_vacuously(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "tracked.txt").write_bytes(b"saved\n")
+    control = tmp_path / "mutation-control"
+    control.write_bytes(b"original")
+    control.write_bytes(b"changed!")
+    assert control.read_bytes() == b"changed!"
+    original_commit = backup_engine.ReceiptPublication.commit
+    mutation_errors: list[OSError] = []
+
+    def commit_then_attempt_mutation(publication):
+        result = original_commit(publication)
+        if "-backup-export" in publication.path.name:
+            original = publication.path.read_bytes()
+            mutated = original.replace(b"Backup exported", b"Backup Exported", 1)
+            assert mutated != original
+            assert len(mutated) == len(original)
+            try:
+                publication.path.write_bytes(mutated)
+            except OSError as error:
+                mutation_errors.append(error)
+            else:
+                raise AssertionError("committed receipt changed while its proof was retained")
+        return result
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "commit",
+        commit_then_attempt_mutation,
+    )
+
+    result = export_backup(workspace, destination, clock=_clock)
+
+    assert len(mutation_errors) == 1
+    assert result.archive.is_file()
+    receipt = next((workspace / "System/receipts").glob("*-backup-export.md"))
+    assert b"Backup exported" in receipt.read_bytes()
+
+
+@pytest.mark.skipif(not HAS_GIT, reason="receipt claim cleanup probe requires git")
+@pytest.mark.parametrize("timing", ["before-claim", "after-claim"])
+def test_backup_receipt_claim_failure_removes_exact_publication_and_alias(
+    tmp_path,
+    monkeypatch,
+    timing,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace)
+    original_claim = backup_engine.ReceiptPublication.claim
+    injected = False
+
+    def fail_backup_claim(publication, invocation):
+        nonlocal injected
+        if "-backup-export" in publication.path.name:
+            injected = True
+            if timing == "after-claim":
+                original_claim(publication, invocation)
+            raise OSError("injected claim failure")
+        return original_claim(publication, invocation)
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "claim",
+        fail_backup_claim,
+    )
+
+    with pytest.raises(BackupError, match="receipt could not be recorded"):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert injected
+    assert _archives(destination) == []
+    _assert_prepared_failure_state(workspace, expected)
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX permits the retained destination to move during receipt release",
+)
+def test_posix_destination_move_during_actual_receipt_close_is_compensated(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    moved_destination = workspace / "moved-backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace)
+    original_close = backup_engine.ReceiptPublication.close
+    moved = False
+
+    def close_then_move(publication):
+        nonlocal moved
+        is_backup = "-backup-export" in publication.path.name
+        result = original_close(publication)
+        if is_backup and not moved:
+            destination.rename(moved_destination)
+            moved = True
+        return result
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "close",
+        close_then_move,
+    )
+
+    with pytest.raises(BackupError):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert moved
+    assert not destination.exists()
+    assert moved_destination.is_dir()
+    assert _archives(moved_destination) == []
+    assert not list(workspace.rglob("apparatus-backup-*.zip"))
+    _assert_prepared_failure_state(workspace, expected)
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="native Win32 receipt-release destination lock proof",
+)
+def test_windows_destination_move_during_actual_receipt_close_is_blocked(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    moved_destination = workspace / "moved-backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "note.txt").write_bytes(b"saved\n")
+    control = tmp_path / "rename-control"
+    moved_control = workspace / "rename-control"
+    control.mkdir()
+    control.rename(moved_control)
+    moved_control.rename(control)
+    control.rmdir()
+    original_close = backup_engine.ReceiptPublication.close
+    move_errors: list[OSError] = []
+
+    def close_then_attempt_move(publication):
+        is_backup = "-backup-export" in publication.path.name
+        result = original_close(publication)
+        if is_backup:
+            try:
+                destination.rename(moved_destination)
+            except OSError as error:
+                move_errors.append(error)
+            else:
+                raise AssertionError("retained destination name moved on Windows")
+        return result
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "close",
+        close_then_attempt_move,
+    )
+
+    result = export_backup(
+        workspace,
+        destination,
+        available=lambda: False,
+        clock=_clock,
+    )
+
+    assert len(move_errors) == 1
+    assert result.archive.is_file()
+    assert not moved_destination.exists()
+
+
+@pytest.mark.parametrize("history", ["existing", "unborn"])
+@pytest.mark.parametrize("event", ["backup-export", "snapshot"])
+@pytest.mark.skipif(not HAS_GIT, reason="receipt release rollback probe requires git")
+def test_receipt_close_then_raise_retains_complete_compensation(
+    tmp_path,
+    monkeypatch,
+    history,
+    event,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace, history=history)
+    original_close = backup_engine.ReceiptPublication.close
+    injected = False
+
+    def close_then_raise(publication):
+        nonlocal injected
+        is_target = f"-{event}" in publication.path.name
+        result = original_close(publication)
+        if is_target and not injected:
+            injected = True
+            raise OSError("injected close-after-release failure")
+        return result
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "close",
+        close_then_raise,
+    )
+
+    with pytest.raises(BackupError):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert injected
+    assert _archives(destination) == []
+    _assert_prepared_failure_state(workspace, expected)
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX workspace-root replacement rollback proof requires git",
+)
+@pytest.mark.parametrize("history", ["existing", "unborn"])
+def test_detected_workspace_root_replacement_rolls_back_through_retained_history(
+    tmp_path,
+    monkeypatch,
+    history,
+):
+    workspace = tmp_path / "workspace"
+    detached = tmp_path / "detached-workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace, history=history)
+    _source_type, destination_type = backup_engine._anchor_types()
+    original_require_outside = destination_type.require_outside
+    changed_checks = 0
+    replaced = False
+
+    def replace_root_at_checkpoint(self, source, *args, **kwargs):
+        nonlocal changed_checks, replaced
+        result = original_require_outside(self, source, *args, **kwargs)
+        if kwargs.get("changed"):
+            changed_checks += 1
+            if changed_checks == 2:
+                workspace.rename(detached)
+                workspace.mkdir()
+                (workspace / "foreign.txt").write_bytes(b"foreign replacement\n")
+                replaced = True
+        return result
+
+    monkeypatch.setattr(
+        destination_type,
+        "require_outside",
+        replace_root_at_checkpoint,
+    )
+
+    with pytest.raises(BackupError):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert replaced
+    assert _files(workspace) == {"foreign.txt": b"foreign replacement\n"}
+    assert _archives(destination) == []
+    assert not list(detached.rglob("apparatus-backup-*.zip"))
+    _assert_prepared_failure_state(detached, expected)
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX workspace can move during the actual receipt-release boundary",
+)
+def test_workspace_root_move_during_actual_receipt_close_is_compensated(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = tmp_path / "workspace"
+    detached = tmp_path / "detached-workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace)
+    original_close = backup_engine.ReceiptPublication.close
+    moved = False
+
+    def close_then_move_root(publication):
+        nonlocal moved
+        is_backup = "-backup-export" in publication.path.name
+        result = original_close(publication)
+        if is_backup and not moved:
+            workspace.rename(detached)
+            workspace.mkdir()
+            (workspace / "foreign.txt").write_bytes(b"foreign replacement\n")
+            moved = True
+        return result
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "close",
+        close_then_move_root,
+    )
+
+    with pytest.raises(BackupError):
+        export_backup(workspace, destination, clock=_clock)
+
+    assert moved
+    assert _files(workspace) == {"foreign.txt": b"foreign replacement\n"}
+    assert _archives(destination) == []
+    _assert_prepared_failure_state(detached, expected)
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="native Win32 actual receipt-release workspace lock proof",
+)
+def test_windows_workspace_move_during_actual_receipt_close_is_blocked(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = tmp_path / "workspace"
+    moved_workspace = tmp_path / "moved-workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    _prepared_failure_state(workspace)
+    control = tmp_path / "rename-control"
+    moved_control = tmp_path / "moved-control"
+    control.mkdir()
+    control.rename(moved_control)
+    moved_control.rename(control)
+    control.rmdir()
+    original_close = backup_engine.ReceiptPublication.close
+    move_errors: list[OSError] = []
+
+    def close_then_attempt_move(publication):
+        is_backup = "-backup-export" in publication.path.name
+        result = original_close(publication)
+        if is_backup:
+            try:
+                workspace.rename(moved_workspace)
+            except OSError as error:
+                move_errors.append(error)
+            else:
+                raise AssertionError("retained workspace name moved on Windows")
+        return result
+
+    monkeypatch.setattr(
+        backup_engine.ReceiptPublication,
+        "close",
+        close_then_attempt_move,
+    )
+
+    result = export_backup(workspace, destination, clock=_clock)
+
+    assert len(move_errors) == 1
+    assert result.archive.is_file()
+    assert workspace.is_dir()
+    assert not moved_workspace.exists()
+
+
+@pytest.mark.parametrize("seam", ["receipt-file-proof", "archive-proof"])
+@pytest.mark.skipif(not HAS_GIT, reason="final handle-release probe requires git")
+def test_final_checkpoint_is_followed_only_by_nonraising_handle_teardown(
+    tmp_path,
+    monkeypatch,
+    seam,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    workspace.mkdir()
+    destination.mkdir()
+    (workspace / "tracked.txt").write_bytes(b"clean\n")
+    snapshots.take_snapshot(workspace, label="Initial")
+    assert _git(workspace, "status", "--porcelain").stdout == ""
+    original_checkpoint = backup_engine._require_success_checkpoint
+    final_seen = False
+    injected = False
+
+    def observe_final_checkpoint(*args, **kwargs):
+        nonlocal final_seen
+        result = original_checkpoint(*args, **kwargs)
+        if kwargs.get("durable"):
+            final_seen = True
+        return result
+
+    monkeypatch.setattr(
+        backup_engine,
+        "_require_success_checkpoint",
+        observe_final_checkpoint,
+    )
+
+    if seam == "receipt-file-proof":
+        original_release = fs_transactions.OwnedFile.close
+
+        def release_then_raise(owned):
+            nonlocal injected
+            result = original_release(owned)
+            if final_seen and not injected:
+                injected = True
+                raise OSError("injected proof-handle close failure")
+            return result
+
+        monkeypatch.setattr(
+            fs_transactions.OwnedFile,
+            "close",
+            release_then_raise,
+        )
+    else:
+        archive_type = (
+            backup_engine._WindowsOwnedArchive
+            if os.name == "nt"
+            else backup_engine._PosixOwnedArchive
+        )
+        original_release = archive_type.finish
+
+        def release_then_raise(owned):
+            nonlocal injected
+            assert final_seen
+            result = original_release(owned)
+            if not injected:
+                injected = True
+                raise OSError("injected archive-handle close failure")
+            return result
+
+        monkeypatch.setattr(archive_type, "finish", release_then_raise)
+
+    result = export_backup(workspace, destination, clock=_clock)
+
+    assert final_seen
+    assert injected
+    assert result.archive.is_file()
+    receipts = list((workspace / "System/receipts").glob("*-backup-export.md"))
+    assert len(receipts) == 1
+    assert _status_paths(workspace) == {receipts[0].relative_to(workspace).as_posix()}
+    assert not list(
+        (workspace / "System/receipts").glob(".apparatus-receipt-*.tmp")
+    )
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not HAS_GIT,
+    reason="POSIX loose-ref identity substitution proof requires git",
+)
+def test_same_content_ref_substitution_is_preserved_and_fails_loudly(
+    tmp_path,
+):
+    workspace = tmp_path / "workspace"
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    expected = _prepared_failure_state(workspace)
+    ref_name = _git(workspace, "symbolic-ref", "HEAD").stdout.strip()
+    ref_path = workspace / ".git" / ref_name
+    displaced = ref_path.with_name(ref_path.name + ".concurrent")
+    replacement = f"{expected['head']}\n".encode("ascii")
+    substituted = False
+
+    def substitute_ref(*args, **kwargs):
+        nonlocal substituted
+        publication = backup_engine.write_receipt(*args, **kwargs)
+        if "-backup-export" in publication.path.name:
+            ref_path.rename(displaced)
+            ref_path.write_bytes(replacement)
+            substituted = True
+        return publication
+
+    with pytest.raises(BackupError, match="exact cleanup"):
+        export_backup(
+            workspace,
+            destination,
+            write=substitute_ref,
+            clock=_clock,
+        )
+
+    assert substituted
+    assert ref_path.read_bytes() == replacement
+    assert displaced.is_file()
+    assert displaced.read_bytes() != replacement
+    assert _archives(destination) == []
+    assert not list((workspace / "System/receipts").glob("*-backup-export.md"))
+    assert not list(
+        (workspace / "System/receipts").glob(".apparatus-receipt-*.tmp")
+    )
 
 
 @pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")

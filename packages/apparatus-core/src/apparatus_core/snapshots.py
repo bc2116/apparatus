@@ -14,6 +14,7 @@ import tempfile
 from typing import Any
 
 from apparatus_core.detect import detect_tool
+from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.receipts import (
     ReceiptInvocation,
     ReceiptPublication,
@@ -81,31 +82,80 @@ class SnapshotTransaction:
         *,
         previous_head: str | None = None,
         prepared_head: str | None = None,
+        prepared_ref_file: Any | None = None,
+        previous_ref_content: bytes | None = None,
         receipt: ReceiptPublication | None = None,
+        receipt_files: tuple[Any, ...] = (),
         transient_paths: tuple[SnapshotTransientPath, ...] = (),
+        workspace_anchor: Any | None = None,
+        history_anchor: Any | None = None,
+        owns_workspace_anchor: bool = False,
         run: Callable[..., Any] = subprocess.run,
     ) -> None:
         self.workspace = workspace
         self.result = result
         self.previous_head = previous_head
         self.prepared_head = prepared_head
+        self.prepared_ref_file = prepared_ref_file
+        self.previous_ref_content = previous_ref_content
         self.receipt = receipt
+        self.receipt_files = receipt_files
         self.transient_paths = transient_paths
+        self.workspace_anchor = workspace_anchor
+        self.history_anchor = history_anchor
+        self.owns_workspace_anchor = owns_workspace_anchor
         self.run = run
         self.closed = False
         self.settled = False
+        self.publication_released = False
+
+    def _validate_head(self) -> None:
+        if self.prepared_head is None:
+            return
+        if self.history_anchor is None or self.prepared_ref_file is None:
+            raise SnapshotError("The prepared snapshot history proof is unavailable.")
+        if (
+            not self.history_anchor.matches_owned(self.prepared_ref_file)
+            or self.prepared_ref_file.content.strip().decode(
+                "ascii", errors="strict"
+            )
+            != self.prepared_head
+        ):
+            raise SnapshotError("The prepared snapshot reference changed during backup export.")
+
+    def _validate_receipt_files(self) -> None:
+        if not self.receipt_files:
+            return
+        if self.workspace_anchor is None:
+            raise SnapshotError("The prepared snapshot receipt proof is unavailable.")
+        canonical, *ownership_aliases = self.receipt_files
+        try:
+            if not self.workspace_anchor.matches_owned(canonical):
+                raise OSError("snapshot receipt changed")
+            for alias in ownership_aliases:
+                if self.settled:
+                    if self.workspace_anchor.entry_exists(alias.relative):
+                        raise OSError("snapshot receipt ownership alias remained")
+                elif not self.workspace_anchor.matches_owned(alias):
+                    raise OSError("snapshot receipt ownership alias changed")
+        except OSError as error:
+            raise SnapshotError(
+                "The prepared snapshot receipt changed during backup export."
+            ) from error
 
     def validate_receipt(self) -> None:
         """Confirm that the retained snapshot receipt proof is still exact."""
         if self.closed:
             raise SnapshotError("The prepared snapshot is no longer active.")
-        if self.receipt is not None:
+        if self.receipt is not None and not self.publication_released:
             try:
                 self.receipt.validate()
             except OSError as error:
                 raise SnapshotError(
                     "The prepared snapshot receipt changed during backup export."
                 ) from error
+        self._validate_receipt_files()
+        self._validate_head()
 
     def settle(self) -> None:
         """Validate and retain the prepared receipt while keeping rollback proof."""
@@ -122,15 +172,47 @@ class SnapshotTransaction:
                 ) from error
         self.settled = True
 
+    def release(self) -> None:
+        """Run the last fallible receipt-proof release without accepting state."""
+        if self.closed:
+            raise SnapshotError("The prepared snapshot is no longer active.")
+        if not self.settled:
+            raise SnapshotError("The prepared snapshot was not settled.")
+        if self.receipt is not None and not self.publication_released:
+            self.receipt.close()
+            self.publication_released = True
+
+    def validate_durable(self) -> None:
+        """Validate durable ref and receipt state after publication release."""
+        if self.closed or not self.settled:
+            raise SnapshotError("The prepared snapshot is no longer active.")
+        if self.receipt is not None and not self.publication_released:
+            raise SnapshotError(
+                "The prepared snapshot receipt proof was not released."
+            )
+        self._validate_receipt_files()
+        self._validate_head()
+
+    def accept(self) -> SnapshotResult:
+        """Discard only non-mutating proof handles after the final checkpoint."""
+        if self.closed:
+            return self.result
+        self.closed = True
+        _close_nonraising_many(self.receipt_files)
+        _close_nonraising(self.prepared_ref_file)
+        _close_nonraising(self.history_anchor)
+        if self.owns_workspace_anchor:
+            _close_nonraising(self.workspace_anchor)
+        return self.result
+
     def commit(self) -> SnapshotResult:
         """Keep the prepared snapshot."""
         if self.closed:
             return self.result
         self.settle()
-        if self.receipt is not None:
-            self.receipt.close()
-        self.closed = True
-        return self.result
+        self.release()
+        self.validate_durable()
+        return self.accept()
 
     def rollback(self) -> None:
         """Remove only this transaction's visible snapshot and exact receipt."""
@@ -138,24 +220,50 @@ class SnapshotTransaction:
             return
         errors: list[Exception] = []
         if self.prepared_head is not None:
-            arguments = ["update-ref"]
-            if self.previous_head is None:
-                arguments.extend(["-d", "HEAD", self.prepared_head])
-            else:
-                arguments.extend(["HEAD", self.previous_head, self.prepared_head])
             try:
-                _require_success(_run_git(self.workspace, arguments, run=self.run))
+                if self.history_anchor is None or self.prepared_ref_file is None:
+                    raise SnapshotError(
+                        "The prepared snapshot history proof is unavailable."
+                    )
+                if self.previous_ref_content is None:
+                    self.history_anchor.unlink_owned_if_present(
+                        self.prepared_ref_file
+                    )
+                else:
+                    self.history_anchor.restore_owned_if_unchanged(
+                        self.prepared_ref_file,
+                        self.previous_ref_content,
+                    )
             except Exception as error:  # preserve a concurrent ref instead of overwriting it
                 errors.append(error)
         if self.receipt is not None:
+            publication_error: Exception | None = None
             try:
                 self.receipt.rollback()
             except Exception as error:
-                errors.append(error)
-            try:
-                self.receipt.close()
-            except Exception as error:
-                errors.append(error)
+                publication_error = error
+            proof_errors: list[Exception] = []
+            if self.workspace_anchor is not None:
+                for index, owned in enumerate(self.receipt_files):
+                    try:
+                        if index == 0:
+                            self.workspace_anchor.unlink_owned_if_present(owned)
+                        else:
+                            self.workspace_anchor.unlink_owned_alias_if_present(
+                                owned
+                            )
+                    except Exception as error:
+                        proof_errors.append(error)
+            if proof_errors:
+                errors.extend(proof_errors)
+            elif not self.receipt_files and publication_error is not None:
+                errors.append(publication_error)
+        _close_nonraising(self.receipt)
+        _close_nonraising_many(self.receipt_files)
+        _close_nonraising(self.prepared_ref_file)
+        _close_nonraising(self.history_anchor)
+        if self.owns_workspace_anchor:
+            _close_nonraising(self.workspace_anchor)
         self.closed = True
         if errors:
             raise SnapshotError("The prepared snapshot could not be rolled back safely.") from errors[0]
@@ -219,6 +327,22 @@ def _run_git(
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise SnapshotError("Snapshots could not be completed on this machine.") from error
+
+
+def _close_nonraising(value: Any | None) -> None:
+    if value is None:
+        return
+    try:
+        value.close()
+    except Exception:
+        # This runs only after exact visible state was accepted or compensated.
+        # A handle teardown cannot authorize success or change caller data.
+        pass
+
+
+def _close_nonraising_many(values: tuple[Any, ...]) -> None:
+    for value in values:
+        _close_nonraising(value)
 
 
 def _require_success(result: Any) -> str:
@@ -381,6 +505,23 @@ def _current_head(workspace: Path, *, run: Callable[..., Any]) -> str | None:
     return value or None
 
 
+def _head_ref_relative(workspace: Path, *, run: Callable[..., Any]) -> Path:
+    """Return the loose file whose exact value publishes ``HEAD``."""
+    result = _run_git(workspace, ["symbolic-ref", "-q", "HEAD"], run=run)
+    if getattr(result, "returncode", 1) != 0:
+        return Path("HEAD")
+    value = str(getattr(result, "stdout", "") or "").strip()
+    relative = Path(value)
+    if (
+        not value
+        or relative.is_absolute()
+        or relative.parts[0] != "refs"
+        or any(part in {"", ".", ".."} for part in relative.parts)
+    ):
+        raise SnapshotError("Snapshots could not be completed for this workspace.")
+    return relative
+
+
 def _tree_for_head(workspace: Path, head: str | None, *, run: Callable[..., Any]) -> str | None:
     if head is None:
         return None
@@ -480,6 +621,48 @@ def _snapshot_receipt_transient_paths(
     return tuple(aliases)
 
 
+def _capture_snapshot_receipt_files(
+    workspace: Path,
+    workspace_anchor: Any,
+    receipt: ReceiptPublication,
+    transient_paths: tuple[SnapshotTransientPath, ...],
+) -> tuple[Any, ...]:
+    """Retain exact canonical and ownership-alias receipt objects."""
+    captured: list[Any] = []
+    try:
+        receipt.validate()
+        canonical_relative = receipt.path.relative_to(workspace)
+        if canonical_relative.parent != Path("System/receipts"):
+            raise SnapshotReceiptError(
+                "Snapshot receipt was not written in the receipts folder."
+            )
+        canonical = workspace_anchor.capture_file(
+            canonical_relative,
+            publication_compatible=True,
+        )
+        captured.append(canonical)
+        for transient in transient_paths:
+            alias = workspace_anchor.capture_file(
+                transient.relative,
+                publication_compatible=True,
+            )
+            captured.append(alias)
+            if alias.identity != canonical.identity or alias.content != canonical.content:
+                raise SnapshotReceiptError(
+                    "Snapshot receipt ownership could not be isolated."
+                )
+        receipt.validate()
+        return tuple(captured)
+    except SnapshotReceiptError:
+        _close_nonraising_many(tuple(captured))
+        raise
+    except (OSError, ValueError) as error:
+        _close_nonraising_many(tuple(captured))
+        raise SnapshotReceiptError(
+            "Snapshot receipt ownership could not be isolated."
+        ) from error
+
+
 def prepare_snapshot(
     workspace: str | Path,
     *,
@@ -487,6 +670,7 @@ def prepare_snapshot(
     capture: Callable[[Path, tuple[SnapshotTransientPath, ...]], None],
     run: Callable[..., Any] = subprocess.run,
     write: ReceiptWriter = write_receipt,
+    anchor: Any | None = None,
 ) -> SnapshotTransaction:
     """Prepare a rollback-capable snapshot from an independently captured tree.
 
@@ -504,16 +688,43 @@ def prepare_snapshot(
         )
 
     receipt: ReceiptPublication | None = None
+    receipt_files: tuple[Any, ...] = ()
     transient_paths: tuple[SnapshotTransientPath, ...] = ()
+    workspace_anchor = anchor
+    history_anchor: Any | None = None
+    owns_workspace_anchor = False
+    ref_relative: Path | None = None
+    previous_ref_content: bytes | None = None
+    prepared_ref_file: Any | None = None
     prepared_head: str | None = None
     published_head: str | None = None
     try:
+        if workspace_anchor is None:
+            workspace_anchor = WorkspaceAnchor(root)
+            owns_workspace_anchor = True
+        elif not workspace_anchor.root_is_current():
+            raise SnapshotError("Snapshots could not be completed for this workspace.")
+        history_anchor = WorkspaceAnchor(root / ".git")
+        ref_relative = _head_ref_relative(root, run=run)
+        try:
+            previous_ref = history_anchor.capture_file(ref_relative)
+        except FileNotFoundError:
+            previous_ref = None
+        if previous_ref is not None:
+            previous_ref_content = previous_ref.content
+            previous_ref.close()
         receipt = _write_owned_snapshot_receipt(
             write,
             root,
             _snapshot_receipt_fields(label),
         )
         transient_paths = _snapshot_receipt_transient_paths(root, receipt)
+        receipt_files = _capture_snapshot_receipt_files(
+            root,
+            workspace_anchor,
+            receipt,
+            transient_paths,
+        )
         tree = _captured_tree(
             root,
             capture,
@@ -529,14 +740,25 @@ def prepare_snapshot(
         update = ["update-ref", "HEAD", prepared_head, expected_head]
         _require_success(_run_git(root, update, run=run))
         published_head = prepared_head
+        if ref_relative is None or history_anchor is None:
+            raise SnapshotError("The prepared snapshot history proof is unavailable.")
+        prepared_ref_file = history_anchor.capture_file(ref_relative)
+        if prepared_ref_file.content.strip() != prepared_head.encode("ascii"):
+            raise SnapshotError("The prepared snapshot reference changed during publication.")
         result = SnapshotResult(snapshot=_snapshot_from_head(root, run=run))
         return SnapshotTransaction(
             root,
             result,
             previous_head=previous_head,
             prepared_head=prepared_head,
+            prepared_ref_file=prepared_ref_file,
+            previous_ref_content=previous_ref_content,
             receipt=receipt,
+            receipt_files=receipt_files,
             transient_paths=transient_paths,
+            workspace_anchor=workspace_anchor,
+            history_anchor=history_anchor,
+            owns_workspace_anchor=owns_workspace_anchor,
             run=run,
         )
     except Exception:
@@ -545,8 +767,14 @@ def prepare_snapshot(
             SnapshotResult(snapshot=None),
             previous_head=previous_head,
             prepared_head=published_head,
+            prepared_ref_file=prepared_ref_file,
+            previous_ref_content=previous_ref_content,
             receipt=receipt,
+            receipt_files=receipt_files,
             transient_paths=transient_paths,
+            workspace_anchor=workspace_anchor,
+            history_anchor=history_anchor,
+            owns_workspace_anchor=owns_workspace_anchor,
             run=run,
         )
         transaction.rollback()

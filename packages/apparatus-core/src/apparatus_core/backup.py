@@ -212,8 +212,12 @@ class _PosixWorkspaceAnchor:
 
     def close(self) -> None:
         if self.handle >= 0:
-            os.close(self.handle)
+            handle = self.handle
             self.handle = -1
+            try:
+                os.close(handle)
+            except OSError:
+                pass
 
     def require_path_current(self) -> None:
         if self.root_identity is None:
@@ -479,6 +483,22 @@ class _PosixWorkspaceAnchor:
             try:
                 before = os.stat(name, dir_fd=parent, follow_symlinks=False)
                 self._same_filesystem(before)
+                if name.casefold() == ".git" and relative.parts:
+                    raise BackupError(
+                        "This workspace contains nested snapshot storage and cannot be "
+                        "backed up safely."
+                    )
+                child_parts = tuple(part.casefold() for part in child_relative.parts)
+                git_relative = (
+                    Path(*child_relative.parts[1:])
+                    if child_parts and child_parts[0] == ".git"
+                    else None
+                )
+                if git_relative is not None and _external_history_marker(git_relative):
+                    raise BackupError(
+                        "This workspace uses external snapshot history and cannot be backed "
+                        "up safely."
+                    )
                 if stat.S_ISDIR(before.st_mode):
                     child = os.open(name, _posix_directory_flags(), dir_fd=parent)
                     try:
@@ -522,16 +542,31 @@ class _PosixWorkspaceAnchor:
                             remaining,
                         )
                         if not transient:
-                            _write_chunks(
-                                archive,
-                                _zip_info(
-                                    child_relative,
-                                    directory=False,
-                                    modified=opened.st_mtime,
-                                    executable=bool(opened.st_mode & 0o111),
-                                ),
-                                self._file_chunks(child),
+                            info = _zip_info(
+                                child_relative,
+                                directory=False,
+                                modified=opened.st_mtime,
+                                executable=bool(opened.st_mode & 0o111),
                             )
+                            if child_parts == (".git", "config"):
+                                if opened.st_size > 1024 * 1024:
+                                    raise BackupError(
+                                        "Workspace snapshot storage could not be inspected "
+                                        "safely."
+                                    )
+                                content = b"".join(self._file_chunks(child))
+                                if _config_uses_external_history(content):
+                                    raise BackupError(
+                                        "This workspace uses external snapshot history and "
+                                        "cannot be backed up safely."
+                                    )
+                                archive.writestr(info, content)
+                            else:
+                                _write_chunks(
+                                    archive,
+                                    info,
+                                    self._file_chunks(child),
+                                )
                         after = os.fstat(child)
                         current = os.stat(name, dir_fd=parent, follow_symlinks=False)
                         if (
@@ -587,9 +622,9 @@ class _PosixOwnedArchive:
 
     def finish(self) -> None:
         if self.handle >= 0:
-            self.validate_name()
-            os.close(self.handle)
+            handle = self.handle
             self.handle = -1
+            os.close(handle)
 
     def cleanup(self) -> None:
         if self.handle < 0:
@@ -639,8 +674,12 @@ class _PosixDestinationAnchor:
 
     def close(self) -> None:
         if self.handle >= 0:
-            os.close(self.handle)
+            handle = self.handle
             self.handle = -1
+            try:
+                os.close(handle)
+            except OSError:
+                pass
 
     def require_path_current(self) -> None:
         if self.identity is None:
@@ -721,6 +760,27 @@ if os.name == "nt":  # pragma: no cover - exercised by the Windows CI job
 
     def _windows_modified(identity: Any) -> float:
         return max(0.0, (identity.modified - _WINDOWS_EPOCH) / 10_000_000)
+
+    def _windows_path_matches(
+        path: Path,
+        identity: Any,
+        *,
+        directory: bool,
+    ) -> bool:
+        """Reverify a traversed name without conflicting with retained proofs."""
+        verification = -1
+        try:
+            verification = _windows_fs._win_open(
+                path,
+                directory=directory,
+                lock_name=directory,
+                retain_readable=not directory,
+            )
+            return _windows_fs._win_identity(verification) == identity
+        except OSError:
+            return False
+        finally:
+            _windows_fs._win_close(verification)
 
     def _windows_chunks(handle: int) -> Iterator[bytes]:
         kernel = _windows_fs._win_kernel()
@@ -845,7 +905,12 @@ class _WindowsWorkspaceAnchor:
                 directory = stat.S_ISDIR(value.st_mode)
                 if not directory and not stat.S_ISREG(value.st_mode):
                     raise BackupError("Workspace snapshot storage is not safe to archive.")
-                handle = _windows_fs._win_open(path, directory=directory)
+                handle = _windows_fs._win_open(
+                    path,
+                    directory=directory,
+                    lock_name=directory,
+                    retain_readable=not directory,
+                )
                 identity = _windows_fs._win_identity(handle)
                 if (identity.volume, identity.index) in self.forbidden_identities:
                     raise BackupError("Destination moved into the workspace during backup export.")
@@ -861,6 +926,17 @@ class _WindowsWorkspaceAnchor:
                             "This workspace uses external snapshot history and cannot be backed "
                             "up safely."
                         )
+                if (
+                    _windows_fs._win_identity(handle) != identity
+                    or not _windows_path_matches(
+                        path,
+                        identity,
+                        directory=directory,
+                    )
+                ):
+                    raise BackupError(
+                        "Workspace content changed during backup export."
+                    )
             except BackupError:
                 raise
             except OSError as error:
@@ -966,6 +1042,22 @@ class _WindowsWorkspaceAnchor:
                 directory = stat.S_ISDIR(value.st_mode)
                 if not directory and not stat.S_ISREG(value.st_mode):
                     raise BackupError("Workspace contains an unsupported filesystem entry.")
+                if name.casefold() == ".git" and relative.parts:
+                    raise BackupError(
+                        "This workspace contains nested snapshot storage and cannot be "
+                        "backed up safely."
+                    )
+                child_parts = tuple(part.casefold() for part in child_relative.parts)
+                git_relative = (
+                    Path(*child_relative.parts[1:])
+                    if child_parts and child_parts[0] == ".git"
+                    else None
+                )
+                if git_relative is not None and _external_history_marker(git_relative):
+                    raise BackupError(
+                        "This workspace uses external snapshot history and cannot be backed "
+                        "up safely."
+                    )
                 if not directory and not relative.parts and name.casefold() == ".git":
                     raise BackupError(
                         "This workspace uses external snapshot storage and cannot be "
@@ -974,6 +1066,7 @@ class _WindowsWorkspaceAnchor:
                 handle = _windows_fs._win_open(
                     path,
                     directory=directory,
+                    lock_name=directory,
                     retain_readable=not directory,
                 )
                 identity = _windows_fs._win_identity(handle)
@@ -990,21 +1083,42 @@ class _WindowsWorkspaceAnchor:
                         b"",
                     )
                     self._write_directory(archive, path, handle, child_relative)
-                    if _windows_fs._win_identity(handle) != identity:
-                        raise BackupError("Workspace content changed during backup export.")
                 else:
-                    _write_chunks(
-                        archive,
-                        _zip_info(
-                            child_relative,
-                            directory=False,
-                            modified=_windows_modified(identity),
-                            executable=False,
-                        ),
-                        _windows_chunks(handle),
+                    info = _zip_info(
+                        child_relative,
+                        directory=False,
+                        modified=_windows_modified(identity),
+                        executable=False,
                     )
-                    if _windows_fs._win_identity(handle) != identity:
-                        raise BackupError("Workspace content changed during backup export.")
+                    if child_parts == (".git", "config"):
+                        if identity.size > 1024 * 1024:
+                            raise BackupError(
+                                "Workspace snapshot storage could not be inspected safely."
+                            )
+                        content = b"".join(_windows_chunks(handle))
+                        if _config_uses_external_history(content):
+                            raise BackupError(
+                                "This workspace uses external snapshot history and cannot be "
+                                "backed up safely."
+                            )
+                        archive.writestr(info, content)
+                    else:
+                        _write_chunks(
+                            archive,
+                            info,
+                            _windows_chunks(handle),
+                        )
+                if (
+                    _windows_fs._win_identity(handle) != identity
+                    or not _windows_path_matches(
+                        path,
+                        identity,
+                        directory=directory,
+                    )
+                ):
+                    raise BackupError(
+                        "Workspace content changed during backup export."
+                    )
             except BackupError:
                 raise
             except OSError as error:
@@ -1042,10 +1156,10 @@ class _WindowsOwnedArchive:
 
     def finish(self) -> None:
         if self.file_descriptor >= 0:
-            self.validate_name()
-            os.close(self.file_descriptor)
+            descriptor = self.file_descriptor
             self.file_descriptor = -1
             self.windows_handle = -1
+            os.close(descriptor)
 
     def cleanup(self) -> None:
         if self.file_descriptor < 0:
@@ -1214,8 +1328,132 @@ def _write_owned_backup_receipt(
         value.claim(invocation)
         return value
     except Exception:
+        cleanup_error: Exception | None = None
+        if isinstance(value, ReceiptPublication) and value.is_from_invocation(
+            invocation
+        ):
+            try:
+                if value.claimed:
+                    value.rollback()
+                else:
+                    value.close()
+            except Exception as failure:
+                cleanup_error = failure
+            finally:
+                _close_nonraising(value)
         invocation.close()
+        if cleanup_error is not None:
+            raise BackupError(
+                "Backup receipt publication failed and exact cleanup could not be "
+                "completed safely."
+            ) from cleanup_error
         raise
+
+
+def _close_nonraising(value: Any | None) -> None:
+    if value is None:
+        return
+    try:
+        value.close()
+    except Exception:
+        # Used only after exact visible state was accepted or independently
+        # compensated; handle teardown cannot authorize success.
+        pass
+
+
+def _close_nonraising_many(values: tuple[Any, ...]) -> None:
+    for value in values:
+        _close_nonraising(value)
+
+
+def _capture_backup_receipt_files(
+    workspace: Path,
+    workspace_anchor: Any,
+    receipt: ReceiptPublication,
+) -> tuple[Any, ...]:
+    """Retain the exact canonical receipt and its POSIX ownership alias."""
+    captured: list[Any] = []
+    try:
+        receipt.validate()
+        canonical_relative = receipt.path.relative_to(workspace)
+        if canonical_relative.parent != Path("System/receipts"):
+            raise OSError("backup receipt was published outside the receipt folder")
+        canonical = workspace_anchor.capture_file(
+            canonical_relative,
+            publication_compatible=True,
+        )
+        captured.append(canonical)
+        if os.name == "posix":
+            aliases: list[Any] = []
+            for relative in workspace_anchor.list_files("System/receipts"):
+                if (
+                    relative.parent != Path("System/receipts")
+                    or not _RECEIPT_OWNERSHIP_NAME.fullmatch(relative.name)
+                ):
+                    continue
+                candidate = workspace_anchor.capture_file(
+                    relative,
+                    publication_compatible=True,
+                )
+                if (
+                    candidate.identity == canonical.identity
+                    and candidate.content == canonical.content
+                ):
+                    aliases.append(candidate)
+                else:
+                    candidate.close()
+            if len(aliases) != 1:
+                _close_nonraising_many(tuple(aliases))
+                raise OSError("backup receipt ownership could not be isolated")
+            captured.extend(aliases)
+        receipt.validate()
+        return tuple(captured)
+    except Exception:
+        _close_nonraising_many(tuple(captured))
+        raise
+
+
+def _validate_backup_receipt_files(
+    workspace_anchor: Any,
+    receipt_files: tuple[Any, ...],
+) -> None:
+    if not receipt_files:
+        raise OSError("backup receipt proof is unavailable")
+    canonical, *ownership_aliases = receipt_files
+    if not workspace_anchor.matches_owned(canonical):
+        raise OSError("backup receipt changed")
+    for alias in ownership_aliases:
+        if workspace_anchor.entry_exists(alias.relative):
+            raise OSError("backup receipt ownership alias remained")
+
+
+def _cleanup_owned_receipt(
+    publication: ReceiptPublication | None,
+    workspace_anchor: Any,
+    receipt_files: tuple[Any, ...],
+) -> list[Exception]:
+    publication_error: Exception | None = None
+    if publication is not None:
+        try:
+            publication.rollback()
+        except Exception as error:
+            publication_error = error
+    proof_errors: list[Exception] = []
+    for index, owned in enumerate(receipt_files):
+        try:
+            if index == 0:
+                workspace_anchor.unlink_owned_if_present(owned)
+            else:
+                workspace_anchor.unlink_owned_alias_if_present(owned)
+        except Exception as error:
+            proof_errors.append(error)
+    _close_nonraising(publication)
+    _close_nonraising_many(receipt_files)
+    if proof_errors:
+        return proof_errors
+    if not receipt_files and publication_error is not None:
+        return [publication_error]
+    return []
 
 
 def _require_success_checkpoint(
@@ -1225,11 +1463,24 @@ def _require_success_checkpoint(
     destination_anchor: Any,
     owned: Any,
     transaction: SnapshotTransaction | None,
+    success_receipt: ReceiptPublication | None = None,
+    success_receipt_files: tuple[Any, ...] = (),
+    durable: bool = False,
 ) -> None:
     """Reverify every identity that makes the reported export a safe success."""
     try:
         if transaction is not None:
-            transaction.validate_receipt()
+            if durable:
+                transaction.validate_durable()
+            else:
+                transaction.validate_receipt()
+        if success_receipt is not None:
+            success_receipt.validate()
+        if success_receipt_files:
+            _validate_backup_receipt_files(
+                workspace_anchor,
+                success_receipt_files,
+            )
         source.require_path_current()
         target.require_path_current()
         if not workspace_anchor.matches_root_handle(
@@ -1260,7 +1511,17 @@ def _require_success_checkpoint(
             raise BackupError("Destination identity changed during backup export.")
         owned.validate_name()
         if transaction is not None:
-            transaction.validate_receipt()
+            if durable:
+                transaction.validate_durable()
+            else:
+                transaction.validate_receipt()
+        if success_receipt is not None:
+            success_receipt.validate()
+        if success_receipt_files:
+            _validate_backup_receipt_files(
+                workspace_anchor,
+                success_receipt_files,
+            )
     except BackupError:
         raise
     except (OSError, SnapshotError) as error:
@@ -1306,6 +1567,7 @@ def export_backup(
             transaction: SnapshotTransaction | None = None
             owned: Any = None
             success_receipt: ReceiptPublication | None = None
+            success_receipt_files: tuple[Any, ...] = ()
             completed = False
             try:
                 if snapshots_available:
@@ -1315,6 +1577,7 @@ def export_backup(
                             root,
                             label=f"Before backup export {timestamp}",
                             capture=source.copy_snapshot_content,
+                            anchor=workspace_anchor,
                         )
                     except BackupError:
                         raise
@@ -1362,6 +1625,11 @@ def export_backup(
                         root,
                         _receipt_fields(result, destination_path),
                     )
+                    success_receipt_files = _capture_backup_receipt_files(
+                        root,
+                        workspace_anchor,
+                        success_receipt,
+                    )
                 except BackupError:
                     raise
                 except (OSError, TypeError, ValueError) as error:
@@ -1378,25 +1646,47 @@ def export_backup(
                     destination_anchor,
                     owned,
                     transaction,
+                    success_receipt,
+                    success_receipt_files,
                 )
-                owned.finish()
-                if transaction is not None:
-                    transaction.commit()
+                # Every fallible publication release occurs while the archive,
+                # ref, and exact receipt compensation proofs are still live.
                 success_receipt.close()
+                if transaction is not None:
+                    transaction.release()
+                _require_success_checkpoint(
+                    source,
+                    target,
+                    workspace_anchor,
+                    destination_anchor,
+                    owned,
+                    transaction,
+                    success_receipt_files=success_receipt_files,
+                    durable=True,
+                )
+                # The true final checkpoint above is followed only by
+                # non-mutating proof-handle teardown that cannot turn success
+                # into an un-compensated failure.
+                if transaction is not None:
+                    transaction.accept()
+                _close_nonraising_many(success_receipt_files)
+                try:
+                    owned.finish()
+                except Exception:
+                    pass
                 completed = True
                 return result
             finally:
                 if not completed:
                     cleanup_errors: list[Exception] = []
                     if success_receipt is not None:
-                        try:
-                            success_receipt.rollback()
-                        except Exception as error:
-                            cleanup_errors.append(error)
-                        try:
-                            success_receipt.close()
-                        except Exception as error:
-                            cleanup_errors.append(error)
+                        cleanup_errors.extend(
+                            _cleanup_owned_receipt(
+                                success_receipt,
+                                workspace_anchor,
+                                success_receipt_files,
+                            )
+                        )
                     if owned is not None:
                         try:
                             owned.cleanup()
@@ -1407,12 +1697,6 @@ def export_backup(
                             transaction.rollback()
                         except Exception as error:
                             cleanup_errors.append(error)
-                        try:
-                            source.cleanup_snapshot_transients(
-                                transaction.transient_paths
-                            )
-                        except Exception as error:
-                            cleanup_errors.append(error)
                     if cleanup_errors:
                         raise BackupError(
                             "Backup export failed and exact cleanup could not be completed "
@@ -1420,5 +1704,5 @@ def export_backup(
                         ) from cleanup_errors[0]
     except BackupError:
         raise
-    except OSError as error:
+    except (OSError, SnapshotError) as error:
         raise BackupError("Backup export could not be completed safely.") from error
