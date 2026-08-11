@@ -264,4 +264,20 @@ identity, adds a cold interpreter baseline plus a git-suppressed diagnostic to
 classify any surviving `TEMP` mutation without ignoring it, and propagates each
 native pytest exit code before the optional ETW invocation. The root modification
 time remains part of the comparison, and no warm-up or exclusion narrows the
-interpreter-entry boundary. Native CI evidence remains pending.
+interpreter-entry boundary.
+
+At restart-pass-2 exact head `e9b5137`, CI run `31517987400` confirmed that the
+identity repair works and that failures now propagate correctly. The cold
+Windows PowerShell baseline, before loading the bootstrap script, changed only
+the isolated `TEMP` root's modification time. The exact bootstrap dry-run then
+produced the same sole delta with an absent workspace and git present, a present
+workspace and git present, and an absent workspace with git suppressed from
+`PATH`. No compared name, size, file identity, permissions, file attributes, or
+other root changed.
+
+The mutation therefore occurs from the hosted Windows PowerShell interpreter
+baseline and is independent of Apparatus and git. Ignoring the `TEMP` root's
+modification time or warming the process would narrow the operator's explicit
+interpreter-entry and comparison contract, so neither is allowed. Both fresh
+repair passes are exhausted. PR-22 returns to a blocked stop for operator review
+and must not be marked landed or merged under this authorization.
