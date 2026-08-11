@@ -213,7 +213,17 @@ a contract ambiguity or permission to weaken the proof.
 Restart pass 2 excludes the global test explicitly from `windows-safety`,
 retains every other listed safety test there, and runs the ETW node exactly
 once as a dedicated invocation in `bootstrap-windows` after the other bootstrap
-checks. A static conformance regression pins that selection topology. Native
-Windows evidence remains pending CI. No further repair pass remains: any new
-substantive blocker is a blocked stop, and PR-22 must not be marked landed or
-merged without green exact-head evidence.
+checks. A static conformance regression pins that selection topology.
+
+At restart-pass-2 implementation head
+`cb9b66d61916cc29cd6c87bbdc73855c48492b8e`, CI run `31510839370` passed the
+Linux, macOS bootstrap, and Windows safety jobs. Windows safety completed 382
+tests with 69 skips and one intentional ETW deselection. The dedicated Windows
+ETW invocation still failed because the traced cold process did not exit within
+the controller's 30-second wait. The same timeout occurred in pass 1, so
+removing concurrent execution did not close the native proof capability gap.
+
+Both authorized repair passes are exhausted. The required exact-head Windows
+proof and its canaries did not complete, so this PR is a blocked stop requiring
+operator review. It must not be marked landed or merged, and no further repair
+is authorized by this restart contract.
