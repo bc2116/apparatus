@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import errno
 import os
@@ -104,6 +105,101 @@ def test_no_save_guard_precedes_store_creation_and_requested_exception(tmp_path)
     assert b"private task phrase" not in b"".join(receipts(root).values())
     with pytest.raises(RetentionSuppressed):
         recovery.take_snapshot(root, task_id=task.task_id)
+
+
+def test_native_git_reads_store_and_objects_while_exact_proofs_remain_live(tmp_path):
+    root = workspace(tmp_path / "area")
+    observed = []
+    def native_run(command, **options):
+        result = subprocess.run(command, **options)
+        observed.append((result.returncode, result.stdout, result.stderr))
+        assert result.returncode == 0, observed[-1]
+        return result
+    with recovery.Store(root, create=True, run=native_run) as store:
+        assert recovery._git(store.anchor, ["rev-parse", "--is-bare-repository"], run=native_run) == b"true\n"
+        content = b"Synthetic native reader compatibility.\n"
+        oid = recovery._publish_object(store.anchor, "blob", content)
+        assert recovery._object(store, oid, "blob", {}) == content
+        # All config/HEAD/object pins remain live while a second native reader
+        # opens those same endpoints. Releasing proofs would hide the Win32 bug.
+        assert recovery._git(store.anchor, ["cat-file", "blob", oid], run=native_run) == content
+        store.validate()
+    assert len(observed) == 3
+
+
+def test_capture_revalidates_with_retained_recovery_receipt_proof(tmp_path):
+    root = workspace(tmp_path / "area")
+    with recovery.capture_state(root) as capture:
+        invocation = recovery.prepare_receipt_invocation(root, "backup-export", {
+            "summary": "Synthetic export evidence.", "body": "Synthetic coverage only.\n"})
+        receipt = recovery.write_receipt(root, "backup-export", {
+            "summary": "Synthetic export evidence.", "body": "Synthetic coverage only.\n"},
+            invocation=invocation)
+        receipt.claim(invocation)
+        proof = capture.anchor.capture_file(receipt.path.relative_to(root), publication_compatible=True)
+        try:
+            capture.validate()
+            with recovery.capture_state(root) as second:
+                assert second.files == capture.files
+                second.validate()
+            receipt.validate()
+            assert capture.anchor.matches_owned(proof)
+        finally:
+            proof.close()
+            receipt.rollback()
+            receipt.close()
+    assert not receipts(root)
+
+
+def test_saving_task_cli_restore_releases_preflight_before_snapshot_and_replans(tmp_path, monkeypatch):
+    from apparatus_core import snapshots
+    from apparatus_core.commands import restore
+
+    root = workspace(tmp_path / "area")
+    task = start_task(root, save_memory=True)
+    control = root / f"System/tasks/{task.task_id}.yaml"
+    task_bytes = control.read_bytes()
+    first = recovery.take_snapshot(root, task_id=task.task_id).snapshot
+    original = (root / "Memory/Facts/sample.md").read_bytes()
+    current = fact(root, "Newer synthetic context.").read_bytes()
+    active = set()
+    initialize, close, apply = recovery.RestorePlan.__init__, recovery.RestorePlan.close, recovery.RestorePlan.apply
+    def tracked_init(plan, *values, **options):
+        initialize(plan, *values, **options)
+        active.add(id(plan))
+    def tracked_close(plan):
+        try:
+            close(plan)
+        finally:
+            active.discard(id(plan))
+    restored = []
+    def tracked_apply(plan, **options):
+        assert active == {id(plan)}
+        assert plan.preimages["Memory/Facts/sample.md"].content == current
+        restored.append(plan.identifier)
+        return apply(plan, **options)
+    saved = []
+    def take(workspace, **options):
+        assert not active, "temporary restore preflight still holds destination handles"
+        result = snapshots.take_snapshot(workspace, **options)
+        saved.append(result.snapshot.identifier)
+        return result
+    monkeypatch.setattr(recovery.RestorePlan, "__init__", tracked_init)
+    monkeypatch.setattr(recovery.RestorePlan, "close", tracked_close)
+    monkeypatch.setattr(recovery.RestorePlan, "apply", tracked_apply)
+    arguments = argparse.Namespace(workspace=str(root), task=task.task_id,
+                                   snapshot_id=first.identifier, list=False)
+    assert restore.run(arguments, take=take) == 0
+    assert len(saved) == 1 and restored == [first.identifier] and not active
+    assert (root / "Memory/Facts/sample.md").read_bytes() == original
+    assert control.read_bytes() == task_bytes
+    with recovery.Store(root) as store:
+        history = recovery.History(store)
+        try:
+            assert history.files[saved[0]]["Memory/Facts/sample.md"] == current
+        finally:
+            history.close()
+    assert len(list((root / "System/receipts").glob("*-restore*.md"))) == 1
 
 
 def test_restore_preserves_additions_projects_and_live_task_controls(tmp_path):

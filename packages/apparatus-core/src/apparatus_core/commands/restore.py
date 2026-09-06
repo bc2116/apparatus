@@ -164,14 +164,23 @@ def _run(
         print(f"restore: {error}")
         return 1
     try:
-        with restore_control_guard(workspace, target_id):
+        def before_restore() -> None:
             if save_memory:
                 take(workspace, label=f"Before restore to {target.short_id}", force=True)
             else:
                 print("Automatic pre-restore snapshot skipped for this no-save task.")
-            if getattr(target, "scope", "workspace") == "managed-state":
-                restore(workspace, target_id, write=write)
-            else:
+
+        if getattr(target, "scope", "workspace") == "managed-state":
+            # Validate destinations before saving, then release those temporary
+            # DELETE-capable proofs so snapshot readers can open the same files.
+            # The actual restore acquires its own complete plan and CAS proofs.
+            with restore_control_guard(workspace, target_id):
+                pass
+            before_restore()
+            restore(workspace, target_id, write=write)
+        else:
+            with restore_control_guard(workspace, target_id):
+                before_restore()
                 restore(workspace, target_id)
                 write(workspace, "restore", _restore_receipt_fields(target))
     except SnapshotReceiptError:

@@ -129,6 +129,15 @@ def _validate_file(relative: str, content: bytes) -> bool:
         raise SnapshotError("Recovery coverage contains an invalid managed record or text file.") from error
 
 
+def _read_compatible(anchor: Any, relative: str) -> tuple[bytes, Any]:
+    """Read without DELETE access, alongside native readers and receipt proofs."""
+    proof = anchor.capture_file(relative, publication_compatible=True)
+    try:
+        return proof.content, proof.identity
+    finally:
+        proof.close()
+
+
 def _collect(anchor: Any) -> dict[str, bytes]:
     candidates = set(OPTIONAL_FILES)
     for root in RECORD_ROOTS:
@@ -138,7 +147,7 @@ def _collect(anchor: Any) -> dict[str, bytes]:
     folded: set[str] = set()
     for relative in sorted(candidates):
         try:
-            content, _ = anchor.read_file(relative)
+            content, _ = _read_compatible(anchor, relative)
         except FileNotFoundError:
             if relative in OPTIONAL_FILES:
                 continue
@@ -160,7 +169,7 @@ class Capture:
             _validate_layout(self.layout, self.anchor)
             self.files = _collect(self.anchor)
             for relative, content in self.files.items():
-                proof = self.anchor.capture_file(relative)
+                proof = self.anchor.capture_file(relative, publication_compatible=True)
                 self.proofs.append(proof)
                 if proof.content != content:
                     raise SnapshotError("Managed recovery coverage changed during capture.")
@@ -222,7 +231,10 @@ def _inventory(anchor: Any) -> set[str]:
                     visit(child)
                 elif child in {"config", "HEAD", "apparatus-owner.json", REF} or _LOOSE.fullmatch(child):
                     # A retained read rejects links and special file endpoints.
-                    anchor.read_file(child)
+                    if child == REF:
+                        anchor.read_file(child)
+                    else:
+                        _read_compatible(anchor, child)
                     files.add(child)
                 else:
                     raise SnapshotError("Managed recovery store contains unexpected content; repair it before recovery.")
@@ -277,7 +289,7 @@ class Store:
                 return
             self.anchor = WorkspaceAnchor(self.layout.workspace / STORE)
             for path, expected in (("config", CONFIG), ("HEAD", HEAD), ("apparatus-owner.json", _owner(self.layout.workspace_id))):
-                pin = self.anchor.capture_file(path)
+                pin = self.anchor.capture_file(path, publication_compatible=True)
                 self.pins.append(pin)
                 if pin.content != expected:
                     raise SnapshotError("Managed recovery store ownership or configuration is invalid.")
@@ -434,7 +446,7 @@ def _publish_object(anchor: Any, kind: str, content: bytes) -> str:
         try:
             proof = fanout.create_file(oid[2:], zlib.compress(raw))
         except FileExistsError:
-            proof = fanout.capture_file(oid[2:])
+            proof = fanout.capture_file(oid[2:], publication_compatible=True)
         if (_decode_loose(proof.content) != raw or not fanout.matches_owned(proof)
                 or not objects.root_is_current() or not anchor.root_is_current()):
             raise SnapshotError("Managed object changed during publication.")
@@ -477,7 +489,7 @@ def _object(store: Store, oid: str, kind: str, objects: dict[str, tuple[str, byt
             raise SnapshotError("Managed snapshot object kind is inconsistent.")
         return content
     store.validate()
-    pin = store.anchor.capture_file(f"objects/{oid[:2]}/{oid[2:]}")
+    pin = store.anchor.capture_file(f"objects/{oid[:2]}/{oid[2:]}", publication_compatible=True)
     store.pins.append(pin)
     content = _git(store.anchor, ["cat-file", kind, oid], run=store.run)
     if not store.anchor.matches_owned(pin):
@@ -600,7 +612,7 @@ class History:
             # Pin compressed storage endpoints too: object replacement after a
             # successful Git read cannot escape the final validation checkpoint.
             for oid in self.objects:
-                self.pins.append(store.anchor.capture_file(f"objects/{oid[:2]}/{oid[2:]}"))
+                self.pins.append(store.anchor.capture_file(f"objects/{oid[:2]}/{oid[2:]}", publication_compatible=True))
             self.validate()
         except Exception as error:
             self.close()
@@ -1019,7 +1031,7 @@ class HistoryProof:
             if _inventory(self.anchor) != expected:
                 raise SnapshotError("Staged history contains undeclared or unreachable objects.")
             for path in sorted(expected):
-                pin = self.anchor.capture_file(path)
+                pin = self.anchor.capture_file(path, publication_compatible=path != REF)
                 self.pins.append(pin)
                 self.files[path] = pin.content
                 if _LOOSE.fullmatch(path):

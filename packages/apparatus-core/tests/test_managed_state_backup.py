@@ -170,9 +170,11 @@ def test_late_source_change_compensates_archive_receipt_and_preserves_user_chang
     task = start_task(root)
     original = ReceiptPublication.close
     injected = False
+    replacement_blocked = None
+    source_before = (root / "AGENTS.md").read_bytes()
 
     def close_then_change(receipt):
-        nonlocal injected
+        nonlocal injected, replacement_blocked
         result = original(receipt)
         if "-backup-export" in receipt.path.name and not injected:
             injected = True
@@ -184,13 +186,33 @@ def test_late_source_change_compensates_archive_receipt_and_preserves_user_chang
             else:
                 replacement = root / "replacement.txt"
                 replacement.write_text("Concurrent instructions", encoding="utf-8")
-                replacement.replace(root / "AGENTS.md")
+                try:
+                    replacement.replace(root / "AGENTS.md")
+                except PermissionError as error:
+                    # A retained native handle can deny the competing replacement.
+                    # Record what happened; do not infer success from the OS name.
+                    replacement_blocked = error
         return result
 
     monkeypatch.setattr(ReceiptPublication, "close", close_then_change)
-    with pytest.raises(backup.BackupError):
-        managed.export_backup(root, destination, available=lambda: False, task_id=task.task_id)
+    failure = None
+    result = None
+    try:
+        result = managed.export_backup(root, destination, available=lambda: False, task_id=task.task_id)
+    except backup.BackupError as error:
+        failure = error
     assert injected
+    if replacement_blocked is not None:
+        assert change == "source"
+        assert failure is None, "a blocked competing edit must not fail the unchanged export"
+        assert result is not None and result.archive.is_file()
+        assert (root / "AGENTS.md").read_bytes() == source_before
+        assert (root / "replacement.txt").read_bytes() == b"Concurrent instructions"
+        with zipfile.ZipFile(result.archive) as archive:
+            assert archive.read("AGENTS.md") == source_before
+            assert "replacement.txt" not in archive.namelist()
+        return
+    assert failure is not None, "a successful competing edit must invalidate the export"
     assert list(destination.iterdir()) == []
     assert _receipts(root) == {}
     if change == "task":
