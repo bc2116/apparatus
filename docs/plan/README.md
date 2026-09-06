@@ -90,6 +90,7 @@ sequence is linked above; R1, R2 and R3a are implemented in PR-32/33/34/35; late
 | 34 | [Task Memory retention](PR-34-task-retention.md) | Rework | ✅ landed | 33 |
 | 35 | [Isolated recovery for shared work areas](PR-35-managed-recovery.md) | Rework | ✅ landed | 34 |
 | 37 | [Library writer-lock release race](PR-37-library-lock.md) | Repair | ✅ landed | 34 |
+| 42 | [Patched PDF dependency](PR-42-pdf-dependency.md) | Repair | ✅ landed | 35 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
