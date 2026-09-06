@@ -33,7 +33,8 @@ The first run found three conformance assumptions about the old five-Skill set/n
 workflows and explicit authority wording; those were addressed and focused
 reruns passed without weakening the everyday workflow or authority checks.
 
-Actual Windows CI and final implementation review remain delivery checks.
+Independent implementation review accepted the final diff against the contract
+and ADR. Actual Windows CI and dependency merges remain delivery checks.
 The Windows safety lane includes both new test modules. The late competitor
 fixture records whether the native filesystem permits the competing write and
 asserts preservation or complete rollback accordingly; it does not assume a
