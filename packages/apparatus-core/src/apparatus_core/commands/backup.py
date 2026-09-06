@@ -49,7 +49,11 @@ def run(
     print(f"Backup archive: {result.archive.name}")
     print(f"Destination: {result.archive.parent}")
     print(f"Size: {size} bytes")
-    if not result.snapshots_available:
+    if getattr(result, "scope", "workspace") == "managed-state":
+        print("This backup contains Apparatus state and its available recovery history; project files and Library originals are not included.")
+        if not result.snapshots_available:
+            print("Recovery history is unavailable; only current Apparatus state is included.")
+    elif not result.snapshots_available:
         print(
             "Snapshots are unavailable, so this backup contains the workspace "
             "exactly as it is now."

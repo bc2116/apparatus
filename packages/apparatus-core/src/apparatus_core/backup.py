@@ -15,6 +15,7 @@ from typing import Any, BinaryIO
 
 from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.retention import operation
+from apparatus_core.workspace_layout import LayoutError, read_layout
 from apparatus_core.receipts import (
     ReceiptInvocation,
     ReceiptPublication,
@@ -43,6 +44,15 @@ class BackupUsageError(BackupError):
     """A workspace or destination argument is not safe to use."""
 
 
+def _require_legacy_layout(workspace: Path) -> None:
+    try:
+        layout = read_layout(workspace)
+    except LayoutError as error:
+        raise BackupError(str(error)) from error
+    if layout is not None:
+        raise BackupError("Work-area enrollment changed; retry a managed-state backup.")
+
+
 @dataclass(frozen=True)
 class BackupResult:
     """Details of one completed one-way backup export."""
@@ -51,6 +61,7 @@ class BackupResult:
     snapshot_id: str | None
     snapshots_available: bool
     size: int
+    scope: str = "workspace"
 
 
 def utc_archive_timestamp(clock: Callable[[], datetime] | None = None) -> str:
@@ -1471,6 +1482,7 @@ def _require_success_checkpoint(
 ) -> None:
     """Reverify every identity that makes the reported export a safe success."""
     try:
+        _require_legacy_layout(workspace_anchor.workspace)
         if transaction is not None:
             if durable:
                 transaction.validate_durable()
@@ -1654,6 +1666,16 @@ def export_backup(
 ) -> BackupResult:
     """Export one anchored workspace archive without reading destination content."""
     root = _absolute(workspace)
+    if not root.is_dir():
+        raise BackupUsageError("workspace path is not a safe directory")
+    try:
+        layout = read_layout(root)
+    except LayoutError as error:
+        raise BackupUsageError(str(error)) from error
+    if layout is not None:
+        from apparatus_core.managed_state_backup import export_backup as export_managed
+        return export_managed(workspace, destination, available=available, write=write,
+                              clock=clock, task_id=task_id)
     destination_path = _absolute(destination)
     timestamp = utc_archive_timestamp(clock)
     workspace_anchor_type, destination_anchor_type = _anchor_types()
@@ -1671,6 +1693,7 @@ def export_backup(
                 destination_anchor=destination_anchor,
             )
             source.forbid(target.object_identity())
+            _require_legacy_layout(root)
             storage = source.snapshot_storage()
             if storage == "external":
                 raise BackupError(
@@ -1711,6 +1734,7 @@ def export_backup(
                     transaction.validate_receipt()
                 source.require_path_current()
                 target.require_path_current()
+                _require_legacy_layout(root)
                 owned = target.allocate(timestamp)
                 source.forbid(owned.identity)
                 target.require_path_current()
@@ -1722,6 +1746,7 @@ def export_backup(
                 transient_paths = (
                     transaction.transient_paths if transaction is not None else ()
                 )
+                _require_legacy_layout(root)
                 size = _write_archive(source, owned, transient_paths)
                 _require_success_checkpoint(
                     source,

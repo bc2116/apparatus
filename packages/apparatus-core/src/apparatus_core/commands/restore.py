@@ -9,6 +9,7 @@ from typing import Any
 
 from apparatus_core.receipts import write_receipt
 from apparatus_core.retention import operation, TaskRetentionError
+from apparatus_core.workspace_layout import LayoutError, read_layout
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
@@ -110,8 +111,9 @@ def _run(
     if workspace is None:
         return 2
     try:
+        read_layout(workspace)
         feature_is_enabled = feature_enabled(workspace, "snapshots")
-    except FeatureProfileError as error:
+    except (FeatureProfileError, LayoutError) as error:
         print(f"restore: {error}")
         return 2
     if not feature_is_enabled:
@@ -138,7 +140,11 @@ def _run(
         print("Snapshots are unavailable on this machine. Run apparatus doctor for details.")
         return 1
     if getattr(args, "list", False):
-        _print_snapshots(list_saved(workspace))
+        try:
+            _print_snapshots(list_saved(workspace))
+        except SnapshotError as error:
+            print(f"restore: {error}")
+            return 1
         return 0
     requested = getattr(args, "snapshot_id", None)
     if not requested:
@@ -154,14 +160,29 @@ def _run(
     except (UnknownSnapshotError, StopIteration):
         print("restore: snapshot id was not found; use --list to choose a snapshot")
         return 1
+    except SnapshotError as error:
+        print(f"restore: {error}")
+        return 1
     try:
-        with restore_control_guard(workspace, target_id):
+        def before_restore() -> None:
             if save_memory:
                 take(workspace, label=f"Before restore to {target.short_id}", force=True)
             else:
                 print("Automatic pre-restore snapshot skipped for this no-save task.")
-            restore(workspace, target_id)
-            write(workspace, "restore", _restore_receipt_fields(target))
+
+        if getattr(target, "scope", "workspace") == "managed-state":
+            # Validate destinations before saving, then release those temporary
+            # DELETE-capable proofs so snapshot readers can open the same files.
+            # The actual restore acquires its own complete plan and CAS proofs.
+            with restore_control_guard(workspace, target_id):
+                pass
+            before_restore()
+            restore(workspace, target_id, write=write)
+        else:
+            with restore_control_guard(workspace, target_id):
+                before_restore()
+                restore(workspace, target_id)
+                write(workspace, "restore", _restore_receipt_fields(target))
     except SnapshotReceiptError:
         print("restore: could not write the snapshot receipt")
         return 2
@@ -171,5 +192,9 @@ def _run(
     except (OSError, ValueError):
         print("restore: could not write the restore receipt")
         return 2
-    print(f"Workspace restored. Snapshot id: {target.short_id}")
+    if getattr(target, "scope", "workspace") == "managed-state":
+        print(f"Apparatus state restored from {target.timestamp}. Snapshot id: {target.short_id}")
+        print("Memory now reflects that saved state. Files added since that snapshot, project files and Library originals remain untouched.")
+    else:
+        print(f"Workspace restored. Snapshot id: {target.short_id}")
     return 0

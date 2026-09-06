@@ -9,6 +9,7 @@ from typing import Any
 
 from apparatus_core.receipts import write_receipt
 from apparatus_core.retention import operation, RetentionSuppressed, TaskRetentionError
+from apparatus_core.workspace_layout import LayoutError, read_layout
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
@@ -86,8 +87,9 @@ def _run(
     if workspace is None:
         return 2
     try:
+        read_layout(workspace)
         feature_is_enabled = feature_enabled(workspace, "snapshots")
-    except FeatureProfileError as error:
+    except (FeatureProfileError, LayoutError) as error:
         print(f"snapshot: {error}")
         return 2
     if not feature_is_enabled:
@@ -125,4 +127,6 @@ def _run(
         print("no changes since the last snapshot")
         return 0
     print(f"Snapshot saved. Snapshot id: {result.snapshot.short_id}")
+    if getattr(result.snapshot, "scope", "workspace") == "managed-state":
+        print("Saved Apparatus Memory, goals and settings. Project files and Library originals are not included.")
     return 0
