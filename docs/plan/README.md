@@ -118,6 +118,7 @@ later slices remain planned.
 | 55 | [Prepare the first release notes](PR-55-first-release-notes.md) | Release | ✅ landed | 54 |
 | 56 | [Verify published installers on clean native runners](PR-56-native-installer-acceptance.md) | Release | ✅ landed | 55 |
 | 57 | [Diagnose native Windows signature checks](PR-57-native-signature-diagnostics.md) | Release | ✅ landed | 56 |
+| 47 | [Prove the reworked first task](PR-47-first-task-certification.md) | Rework | ready | 46 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
