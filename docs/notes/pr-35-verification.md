@@ -21,8 +21,9 @@ Acceptance coverage uses real Git and synthetic data:
   invalid history without a traceback, and describe the actual recovery scope.
 - Canonical/embedded payload content is unchanged; payload building succeeds.
 
-Final macOS suite: **754 passed, 38 skipped**. Focused recovery, backup and
-public-command coverage: **60 passed**. Payload build and diff checks passed.
+Final macOS suite after integrating the merged Library lock repair:
+**766 passed, 38 skipped**. It includes 62 focused recovery, backup and
+public-command cases. Payload build and diff checks passed.
 Independent authoring-tier review accepted the complete implementation after one
 classified repair: partial initialization now compensates owned creations so a
 normal retry succeeds; concurrent additions are preserved. No recursive delegation
@@ -50,3 +51,12 @@ are unchanged.
 
 Actual Windows CI is required before merge. The pull request records platform
 results and the exact merged head; unit/platform checks are not AI app certification.
+
+The third Windows run passed 565 cases and exposed one pre-reference failure
+cleanup defect. A receipt's independent proofs could obstruct publication
+rollback and mask the initiating stale-reference error. Preparation now reuses
+the existing exact-owned snapshot compensation for this stage and unconditionally
+closes proofs. Concurrent receipt content is preserved; compensation errors do not
+replace the initiating failure. Both stage-specific regressions fail against the
+prior cleanup behavior, and independent review accepted the repair. No filesystem
+sharing rule, inventory boundary or concurrent-file assertion was relaxed.
