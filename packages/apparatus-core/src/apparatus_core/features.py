@@ -10,6 +10,7 @@ from typing import Callable, Final
 
 from apparatus_core import fs_transactions, records
 from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
+from apparatus_core.payload import PayloadError, preflight_workspace_paths
 
 
 DEFAULTS: Final = {
@@ -38,6 +39,15 @@ def _profile_bytes(workspace: Path) -> bytes | None:
 
 
 def _profile_read(workspace: Path) -> _ProfileRead | None:
+    # Resolve only external ancestors (for example macOS /var). The final
+    # workspace component remains a no-follow boundary. Reuse this canonical
+    # path for the retained read and every post-parse currentness check.
+    try:
+        workspace = preflight_workspace_paths(workspace)
+    except (OSError, PayloadError) as error:
+        raise FeatureProfileError(
+            "System/profile.yaml could not be read safely; repair the workspace profile before using this feature"
+        ) from error
     if os.name == "posix":
         return _read_posix_profile(workspace)
     elif os.name == "nt":  # pragma: no cover - exercised by Windows safety CI
