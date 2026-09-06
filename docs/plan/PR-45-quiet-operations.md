@@ -51,7 +51,10 @@ replaces every planned write. Do not infer change merely from plan length.
 Compare actual safe preimages and avoid same-byte replacements, retaining exact
 unchanged-file/root proofs through the existing final validation. Do not return
 early before checking stale plans or bypass credential handling. Compute the
-history condition from byte changes, actual removals and new seeds. Redaction
+history condition from byte changes, actual removals and new seeds. Freeze one
+exact file preimage set before receipt publication, including unchanged profile
+and overlays plus removal targets; reuse it through apply and final validation.
+A competing same-byte inode or callback edit must not become a new baseline. Redaction
 findings remain meaningful even when sanitized candidate bytes equal existing
 state. An ordinary repeat apply with no findings must preserve the whole tree.
 
@@ -59,7 +62,9 @@ state. An ordinary repeat apply with no findings must preserve the whole tree.
 
 Check remains read-only and must work when receipts cannot be written. Preserve
 finding codes and bounded paths; improve generic hints with the missing field,
-record kind or a concrete supported repair command. Never advise creating an
+record kind or a concrete supported repair command. Use safe schema field/rule
+descriptions, never raw validator strings containing rejected values; test a
+synthetic credential-like rejected value for non-echo. Never advise creating an
 empty invalid file. Use `apparatus init WORKSPACE` for shipped-content repair,
 preserving custom conflicts; do not promise reconstruction of lost user records.
 

@@ -280,3 +280,30 @@ def test_windows_report_retained_handle_blocks_file_replacement(monkeypatch, tmp
     assert attempted == ["blocked"]
     assert substitute.read_bytes() == b"foreign\n"
     assert b"generated_at" in report.read_bytes()
+
+
+def test_capability_actions_do_not_claim_verified_recovery_and_preserve_report_keys():
+    detected = render_machine_report(_detections(), clock=_clock)
+    assert "Git detected; a usable recovery store has not been verified" in detected
+    assert "apparatus check WORKSPACE" in detected
+    assert "apparatus restore WORKSPACE --list" in detected
+    unavailable = render_machine_report(_detections(git_present=False, risk=True), clock=_clock)
+    data = yaml.safe_load(unavailable.split("---", 2)[1])
+    assert data["git"] is None and data["uv"] == "uv 0.9"
+    assert data["snapshots"] == "unavailable" and data["sync_redirection"]["at_risk"]
+    assert "AI app's command environment" in unavailable
+    assert "apparatus doctor WORKSPACE" in unavailable
+    assert "apparatus project bind PROJECT --workspace WORKSPACE --replace" in unavailable
+
+
+def test_current_report_unavailable_update_replaces_capability_sentence(tmp_path):
+    from apparatus_core.snapshots import mark_snapshots_unavailable
+    path = write_machine_report(tmp_path, _detections(), clock=_clock)
+    before = yaml.safe_load(path.read_text().split("---", 2)[1])
+    assert mark_snapshots_unavailable(tmp_path)
+    content = path.read_text()
+    after = yaml.safe_load(content.split("---", 2)[1])
+    assert after == {**before, "snapshots": "unavailable"}
+    assert "Snapshot tool capability: unavailable." in content
+    assert "Git detected; a usable recovery store" not in content
+    assert "apparatus check WORKSPACE" in content

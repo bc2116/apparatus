@@ -49,7 +49,7 @@ def _recall_receipts(workspace: Path) -> list[Path]:
     return sorted((workspace / "System/receipts").glob("*-recall*.md"))
 
 
-def test_grounded_envelope_has_exact_citation_shape_and_valid_receipt(
+def test_grounded_envelope_has_exact_citation_shape_without_receipt(
     monkeypatch, tmp_path
 ):
     workspace = _prepared(monkeypatch, tmp_path)
@@ -83,22 +83,9 @@ def test_grounded_envelope_has_exact_citation_shape_and_valid_receipt(
         assert isinstance(evidence["score"], float)
     assert "[cobalt]" in envelope["evidence"][0]["snippet"]
 
-    receipts = _recall_receipts(workspace)
-    assert len(receipts) == 1
-    data, _body = records.parse_record(receipts[0].read_text(encoding="utf-8"))
-    assert data["event"] == "recall"
-    assert data["question"] == "cobalt calibration phrase"
-    assert data["status"] == "grounded"
-    assert data["threshold"] == recall.RECALL_ABSTAIN_THRESHOLD
-    assert data["evidence_sources"] == ["Library/notes.txt"]
-    assert data["ignored_paths"] == 0
-    assert data["ignore_rule_provenance"] == (
-        "built-in defaults; System/ignore is missing"
-    )
-    assert records.validate("receipt", data, filename=receipts[0].name) == []
+    assert _recall_receipts(workspace) == []
     assert check_workspace(workspace).ok
-    added = set(workspace.rglob("*")) - before
-    assert added == {receipts[0]}
+    assert set(workspace.rglob("*")) == before
     cache_after = {
         path.relative_to(cache): path.read_bytes()
         for path in cache.rglob("*")
@@ -128,7 +115,7 @@ def test_abstain_is_successful_json_and_human_output(monkeypatch, tmp_path, caps
     output = capsys.readouterr().out
     assert "Not in your Library.\n" in output
     assert "Answers from elsewhere are not grounded recall.\n" in output
-    assert len(_recall_receipts(workspace)) == 2
+    assert not _recall_receipts(workspace)
 
 
 def test_threshold_flips_a_match_to_abstained(monkeypatch, tmp_path):
@@ -175,20 +162,16 @@ def test_directory_patterns_make_recall_abstain_with_accurate_reporting(
     assert index.search(result.cache, "cobalt")
     (workspace / "System/ignore").write_text(f"{pattern}\n", encoding="utf-8")
 
-    envelope = recall.recall(workspace, "cobalt directory phrase")
-
+    reports = []
+    envelope = recall.recall(workspace, "cobalt directory phrase", report_ignore=reports.append)
     assert envelope["status"] == "abstained"
     assert envelope["evidence"] == []
-    data, _body = records.parse_record(
-        _recall_receipts(workspace)[0].read_text(encoding="utf-8")
-    )
-    assert data["ignored_paths"] == expected_skipped
-    assert data["ignore_rule_provenance"] == (
-        "built-in defaults and System/ignore (1 user pattern(s))"
-    )
+    assert reports[0].skipped_paths == expected_skipped
+    assert reports[0].provenance == "built-in defaults and System/ignore (1 user pattern(s))"
+    assert not _recall_receipts(workspace)
 
 
-def test_receipt_redacts_credentials_but_envelope_keeps_exact_question(
+def test_query_is_not_persisted_and_envelope_keeps_exact_question(
     monkeypatch, tmp_path
 ):
     workspace = _prepared(monkeypatch, tmp_path)
@@ -197,13 +180,9 @@ def test_receipt_redacts_credentials_but_envelope_keeps_exact_question(
     envelope = recall.recall(workspace, question)
 
     assert envelope["question"] == question
-    receipt = _recall_receipts(workspace)[0]
-    content = receipt.read_text(encoding="utf-8")
-    assert "fictional-secret-token" not in content
-    data, _body = records.parse_record(content)
-    assert data["question"] == "Is password=[redacted-password] documented?"
-    assert data["credential_classes"] == ["password"]
-    assert data["credential_counts"] == {"password": 1}
+    assert not _recall_receipts(workspace)
+    assert not list((workspace / "System/receipts").glob("*-redaction*.md"))
+    assert all(question.encode() not in path.read_bytes() for path in workspace.rglob("*") if path.is_file())
 
 
 def test_missing_extractions_and_usage_errors(monkeypatch, tmp_path, capsys):

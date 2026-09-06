@@ -74,12 +74,18 @@ def render_machine_report(
             + (f" ({git['version']})." if git['version'] else "."),
             f"uv: {'available' if uv['present'] else 'not found'}"
             + (f" ({uv['version']})." if uv['version'] else "."),
-            f"Snapshots: {snapshots}.",
+            ("Snapshot tool capability: Git detected; a usable recovery store has not been verified."
+             if git["present"] else "Snapshot tool capability: unavailable because Git was not found."),
             "Detected AI apps: " + (", ".join(apps) if apps else "none found") + ".",
             f"Sync-redirection risk: {'found' if sync['at_risk'] else 'not found'}. {sync['reason']}",
             "",
         ]
     )
+    if not git["present"] or not uv["present"]:
+        lines.append("Make each missing tool available in the AI app's command environment, then rerun `apparatus doctor WORKSPACE`.")
+    lines.append("Run `apparatus check WORKSPACE` to inspect the work area and `apparatus restore WORKSPACE --list` to list known saved points. Tool detection alone does not prove a saved point exists.")
+    if sync["at_risk"]:
+        lines.append("Consider explicitly moving the work area outside the synced location while preserving its files. If a project link needs updating, use `apparatus project bind PROJECT --workspace WORKSPACE --replace`.")
     return "\n".join(lines)
 
 

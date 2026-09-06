@@ -13,12 +13,10 @@ from apparatus_core import recall as recall_engine
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
-    off_receipt_fields,
 )
 from apparatus_core.ignore import IgnoreReport
 from apparatus_core.library import index
-from apparatus_core.receipts import write_receipt
-from apparatus_core.retention import TaskRetentionError, context_for
+from apparatus_core.retention import TaskRetentionError
 
 
 def register(subparsers: Any) -> None:
@@ -76,14 +74,6 @@ def run(args: argparse.Namespace) -> int:
         print(f"recall: {_safe(str(error))}")
         return 2
     if not feature_is_enabled:
-        try:
-            if context_for(workspace, task_id=getattr(args, "task", None)).save_memory:
-                write_receipt(
-                    workspace, "recall", off_receipt_fields("library indexing")
-                )
-        except (OSError, ValueError):
-            print("recall: could not record that this feature is off")
-            return 2
         print("This feature is off; say the word and I'll enable it.")
         return 1
     try:

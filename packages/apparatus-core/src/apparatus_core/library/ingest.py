@@ -17,7 +17,6 @@ from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
 from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION, extract_bytes
 from apparatus_core.library.sources import Catalog, SourceUnavailable
-from apparatus_core.receipts import write_receipt
 from apparatus_core.render import is_reparse_path
 from apparatus_core.retention import operation
 
@@ -249,13 +248,6 @@ def _ingest_library(
     ignore_report = rules.report(
         built_in_paths=built_in_ignored, user_paths=user_ignored
     )
-    body = (
-        ignore_report.sentence()
-        + "\n\nFlagged Library files:\n"
-        + ("\n".join(f"- {_safe(path)}: {status}: {_safe(reason)}" for path, status, reason in flagged) if flagged else "- none")
-    )
-    summary = "Library ingest: " + ", ".join(f"{name}={counts[name]}" for name in _STATUSES) + "."
-    write_receipt(root, "library-ingest", {"summary": summary, "body": body})
     return IngestResult(cache, counts, tuple(flagged), ignore_report)
 
 

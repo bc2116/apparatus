@@ -6,6 +6,7 @@ import argparse
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -273,7 +274,7 @@ def _remove_receipts(owned: list[ReceiptPublication]) -> bool:
 def _write_required_receipts(
     anchor: Any,
     findings: tuple[RedactionFinding, ...],
-    fields: dict[str, str],
+    fields: dict[str, str] | None,
     write: ReceiptPublisher,
 ) -> list[ReceiptPublication]:
     owned: list[ReceiptPublication] = []
@@ -287,14 +288,8 @@ def _write_required_receipts(
                     memory._receipt_fields(findings),
                 )
             )
-        owned.append(
-            _publish_owned(
-                write,
-                anchor.workspace,
-                "profile-apply",
-                fields,
-            )
-        )
+        if fields is not None:
+            owned.append(_publish_owned(write, anchor.workspace, "profile-apply", fields))
         return owned
     except Exception as error:
         if not _remove_receipts(owned):
@@ -374,6 +369,16 @@ def _commit(
         )
 
 
+def _validate_preimages(anchor, preimages, changed=()):
+    if not anchor.root_is_current():
+        raise ProfileCommandError("Workspace changed during profile application; retry from the current files.")
+    for relative, proof in preimages.items():
+        if relative in changed:
+            continue
+        if (anchor.entry_exists(relative) if proof is None else not anchor.matches_owned(proof)):
+            raise ProfileCommandError("Profile or overlay changed after planning; preserve the current files and retry.")
+
+
 def _apply_changes(
     anchor: Any,
     original_profile: bytes,
@@ -384,6 +389,7 @@ def _apply_changes(
     receipts: list[ReceiptPublication],
     profile: dict[str, Any],
     *,
+    preimages: dict,
     task_context: TaskContext | None = None,
 ) -> None:
     context = task_context if task_context is not None else context_for(anchor.workspace)
@@ -394,6 +400,16 @@ def _apply_changes(
     created: list[Any] = []
     removed: list[tuple[Path, bytes]] = []
     commit_phase = False
+    changed = set()
+
+    def validate():
+        _validate_preimages(anchor, preimages, changed)
+        for transaction in replacements:
+            transaction.validate_commit()
+        if any(not anchor.matches_owned(proof) for proof in created):
+            raise ProfileCommandError("Profile publication changed before completion.")
+        if any(anchor.entry_exists(relative) for relative, _ in removed):
+            raise ProfileCommandError("Removed overlay reappeared before completion.")
 
     def tracked_seed_receipt(
         _workspace: str | Path,
@@ -404,7 +420,9 @@ def _apply_changes(
         raise ProfileCommandError("a profile seed bypassed credential sanitization")
 
     try:
+        _validate_preimages(anchor, preimages)
         if rendered_profile != original_profile:
+            preimages[Path("System/profile.yaml")].close()
             replacements.append(
                 anchor.replace_if_unchanged(
                     "System/profile.yaml",
@@ -413,18 +431,18 @@ def _apply_changes(
                     rendered_profile,
                 )
             )
+            changed.add(Path("System/profile.yaml"))
         for overlay_write in overlay_plan.writes:
             relative = Path(overlay_write.relative)
-            try:
-                current, identity = anchor.read_file(relative)
-            except FileNotFoundError:
+            proof = preimages[relative]
+            if proof is None:
                 created.append(anchor.create_file(relative, overlay_write.content))
-            else:
-                replacements.append(
-                    anchor.replace_if_unchanged(
-                        relative, identity, current, overlay_write.content
-                    )
-                )
+                changed.add(relative)
+            elif proof.content != overlay_write.content:
+                proof.close()  # CAS takes over the exact preimage before renaming it.
+                replacements.append(anchor.replace_if_unchanged(
+                    relative, proof.identity, proof.content, overlay_write.content))
+                changed.add(relative)
         for seed in seed_plan.people:
             metadata = {"name": seed.name}
             if seed.role is not None:
@@ -450,19 +468,22 @@ def _apply_changes(
         for seed in seed_plan.goals:
             relative = Path("Goals") / f"{_slug(seed.title)}.md"
             created.append(anchor.create_file(relative, _goal_content(seed)))
-        for transaction in replacements:
-            transaction.validate_commit()
+        validate()
         for publication in receipts:
             publication.validate()
         for value in overlay_plan.removals:
             relative = Path(value)
-            owned = anchor.capture_file(relative)
+            owned = preimages[relative]
             content = owned.content
-            anchor.unlink_owned(owned)
+            if not anchor.unlink_owned_if_present(owned):
+                raise ProfileCommandError("A required overlay removal disappeared before publication.")
             owned.close()
+            changed.add(relative)
             removed.append((relative, content))
+        validate()
         for publication in receipts:
             publication.commit()
+        validate()
         commit_phase = True
         _commit(replacements, created, receipts)
     except Exception as error:
@@ -500,8 +521,11 @@ def run(
             task_context.require_memory_write()
             payload = resolve_payload(getattr(args, "payload", None))
             manifest = load_manifest(resolve_profiles_manifest(payload), payload)
-            with memory._WorkspaceAnchor(workspace) as anchor:
-                original_profile, profile_identity = anchor.read_file("System/profile.yaml")
+            with memory._WorkspaceAnchor(workspace) as anchor, ExitStack() as proofs:
+                profile_proof = anchor.capture_file("System/profile.yaml", publication_compatible=True)
+                proofs.callback(profile_proof.close)
+                original_profile, profile_identity = profile_proof.content, profile_proof.identity
+                preimages = {Path("System/profile.yaml"): profile_proof}
                 if getattr(args, "candidate_stdin", False):
                     stream = sys.stdin if input_stream is None else input_stream
                     candidate = stream.read().encode("utf-8")
@@ -518,6 +542,17 @@ def run(
                     raise ProfileCommandError(
                         "profile work_types includes an unknown work type"
                     ) from error
+                # Retain every manifest-owned endpoint, including same-byte
+                # writes that the overlay planner omits and absent destinations.
+                for value in manifest.managed_paths:
+                    relative = Path(value)
+                    try:
+                        proof = anchor.capture_file(relative, publication_compatible=True)
+                    except FileNotFoundError:
+                        proof = None
+                    if proof is not None:
+                        proofs.callback(proof.close)
+                    preimages[relative] = proof
                 overlay_plan = plan_overlay(
                     payload,
                     workspace,
@@ -525,14 +560,20 @@ def run(
                     privacy_mode=profile["privacy_mode"],
                     work_types=profile["work_types"],
                 )
+                _validate_preimages(anchor, preimages)
+                if any(preimages[Path(value)] is None for value in overlay_plan.removals):
+                    raise ProfileCommandError("An overlay removal changed during planning; retry.")
                 seeds = _seed_plan(anchor, profile, task_context=task_context)
                 profile_updated = rendered_profile != original_profile
-                receipt_fields = _receipt_fields(
-                    profile_updated,
-                    _overlay_actions(overlay_plan),
-                    seeds.seeded,
-                    seeds.skipped,
-                )
+                overlay_actions = tuple(
+                    f"updated {entry.relative}" for entry in overlay_plan.writes
+                    if preimages[Path(entry.relative)] is None
+                    or preimages[Path(entry.relative)].content != entry.content
+                ) + tuple(f"removed {value}" for value in overlay_plan.removals)
+                changed = profile_updated or bool(overlay_actions) or bool(seeds.seeded)
+                receipt_fields = (_receipt_fields(profile_updated, overlay_actions, seeds.seeded, seeds.skipped)
+                                  if changed else None)
+                _validate_preimages(anchor, preimages)
                 receipts = _write_required_receipts(
                     anchor, findings, receipt_fields, write
                 )
@@ -545,6 +586,7 @@ def run(
                     seeds,
                     receipts,
                     profile,
+                    preimages=preimages,
                     task_context=task_context,
                 )
     except RetentionSuppressed:

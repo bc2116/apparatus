@@ -16,21 +16,8 @@ def register(subparsers: Any) -> None:
     """Register the check verb through the standard entry-point path."""
     parser = subparsers.add_parser("check", help="check a workspace")
     parser.add_argument("workspace", metavar="WORKSPACE")
-    parser.add_argument("--no-receipt", action="store_true", help="do not write a check receipt")
+    parser.add_argument("--no-receipt", action="store_true", help="compatibility option; checks do not write receipts")
     parser.set_defaults(func=run)
-
-
-def _receipt_fields(result: CheckResult) -> dict[str, str]:
-    codes = sorted({finding.code for finding in result.findings})
-    outcome = "passed" if result.ok else "found problems"
-    summary = f"Check {outcome}: {len(result.findings)} finding(s) across {result.records_checked} record(s); {result.ignored_paths} path(s) ignored."
-    body = (
-        "Finding codes: "
-        + (", ".join(codes) if codes else "none")
-        + ". "
-        + result.ignore_report.sentence()
-    )
-    return {"summary": summary, "body": body}
 
 
 def run(
@@ -39,7 +26,7 @@ def run(
     engine: Callable[[str | Path], CheckResult] = check_workspace,
     write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
 ) -> int:
-    """Run the check, print findings, and write its receipt unless disabled."""
+    """Print findings without publishing routine history."""
     workspace = Path(args.workspace)
     if not workspace.exists():
         print("check: workspace path does not exist")
@@ -73,10 +60,4 @@ def _run_selected(args, workspace, engine, write) -> int:
     else:
         print(f"check found {len(result.findings)} finding(s)")
     print(result.ignore_report.sentence())
-    if not getattr(args, "no_receipt", False):
-        try:
-            write(workspace, "check", _receipt_fields(result))
-        except (OSError, ValueError) as error:
-            print(f"check: could not write receipt: {error}")
-            return 2
     return 0 if result.ok else 1

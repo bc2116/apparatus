@@ -143,13 +143,6 @@ def _init_receipt_fields(changes: tuple[str, ...], sync: dict[str, Any]) -> dict
     }
 
 
-def _unavailable_snapshot_fields() -> dict[str, str]:
-    return {
-        "summary": "Snapshots are unavailable on this machine.",
-        "body": "Outcome: unavailable.",
-    }
-
-
 def _warning(sync: dict[str, Any]) -> None:
     print("Warning: this workspace is inside a sync-redirected location.")
     print(f"Warning: {sync.get('reason', 'A sync-redirection risk was found.')}")
@@ -368,18 +361,11 @@ def _run(
             print("Automatic managed snapshot skipped: this task does not save to Memory.")
         return 0
     if not snapshots_available:
-        snapshot_receipt_written = True
-        report_updated = True
-        if changes:
-            try:
-                write(workspace, "snapshot", _unavailable_snapshot_fields())
-            except Exception:
-                snapshot_receipt_written = False
         try:
             report_updated = bool(update_report(workspace))
         except Exception:
             report_updated = False
-        if not snapshot_receipt_written or not report_updated:
+        if not report_updated:
             print("init: work-area deployment completed, but the unavailable snapshot state could not be recorded")
             return 2
         print("Snapshots are unavailable on this machine. Managed recovery excludes project files and Library originals; run apparatus doctor for details.")

@@ -19,7 +19,9 @@ Output is JSON: `status` is `matched` or `no-match`, `results` contains
 Ignore rules and lifecycle state filter records before results are returned.
 Outdated and forgotten records do not appear as current information. Unsafe or
 malformed records produce an error rather than a claim of complete coverage.
-Reads add no routine receipt. `apparatus recall` remains the separate Library
+Reads add no routine receipt. Profile apply also leaves history unchanged when
+profile, selected overlays and seeded records have no actual change; it retains
+exact preimage validation and required credential-redaction evidence. `apparatus recall` remains the separate Library
 retrieval command; this change does not silently mix its results with Memory.
 
 ## Correct, mark outdated, or forget

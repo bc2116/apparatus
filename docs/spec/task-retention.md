@@ -63,7 +63,9 @@ enable general capture.
 Necessary receipts are shaped before exact-byte ownership binding: fixed event,
 summary/status, opaque task/recovery identifiers and numeric counts. Queries,
 paths, labels, snippets, bodies and free-form errors are omitted. Routine
-no-save retrieval produces no receipt.
+retrieval produces no routine receipt for either saving or no-save tasks.
+Queries and evidence paths are returned without a durable activity log; this does
+not relax redaction obligations on actual managed mutations.
 
 ## Recovery and migration
 

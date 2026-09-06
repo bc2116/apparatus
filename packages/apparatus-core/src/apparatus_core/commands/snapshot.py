@@ -13,7 +13,6 @@ from apparatus_core.workspace_layout import LayoutError, read_layout
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
-    off_receipt_fields,
 )
 from apparatus_core.snapshots import (
     SnapshotError,
@@ -31,13 +30,6 @@ def register(subparsers: Any) -> None:
     parser.add_argument("--label", metavar="TEXT", help="a short label for this snapshot")
     parser.add_argument("--requested", action="store_true", help="save a separately requested snapshot")
     parser.set_defaults(func=run)
-
-
-def _unavailable_fields() -> dict[str, str]:
-    return {
-        "summary": "Snapshots are unavailable on this machine.",
-        "body": "Outcome: unavailable.",
-    }
 
 
 def _workspace_or_usage_error(value: str) -> Path | None:
@@ -93,25 +85,15 @@ def _run(
         print(f"snapshot: {error}")
         return 2
     if not feature_is_enabled:
-        try:
-            write(workspace, "snapshot", off_receipt_fields("snapshots"))
-        except (OSError, ValueError):
-            print("snapshot: could not record that this feature is off")
-            return 2
         print("This feature is off; say the word and I'll enable it.")
         return 1
     if not available():
-        receipt_written = True
-        try:
-            write(workspace, "snapshot", _unavailable_fields())
-        except (OSError, ValueError):
-            receipt_written = False
         try:
             report_updated = update_report(workspace)
         except (OSError, ValueError):
             report_updated = False
-        if not receipt_written or not report_updated:
-            print("snapshot: could not record the unavailable snapshot state")
+        if not report_updated:
+            print("snapshot: could not update the machine report for unavailable snapshots")
             return 2
         print("Snapshots are unavailable on this machine. Run apparatus doctor for details.")
         return 1

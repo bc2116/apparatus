@@ -101,14 +101,14 @@ def test_features_mapping_is_closed_and_absence_keeps_defaults(tmp_path):
     )
 
 
-def test_library_toggle_writes_receipt_and_reenable_preserves_content(tmp_path, capsys):
+def test_library_toggle_is_quiet_and_reenable_preserves_content(tmp_path, capsys):
     workspace = _workspace(tmp_path, library_indexing=False)
     source = workspace / "Library/source.txt"
     source.write_text("feature selection sample", encoding="utf-8")
     args = argparse.Namespace(workspace=str(workspace))
     assert library.run(args) == 1
     assert "feature is off" in capsys.readouterr().out
-    assert _receipt_count(workspace, "library-ingest") >= 1
+    assert _receipt_count(workspace, "library-ingest") == 0
     profile = records.yaml.safe_load((workspace / "System/profile.yaml").read_text())
     profile["features"]["library_indexing"] = True
     (workspace / "System/profile.yaml").write_text(records.yaml.safe_dump(profile, sort_keys=False))
@@ -130,7 +130,7 @@ def test_library_toggle_writes_receipt_and_reenable_preserves_content(tmp_path, 
     ) == 0
 
 
-def test_disabled_library_search_records_the_control_outcome_exactly(tmp_path, capsys):
+def test_disabled_library_search_prints_the_control_outcome_without_history(tmp_path, capsys):
     workspace = _workspace(tmp_path, library_indexing=False)
     capsys.readouterr()
     assert library.run_search(
@@ -140,13 +140,8 @@ def test_disabled_library_search_records_the_control_outcome_exactly(tmp_path, c
     ) == 1
     assert capsys.readouterr().out == "This feature is off; say the word and I'll enable it.\n"
     receipts = list((workspace / "System/receipts").glob("*.md"))
-    assert len(receipts) == 3  # init, unavailable snapshot, disabled control outcome
-    receipt, body = _receipt(workspace, "library-ingest")
-    assert receipt["schema"] == "apparatus/receipt@v0"
-    assert receipt["event"] == "library-ingest"
-    assert receipt["summary"] == "Library indexing is off."
-    assert body == "Operation: Library search.\nOutcome: this feature is off; say the word and I'll enable it."
-    assert receipt and _receipt(workspace, "library-ingest")[0]["event"] == "library-ingest"
+    assert len(receipts) == 1  # actual init only
+    assert _receipt_count(workspace, "library-ingest") == 0
 
 
 def test_snapshots_toggle_reports_and_reenable_runs(tmp_path, capsys):
@@ -154,7 +149,7 @@ def test_snapshots_toggle_reports_and_reenable_runs(tmp_path, capsys):
     args = argparse.Namespace(workspace=str(workspace), label=None)
     assert snapshot.run(args) == 1
     assert "feature is off" in capsys.readouterr().out
-    assert _receipt_count(workspace, "snapshot") >= 1
+    assert _receipt_count(workspace, "snapshot") == 0
     profile = records.yaml.safe_load((workspace / "System/profile.yaml").read_text())
     profile["features"]["snapshots"] = True
     (workspace / "System/profile.yaml").write_text(records.yaml.safe_dump(profile, sort_keys=False))
@@ -167,7 +162,7 @@ def test_disabled_restore_and_list_do_not_touch_snapshot_history(tmp_path, capsy
     args = argparse.Namespace(workspace=str(workspace), snapshot_id=None, list=True)
     assert restore.run(args) == 1
     assert "feature is off" in capsys.readouterr().out
-    assert _receipt_count(workspace, "restore") == 1
+    assert _receipt_count(workspace, "restore") == 0
 
 
 def test_ignore_toggle_keeps_built_ins_and_reenable_restores_user_matching(tmp_path):
@@ -215,14 +210,14 @@ def test_profile_apply_keeps_feature_choices_idempotently(tmp_path):
     assert (workspace / "System/profile.yaml").read_bytes() == before
 
 
-def test_disabled_recall_writes_an_honest_receipt(tmp_path, capsys):
+def test_disabled_recall_is_quiet(tmp_path, capsys):
     workspace = _workspace(tmp_path, library_indexing=False)
     args = argparse.Namespace(
         workspace=str(workspace), question="anything", limit=5, as_json=False
     )
     assert recall.run(args) == 1
     assert "feature is off" in capsys.readouterr().out
-    assert _receipt_count(workspace, "recall") == 1
+    assert _receipt_count(workspace, "recall") == 0
 
 
 @pytest.mark.parametrize("profile_content", ["not: [valid", "[]\n", "features: false\n"])

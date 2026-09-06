@@ -1023,9 +1023,10 @@ def mark_snapshots_unavailable(workspace: str | Path) -> bool:
     else:
         frontmatter.append(replacement)
     body = lines[close + 1 :]
-    body_matching = [index for index, line in enumerate(body) if line.startswith("Snapshots:")]
+    body_matching = [index for index, line in enumerate(body) if line.startswith(("Snapshots:", "Snapshot tool capability:"))]
     if body_matching:
-        body[body_matching[0]] = "Snapshots: unavailable.\n"
+        prefix = "Snapshot tool capability" if body[body_matching[0]].startswith("Snapshot tool capability:") else "Snapshots"
+        body[body_matching[0]] = f"{prefix}: unavailable.\n"
     else:
         body.append("Snapshots: unavailable.\n")
     try:
