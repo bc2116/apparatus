@@ -87,6 +87,7 @@ sequence is linked above; R1 and R2 are implemented in PR-32/33/34; later slices
 | 32 | [Remove the sharing gate](PR-32-remove-sharing-gate.md) | Rework | ✅ landed | 31 |
 | 33 | [Memory lifecycle and current recall](PR-33-memory-lifecycle.md) | Rework | ✅ landed | 32 |
 | 34 | [Task Memory retention](PR-34-task-retention.md) | Rework | ✅ landed | 33 |
+| 37 | [Library writer-lock release race](PR-37-library-lock.md) | Repair | ✅ landed | 34 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

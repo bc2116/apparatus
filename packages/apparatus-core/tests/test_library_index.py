@@ -597,16 +597,161 @@ def test_writer_lock_serializes_stale_snapshots_and_cleans_up(monkeypatch, tmp_p
             entered.set(); assert release.wait(5)
         return value
     monkeypatch.setattr(index, "_extracted_sources", pause_first)
-    first = threading.Thread(target=index.refresh, args=(cache, workspace)); first.start(); assert entered.wait(5)
-    source.write_text("current needle", encoding="utf-8"); ingest_library(tmp_path / "workspace")
-    second = threading.Thread(target=index.refresh, args=(cache, workspace)); second.start()
-    release.set(); first.join(5); second.join(5)
-    assert not first.is_alive() and not second.is_alive()
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        first = workers.submit(index.refresh, cache, workspace)
+        try:
+            assert entered.wait(5)
+            source.write_text("current needle", encoding="utf-8"); ingest_library(tmp_path / "workspace")
+            second = workers.submit(index.refresh, cache, workspace)
+        finally:
+            release.set()
+        first.result(timeout=5)
+        second.result(timeout=5)
     assert "current" in index.search(cache, "current")[0].snippet
     assert not (cache / ".apparatus-index.lock").exists()
     outside = tmp_path / "outside-lock"; lock = cache / ".apparatus-index.lock"; lock.symlink_to(outside)
     with pytest.raises(index.IndexError): index.refresh(cache, workspace)
     assert not outside.exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX exclusive-create writer lock")
+@pytest.mark.parametrize("observation", ["absent", "unlinked"])
+def test_writer_lock_retries_release_before_inspection(monkeypatch, tmp_path, observation):
+    lock = tmp_path / ".apparatus-index.lock"
+    original_open = os.open
+    original_lstat = os.lstat
+    owner = original_open(lock, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+    opens = []
+    released = []
+
+    def release_on_collision(path, flags, mode=0o777, **kwargs):
+        if path == lock:
+            opens.append(flags)
+            if len(opens) == 1:
+                with pytest.raises(FileExistsError):
+                    original_open(path, flags, mode, **kwargs)
+                lock.unlink()
+                released.append(os.fstat(owner))
+                assert stat.S_ISREG(released[0].st_mode)
+                assert stat.S_IMODE(released[0].st_mode) == 0o600
+                assert released[0].st_nlink == 0
+                raise FileExistsError()
+        return original_open(path, flags, mode, **kwargs)
+
+    def inspect(path, **kwargs):
+        if path == lock and observation == "unlinked" and released:
+            return released.pop()
+        return original_lstat(path, **kwargs)
+
+    monkeypatch.setattr(index.os, "open", release_on_collision)
+    monkeypatch.setattr(index.os, "lstat", inspect)
+    try:
+        with index._writer_lock(tmp_path):
+            assert len(opens) == 2
+            assert all(flags & os.O_EXCL for flags in opens)
+            acquired = original_lstat(lock)
+            assert index._private_regular(acquired)
+            assert acquired.st_ino != os.fstat(owner).st_ino
+    finally:
+        os.close(owner)
+    assert not lock.exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX exclusive-create writer lock")
+@pytest.mark.parametrize("observation", ["absent", "unlinked"])
+def test_writer_lock_release_retries_keep_existing_bound(monkeypatch, tmp_path, observation):
+    lock = tmp_path / ".apparatus-index.lock"
+    descriptor = os.open(lock, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        lock.unlink()
+        released = os.fstat(descriptor)
+    finally:
+        os.close(descriptor)
+    assert stat.S_ISREG(released.st_mode)
+    assert stat.S_IMODE(released.st_mode) == 0o600
+    assert released.st_nlink == 0
+    original_lstat = os.lstat
+    attempts = []
+    sleeps = []
+
+    def collide(*_args, **_kwargs):
+        attempts.append(1)
+        raise FileExistsError()
+
+    def inspect(path, **kwargs):
+        if path == lock and observation == "unlinked":
+            return released
+        return original_lstat(path, **kwargs)
+
+    monkeypatch.setattr(index.os, "open", collide)
+    monkeypatch.setattr(index.os, "lstat", inspect)
+    monkeypatch.setattr(index.time, "sleep", sleeps.append)
+    with pytest.raises(index.IndexError, match="Library index is busy"):
+        with index._writer_lock(tmp_path):
+            pytest.fail("release metadata must never grant ownership")
+    assert len(attempts) == 500
+    assert sleeps == [0.01] * 500
+    assert not lock.exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX lock mode and link checks")
+@pytest.mark.parametrize("unsafe", ["hardlink", "mode", "directory", "symlink"])
+def test_writer_lock_rejects_unsafe_collision_without_retry(monkeypatch, tmp_path, unsafe):
+    lock = tmp_path / ".apparatus-index.lock"
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"preserve")
+    outside.chmod(0o600)
+    if unsafe == "hardlink":
+        os.link(outside, lock)
+        assert lock.stat().st_nlink == 2
+    elif unsafe == "mode":
+        lock.write_bytes(b"foreign lock")
+        lock.chmod(0o644)
+    elif unsafe == "directory":
+        lock.mkdir(mode=0o700)
+    else:
+        lock.symlink_to(outside)
+    before = lock.lstat()
+    monkeypatch.setattr(index.time, "sleep", lambda _seconds: pytest.fail("unsafe lock must not retry"))
+    with pytest.raises(index.IndexError, match="writer lock is not private"):
+        with index._writer_lock(tmp_path):
+            pytest.fail("unsafe lock must not grant ownership")
+    assert lock.lstat() == before
+    assert outside.read_bytes() == b"preserve"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX exclusive-create writer lock")
+@pytest.mark.parametrize("observation", ["nonprivate-unlinked", "unreadable"])
+def test_writer_lock_rejects_other_inspection_failures(monkeypatch, tmp_path, observation):
+    lock = tmp_path / ".apparatus-index.lock"
+    descriptor = os.open(lock, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.fchmod(descriptor, 0o644)
+        lock.unlink()
+        released = os.fstat(descriptor)
+    finally:
+        os.close(descriptor)
+    assert released.st_nlink == 0 and stat.S_IMODE(released.st_mode) == 0o644
+    original_lstat = os.lstat
+
+    def collide(*_args, **_kwargs):
+        raise FileExistsError()
+
+    def inspect(path, **kwargs):
+        if path == lock:
+            if observation == "unreadable":
+                raise PermissionError()
+            return released
+        return original_lstat(path, **kwargs)
+
+    monkeypatch.setattr(index.os, "open", collide)
+    monkeypatch.setattr(index.os, "lstat", inspect)
+    monkeypatch.setattr(index.time, "sleep", lambda _seconds: pytest.fail("unsafe metadata must not retry"))
+    diagnostic = "could not be inspected" if observation == "unreadable" else "is not private"
+    with pytest.raises(index.IndexError, match=diagnostic):
+        with index._writer_lock(tmp_path):
+            pytest.fail("unsafe metadata must not grant ownership")
+    assert not lock.exists()
 
 
 def test_windows_writer_lock_rejects_reparse_endpoint(monkeypatch, tmp_path):
