@@ -177,6 +177,11 @@ def read_skill_payload(anchor: WorkspaceAnchor) -> dict[str, bytes]:
             return anchor.read_file(relative)[0]
         except FileNotFoundError:
             return None
+        except OSError as error:
+            raise ValueError(
+                f"payload file {relative!r} could not be read safely; require a readable "
+                "regular file without symbolic links or reparse points"
+            ) from error
 
     directories = {path: anchor.directory_exists(Path(path).parent) for path in BUILTIN_PATHS}
     orientation = {path: optional(path) or b"" for path in ("AGENTS.md", "Welcome.md", "System/README.md")}

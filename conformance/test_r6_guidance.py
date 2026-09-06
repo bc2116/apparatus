@@ -9,7 +9,7 @@ FIXTURES = Path(__file__).parent / "fixtures/r6-prose"
 
 
 def text(name):
-    return " ".join((shipped_payload() / f".agents/skills/apparatus-{name}/SKILL.md").read_text().split())
+    return " ".join((shipped_payload() / f".agents/skills/apparatus-{name}/SKILL.md").read_text(encoding="utf-8").split())
 
 
 def test_economy_keeps_capability_review_and_repair_bounds_separate():
@@ -29,7 +29,7 @@ def test_economy_keeps_capability_review_and_repair_bounds_separate():
 
 
 def test_dated_guidance_keeps_starting_mapping_without_a_second_workflow():
-    guidance = (shipped_payload() / "System/guidance/model-guidance.md").read_text()
+    guidance = (shipped_payload() / "System/guidance/model-guidance.md").read_text(encoding="utf-8")
     assert "Last reviewed: 2026-09-06" in guidance and "90 days" in guidance
     assert "Concrete model roster: absent" in guidance
     assert "example-frontier-model" not in guidance and "repair passes" not in guidance
@@ -51,8 +51,8 @@ def test_humanizer_limits_changes_and_preserves_review_only_authority():
 
 
 def test_complete_long_pair_retains_protected_literals_and_procedure():
-    original = (FIXTURES / "long-input.md").read_text()
-    candidate = (FIXTURES / "long-candidate.md").read_text()
+    original = (FIXTURES / "long-input.md").read_text(encoding="utf-8")
+    candidate = (FIXTURES / "long-candidate.md").read_text(encoding="utf-8")
     assert len(original.split()) > 350 and len(candidate.split()) < len(original.split())
     assert original != candidate
     for pattern in (r'`[^`]+`', r'“[^”]+”', r'\[[^\]]+\]\([^)]+\)', r'\b\d+\b'):

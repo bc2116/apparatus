@@ -45,3 +45,22 @@ fixture records whether the native filesystem permits the competing write and
 asserts preservation or complete rollback accordingly; it does not assume a
 platform-specific outcome or skip safety checks. No native adapter certification,
 live model efficacy, measured savings or new quota enforcement is claimed.
+
+## Windows portability repair
+
+Windows run `34048742428` at `156302eb` completed with **786 passed, 79 skipped,
+1 deselected and 2 failed** in 3918.45 seconds. A prose fixture used the platform
+default encoding, and a rejected source reparse point lost its relative filename
+from the diagnostic. Both were reproducible failures, not a runner timeout.
+
+All four guidance/fixture text readers now specify UTF-8. The retained source
+reader keeps missing-file behavior and wraps other I/O failures with the known
+relative filename and readable-file/no-links guidance. It does not follow or
+retry an unsafe source. Existing sentinel-preservation assertions remain intact.
+Independent review accepted both repairs.
+
+The focused existing guidance, source-symlink and Skill tests passed **32 tests**
+in 4.33 seconds. The complete repaired local suite passed **992 tests, 38 skipped**
+in 300.62 seconds. The preceding ancestry-only rebase onto the merged portable
+Skills dependency preserved the exact prior file tree. Actual Windows rerun is
+still required before delivery.
