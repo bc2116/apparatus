@@ -1,5 +1,10 @@
 # PR-36 verification
 
+Final integration with the patched PDF dependency passed `uv run pytest`:
+**840 passed, 38 skipped** in 214.76 seconds. Independent review accepted the
+Windows binding-backup repair below. Actual Windows CI must pass this final
+integrated head before merge.
+
 Synthetic fixtures cover fresh work areas and explicit existing-folder adoption.
 No real user work area is enrolled by this development work.
 
