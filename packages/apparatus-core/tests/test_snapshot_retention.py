@@ -197,12 +197,19 @@ def test_incompatible_target_ancestor_rejects_before_any_mutation(tmp_path, mode
     ).stdout.strip()
     object_id = target if mode == "160000" else blob
     object_kind = "commit" if mode == "160000" else "blob"
+    # Binary NUL framing avoids Windows text-pipe CRLF translation, which
+    # would otherwise create a different Git path, "System\r".
+    tree_entry = f"{mode} {object_kind} {object_id}\tSystem\0".encode("ascii")
     tree = subprocess.run(
-        ["git", "-C", str(root), "mktree"],
-        input=f"{mode} {object_kind} {object_id}\tSystem\n", text=True,
-        capture_output=True, check=True,
-    ).stdout.strip()
+        ["git", "-C", str(root), "mktree", "-z"],
+        input=tree_entry, capture_output=True, check=True,
+    ).stdout.decode("ascii").strip()
     bad_target = _git(root, "commit-tree", tree, "-p", target, "-m", "Historical conflict")
+    witness = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "-z", bad_target],
+        capture_output=True, check=True,
+    ).stdout
+    assert witness == tree_entry, "the recovery proof must target the exact System ancestor"
     task = start_task(root, save_memory=True)
     before = _files(root)
     with pytest.raises(snapshots.SnapshotError):

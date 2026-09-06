@@ -5,7 +5,8 @@ across Memory, profile seeds, Library, receipts, snapshots and backup. Restore
 preserves live controls in place. The source contract and historical limits are
 in `docs/spec/task-retention.md`.
 
-- Initial integrated macOS suite: **668 passed, 38 skipped**.
+- Integrated macOS suite before and after rebasing onto merged PR-33:
+  **668 passed, 38 skipped**.
 - Targeted task/Memory/profile, Library, receipt, snapshot/backup and migration
   tests exercise missing/unsafe IDs, resumed and concurrent tasks, suppression
   before input, scope isolation, metadata binding, cache read-only behavior,
@@ -18,5 +19,10 @@ in `docs/spec/task-retention.md`.
   no recursive delegation or model calls in the product. Retention and recovery
   remain in the policy/migration class rather than tiered-down implementation.
 
-Final independent review and actual Windows CI must pass before merge. Platform
-skips are not certification. The pull request records remote CI and merge state.
+Independent authoring-tier review accepted the complete implementation and the
+Library repairs. Initial Windows CI passed 478 tests but rejected three recovery
+fixtures: text-pipe CRLF conversion created a different Git filename. The fixture
+now uses binary NUL framing and verifies the exact raw tree entry before testing
+the unchanged production guard. Independent review accepted this platform proof
+repair. Actual Windows CI must pass before merge; skips are not certification.
+The pull request records remote CI and merge state.
