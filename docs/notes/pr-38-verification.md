@@ -2,7 +2,8 @@
 
 Local preparation on macOS, Python 3.12.4, 2026-09-06:
 
-- Full `uv run pytest`: **918 passed, 38 skipped**.
+- Full `uv run pytest` after recovery/adoption and merged Library lock integration:
+  **930 passed, 38 skipped**.
 - Payload builder succeeded; canonical and embedded copies, wheel/sdist payload
   bytes and fresh installed-wheel initialization passed conformance.
 - Migration and init checks cover exact PR-36 instruction fixtures, LF/CRLF,
@@ -26,7 +27,7 @@ Local preparation on macOS, Python 3.12.4, 2026-09-06:
 - `git diff --check` passed. All ten canonical/embedded Skill files are explicitly
   tracked despite a machine-local Git exclusion; no global exclusion changed.
 
-This checkpoint precedes final integration of the merged recovery, Library lock
-and adoption dependencies. The final PR must record that integration's full suite
-and required actual Windows CI before merge. Portable conformance does not prove
+This checkpoint includes the current recovery and adoption branches plus the
+merged Library lock fix. Merge those dependencies and require actual Windows CI
+on the final PR before delivery. Portable conformance does not prove
 native app discovery or invocation; R4b and later app certification remain separate.
