@@ -104,6 +104,7 @@ later slices remain planned.
 | 42 | [Patched PDF dependency](PR-42-pdf-dependency.md) | Repair | ✅ landed | 35 |
 | 43 | [Library references to originals](PR-43-library-references.md) | Rework | ✅ landed | 41, 42 |
 | 44 | [Library cards and completion offers](PR-44-library-cards.md) | Rework | ✅ landed | 43 |
+| 45 | [Quiet operations and concrete repair guidance](PR-45-quiet-operations.md) | Rework | ready | 44 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
