@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import re
 import stat
@@ -15,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core import records
+from apparatus_core.memory import MemoryReadError, recall as recall_memory, record_path, read_record
 from apparatus_core.credentials import RedactionFinding, redact
 from apparatus_core.fs_transactions import (
     OwnedFile as _OwnedFile,
@@ -72,6 +74,20 @@ def register(subparsers: Any) -> None:
     )
     sweep.add_argument("workspace", metavar="WORKSPACE")
     sweep.set_defaults(func=run, memory_action="label")
+
+    for action in ("correct", "outdated", "forget"):
+        command = actions.add_parser(action, help=f"{action} one existing Memory record")
+        command.add_argument("workspace", metavar="WORKSPACE")
+        command.add_argument("record", metavar="RECORD")
+        if action == "correct":
+            command.add_argument("--from-file", required=True, metavar="PATH",
+                                 help="complete replacement record; omitted metadata is removed")
+        command.set_defaults(func=run, memory_action=action)
+    recall = actions.add_parser("recall", help="find current Memory records")
+    recall.add_argument("workspace", metavar="WORKSPACE")
+    recall.add_argument("query", metavar="QUERY")
+    recall.add_argument("--limit", type=int, default=5)
+    recall.set_defaults(func=run, memory_action="recall")
 
 
 def _body_arguments(parser: argparse.ArgumentParser) -> None:
@@ -446,7 +462,7 @@ def _plan_sweep_record(
             "Memory sweep found an unreadable or invalid record"
         ) from error
 
-    existing_problems = records.validate(kind, data, filename=relative.name)
+    existing_problems = records.validate(kind, data, filename=relative.name, body=body)
     if existing_problems:
         raise MemoryCommandError(
             "Memory sweep found a record that does not match its schema"
@@ -501,11 +517,26 @@ def _sweep(
         *(_plan_sweep_record(path, anchor, "person") for path in people),
         *(_plan_sweep_record(path, anchor, "fact") for path in facts),
     ]
+    return len(plans), _apply_changes(anchor, plans, write)
+
+
+def _apply_changes(
+    anchor: _WorkspaceAnchor, plans: list[_SweepChange], write: ReceiptWriter
+) -> int:
     changed = [plan for plan in plans if plan.replacement != plan.original]
+    unchanged = [plan for plan in plans if plan.replacement == plan.original]
+
+    def validate_unchanged() -> None:
+        for plan in unchanged:
+            content, identity = anchor.read_file(plan.relative)
+            if content != plan.original or identity != plan.identity:
+                raise MemoryCommandError("Memory record changed before completion")
+
     applied: list[tuple[_SweepChange, _ReplacementTransaction]] = []
     owned_receipts: list[ReceiptPublication] = []
     commit_phase = False
     try:
+        validate_unchanged()
         for plan in changed:
             transaction = anchor.replace_if_unchanged(
                 plan.relative,
@@ -529,6 +560,8 @@ def _sweep(
             transaction.validate_commit()
         for receipt in owned_receipts:
             receipt.validate()
+        # No-op plans need the same final preimage proof as replacements.
+        validate_unchanged()
         for receipt in owned_receipts:
             receipt.commit()
         commit_phase = True
@@ -566,6 +599,12 @@ def _sweep(
                 transaction.rollback()
             except (OSError, MemoryCommandError):
                 rollback_failed = True
+                # Preserve the concurrent target, but do not leave an owned
+                # prior-content backup behind after a failed correction/forget.
+                try:
+                    transaction.discard_backup()
+                except OSError:
+                    pass
             finally:
                 transaction.close()
         if rollback_failed:
@@ -577,7 +616,50 @@ def _sweep(
         transaction.close()
     for receipt in owned_receipts:
         receipt.close()
-    return len(plans), len(changed)
+    return len(changed)
+
+
+def _lifecycle(anchor: _WorkspaceAnchor, args: argparse.Namespace,
+               mode: str, write: ReceiptWriter) -> int:
+    relative, kind = record_path(args.record)
+    original, identity, data, body = read_record(anchor, relative, kind)
+    action = args.memory_action
+    findings: tuple[RedactionFinding, ...] = ()
+    if action == "forget":
+        replacement = render_record(
+            {"schema": records.SCHEMAS[kind].schema_id, "status": "forgotten"}, ""
+        ).encode("utf-8")
+    else:
+        if action == "outdated" and data.get("status") == "forgotten":
+            raise MemoryCommandError("forgotten Memory cannot be marked outdated")
+        if action == "correct":
+            source = Path(os.path.abspath(args.from_file))
+            # Retain the input's parent chain too: no symlink/reparse traversal.
+            with _WorkspaceAnchor(source.parent) as input_anchor:
+                raw, _input_identity = input_anchor.read_file(source.name)
+            try:
+                data, body = split_record_exact(raw.decode("utf-8", errors="strict"))
+            except (UnicodeError, ValueError, records.yaml.YAMLError) as error:
+                raise MemoryCommandError("replacement must be a valid UTF-8 Markdown record") from error
+            if records.validate(kind, data, filename=relative.name, body=body):
+                raise MemoryCommandError("replacement must match the existing Memory kind and schema")
+            data["status"] = "current"
+        else:
+            data["status"] = "outdated"
+        cleaned, found, strings = _redact_value(data)
+        clean_body, body_findings = redact(body)
+        findings = _merge_findings((*found, *body_findings))
+        labels = _labels_for((*strings, clean_body))
+        if action == "correct" and mode == "private" and (kind == "person" or labels):
+            print("Private mode did not save this correction because it contains personal data.")
+            return 1
+        cleaned = refresh_frontmatter_labels(cleaned, labels)
+        if records.validate(kind, cleaned, filename=relative.name, body=clean_body):
+            raise MemoryCommandError("Memory change would produce an invalid record")
+        replacement = render_record(cleaned, clean_body).encode("utf-8")
+    _apply_changes(anchor, [_SweepChange(relative, original, identity, replacement, findings)], write)
+    print("Memory record forgotten." if action == "forget" else "Memory record updated.")
+    return 0
 
 
 def _run_anchored(
@@ -587,6 +669,11 @@ def _run_anchored(
 ) -> int:
     mode = _privacy_mode(anchor)
     action = getattr(args, "memory_action", None)
+    if action == "recall":
+        print(json.dumps(recall_memory(anchor, args.query, limit=args.limit), ensure_ascii=False))
+        return 0
+    if action in {"correct", "outdated", "forget"}:
+        return _lifecycle(anchor, args, mode, write)
     if action == "label":
         examined, changed = _sweep(anchor, write)
         print(
@@ -645,7 +732,7 @@ def run(
         workspace = _workspace(args.workspace)
         with _WorkspaceAnchor(workspace) as anchor:
             return _run_anchored(anchor, args, write)
-    except MemoryCommandError as error:
+    except (MemoryCommandError, MemoryReadError) as error:
         print(f"memory: {error}")
         return 2
     except Exception:  # noqa: BLE001 - CLI boundary sanitizes environment-specific failures

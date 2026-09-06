@@ -22,8 +22,9 @@ establish public release, signing readiness, or current app certification.
 
 ## Execution rule
 
-PR-31 records this direction. R1 is implemented by PR-32. Remaining slices
-are **planned — prompt not cut**, not ready to execute. Next cut PR-33 for R2. Each
+PR-31 records this direction. R1 is implemented by PR-32 and R2a by PR-33.
+Later slices are **planned — prompt not cut**, not ready to execute.
+Next cut PR-34 for R2b. Each
 prompt must state exact owned paths, migration behavior, acceptance tests, and
 dependencies; then add its row to the main plan. Do not implement the entire
 sequence on one branch. Product decisions below need no repeated interview.
@@ -60,7 +61,13 @@ inspectable. This slice does not yet remove the private profile.
 
 ### R2 — Task Memory control and corrections
 
-**After R1.** Replace global private-mode semantics with an explicit task
+**R2a implemented in PR-33; R2b remains planned after R1/R2a.** Current-source
+inspection split this slice: Memory had no lifecycle or managed retrieval,
+while retention spans profile seeding, Memory, Library caches, recall receipts,
+and snapshots. PR-33 adds correction, outdated status, content-free forgetting
+markers, and current Memory recall. It leaves existing private profiles intact.
+
+R2b replaces global private-mode semantics with an explicit task
 retention contract. Define task identity/resumption and how a files-only
 assistant carries the instruction to managed writers, without storing task
 content in the control marker. Keep requested file deliverables possible.
@@ -241,9 +248,10 @@ distributed through updates. Existing native tools need no App module to work.
 
 ## Resume and validation
 
-The next concrete step is to cut the self-contained PR-33 prompt for R2 from
-current source, specifying task retention, resumption, correction/forgetting,
-and safe conversion of existing private profiles.
+The next concrete step is to cut the self-contained PR-34 prompt for R2b from
+current source, specifying task retention, resumption, indirect content capture,
+and safe conversion of existing private profiles. PR-33 supplies record lifecycle
+and current Memory retrieval; it does not claim task opt-out support.
 Do not resume the old PR-24 checklist. No product implementation is included
 in PR-31, and no further product-choice interview is required.
 

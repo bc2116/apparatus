@@ -172,7 +172,7 @@ def _record_findings(path: Path, workspace: Path, expected_kind: str) -> list[Fi
 
     return [
         Finding(_problem_code(problem), relative, "Correct this record to match its v0 schema.")
-        for problem in records.validate(expected_kind, data, filename=path.name)
+        for problem in records.validate(expected_kind, data, filename=path.name, body=_body)
     ]
 
 

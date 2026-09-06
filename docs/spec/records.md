@@ -66,7 +66,7 @@ One durable fact per file, with its source where known.
 
 - Required frontmatter: `schema`, `title`.
 - Optional frontmatter: `source` (a workspace-relative path or a plain-text
-  reference), `labels`.
+  reference), `labels`, `status` (see Memory lifecycle below).
 - Body: the fact itself, stated so it stays useful out of context.
 - Filename: kebab-case, e.g. `preferred-report-format.md`.
 
@@ -75,11 +75,28 @@ One durable fact per file, with its source where known.
 One page per person **or organization** the user works with.
 
 - Required frontmatter: `schema`, `name`.
-- Optional frontmatter: `role`, `organization`, `labels`.
+- Optional frontmatter: `role`, `organization`, `labels`, `status`.
 - Body: context, commitments, history.
 - Privacy: every record under `Memory/People/` is structurally labeled person
   data (ADR-0004) — no frontmatter label is needed for that to hold.
 - Filename: kebab-case, e.g. `alex-rivera.md`.
+
+## Memory lifecycle
+
+Facts and People accept `status: current | outdated | forgotten`. An omitted
+status means current, so existing records need no rewrite. Current and outdated
+records retain their normal required fields. A forgotten record is a closed
+exception: its frontmatter contains exactly `schema` and `status: forgotten`,
+with no Markdown body. It carries no title, name, labels, source, or custom data.
+The existing filename remains as a marker preventing automatic profile seeding
+at the same path. It may still reveal the original title or name.
+
+Managed Memory recall returns only current records. An outdated record can
+still be inspected directly, but assistants must not present it as current.
+Correction replaces the complete record at its existing path and makes it
+current, including when explicitly correcting a forgotten marker. Forgetting
+does not erase setup answers, other records, snapshots, exports, or AI app
+history. See [Memory operations](memory.md) for commands and boundaries.
 
 ## profile
 

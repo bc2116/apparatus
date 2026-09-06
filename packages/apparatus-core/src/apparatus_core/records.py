@@ -26,6 +26,7 @@ RECEIPT_EVENTS: tuple[str, ...] = (
     "profile-apply",
     "backup-export",
 )
+MEMORY_STATUSES: tuple[str, ...] = ("current", "outdated", "forgotten")
 GOAL_STATUSES: tuple[str, ...] = ("active", "waiting", "done", "dropped")
 PROFILE_STATUSES: tuple[str, ...] = ("unconfigured", "configured")
 PRIVACY_MODES: tuple[str, ...] = ("standard", "private")
@@ -90,12 +91,14 @@ SCHEMAS: dict[str, RecordSchema] = {
     "fact": RecordSchema(
         kind="fact",
         required=("schema", "title"),
-        optional=("source", "labels"),
+        optional=("source", "labels", "status"),
+        enums={"status": MEMORY_STATUSES},
     ),
     "person": RecordSchema(
         kind="person",
         required=("schema", "name"),
-        optional=("role", "organization", "labels"),
+        optional=("role", "organization", "labels", "status"),
+        enums={"status": MEMORY_STATUSES},
     ),
     "profile": RecordSchema(
         kind="profile",
@@ -162,7 +165,9 @@ def _is_string_list(value: object) -> bool:
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
-def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
+def validate(
+    kind: str, data: dict, filename: str | None = None, *, body: str | None = None
+) -> list[str]:
     """Validate parsed record data (and optionally its filename).
 
     Returns a list of plain-language problems; an empty list means valid.
@@ -172,7 +177,18 @@ def validate(kind: str, data: dict, filename: str | None = None) -> list[str]:
     if schema is None:
         return [f"unknown record kind: {kind!r} (the seven kinds are {sorted(SCHEMAS)})"]
 
-    for name in schema.required:
+    forgotten = kind in {"fact", "person"} and data.get("status") == "forgotten"
+    if forgotten:
+        if set(data) != {"schema", "status"}:
+            problems.append("forgotten Memory must contain only schema and status")
+        if body is not None and body:
+            problems.append("forgotten Memory must have no body")
+    elif kind in {"fact", "person"}:
+        field_name = "title" if kind == "fact" else "name"
+        if field_name in data and not isinstance(data[field_name], str):
+            problems.append(f"{field_name} must be a string")
+
+    for name in (("schema", "status") if forgotten else schema.required):
         value = data.get(name)
         if value is None or (isinstance(value, str) and not value.strip()):
             # profile's review_day is the one nullable required field, but the

@@ -10,6 +10,10 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
+- Add current Memory recall and explicit correction, outdated status, and
+  forgetting for People and Facts. Legacy records remain current; forgotten
+  markers prevent automatic re-seeding at the same path. Per-task retention
+  remains planned.
 - Remove the App-specific sharing gate and command. Repair original legacy
   instructions through `init`, preserving custom conflicts and historical
   receipts. Backup export and credential/filesystem protections are unchanged.
