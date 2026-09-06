@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core.receipts import write_receipt
+from apparatus_core.retention import operation, TaskRetentionError
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
@@ -23,6 +24,7 @@ from apparatus_core.snapshots import (
     mark_snapshots_unavailable,
     resolve_snapshot_id,
     restore_snapshot,
+    restore_control_guard,
     take_snapshot,
 )
 
@@ -81,7 +83,29 @@ def run(
     write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
     update_report: Callable[[str | Path], bool] = mark_snapshots_unavailable,
 ) -> int:
-    """List snapshots or restore one after first saving the current state."""
+    """Resolve one invocation context without enabling automatic capture."""
+    workspace = _workspace_or_usage_error(args.workspace)
+    if workspace is None:
+        return 2
+    try:
+        with operation(workspace, task_id=getattr(args, "task", None)) as context:
+            return _run(
+                args, available=available, list_saved=list_saved, resolve=resolve,
+                take=take, restore=restore, write=write, update_report=update_report,
+                save_memory=context.save_memory,
+            )
+    except TaskRetentionError as error:
+        print(f"restore: {error}")
+        return 2
+
+
+def _run(
+    args: argparse.Namespace, *, available: Callable[[], bool],
+    list_saved: Callable[..., list[Snapshot]], resolve: Callable[..., str],
+    take: Callable[..., Any], restore: Callable[..., None], write: Callable[..., object],
+    update_report: Callable[[str | Path], bool], save_memory: bool,
+) -> int:
+    """Restore ordinary files while keeping current task controls in place."""
     workspace = _workspace_or_usage_error(args.workspace)
     if workspace is None:
         return 2
@@ -131,9 +155,13 @@ def run(
         print("restore: snapshot id was not found; use --list to choose a snapshot")
         return 1
     try:
-        take(workspace, label=f"Before restore to {target.short_id}", force=True)
-        restore(workspace, target_id)
-        write(workspace, "restore", _restore_receipt_fields(target))
+        with restore_control_guard(workspace, target_id):
+            if save_memory:
+                take(workspace, label=f"Before restore to {target.short_id}", force=True)
+            else:
+                print("Automatic pre-restore snapshot skipped for this no-save task.")
+            restore(workspace, target_id)
+            write(workspace, "restore", _restore_receipt_fields(target))
     except SnapshotReceiptError:
         print("restore: could not write the snapshot receipt")
         return 2

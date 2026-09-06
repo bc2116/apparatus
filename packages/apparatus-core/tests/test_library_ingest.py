@@ -20,6 +20,7 @@ import apparatus_core.library.ingest as ingest_module
 from apparatus_core.cache import library_cache_root
 import apparatus_core.cache as cache_module
 from apparatus_core.render import render_workspace
+from apparatus_core.retention import operation
 from .fixture_docs import write_docx, write_pdf
 
 
@@ -463,11 +464,12 @@ def test_atomic_identity_and_descriptor_stale_cleanup_resist_substitution(monkey
             cache_parent.rename(result.cache / "extractions/retained")
             cache_parent.symlink_to(outside, target_is_directory=True)
         return original_stat(name, *args, **kwargs)
-    monkeypatch.setattr(ingest_module.os, "stat", swap_parent)
-    with pytest.raises(OSError):
-        ingest_library(workspace)
-    assert (outside / "gone.txt.json").read_text() == "sentinel"
-    assert (outside / "gone.txt.txt").read_text() == "sentinel"
+    with operation(workspace):
+        monkeypatch.setattr(ingest_module.os, "stat", swap_parent)
+        with pytest.raises(OSError):
+            ingest_library(workspace)
+        assert (outside / "gone.txt.json").read_text() == "sentinel"
+        assert (outside / "gone.txt.txt").read_text() == "sentinel"
 
 
 def test_windows_publication_mode_and_anchor_close_are_platform_safe(monkeypatch, tmp_path):

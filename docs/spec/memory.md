@@ -1,8 +1,9 @@
 # Memory operations
 
-PR-33 implements People/Fact correction, outdated status, forgetting, and
-managed Memory recall. Task-specific retention is a separate pending change;
-the existing standard/private profile rules still apply.
+People/Fact correction, outdated status, forgetting, and managed Memory recall
+follow the [task retention contract](task-retention.md). Once task controls are
+enabled, pass global `--task ID` for new Memory or profile answers. No-save tasks
+allow reads, forgetting, outdated status and labeling but suppress new content.
 
 ## Find current information
 
@@ -29,8 +30,9 @@ Use a workspace-relative record path below `Memory/Facts/` or `Memory/People/`:
   existing record with a complete same-kind Markdown record and marks it
   current. Include every field to retain; omitted metadata is removed. Keep
   still-valid source attribution. Credential matches are redacted and labels
-  refreshed using the existing write rules. Private-profile write restrictions
-  remain. Explicit correction can reactivate a forgotten record.
+  refreshed using the existing write rules. Explicit correction can reactivate
+  a forgotten record in a saving task. Legacy calls before task enrollment still
+  use the private-profile restriction when selected.
 - `apparatus memory outdated WORKSPACE RECORD` marks existing information
   outdated while preserving it for deliberate inspection. It cannot reactivate
   a forgotten record.

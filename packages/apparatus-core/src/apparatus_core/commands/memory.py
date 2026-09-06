@@ -31,6 +31,13 @@ from apparatus_core.labeler import (
     render_record,
     split_record_exact,
 )
+from apparatus_core.retention import (
+    RetentionSuppressed,
+    TaskContext,
+    TaskRetentionError,
+    context_for,
+    operation,
+)
 from apparatus_core.receipts import (
     ReceiptPublication,
     prepare_receipt_invocation,
@@ -286,11 +293,18 @@ def _new_record(
     write: ReceiptWriter,
     suffix_on_collision: bool = True,
     retain_ownership: bool = False,
+    task_context: TaskContext | None = None,
 ) -> (
     tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]]
     | tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...], _OwnedFile]
     | None
 ):
+    context = task_context if task_context is not None else context_for(anchor.workspace)
+    if context.workspace != anchor.workspace:
+        raise TaskRetentionError("Task context cannot be used in another workspace.")
+    context.require_memory_write()
+    if not context.legacy:
+        mode = "standard"
     cleaned, findings = _redact_strings({**metadata, "body": body})
     cleaned_body = cleaned.pop("body")
     labels = _labels_for((*cleaned.values(), cleaned_body))
@@ -621,6 +635,11 @@ def _apply_changes(
 
 def _lifecycle(anchor: _WorkspaceAnchor, args: argparse.Namespace,
                mode: str, write: ReceiptWriter) -> int:
+    context = context_for(anchor.workspace)
+    if args.memory_action == "correct":
+        context.require_memory_write()
+    if not context.legacy:
+        mode = "standard"
     relative, kind = record_path(args.record)
     original, identity, data, body = read_record(anchor, relative, kind)
     action = args.memory_action
@@ -667,8 +686,11 @@ def _run_anchored(
     args: argparse.Namespace,
     write: ReceiptWriter,
 ) -> int:
-    mode = _privacy_mode(anchor)
+    context = context_for(anchor.workspace)
     action = getattr(args, "memory_action", None)
+    if action in {"add-fact", "add-person", "correct"}:
+        context.require_memory_write()
+    mode = _privacy_mode(anchor) if context.legacy else "standard"
     if action == "recall":
         print(json.dumps(recall_memory(anchor, args.query, limit=args.limit), ensure_ascii=False))
         return 0
@@ -726,13 +748,18 @@ def run(
     args: argparse.Namespace,
     *,
     write: ReceiptWriter = write_receipt,
+    task_id: str | None = None,
 ) -> int:
     """Run one Memory subcommand with privacy-safe, calm output."""
     try:
         workspace = _workspace(args.workspace)
-        with _WorkspaceAnchor(workspace) as anchor:
-            return _run_anchored(anchor, args, write)
-    except (MemoryCommandError, MemoryReadError) as error:
+        with operation(workspace, task_id=task_id if task_id is not None else getattr(args, "task", None)):
+            with _WorkspaceAnchor(workspace) as anchor:
+                return _run_anchored(anchor, args, write)
+    except RetentionSuppressed:
+        print("Memory write skipped: this task does not save to Memory.")
+        return 1
+    except (MemoryCommandError, MemoryReadError, TaskRetentionError) as error:
         print(f"memory: {error}")
         return 2
     except Exception:  # noqa: BLE001 - CLI boundary sanitizes environment-specific failures

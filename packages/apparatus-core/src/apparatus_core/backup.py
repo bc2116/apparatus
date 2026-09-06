@@ -14,6 +14,7 @@ import zipfile
 from typing import Any, BinaryIO
 
 from apparatus_core.fs_transactions import WorkspaceAnchor
+from apparatus_core.retention import operation
 from apparatus_core.receipts import (
     ReceiptInvocation,
     ReceiptPublication,
@@ -1649,6 +1650,7 @@ def export_backup(
     take: Callable[..., SnapshotTransaction] = prepare_snapshot,
     write: Callable[..., object] = write_receipt,
     clock: Callable[[], datetime] | None = None,
+    task_id: str | None = None,
 ) -> BackupResult:
     """Export one anchored workspace archive without reading destination content."""
     root = _absolute(workspace)
@@ -1660,7 +1662,9 @@ def export_backup(
             destination_path
         ) as target, WorkspaceAnchor(root) as workspace_anchor, WorkspaceAnchor(
             destination_path
-        ) as destination_anchor:
+        ) as destination_anchor, operation(
+            root, task_id=task_id, require_task=True, requested=("snapshot",),
+        ):
             target.require_outside(
                 source,
                 workspace_anchor=workspace_anchor,

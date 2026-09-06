@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
@@ -15,6 +16,7 @@ from typing import Any
 
 from apparatus_core.detect import detect_tool
 from apparatus_core.fs_transactions import WorkspaceAnchor
+from apparatus_core.retention import operation
 from apparatus_core.receipts import (
     ReceiptInvocation,
     ReceiptPublication,
@@ -25,6 +27,8 @@ from apparatus_core.receipts import (
 
 GENERIC_EMAIL = "snapshots@apparatus.invalid"
 _SNAPSHOT_ID = re.compile(r"^[0-9a-fA-F]{4,64}$")
+_TASK_EXCLUDE = ":(top,exclude,icase,literal)System/tasks"
+_TASK_INCLUDE = ":(top,icase,literal)System/tasks"
 _RECEIPT_OWNERSHIP_NAME = re.compile(
     r"^\.apparatus-receipt-[0-9a-f]+\.tmp$"
 )
@@ -373,7 +377,7 @@ def ensure_snapshot_store(workspace: str | Path, *, run: Callable[..., Any] = su
 
 
 def _has_changes(workspace: Path, *, run: Callable[..., Any]) -> bool:
-    return bool(_require_success(_run_git(workspace, ["status", "--porcelain"], run=run)).strip())
+    return bool(_require_success(_run_git(workspace, ["status", "--porcelain", "--", ".", _TASK_EXCLUDE], run=run)).strip())
 
 
 def _snapshot_from_head(workspace: Path, *, run: Callable[..., Any]) -> Snapshot:
@@ -405,6 +409,20 @@ def take_snapshot(
     run: Callable[..., Any] = subprocess.run,
     write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
     clock: Callable[[], datetime] | None = None,
+    task_id: str | None = None,
+    requested: bool = False,
+) -> SnapshotResult:
+    """Save content only when this invocation permits a snapshot."""
+    with operation(workspace, task_id=task_id, requested=("snapshot",) if requested else ()) as context:
+        context.require_snapshot()
+        safe_label = label if context.save_memory else "Requested workspace snapshot"
+        return _take_snapshot(workspace, label=safe_label, force=force, run=run, write=write, clock=clock)
+
+
+def _take_snapshot(
+    workspace: str | Path, *, label: str | None, force: bool,
+    run: Callable[..., Any], write: Callable[..., object],
+    clock: Callable[[], datetime] | None,
 ) -> SnapshotResult:
     """Save workspace content, writing its receipt before the saved state exists."""
     root = ensure_snapshot_store(workspace, run=run)
@@ -415,7 +433,8 @@ def take_snapshot(
         write(root, "snapshot", _snapshot_receipt_fields(resolved_label))
     except (OSError, ValueError) as error:
         raise SnapshotReceiptError("Snapshot receipt could not be written.") from error
-    _require_success(_run_git(root, ["add", "--all", "--force"], run=run))
+    _require_success(_run_git(root, ["rm", "-r", "--cached", "--force", "--ignore-unmatch", "--", _TASK_INCLUDE], run=run))
+    _require_success(_run_git(root, ["add", "--all", "--force", "--", ".", _TASK_EXCLUDE], run=run))
     _require_success(_run_git(root, ["-c", "commit.gpgsign=false", "commit", "-m", resolved_label], run=run))
     return SnapshotResult(snapshot=_snapshot_from_head(root, run=run))
 
@@ -437,6 +456,10 @@ def _run_git_with_environment(
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise SnapshotError("Snapshots could not be completed on this machine.") from error
+
+
+def _task_control_path(relative: Path) -> bool:
+    return tuple(part.casefold() for part in relative.parts[:2]) == ("system", "tasks")
 
 
 def _captured_tree(
@@ -467,6 +490,9 @@ def _captured_tree(
             _run_git_with_environment(workspace, ["read-tree", "--empty"], environment, run=run)
         )
         for path in sorted(content.rglob("*")):
+            relative_path = path.relative_to(content)
+            if _task_control_path(relative_path):
+                continue
             value = path.lstat()
             if path.is_symlink() or not (path.is_dir() or path.is_file()):
                 raise SnapshotError(
@@ -671,6 +697,20 @@ def prepare_snapshot(
     run: Callable[..., Any] = subprocess.run,
     write: ReceiptWriter = write_receipt,
     anchor: Any | None = None,
+    task_id: str | None = None,
+    requested: bool = False,
+) -> SnapshotTransaction:
+    """Prepare a snapshot only within the current operation's permission."""
+    with operation(workspace, task_id=task_id, requested=("snapshot",) if requested else ()) as context:
+        context.require_snapshot()
+        safe_label = label if context.save_memory else "Requested workspace snapshot"
+        return _prepare_snapshot(workspace, label=safe_label, capture=capture, run=run, write=write, anchor=anchor)
+
+
+def _prepare_snapshot(
+    workspace: str | Path, *, label: str,
+    capture: Callable[[Path, tuple[SnapshotTransientPath, ...]], None],
+    run: Callable[..., Any], write: ReceiptWriter, anchor: Any | None,
 ) -> SnapshotTransaction:
     """Prepare a rollback-capable snapshot from an independently captured tree.
 
@@ -838,16 +878,73 @@ def resolve_snapshot_id(
     return resolved.lower()
 
 
+def _preflight_restore_tree(root: Path, identifier: str, *, run: Callable[..., Any]) -> None:
+    if not _SNAPSHOT_ID.fullmatch(identifier):
+        raise UnknownSnapshotError("That snapshot id is not available.")
+    listing = _require_success(_run_git(root, ["ls-tree", "-z", identifier], run=run))
+    for entry in listing.split("\0"):
+        if not entry:
+            continue
+        metadata, separator, name = entry.partition("\t")
+        if not separator:
+            raise SnapshotError("The restore target could not be inspected safely.")
+        if name.casefold() == "system" and metadata.split()[:2] != ["040000", "tree"]:
+            raise SnapshotError("This snapshot conflicts with live task controls at System.")
+
+
+@contextmanager
+def restore_control_guard(
+    workspace: str | Path, identifier: str, *, run: Callable[..., Any] = subprocess.run,
+):
+    """Keep live control directories in place while ordinary files are restored."""
+    root = Path(workspace).resolve()
+    with ExitStack() as stack:
+        anchors = [stack.enter_context(WorkspaceAnchor(root))]
+        root_anchor = anchors[0]
+        if root_anchor.directory_exists("System"):
+            anchors.append(stack.enter_context(WorkspaceAnchor(root / "System")))
+            if anchors[-1].directory_exists("tasks"):
+                anchors.append(stack.enter_context(WorkspaceAnchor(root / "System/tasks")))
+
+        def checked_run(*args: Any, **kwargs: Any) -> Any:
+            if not all(anchor.root_is_current() for anchor in anchors):
+                raise SnapshotError("Live task-control directories changed during restore.")
+            if os.name == "posix":
+                if args and isinstance(args[0], (list, tuple)):
+                    argv = list(args[0])
+                    if len(argv) >= 3 and argv[0] == "git" and argv[1] == "-C":
+                        argv[2] = "."
+                        args = (argv, *args[1:])
+                kwargs["cwd"] = "."
+                kwargs["preexec_fn"] = lambda: os.fchdir(root_anchor._root)
+            result = run(*args, **kwargs)
+            if not all(anchor.root_is_current() for anchor in anchors):
+                raise SnapshotError("Live task-control directories changed during restore.")
+            return result
+
+        _preflight_restore_tree(root, identifier, run=checked_run)
+        yield checked_run
+        if not all(anchor.root_is_current() for anchor in anchors):
+            raise SnapshotError("Live task-control directories changed during restore.")
+
+
 def restore_snapshot(
     workspace: str | Path,
     identifier: str,
     *,
     run: Callable[..., Any] = subprocess.run,
+    task_id: str | None = None,
 ) -> None:
-    """Make workspace content exactly match a previously resolved snapshot."""
-    root = Path(workspace).resolve()
-    _require_success(_run_git(root, ["read-tree", "--reset", "-u", identifier], run=run))
-    _require_success(_run_git(root, ["clean", "-ffdx"], run=run))
+    """Restore ordinary files while preserving live task controls in place."""
+    with operation(workspace, task_id=task_id):
+        root = Path(workspace).resolve()
+        with restore_control_guard(root, identifier, run=run) as checked_run:
+            _require_success(_run_git(root, [
+                "restore", f"--source={identifier}", "--staged", "--worktree", "--", ".", _TASK_EXCLUDE,
+            ], run=checked_run))
+            _require_success(_run_git(root, [
+                "clean", "-ffdx", "-e", "/System/tasks/", "--", ".", _TASK_EXCLUDE,
+            ], run=checked_run))
 
 
 def mark_snapshots_unavailable(workspace: str | Path) -> bool:

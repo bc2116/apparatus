@@ -24,7 +24,9 @@ and central Deliverables folder remain until their migration slices.
 People and Facts now support [correction, outdated status, and forgetting](docs/spec/memory.md).
 `apparatus memory recall WORKSPACE QUERY` returns current Memory with sources.
 Forgetting clears record content, with a filename marker to prevent automatic
-re-seeding; it does not erase historical copies. Per-task retention is still planned.
+re-seeding; it does not erase historical copies. [Task Memory controls](docs/spec/task-retention.md)
+let a request opt out of new Memory and automatic capture while requested work
+files remain available. Live task choices survive snapshot restore.
 
 The [approved rework](docs/design/design-brief.md) replaces that ceremony and
 adds native Skills, economical subagent guidance, lightweight prose editing,

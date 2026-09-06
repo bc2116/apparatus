@@ -8,18 +8,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypedDict
 
-from apparatus_core.cache import library_cache_root
 from apparatus_core.credentials import RedactionFinding, redact
-from apparatus_core.ignore import IgnoreReport, load_ignore_rules
+from apparatus_core.ignore import IgnoreReport
 from apparatus_core.library import index
 from apparatus_core.receipts import write_receipt
+from apparatus_core.retention import context_for, operation
 
 
 RECALL_ABSTAIN_THRESHOLD = 0.0
 
 
-class NoExtractionsError(RuntimeError):
-    """The workspace has no Library extraction records yet."""
+NoExtractionsError = index.NoExtractionsError
 
 
 class Evidence(TypedDict):
@@ -101,20 +100,26 @@ def recall(
     *,
     write: Callable[[str | Path, str, dict[str, Any]], object] = write_receipt,
     report_ignore: Callable[[IgnoreReport], None] | None = None,
+    task_id: str | None = None,
 ) -> RecallEnvelope:
-    """Retrieve Library evidence, abstain honestly, and write one receipt."""
+    """Retrieve evidence under one frozen task context."""
+    with operation(workspace, task_id=task_id):
+        return _recall(workspace, question, limit, write=write, report_ignore=report_ignore)
+
+
+def _recall(
+    workspace: str | Path, question: str, limit: int, *,
+    write: Callable[[str | Path, str, dict[str, Any]], object],
+    report_ignore: Callable[[IgnoreReport], None] | None,
+) -> RecallEnvelope:
+    """Retrieve evidence, persisting no routine receipt for no-save tasks."""
     workspace_path = Path(workspace)
     if not workspace_path.exists() or not workspace_path.is_dir():
         raise ValueError("workspace path is not a directory")
     if limit < 1:
         raise ValueError("limit must be positive")
 
-    rules = load_ignore_rules(workspace_path).require_valid()
-    cache = library_cache_root(workspace_path)
-    if not index.has_extractions(cache, rules):
-        raise NoExtractionsError
-    ignore_report = index.refresh(cache, workspace_path)
-    hits = index.search(cache, question, limit)
+    hits, ignore_report = index.retrieve(workspace_path, question, limit)
     qualifying = [hit for hit in hits if hit.score >= RECALL_ABSTAIN_THRESHOLD]
     evidence: list[Evidence] = [
         {"source": hit.source_path, "snippet": hit.snippet, "score": hit.score}
@@ -127,7 +132,8 @@ def recall(
         "evidence": evidence,
         "generated_at": _timestamp(_utcnow()),
     }
-    write(workspace_path, "recall", _receipt_fields(envelope, ignore_report))
+    if context_for(workspace_path).save_memory:
+        write(workspace_path, "recall", _receipt_fields(envelope, ignore_report))
     if report_ignore is not None:
         report_ignore(ignore_report)
     return envelope

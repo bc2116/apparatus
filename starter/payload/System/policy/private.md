@@ -4,6 +4,11 @@ Active when `System/profile.yaml` has `privacy_mode: private`.
 
 ## Memory-write rules
 
+This profile is legacy compatibility. New tasks default to no-save; follow the
+task decision in `AGENTS.md` for all managed and direct writes. An explicitly
+saving task uses the standard labeling/credential rules instead of the legacy
+block below. The block applies only to legacy operations before task enrollment.
+
 Block personally identifying content from durable writes under `Memory/`.
 Before saving a Memory record that would need a `labels` entry for names,
 contact details, or identifiers, ask the user whether to omit the sensitive
@@ -24,6 +29,10 @@ a `redaction` receipt for every such redaction, following the receipt rules
 below.
 
 ## Receipt rules
+
+For no-save tasks, use managed commands to write fixed operational metadata
+only. Never retain task summaries, bodies, labels, paths, queries or error text.
+Routine retrieval needs no receipt. The rules below apply to saving tasks.
 
 Before writing a `redaction` receipt, create `System/receipts/` if it is absent.
 Write a Markdown record with YAML frontmatter delimited by `---` lines. Include

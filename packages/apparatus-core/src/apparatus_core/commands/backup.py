@@ -8,6 +8,7 @@ from typing import Any
 
 from apparatus_core.backup import BackupError, BackupResult, BackupUsageError, export_backup
 from apparatus_core.snapshots import git_available
+from apparatus_core.retention import TaskRetentionError
 
 
 def register(subparsers: Any) -> None:
@@ -28,7 +29,13 @@ def run(
 ) -> int:
     """Write one archive, with a fresh snapshot when that capability is available."""
     try:
-        result = export(args.workspace, args.destination, available=available)
+        options = {"available": available}
+        if getattr(args, "task", None) is not None:
+            options["task_id"] = args.task
+        result = export(args.workspace, args.destination, **options)
+    except TaskRetentionError as error:
+        print(f"backup export: {error}")
+        return 2
     except BackupUsageError as error:
         print(f"backup export: {error}")
         return 2

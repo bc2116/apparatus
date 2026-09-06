@@ -12,7 +12,7 @@ command families, five procedure files, local Memory and Library retrieval,
 snapshots, backup, profile overlays, and packaging machinery. Library ingest
 accepts sources in the workspace Library; it does not yet provide a catalog of
 project references or generated cards. Procedures do not yet use the native
-Skill format. Private behavior is profile-wide, not task-scoped.
+Skill format. PR-34 adds task-scoped retention; the profile field remains compatibility input.
 
 The original specification also required a sharing gate, seven-question
 interview, separate finished-output folder, and routine receipts. PR-32 removes
@@ -22,9 +22,9 @@ establish public release, signing readiness, or current app certification.
 
 ## Execution rule
 
-PR-31 records this direction. R1 is implemented by PR-32 and R2a by PR-33.
+PR-31 records this direction. R1 is implemented by PR-32 and R2 by PR-33/34.
 Later slices are **planned — prompt not cut**, not ready to execute.
-Next cut PR-34 for R2b. Each
+Next cut the R3 layout/adoption prompt. Each
 prompt must state exact owned paths, migration behavior, acceptance tests, and
 dependencies; then add its row to the main plan. Do not implement the entire
 sequence on one branch. Product decisions below need no repeated interview.
@@ -61,16 +61,16 @@ inspectable. This slice does not yet remove the private profile.
 
 ### R2 — Task Memory control and corrections
 
-**R2a implemented in PR-33; R2b remains planned after R1/R2a.** Current-source
+**R2a implemented in PR-33; R2b implemented in PR-34.** Current-source
 inspection split this slice: Memory had no lifecycle or managed retrieval,
 while retention spans profile seeding, Memory, Library caches, recall receipts,
 and snapshots. PR-33 adds correction, outdated status, content-free forgetting
 markers, and current Memory recall. It leaves existing private profiles intact.
 
 R2b replaces global private-mode semantics with an explicit task
-retention contract. Define task identity/resumption and how a files-only
-assistant carries the instruction to managed writers, without storing task
-content in the control marker. Keep requested file deliverables possible.
+retention contract. Opaque controls carry identity and resumption to managed
+writers without retaining task content. Requested file deliverables remain
+possible; snapshots preserve current task decisions during restore.
 Make People/Facts correction, forgetting, and outdated status observable in
 recall. Decision history remains part of Memory conceptually; physical record
 placement is addressed by R3.
@@ -248,10 +248,9 @@ distributed through updates. Existing native tools need no App module to work.
 
 ## Resume and validation
 
-The next concrete step is to cut the self-contained PR-34 prompt for R2b from
-current source, specifying task retention, resumption, indirect content capture,
-and safe conversion of existing private profiles. PR-33 supplies record lifecycle
-and current Memory retrieval; it does not claim task opt-out support.
+The next concrete step is to cut the self-contained R3 layout/adoption prompt
+from merged source. PR-33 supplies record lifecycle and current Memory retrieval;
+PR-34 supplies task identity, opt-out, derived capture rules and recovery limits.
 Do not resume the old PR-24 checklist. No product implementation is included
 in PR-31, and no further product-choice interview is required.
 

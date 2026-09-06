@@ -10,10 +10,14 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
+- Add resumable task Memory decisions. No-save tasks suppress new Memory, setup
+  answers and automatic capture; requested work files, Library additions and
+  backups remain possible. Necessary receipts omit task content, Library recall
+  can read without persistence, and snapshot restore preserves live task flags.
+
 - Add current Memory recall and explicit correction, outdated status, and
   forgetting for People and Facts. Legacy records remain current; forgotten
-  markers prevent automatic re-seeding at the same path. Per-task retention
-  remains planned.
+  markers prevent automatic re-seeding at the same path.
 - Remove the App-specific sharing gate and command. Repair original legacy
   instructions through `init`, preserving custom conflicts and historical
   receipts. Backup export and credential/filesystem protections are unchanged.

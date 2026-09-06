@@ -1,0 +1,74 @@
+# Task Memory decisions
+
+A task is one coherent assistant request. `apparatus task start WORKSPACE`
+returns JSON with an opaque UUID `task_id` and `memory: save` or `no-save`.
+The assistant keeps that ID in its conversation and passes global `--task ID`
+before subsequent managed commands. `task show WORKSPACE ID` reads the decision
+on resumption. Lost context starts a no-save continuation; no shared active-task
+file or title/query/transcript storage is introduced.
+
+The user can say "don't remember this task." Start it with `--no-memory`, or
+use `task no-memory WORKSPACE ID` to change an existing decision one way. Opt-out
+affects subsequent invocations; an in-flight invocation freezes its entry
+decision. It does not erase completed saves. A new explicitly saving task is
+needed to opt back in. Direct assistant writes follow the same instructions;
+core cannot intercept an AI app's native file writes or conversation history.
+
+## Control and compatibility
+
+`System/tasks/UUID.yaml` is closed operational YAML with exactly `schema:
+apparatus/task@v0`, `id: UUID`, and `memory: save | no-save`. It contains no task
+content. UUIDs are canonical random version 4 identifiers. Safe retained-root
+reads and replacements reject unsafe paths and invalid state. Concurrent tasks
+have separate controls; invocation context cannot implicitly cross workspaces.
+
+New tasks default to save. A legacy private profile defaults to no-save unless
+`--save-memory` is explicit. The profile field stays readable but is no longer a
+setup question. Explicit saving tasks use ordinary labeling and credential
+redaction, even if that compatibility field still says private. Before the task
+directory exists, legacy commands keep their existing behavior. Afterwards,
+new content requires a valid task ID; anonymous maintenance uses metadata-only
+receipts and cannot silently save new content.
+
+## No-save behavior
+
+No-save suppresses new Memory, content-bearing corrections, profile answers and
+their People/Goal seeds before reading task input. Reads, forgetting, outdated
+status and labeling remain available. Requested output files save normally.
+Automatic Library extraction, refresh, rebuild, future cards/learned Skills,
+activity notes and snapshots are suppressed. Routine Library offers are skipped.
+
+Library retrieval uses existing validated extraction state in a temporary
+in-memory index without cache directories, locks, files, database repair or
+receipts. It makes no stronger source-freshness claim. Unavailable extraction
+state is reported separately from no-match. A separate explicit Library write
+request uses its command's `--requested`; this does not enable Memory.
+
+Automatic snapshots stop before Git initialization or object capture. A separate
+explicit `snapshot --requested` or requested backup export remains available.
+Backup includes current workspace files and existing history; it does not
+sanitize old data. Requested exceptions are scoped to that operation and do not
+enable general capture.
+
+Necessary receipts are shaped before exact-byte ownership binding: fixed event,
+summary/status, opaque task/recovery identifiers and numeric counts. Queries,
+paths, labels, snippets, bodies and free-form errors are omitted. Routine
+no-save retrieval produces no receipt.
+
+## Recovery and migration
+
+New snapshots exclude `System/tasks`, including previously tracked entries.
+Controls-only changes do not trigger snapshots. Restore preserves live controls
+in place, including concurrent no-save updates, and cannot reinstate older task
+flags. Incompatible snapshot ancestors are rejected before pre-restore capture
+or mutation. Other restored Memory can still be older than current Memory.
+
+Explicit backups may contain current metadata-only controls. Extracting an old
+ZIP into a fresh folder knows only restrictions present at export time; it does
+not import later opt-outs. This is not secure erasure or provider-retention
+control.
+
+Init recognizes known shipped instruction bytes, including CRLF variants, and
+updates them with retained-root preimage checks. Custom conflicting guidance is
+preserved with instructions to reconcile it before rerunning init. Existing
+profile answers and historical files are not rewritten into new task controls.

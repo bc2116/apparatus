@@ -16,6 +16,7 @@ from apparatus_core.commands import library
 from apparatus_core.library import index
 from apparatus_core.library.ingest import ingest_library
 from apparatus_core.render import render_workspace
+from apparatus_core.retention import operation
 
 
 def _workspace(path: Path) -> Path:
@@ -469,16 +470,17 @@ def test_legacy_quarantine_stat_failure_restores_corrupt_index(monkeypatch, tmp_
 
     baseline_fds = dict(index._DATABASE_FDS)
     baseline_handles = dict(index._DATABASE_HANDLES)
-    monkeypatch.setattr(index.os, "stat", fail_first_quarantine_stat)
-    with pytest.raises(index.IndexError):
+    with operation(workspace):
+        monkeypatch.setattr(index.os, "stat", fail_first_quarantine_stat)
+        with pytest.raises(index.IndexError):
+            index.rebuild(cache, workspace)
+        assert database.read_bytes() == corrupt
+        assert not list(cache.glob(".apparatus-index-quarantine-*"))
+        assert index._DATABASE_FDS == baseline_fds
+        assert index._DATABASE_HANDLES == baseline_handles
+        monkeypatch.setattr(index.os, "stat", original_stat)
         index.rebuild(cache, workspace)
-    assert database.read_bytes() == corrupt
-    assert not list(cache.glob(".apparatus-index-quarantine-*"))
-    assert index._DATABASE_FDS == baseline_fds
-    assert index._DATABASE_HANDLES == baseline_handles
-    monkeypatch.setattr(index.os, "stat", original_stat)
-    index.rebuild(cache, workspace)
-    assert index.search(cache, "needle")[0].source_path == "Library/a.txt"
+        assert index.search(cache, "needle")[0].source_path == "Library/a.txt"
 
 
 def test_windows_corrupt_cleanup_closes_alias_before_exact_handle_delete(monkeypatch, tmp_path):

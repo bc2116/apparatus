@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core.receipts import write_receipt
+from apparatus_core.retention import operation, RetentionSuppressed, TaskRetentionError
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
@@ -27,6 +28,7 @@ def register(subparsers: Any) -> None:
     parser = subparsers.add_parser("snapshot", help="save a workspace snapshot")
     parser.add_argument("workspace", metavar="WORKSPACE")
     parser.add_argument("--label", metavar="TEXT", help="a short label for this snapshot")
+    parser.add_argument("--requested", action="store_true", help="save a separately requested snapshot")
     parser.set_defaults(func=run)
 
 
@@ -55,6 +57,29 @@ def run(
     take: Callable[..., Any] = take_snapshot,
     write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
     update_report: Callable[[str | Path], bool] = mark_snapshots_unavailable,
+) -> int:
+    """Apply invocation retention before snapshot capability or content changes."""
+    workspace = _workspace_or_usage_error(args.workspace)
+    if workspace is None:
+        return 2
+    try:
+        with operation(
+            workspace, task_id=getattr(args, "task", None),
+            requested=("snapshot",) if getattr(args, "requested", False) else (),
+        ) as context:
+            context.require_snapshot()
+            return _run(args, available=available, take=take, write=write, update_report=update_report)
+    except RetentionSuppressed:
+        print("Snapshot skipped: this task does not save Memory.")
+        return 1
+    except TaskRetentionError as error:
+        print(f"snapshot: {error}")
+        return 2
+
+
+def _run(
+    args: argparse.Namespace, *, available: Callable[[], bool], take: Callable[..., Any],
+    write: Callable[..., object], update_report: Callable[[str | Path], bool],
 ) -> int:
     """Save a workspace snapshot or report the unavailable capability honestly."""
     workspace = _workspace_or_usage_error(args.workspace)

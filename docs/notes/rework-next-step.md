@@ -1,48 +1,25 @@
 # Resume the lean rework
 
-PR-32 removes the sharing gate. PR-33 adds current Memory recall and explicit
-correction, outdated status, and forgetting. Their plan rows become effective
-only after each PR merges. Check the remote PR state before continuing.
+PR-32 removes the sharing gate. PR-33 adds Memory correction, outdated status,
+forgetting and current recall. PR-34 adds task decisions across managed capture
+and recovery. A branch plan row becomes effective only when its PR merges;
+verify remote state before starting the next slice.
 
-Budget checkpoint: PR-32 is merged and its Windows CI passed. PR-33 has passed
-independent review, the integrated 572-test macOS suite (38 skips), and payload
-build. It is saved as a draft PR while the session pauses at the requested
-remaining-usage threshold. First inspect PR-33 CI, resolve any failure, mark it
-ready, and merge the verified head before cutting PR-34. No reset was consumed.
+The next slice is **R3: work-area layout and project-local deliverables**. Cut
+its focused prompt from current source. The accepted design allows sibling
+projects and one Library; select concrete managed-state paths without another
+product survey. Do not initialize a repository over unrelated projects or reset
+an existing repository to adopt/recover Apparatus. Preserve dirty user work,
+custom instructions, old records and the held certification checkout.
 
-Next cut **PR-34 for R2b, task retention**, from the merged source. Do not resume
-the held PR-24 certification or repeat the product-choice interview. The owner
-approved the product direction in ADR-0006; remaining implementation slices are
-in `docs/plan/rework-sequence.md`.
+Carry forward the task contract in `docs/spec/task-retention.md`. Future Skills,
+cards and history must use it. No-save blocks new Memory, setup answers and
+automatic derived capture; requested deliverables remain possible. Explicit
+Library/snapshot/backup requests do not enable general Memory. Existing private
+profiles default to no-save for new tasks. Live task controls survive snapshot
+restore, while old exports only know restrictions present when exported.
 
-## Source facts to carry forward
-
-- `commands/memory.py` now handles lifecycle plus add/label; `memory.py` supplies
-  current-record reads. `recall.py` still handles Library only.
-- The private profile blocks all People and labeled Facts. It still permits
-  unlabeled task facts. Preserve existing restrictions during migration.
-- `commands/profile.py` persists setup answers and seeds People/Goals.
-  Forgotten markers suppress automatic seeding at the same path, but do not
-  erase those stored answers or prevent a separate explicit new record.
-- `library/ingest.py` writes extracted text/metadata in external caches;
-  `library/index.py` persists SQLite derived from those extractions.
-- `recall.py` currently persists queries/source paths in receipts. Credential
-  redaction alone does not implement task-content suppression.
-- `receipts.py`, snapshot labels/Git messages, snapshots themselves, and backup
-  exports require an explicit scope decision. Exports preserve historical bytes.
-
-R2b must define task identity/resumption and a content-free control marker,
-then carry that contract through all managed writers and future learned Skills,
-cards, and history. Requested deliverables remain possible; automatic Memory
-or derivative capture does not. Explicit Library registration is a separate
-user instruction. Do not promise control over provider chats, historical exports,
-or native writes that bypass managed commands. Keep operational evidence to
-necessary metadata. Specify safe migration and failure behavior before coding.
-
-## Delivery checkpoint
-
-Use one focused branch/PR, keep canonical and embedded payload synchronized,
-preserve user customizations, and verify required tests and platform CI before
-merge. The migration helpers use retained immediate-parent anchors because
-reopening nested directories conflicts with Windows owned handles. Keep that
-regression covered. Actual AI app certification and signed release remain later.
+Use one focused branch/PR, synchronize canonical and embedded payload, and run
+meaningful tests plus the full required suite. Windows CI and exact remote merge
+verification precede cleanup. `docs/notes/pr-34-verification.md` records evidence
+for the task slice. Later app certification and signing remain separate.

@@ -256,3 +256,41 @@ def test_gate_free_workspace_updates_memory_guidance_without_losing_records(tmp_
     assert check_workspace(workspace).ok
     assert init.run(_args(workspace), available=lambda: False) == 0
     assert fact.read_bytes() == original
+
+
+@pytest.mark.parametrize("crlf", [False, True])
+def test_pr33_instructions_gain_task_controls_preserving_private_default(tmp_path, crlf):
+    workspace = tmp_path / "work"
+    shutil.copytree(shipped_payload(), workspace)
+    fixtures = FIXTURES.parent / "instruction_updates_pr33"
+    for source in fixtures.rglob("*"):
+        if source.is_file():
+            content = source.read_bytes().replace(b"\r\n", b"\n")
+            (workspace / source.relative_to(fixtures)).write_bytes(
+                content.replace(b"\n", b"\r\n") if crlf else content)
+    profile = workspace / "System/profile.yaml"
+    data = records.yaml.safe_load(profile.read_text())
+    data["privacy_mode"] = "private"
+    profile.write_text(records.yaml.safe_dump(data))
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    for relative in ("AGENTS.md", "Welcome.md", "System/procedures/welcome.md",
+                     "System/policy/private.md", "System/policy/standard.md"):
+        assert (workspace / relative).read_bytes() == (shipped_payload() / relative).read_bytes()
+    assert records.yaml.safe_load(profile.read_text())["privacy_mode"] == "private"
+    assert "apparatus task start" in (workspace / "AGENTS.md").read_text()
+    assert "Should privacy mode be" not in (workspace / "System/procedures/welcome.md").read_text()
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    assert check_workspace(workspace).ok
+
+
+@pytest.mark.parametrize("relative", ["AGENTS.md", "System/procedures/welcome.md",
+                                     "System/policy/private.md"])
+def test_custom_obsolete_task_guidance_requires_non_destructive_reconciliation(tmp_path, capsys, relative):
+    workspace = tmp_path / "work"
+    shutil.copytree(shipped_payload(), workspace)
+    original = FIXTURES.parent / "instruction_updates_pr33" / relative
+    (workspace / relative).write_bytes(original.read_bytes() + b"\nCustom workflow.\n")
+    before = _files(workspace)
+    assert init.run(_args(workspace), available=lambda: False) == 2
+    assert "preserve your edits" in capsys.readouterr().out
+    assert _files(workspace) == before
