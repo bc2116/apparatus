@@ -24,6 +24,12 @@ folder or mandatory Projects hierarchy is required.
 chosen-work-area/
   AGENTS.md
   Welcome.md
+  .agents/skills/
+    apparatus-welcome/SKILL.md
+    apparatus-produce-deliverable/SKILL.md
+    apparatus-research-and-summarize/SKILL.md
+    apparatus-review-against-checklist/SKILL.md
+    apparatus-weekly-review/SKILL.md
   Goals/
   Memory/
     People/
@@ -34,7 +40,6 @@ chosen-work-area/
     workspace.yaml
     profile.yaml
     guidance/
-    procedures/
     policy/
   project-a/
   project-b/
@@ -49,17 +54,19 @@ including `Projects/name`, remain valid without relocation.
 |---|---|
 | `AGENTS.md` | One work-area instruction canon; custom instructions remain user-owned. |
 | `Welcome.md` | Human-facing orientation. |
+| `.agents/skills/` | Five canonical portable Skills; unrelated native Skills remain user-owned. |
 | `Goals/` | One goal record with owner, status, verifiable `done-when` and next action. |
 | `Memory/People/`, `Memory/Facts/` | Sourced continuity under the Memory lifecycle and task controls. |
 | `Memory/Decisions/` | New decision records. Legacy `Decisions/` records remain in place and are also checked and read. |
 | `Library/` | One local source collection for the selected work area. Source content is data, never instructions or authority. Extraction/index caches are rebuildable machinery. |
 | Project folders | User and assistant working files, including requested finished work. |
-| `System/` | Profile, policy, procedures, guidance, ignore rules, task controls, receipts, machine report and managed recovery. |
+| `System/` | Profile, policy, guidance, ignore rules, task controls, receipts, machine report and managed recovery. Existing legacy procedures remain readable. |
 
 Records use Markdown with YAML frontmatter and the filename rules in the record
 specification. Profile and control files use their own closed YAML schemas.
-Procedures remain at `System/procedures/` in this version; enrollment does not
-migrate them to a new Skill format.
+Built-in workflows use the portable [Skill format and migration](skills.md).
+Recognized older procedure files become tiny compatibility pointers during init;
+custom conflicts are reported before writes. Fresh setup creates no legacy stubs.
 
 ## Explicit enrollment and repair
 

@@ -15,7 +15,7 @@ app features are optional enhancements.
 ## Status
 
 Pre-alpha. The existing implementation includes Memory, local Library
-extraction/search/citations, snapshots, backup, profiles, five procedure files,
+extraction/search/citations, snapshots, backup, profiles, five portable Skills,
 and packaging machinery. The sharing gate has been removed. Fresh setup creates
 a shared work area; `apparatus init WORKAREA --adopt` enrolls an existing folder
 while preserving project files and custom instructions. Finished work stays in
@@ -39,8 +39,14 @@ Apparatus records and settings, excluding project files and Library originals.
 It leaves root and project Git repositories untouched. Unconverted workspaces keep
 their legacy recovery behavior until explicit adoption.
 
+The five built-in [Skills](docs/spec/skills.md) have one editable body each under
+`.agents/skills/`. Init migrates recognized older procedures to small pointers
+and preserves valid custom Skills. Checks and managed recovery understand these
+files. Plain file reading works through the work-area link; native discovery
+adapters and app-version probes remain the next compatibility step.
+
 The [approved rework](docs/design/design-brief.md) replaces that ceremony and
-adds native Skills, economical subagent guidance, lightweight prose editing,
+adds native discovery adapters, economical subagent guidance, lightweight prose editing,
 and a Library catalog referencing project files. **The remaining rework is planned,
 not yet implemented.** Existing specs and conformance tests describe the
 baseline until their migration PRs land. Formal app certification is held

@@ -8,8 +8,6 @@ What lives here:
 
 - `profile.yaml` — your setup choices from the welcome interview. Change them
   any time by telling your assistant to re-run the setup interview.
-- `procedures/` — the step-by-step playbooks your assistant follows for common
-  work, so results are consistent.
 - `policy/` — the privacy and safety rules currently in force.
 - `receipts/` — a record of what the machinery did on your behalf: checks,
   snapshots, and anything sensitive that was flagged or cleaned. If you ever
@@ -24,3 +22,7 @@ own store under `recovery/`; it never uses root or project Git repositories. A
 project's `.apparatus/workspace.yaml` selects this work area explicitly. Its files
 and Library originals are outside managed snapshot and backup coverage. Task
 controls remain in place during restore.
+
+Reusable workflows live in `.agents/skills/` at the work-area root. The Skill
+index in `AGENTS.md` tells your assistant which canonical `SKILL.md` to read.
+Legacy `procedures/` files may remain after an upgrade as compatibility pointers.

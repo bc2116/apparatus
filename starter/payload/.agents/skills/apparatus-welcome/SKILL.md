@@ -1,7 +1,7 @@
 ---
-schema: apparatus/procedure@v0
-title: Set up the workspace
-intent: Use when the workspace is new or the user asks to run the setup interview again.
+name: apparatus-welcome
+description: Use when the workspace is new or the user asks to run the setup interview
+  again.
 ---
 1. Follow the task instructions in `AGENTS.md`. If this task is no-save, help
    with the requested work without collecting or saving setup answers. Otherwise

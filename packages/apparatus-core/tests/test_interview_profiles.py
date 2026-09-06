@@ -554,8 +554,9 @@ def test_mid_apply_failure_restores_profile_overlay_seed_and_receipts(
     tmp_path, monkeypatch
 ):
     workspace = _init_workspace(tmp_path / "workspace")
-    welcome = workspace / "System/procedures/welcome.md"
-    welcome.write_text("user-managed overlay edit\n", encoding="utf-8")
+    welcome = workspace / ".agents/skills/apparatus-welcome/SKILL.md"
+    welcome.write_bytes(welcome.read_bytes() + b"\nUser-owned custom Skill edit.\n")
+    (workspace / "System/policy/standard.md").write_bytes(b"Policy preimage before overlay.\n")
     candidate = records.yaml.safe_load(
         (workspace / "System/profile.yaml").read_text(encoding="utf-8")
     )
@@ -570,9 +571,11 @@ def test_mid_apply_failure_restores_profile_overlay_seed_and_receipts(
     candidate_text = records.yaml.safe_dump(candidate, sort_keys=False)
     before = _tree_without_receipts(workspace)
     original_create = memory._WorkspaceAnchor.create_file
+    injected = []
 
     def fail_goal(self, relative, content, mode=0o600):
         if Path(relative).parts[:1] == ("Goals",):
+            injected.append(relative)
             raise OSError("injected goal publication failure")
         return original_create(self, relative, content, mode)
 
@@ -581,6 +584,7 @@ def test_mid_apply_failure_restores_profile_overlay_seed_and_receipts(
         _args(workspace, candidate_stdin=True),
         input_stream=StringIO(candidate_text),
     ) == 2
+    assert injected, "profile must reach the injected failure after overlay publication"
     assert _tree_without_receipts(workspace) == before
     assert not list((workspace / "System/receipts").glob("*-profile-apply*.md"))
 

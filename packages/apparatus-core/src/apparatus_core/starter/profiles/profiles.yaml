@@ -4,35 +4,35 @@ privacy_modes:
   private: System/policy/private.md
 work_types:
   analysis:
-    - System/procedures/welcome.md
-    - System/procedures/produce-deliverable.md
-    - System/procedures/research-and-summarize.md
-    - System/procedures/review-against-checklist.md
-    - System/procedures/weekly-review.md
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
   quality:
-    - System/procedures/welcome.md
-    - System/procedures/produce-deliverable.md
-    - System/procedures/research-and-summarize.md
-    - System/procedures/review-against-checklist.md
-    - System/procedures/weekly-review.md
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
   project-management:
-    - System/procedures/welcome.md
-    - System/procedures/produce-deliverable.md
-    - System/procedures/research-and-summarize.md
-    - System/procedures/review-against-checklist.md
-    - System/procedures/weekly-review.md
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
   support:
-    - System/procedures/welcome.md
-    - System/procedures/produce-deliverable.md
-    - System/procedures/research-and-summarize.md
-    - System/procedures/review-against-checklist.md
-    - System/procedures/weekly-review.md
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
   writing:
-    - System/procedures/welcome.md
-    - System/procedures/produce-deliverable.md
-    - System/procedures/research-and-summarize.md
-    - System/procedures/review-against-checklist.md
-    - System/procedures/weekly-review.md
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
 default:
   privacy_mode: standard
   work_types:

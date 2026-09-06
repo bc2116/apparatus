@@ -9,7 +9,8 @@ Memory correction, outdated status, forgetting, and current-record recall.
 PR-34 implements R2b: task retention across managed writers and derived content.
 PR-35 implements R3a: isolated recovery for shared work areas.
 PR-36 implements R3b: layout, project bindings and existing-folder adoption.
-Next, cut R4 for portable native Skills and procedure migration.
+PR-38 implements R4a: portable Skill files, migration, checks and recovery.
+Next, cut R4b for native discovery adapters and runtime evidence.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
 
@@ -93,6 +94,7 @@ later slices remain planned.
 | 35 | [Isolated recovery for shared work areas](PR-35-managed-recovery.md) | Rework | ✅ landed | 34 |
 | 36 | [Work-area adoption and project binding](PR-36-workarea-adoption.md) | Rework | ✅ landed | 35 |
 | 37 | [Library writer-lock release race](PR-37-library-lock.md) | Repair | ✅ landed | 34 |
+| 38 | [Portable built-in Skills](PR-38-portable-skills.md) | Rework | ✅ landed | 36, 37 |
 | 42 | [Patched PDF dependency](PR-42-pdf-dependency.md) | Repair | ✅ landed | 35 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),

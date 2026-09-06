@@ -159,6 +159,19 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
 
     # Fresh workspace and fresh-workspace check.
     _run("init", workspace, env=environment)
+    skill_names = {"apparatus-welcome", "apparatus-produce-deliverable",
+                   "apparatus-research-and-summarize", "apparatus-review-against-checklist",
+                   "apparatus-weekly-review"}
+    skill_root = workspace / ".agents/skills"
+    assert {path.name for path in skill_root.iterdir()} == skill_names
+    for name in skill_names:
+        skill = skill_root / name / "SKILL.md"
+        metadata, body = _frontmatter(skill)
+        assert metadata["name"] == name
+        assert metadata["description"] and body.strip()
+        assert set(metadata) == {"name", "description"}
+        assert not skill.is_symlink()
+    assert not (workspace / "System/procedures").exists()
     fresh_check = _run("check", workspace, env=environment)
     assert "check passed" in fresh_check.stdout
 

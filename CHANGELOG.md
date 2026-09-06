@@ -13,6 +13,10 @@ All notable changes to Apparatus are documented in this file.
 - Require pypdf 6.16.1 or newer, covering upstream fixes for excessive PDF
   outline/XForm processing and a tree insertion loop.
 
+- Convert five built-in workflows to portable Skills with one canonical body.
+  Preserve custom Skills and migrate recognized older procedures to small
+  pointers. Checks and managed recovery cover the exact built-in files;
+  native discovery adapters and app-version acceptance remain separate work.
 - Add work-area enrollment, explicit existing-folder adoption and relative project
   links to one Library and Memory. Preserve existing repositories and custom
   instructions; keep finished work in its project. Decisions in both the new

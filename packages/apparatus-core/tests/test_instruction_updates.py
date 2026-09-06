@@ -15,6 +15,7 @@ from apparatus_core.instruction_updates import (
 )
 from apparatus_core.payload import shipped_payload
 from apparatus_core.render import render_workspace
+from apparatus_core.skills import legacy_pointer
 
 
 FIXTURES = Path(__file__).parent / "fixtures/instruction_updates"
@@ -33,6 +34,7 @@ def _legacy_workspace(workspace: Path, *, crlf: bool = False) -> None:
         content = source.read_bytes().replace(b"\r\n", b"\n")
         relative = source.relative_to(FIXTURES).as_posix()
         assert _digest(content) == LEGACY_INSTRUCTIONS[relative]
+        (workspace / relative).parent.mkdir(parents=True, exist_ok=True)
         (workspace / relative).write_bytes(
             content.replace(b"\n", b"\r\n") if crlf else content
         )
@@ -252,6 +254,7 @@ def test_gate_free_workspace_updates_memory_guidance_without_losing_records(tmp_
     for source in fixtures.rglob("*"):
         if source.is_file():
             content = source.read_bytes().replace(b"\r\n", b"\n")
+            (workspace / source.relative_to(fixtures)).parent.mkdir(parents=True, exist_ok=True)
             (workspace / source.relative_to(fixtures)).write_bytes(
                 content.replace(b"\n", b"\r\n") if crlf else content
             )
@@ -273,6 +276,7 @@ def test_pr33_instructions_gain_task_controls_preserving_private_default(tmp_pat
     for source in fixtures.rglob("*"):
         if source.is_file():
             content = source.read_bytes().replace(b"\r\n", b"\n")
+            (workspace / source.relative_to(fixtures)).parent.mkdir(parents=True, exist_ok=True)
             (workspace / source.relative_to(fixtures)).write_bytes(
                 content.replace(b"\n", b"\r\n") if crlf else content)
     profile = workspace / "System/profile.yaml"
@@ -280,9 +284,10 @@ def test_pr33_instructions_gain_task_controls_preserving_private_default(tmp_pat
     data["privacy_mode"] = "private"
     profile.write_text(records.yaml.safe_dump(data))
     assert init.run(_args(workspace), available=lambda: False) == 0
-    for relative in ("AGENTS.md", "Welcome.md", "System/procedures/welcome.md",
+    for relative in ("AGENTS.md", "Welcome.md",
                      "System/policy/private.md", "System/policy/standard.md"):
         assert (workspace / relative).read_bytes() == (shipped_payload() / relative).read_bytes()
+    assert (workspace / "System/procedures/welcome.md").read_bytes() == legacy_pointer("System/procedures/welcome.md")
     assert records.yaml.safe_load(profile.read_text())["privacy_mode"] == "private"
     assert "apparatus task start" in (workspace / "AGENTS.md").read_text()
     assert "Should privacy mode be" not in (workspace / "System/procedures/welcome.md").read_text()
@@ -296,6 +301,7 @@ def test_custom_obsolete_task_guidance_requires_non_destructive_reconciliation(t
     workspace = tmp_path / "work"
     shutil.copytree(shipped_payload(), workspace)
     original = FIXTURES.parent / "instruction_updates_pr33" / relative
+    (workspace / relative).parent.mkdir(parents=True, exist_ok=True)
     (workspace / relative).write_bytes(original.read_bytes() + b"\nCustom workflow.\n")
     before = _files(workspace)
     assert init.run(_args(workspace), available=lambda: False) == 2
@@ -314,6 +320,7 @@ def test_pr34_payload_migrates_exact_bytes_to_project_local_guidance(tmp_path, c
             relative = source.relative_to(fixtures)
             content = source.read_bytes().replace(b"\r\n", b"\n")
             assert _digest(content) == LAYOUT_PREVIOUS_INSTRUCTIONS[relative.as_posix()]
+            (workspace / relative).parent.mkdir(parents=True, exist_ok=True)
             (workspace / relative).write_bytes(content.replace(b"\n", b"\r\n") if crlf else content)
     (workspace / "Projects").mkdir()
     (workspace / "Deliverables").mkdir()

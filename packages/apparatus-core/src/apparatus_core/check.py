@@ -292,6 +292,108 @@ def _shim_target_present(workspace: Path, target: str) -> bool:
     return current.exists()
 
 
+def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int, int, int]:
+    """Read only visible built-in bodies and exact orientation/legacy evidence.
+
+    Directory metadata remains evidence even when bodies are ignored. This
+    helper neither lists native directories nor reads third-party Skill files;
+    it does not change the older check paths' independent ignore behavior.
+    """
+    from apparatus_core.fs_transactions import WorkspaceAnchor
+    from apparatus_core.payload import PayloadError, preflight_workspace_paths
+    from apparatus_core.skills import (
+        BUILTIN_PATHS, BUILTIN_SKILLS, has_skill_index, is_legacy_pointer,
+        is_shipped_skill_orientation, validate_skill,
+    )
+
+    findings: list[Finding] = []
+    checked = 0
+    skipped: dict[str, str] = {}
+    directories: dict[str, bool | None] = {}
+    legacy: dict[str, bytes] = {}
+    installed = False
+    repair = "Preserve custom instructions, then run `apparatus init WORKSPACE` to repair or migrate built-in Skills."
+
+    def incomplete(relative: str) -> None:
+        findings.append(Finding("skill-check-incomplete", relative,
+                                "Ignore rules hide workflow installation evidence or validation; adjust the rule before checking Skills. " + repair))
+
+    try:
+        with WorkspaceAnchor(preflight_workspace_paths(workspace)) as anchor:
+            # Directory presence is bounded metadata, even when its body is
+            # ignored. Ignoring content cannot turn a partial install into legacy.
+            for relative in BUILTIN_PATHS:
+                try:
+                    directories[relative] = anchor.directory_exists(Path(relative).parent)
+                    installed |= bool(directories[relative])
+                except OSError:
+                    directories[relative] = None
+                    installed = True
+                    findings.append(Finding("skill-path-unsafe", relative,
+                                            "Keep the built-in Skill in regular work-area directories. " + repair))
+
+            for relative in ("AGENTS.md", "Welcome.md", "System/README.md", *BUILTIN_SKILLS):
+                if rules.matches(relative):
+                    # Absence and hidden installation evidence are different.
+                    try:
+                        if not anchor.entry_exists(relative):
+                            continue
+                    except FileNotFoundError:
+                        continue
+                    except OSError:
+                        findings.append(Finding("skill-evidence-unreadable", relative,
+                                                "Make this workflow evidence safe to inspect. " + repair))
+                        continue
+                    incomplete(relative)
+                    continue
+                try:
+                    content, _ = anchor.read_file(relative)
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    findings.append(Finding("skill-evidence-unreadable", relative,
+                                            "Make this workflow evidence a readable regular file. " + repair))
+                    continue
+                if relative in BUILTIN_SKILLS:
+                    legacy[relative] = content
+                    installed |= is_legacy_pointer(relative, content)
+                else:
+                    installed |= has_skill_index(content) or is_shipped_skill_orientation(relative, content)
+
+            if installed:
+                for relative, name in BUILTIN_PATHS.items():
+                    if directories[relative] is None:
+                        continue
+                    try:
+                        if not directories[relative] or not anchor.entry_exists(relative):
+                            findings.append(Finding("skill-missing", relative, repair))
+                            continue
+                        if not _safe_shim_file(anchor.workspace, relative):
+                            raise OSError("unsafe Skill endpoint")
+                        classification = rules.classification(relative)
+                        if classification is not None:
+                            skipped[relative] = classification
+                            incomplete(relative)
+                            continue
+                        content, _ = anchor.read_file(relative)
+                        checked += 1
+                        for problem in validate_skill(content, name):
+                            findings.append(Finding("skill-invalid", relative, problem + " " + repair))
+                    except OSError:
+                        findings.append(Finding("skill-path-unsafe", relative,
+                                                "Make this Skill a readable regular file without symbolic links. " + repair))
+                for relative, content in legacy.items():
+                    if not is_legacy_pointer(relative, content):
+                        findings.append(Finding("skill-mixed-state", relative,
+                                                "A legacy workflow file remains beside the native Skill set. " + repair))
+            if not anchor.root_is_current():
+                raise OSError("work area changed during Skill checks")
+    except (OSError, PayloadError):
+        findings.append(Finding("skill-check-incomplete", ".",
+                                "The work-area identity changed or could not be retained; retry the check."))
+    return findings, checked, sum(value == "built-in" for value in skipped.values()), sum(value == "user" for value in skipped.values())
+
+
 def check_workspace(
     workspace: str | Path,
     *,
@@ -300,11 +402,15 @@ def check_workspace(
     """Check a workspace tree and its v0 records without changing it."""
     root = Path(workspace)
     from apparatus_core.project_binding import BindingError, read_project_binding
+    from apparatus_core.payload import PayloadError, preflight_workspace_paths
     from apparatus_core.workspace_layout import LayoutError, read_layout
     try:
         if read_project_binding(root) is not None:
             raise BindingError("Use apparatus check PROJECT to check a bound project.")
-    except BindingError as error:
+        # Use the same canonical external ancestors for every check. The final
+        # workspace component and paths inside it remain no-follow boundaries.
+        root = preflight_workspace_paths(root)
+    except (BindingError, PayloadError, OSError) as error:
         return CheckResult((Finding("project-binding-invalid", ".apparatus/workspace.yaml", str(error)),), 0)
     try:
         layout = read_layout(root)
@@ -337,6 +443,11 @@ def check_workspace(
     records_checked = 0
     built_in_ignored = 0
     user_ignored = 0
+    skill_findings, skill_count, skill_built_in, skill_user = _skill_findings(root, rules)
+    findings.extend(skill_findings)
+    records_checked += skill_count
+    built_in_ignored += skill_built_in
+    user_ignored += skill_user
     for relative, kind in RECORD_FOLDERS:
         folder = root / relative
         if not folder.is_dir():

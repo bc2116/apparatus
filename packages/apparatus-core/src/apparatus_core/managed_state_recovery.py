@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
-from apparatus_core import records
+from apparatus_core import records, skills
 from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.init_deploy import _anchor_child
 from apparatus_core.receipts import ReceiptPublication, prepare_receipt_invocation, write_receipt
@@ -43,7 +43,7 @@ OPTIONAL_FILES = frozenset((
     ".github/copilot-instructions.md", "System/profile.yaml", "System/ignore",
     "System/README.md", "System/guidance/model-guidance.md",
     "System/policy/standard.md", "System/policy/private.md",
-))
+)) | frozenset(skills.BUILTIN_PATHS)
 RECORD_ROOTS = {
     "Goals": "goal", "Memory/People": "person", "Memory/Facts": "fact",
     "Memory/Decisions": "decision", "Decisions": "decision",
@@ -98,6 +98,8 @@ def _path(value: str) -> PurePosixPath:
 
 def _kind(relative: str) -> str | None:
     path = _path(relative)
+    if relative in skills.BUILTIN_PATHS:
+        return "skill"
     if relative in OPTIONAL_FILES:
         return "profile" if relative == "System/profile.yaml" else "text"
     for root, kind in RECORD_ROOTS.items():
@@ -117,6 +119,10 @@ def _validate_file(relative: str, content: bytes) -> bool:
     try:
         text = content.decode("utf-8", errors="strict")
         if kind == "text":
+            return True
+        if kind == "skill":
+            if skills.validate_skill(text, skills.BUILTIN_PATHS[relative]):
+                raise ValueError("invalid Skill")
             return True
         if kind == "profile":
             data, body = records.yaml.safe_load(text), None

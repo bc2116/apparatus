@@ -175,7 +175,8 @@ def export_backup(workspace: str | Path, destination: str | Path, *,
                     "and export-time task restrictions.\n"
                     + ("Includes validated reachable managed snapshot history.\n" if snapshots_available else
                        "Snapshot history is unavailable because Git was unavailable; no existing store was omitted.\n")
-                    + "Project files, project Git repositories, Library originals, caches and unknown files "
+                    + "Project files, project Git repositories, Library originals, third-party Skills, "
+                    "optional Skill resources, caches and unknown files "
                     "are not included. Restore preserves later additions. Historical Memory may revive older "
                     "information. Task controls record export-time restrictions only.\n"
                 ).encode("utf-8")

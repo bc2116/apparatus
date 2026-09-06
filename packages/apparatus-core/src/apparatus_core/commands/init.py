@@ -262,8 +262,16 @@ def _run(
         if layout is not None:
             instruction_preimages[MARKER] = layout.content
         overlay_paths = {item.relative for item in overlay_plan.writes}
+        # Retain parents of preserved compatibility pointers too. Fresh native
+        # payloads no longer contain their legacy directory, and an unchanged
+        # pointer still needs final preimage checks through its immediate parent.
+        preimage_parents = {parent for relative, content in instruction_preimages.items()
+                            if content is not None for parent in Path(relative).parents
+                            if parent != Path(".")}
         payload_plan = replace(payload_plan, files=tuple(
-            entry for entry in payload_plan.files if entry.relative.as_posix() not in overlay_paths))
+            entry for entry in payload_plan.files if entry.relative.as_posix() not in overlay_paths),
+            directories=tuple(sorted(set(payload_plan.directories) | preimage_parents,
+                                     key=lambda path: path.as_posix())))
         payload_paths = (*payload_plan.directories, *payload_plan.placeholders,
                          *(entry.relative for entry in payload_plan.files))
         if any(path.parts[0].casefold() in {".git", ".apparatus"}

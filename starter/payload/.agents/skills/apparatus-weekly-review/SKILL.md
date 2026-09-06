@@ -1,7 +1,7 @@
 ---
-schema: apparatus/procedure@v0
-title: Run the weekly review
-intent: Use on the chosen review day or whenever the user asks to review the week and plan the next one.
+name: apparatus-weekly-review
+description: Use on the chosen review day or whenever the user asks to review the
+  week and plan the next one.
 ---
 1. Confirm the seven-day review period and read every record in `Goals/`.
    Summarize each goal's current status, verifiable `done-when`, and next
@@ -32,5 +32,5 @@ intent: Use on the chosen review day or whenever the user asks to review the wee
    named `YYYY-MM-DD-HHMMSS-snapshot.md` using the current UTC time. If that
    name exists, append `-2`, `-3`, and so on before `.md`. Include
    `schema: apparatus/receipt@v0`, `event: snapshot`, the UTC `timestamp`, and
-   a one-sentence `summary`; in the body, name this procedure, list the files
+   a one-sentence `summary`; in the body, name this Skill, list the files
    changed, and state whether the snapshot was taken or unavailable.

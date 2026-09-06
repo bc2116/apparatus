@@ -27,13 +27,17 @@
 
 ## procedure
 
-A step-by-step playbook the assistant follows.
+A legacy step-by-step playbook the assistant follows. New built-ins use the
+separate portable [Skill format](skills.md); the legacy record kind remains
+valid for existing files and historical recovery.
 
 - Required frontmatter: `schema`, `title`, `intent` (one sentence: when the
   assistant should use this procedure).
 - Optional frontmatter: `labels`.
 - Body: an ordered list of numbered steps. Steps are written to the minimum
   agent contract (ADR-0003) — read files, write files, run approved commands.
+  A recognized migration pointer instead names its canonical Skill and retains
+  the current task's Memory decision; it contains no duplicate workflow body.
 - Filename: kebab-case, e.g. `file-a-meeting-note.md`.
 
 ## goal
