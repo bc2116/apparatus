@@ -10,6 +10,7 @@ from typing import Any
 from apparatus_core import records
 from apparatus_core.detect import detect_sync_redirection
 from apparatus_core.init_deploy import deploy_init_plan
+from apparatus_core.instruction_updates import instruction_updates
 from apparatus_core.overlays import (
     ManifestError,
     OverlayManifest,
@@ -188,6 +189,9 @@ def run(
             privacy_mode=profile["privacy_mode"],
             work_types=profile["work_types"],
         )
+        overlay_plan, instruction_preimages = instruction_updates(
+            workspace, payload, overlay_plan
+        )
     except (PayloadError, ManifestError) as error:
         print(f"init: {error}")
         return 2
@@ -242,8 +246,12 @@ def run(
                 overlay_plan,
                 profile_content.encode("utf-8"),
                 profile_write_required=profile_write_required,
+                expected_contents=instruction_preimages,
             )
         )
+    except PayloadError as error:
+        print(f"init: could not deploy workspace: {error}")
+        return 2
     except Exception:  # pragma: no cover - filesystem failures vary by host
         print("init: could not deploy workspace")
         return 2

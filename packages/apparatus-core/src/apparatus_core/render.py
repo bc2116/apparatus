@@ -147,6 +147,15 @@ def rendered_shims(
         canon_bytes = canon.read_bytes()
     except OSError as error:
         raise RenderError(f"could not read {CANON_PATH}") from error
+    return rendered_shims_from_bytes(canon_bytes, registry=registry)
+
+
+def rendered_shims_from_bytes(
+    canon_bytes: bytes,
+    *,
+    registry: tuple[tuple[str, str], ...] | None = None,
+) -> tuple[RenderedShim, ...]:
+    """Render from an already captured canon, without another filesystem read."""
     digest = hashlib.sha256(canon_bytes).hexdigest()
     active_registry = shims.SHIM_REGISTRY if registry is None else registry
     entries: list[tuple[Path, str]] = []

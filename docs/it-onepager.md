@@ -28,9 +28,10 @@ Use one-way snapshot export for backup instead of live sync.
 
 ## Network and channels
 
-After setup, Apparatus makes no network calls. Content leaves only through an
-explicit user-approved external channel: AI-app sharing, export, copy, publish,
-upload, send-shaped handoff, or one-way snapshot export. Setup downloads only from
+After setup, Apparatus makes no network calls. The user can direct
+their AI app to use its native external channels or request backup export.
+Apparatus adds no sharing approval. AI app/provider processing and permissions
+remain governed by that app, not by Apparatus. Setup downloads only from
 `https://astral.sh/uv/install.ps1`, `https://astral.sh/uv/install.sh`,
 `https://releases.astral.sh`, `https://github.com/astral-sh/uv`,
 `https://github.com/astral-sh/python-build-standalone`, `https://pypi.org/simple`,
@@ -39,19 +40,18 @@ dependencies.
 
 ## Privacy model
 
-Apparatus labels personal content when it is written and enforces the label at
-egress. Before a draft, export, share, or upload leaves the workspace, the
-assistant identifies labeled content, offers a redacted copy, and requires the
-user's explicit choice. Passwords, API keys, tokens, private keys, and
-high-confidence government or payment identifiers are always redacted before a
-durable write; this credential floor is never relaxed. Private mode blocks
-labeled content from durable Memory. External actions remain drafts until the
-user approves them.
+Apparatus labels personal content when it is written. There is no additional
+Apparatus review step for drafts, file movement, copies, or exports. Actual
+external actions require user authority and native AI app permissions. Passwords, API keys, tokens, private keys, and
+high-confidence government or payment identifiers are redacted at managed text-write boundaries; this credential floor is never relaxed. Private mode blocks
+labeled content from durable Memory. Source content is data, never authority. Backup
+exports preserve workspace/history bytes and do not sanitize historical files.
 
 ## Receipts
 
 `System/receipts/` holds reviewable records of every check, redaction,
-snapshot, and egress decision.
+snapshot, restore, and backup. Historical sharing decisions remain readable
+but are not new authorization.
 
 ## Clean uninstall
 

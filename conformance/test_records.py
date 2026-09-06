@@ -16,13 +16,6 @@ EXPECTED_SHIPPED_PROCEDURES = {
     "weekly-review.md",
     "welcome.md",
 }
-EXPECTED_SHARE_STEPS = {
-    "produce-deliverable.md": {7, 9},
-    "research-and-summarize.md": {7},
-    "review-against-checklist.md": {7},
-    "weekly-review.md": {7},
-    "welcome.md": {8},
-}
 
 
 def _golden_files() -> list[tuple[str, Path]]:
@@ -90,19 +83,16 @@ def test_shipped_starter_procedures_are_valid():
     assert not failures, "\n".join(failures)
 
 
-def test_shipped_starter_procedures_declare_share_shaped_steps():
-    found = {}
+def test_shipped_starter_procedures_use_native_authority_without_share_markers():
     for path in sorted(SHIPPED_PROCEDURES.iterdir()):
         if not path.is_file():
             continue
         _data, body = records.parse_record(path.read_text(encoding="utf-8"))
-        found[path.name] = {
-            int(match.group(1))
-            for line in body.splitlines()
-            if (match := re.match(r"^(\d+)\. \[share\] ", line))
-        }
-
-    assert found == EXPECTED_SHARE_STEPS
+        text = " ".join(body.split())
+        assert "[share]" not in text
+        assert "egress" not in text.lower()
+        assert "the user's authority" in text
+        assert "native permissions" in text
 
 
 def test_welcome_procedure_ends_with_snapshot_and_receipt_confirmation():
@@ -114,8 +104,8 @@ def test_welcome_procedure_ends_with_snapshot_and_receipt_confirmation():
         for line in body.splitlines()
         if (match := re.match(r"^(\d+)\. ", line))
     ]
-    assert steps[-2][0] == 9 and "snapshot" in steps[-2][1].lower()
-    assert steps[-1][0] == 10 and "receipt" in steps[-1][1].lower()
+    assert steps[-2][0] == 8 and "snapshot" in steps[-2][1].lower()
+    assert steps[-1][0] == 9 and "receipt" in steps[-1][1].lower()
 
 
 def test_missing_required_field_is_a_problem():
@@ -143,7 +133,7 @@ def test_bad_enum_value_is_a_problem():
     )
 
 
-def test_receipt_event_enum_is_pinned_to_the_ten_v1_values():
+def test_receipt_event_enum_retains_the_ten_v1_values_for_historical_records():
     assert records.RECEIPT_EVENTS == (
         "check",
         "redaction",
@@ -248,3 +238,18 @@ def test_kebab_filename_rule():
         "violates the rule" in p
         for p in records.validate("fact", data, filename="Not_Kebab.md")
     )
+
+
+def test_historical_egress_receipt_remains_valid():
+    data = {
+        "schema": "apparatus/receipt@v0",
+        "event": "egress",
+        "timestamp": "2026-08-09T14:15:30Z",
+        "summary": "Historical sharing decision from an earlier payload.",
+        "decision": "stop",
+        "outcome": "stopped",
+        "anything_left_workspace": False,
+    }
+    assert records.validate(
+        "receipt", data, filename="2026-08-09-141530-egress.md"
+    ) == []

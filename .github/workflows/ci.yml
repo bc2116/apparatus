@@ -54,8 +54,7 @@ jobs:
           packages/apparatus-core/tests/test_library_ingest.py
           packages/apparatus-core/tests/test_library_index.py
           packages/apparatus-core/tests/test_render.py
-          packages/apparatus-core/tests/test_egress_gate.py
-          conformance/test_egress_golden.py
+          packages/apparatus-core/tests/test_instruction_updates.py
           packages/apparatus-core/tests/test_backup.py
           packages/apparatus-core/tests/test_receipts.py
           packages/apparatus-core/tests/test_machine_report.py

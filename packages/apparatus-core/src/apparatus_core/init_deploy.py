@@ -212,9 +212,15 @@ def deploy_init_plan(
     profile_content: bytes,
     *,
     profile_write_required: bool,
+    expected_contents: dict[str, bytes | None] | None = None,
 ) -> tuple[str, ...]:
     """Execute one pre-read init plan through retained directory identities."""
     _validate_plan(payload, overlay)
+    expected_contents = dict(expected_contents or {})
+    for relative, content in expected_contents.items():
+        normalize_workspace_relative(relative)
+        if content is not None and not isinstance(content, bytes):
+            raise PayloadError("instruction preimage must be bytes or expected absence")
     if not isinstance(profile_content, bytes):
         raise PayloadError("profile content must be bytes")
 
@@ -224,6 +230,7 @@ def deploy_init_plan(
     transactions: list[ReplacementTransaction] = []
     removals: list[_Removal] = []
     changes: list[str] = []
+    published: set[str] = set()
 
     root, root_ancestors, root_created, workspace_created = _anchor_workspace(
         workspace_path
@@ -266,25 +273,48 @@ def deploy_init_plan(
                     parent_relative = Path(".")
                 return anchors[parent_relative], relative.name
 
+            def require_preimage(relative: Path, actual: bytes | None) -> None:
+                key = relative.as_posix()
+                if key in expected_contents and actual != expected_contents[key]:
+                    raise PayloadError(
+                        "instruction changed after migration planning; rerun apparatus init"
+                    )
+
+            def check_preimage(relative: str) -> None:
+                anchor, name = parent_for(Path(relative))
+                try:
+                    actual = anchor.read_file(name)[0]
+                except FileNotFoundError:
+                    actual = None
+                require_preimage(Path(relative), actual)
+
             def create_missing(relative: Path, content: bytes, message: str) -> None:
                 anchor, name = parent_for(relative)
                 if anchor.entry_exists(name):
                     existing = anchor.capture_file(name)
-                    existing.close()
+                    try:
+                        require_preimage(relative, existing.content)
+                    finally:
+                        existing.close()
                     return
+                require_preimage(relative, None)
                 owned = anchor.create_file(name, content)
                 created_files.append(_CreatedFile(anchor, owned))
+                published.add(relative.as_posix())
                 changes.append(message)
 
             def publish(relative: Path, content: bytes, message: str) -> None:
                 anchor, name = parent_for(relative)
                 if not anchor.entry_exists(name):
+                    require_preimage(relative, None)
                     owned = anchor.create_file(name, content)
                     created_files.append(_CreatedFile(anchor, owned))
+                    published.add(relative.as_posix())
                     changes.append(message)
                     return
                 existing = anchor.capture_file(name)
                 try:
+                    require_preimage(relative, existing.content)
                     if existing.content == content:
                         return
                     transaction = anchor.replace_if_unchanged(
@@ -294,6 +324,7 @@ def deploy_init_plan(
                         content,
                     )
                     transactions.append(transaction)
+                    published.add(relative.as_posix())
                     changes.append(message)
                 finally:
                     existing.close()
@@ -301,9 +332,11 @@ def deploy_init_plan(
             def remove(relative: Path, message: str) -> None:
                 anchor, name = parent_for(relative)
                 if not anchor.entry_exists(name):
+                    require_preimage(relative, None)
                     return
                 existing = anchor.capture_file(name)
                 try:
+                    require_preimage(relative, existing.content)
                     transaction = anchor.replace_if_unchanged(
                         name,
                         existing.identity,
@@ -311,9 +344,15 @@ def deploy_init_plan(
                         _removal_tombstone(),
                     )
                     removals.append(_Removal(transaction))
+                    published.add(relative.as_posix())
                     changes.append(message)
                 finally:
                     existing.close()
+
+            # Reject stale migration plans before any file publication. The
+            # replacement repeats this preimage check at its transaction boundary.
+            for relative in expected_contents:
+                check_preimage(relative)
 
             for entry in payload.files:
                 relative = normalize_workspace_relative(entry.relative)
@@ -336,6 +375,8 @@ def deploy_init_plan(
                 remove(relative, f"removed {relative.as_posix()}")
 
             def validate_final_state(*, removals_are_published: bool) -> None:
+                for relative in expected_contents.keys() - published:
+                    check_preimage(relative)
                 all_anchors = (*root_ancestors, *anchors.values())
                 if not all(anchor.root_is_current() for anchor in all_anchors):
                     raise OSError(

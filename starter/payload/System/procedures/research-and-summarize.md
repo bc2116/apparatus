@@ -26,22 +26,10 @@ intent: Use when the user wants a source-grounded answer or summary from the Lib
    facts or assumptions support each recommendation.
 6. Show the user the summary and correct any source or reasoning problem they
    identify. When the user agrees it is finished, file the finished version in
-   `Deliverables/` and update any related goal. Before the next `[share]` step,
-   name the intended recipient, path, or service as `TARGET` and run
-   `apparatus egress check WORKSPACE DRAFT-FILE --destination TARGET` with the
-   explicit workspace path and draft file; omit `--destination` only when the
-   destination is genuinely unknown. Do not pass `--decision` on this initial
-   inspection. Show the user every finding, redacted-copy offer, and unavailable
-   copy, then ask for exactly one fresh choice: use the redacted copy, send the
-   original, or stop. Rerun the same check with the same destination and
-   `--decision use-redacted`, `--decision send-original`, or `--decision stop`
-   only after that choice. Proceed to sharing only when the decision-bearing
-   check exits successfully and records pre-share authorization. A stop or
-   refusal means do not share. After a credential refusal, ask again; only a
-   new explicit `use-redacted` choice and fresh successful check may proceed.
-7. [share] If an email, update, or submission would carry the summary outside
-   the workspace, keep it as a draft in `Projects/` and hand it to the user; the
-   assistant never sends, posts, or submits anything itself.
+   `Deliverables/` and update any related goal.
+7. Prepare any requested email, update, or submission in `Projects/`.
+   Perform actual external actions only with the user's authority and the AI
+   app's native permissions; no second Apparatus approval is needed.
 8. Take a snapshot using the workspace's snapshot command if it is available
    and approved. If snapshots are unavailable, tell the user plainly and
    continue.

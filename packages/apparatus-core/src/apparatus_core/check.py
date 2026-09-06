@@ -8,6 +8,7 @@ from pathlib import Path
 from apparatus_core import records
 from apparatus_core import shims
 from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
+from apparatus_core.instruction_updates import retired_instruction_paths
 from apparatus_core.render import (
     RenderError,
     is_reparse_path,
@@ -356,6 +357,20 @@ def check_workspace(
             findings.extend(_machine_report_findings(machine_report, root))
 
     findings.extend(_shim_findings(root, shim_registry))
+    try:
+        findings.extend(
+            Finding(
+                "retired-sharing-instructions", relative,
+                "Run `apparatus init WORKSPACE` with the updated package; "
+                "reconcile any custom instruction conflicts without discarding your edits.",
+            )
+            for relative in retired_instruction_paths(root)
+        )
+    except (OSError, ValueError):
+        findings.append(Finding(
+            "instruction-read-error", ".",
+            "Make workspace instructions readable regular files before retrying the check.",
+        ))
 
     return CheckResult(
         tuple(findings),

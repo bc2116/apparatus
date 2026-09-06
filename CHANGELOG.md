@@ -10,4 +10,7 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
+- Remove the App-specific sharing gate and command. Repair original legacy
+  instructions through `init`, preserving custom conflicts and historical
+  receipts. Backup export and credential/filesystem protections are unchanged.
 - Initial pre-alpha development.
