@@ -10,6 +10,9 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
+- Require pypdf 6.16.1 or newer, covering upstream fixes for excessive PDF
+  outline/XForm processing and a tree insertion loop.
+
 - Add an isolated recovery backend for the upcoming shared work-area layout.
   Managed snapshots and backups cover declared Apparatus state and recovery
   history without changing root or project Git. Existing starter setup does not
