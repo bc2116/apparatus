@@ -1,8 +1,36 @@
 # PR-43 verification
 
-These results cover the PR-43 working tree based on plan commit `40e62c8`, before
-integration of intervening PR-40/41 work. They do not establish the final rebased
-PR's behavior or actual Windows results.
+## Integrated validation
+
+The rebase onto captured PR-41 head `1e79cb9` completed at **`735d4b2`**. Conflict
+resolution preserves both learned-Skill ownership/pair validation and Library
+registration capture, historical validation and restore. The canonical-root
+Windows check repair remains installed. Plan rows remain ordered through PR-43,
+with PR-43 depending on PR-41 and PR-42.
+
+- `uv sync --all-packages` installed **pypdf 6.16.1**; the wheel also declares
+  `pypdf>=6.16.1`.
+- Focused integrated learned-Skill, R6, Library, check and recovery/backup tests:
+  **299 passed** in **185.15 seconds**.
+- Integrated full `uv run pytest -o addopts= -q`: **1,149 passed, 38 skipped** in
+  **373.90 seconds**.
+- Universal payload ZIP, wheel and source distribution builders passed.
+- All **25 starter files** match canonical source, captured PR-41, embedded
+  source, wheel and source distribution. All **23 payload files** also match the
+  universal archive. All **seven built-in Skills** and learned-Skill fallback
+  remain intact; learned-Skill and Library implementation modules match the wheel.
+- `git diff --check` passed. No production edits were needed after resolving the
+  rebase conflicts; no Library payload edits or R9 cards were introduced.
+
+These are local macOS integration results. Actual Windows CI remains necessary.
+Any later upstream note-only rebases should preserve these source bytes; changed
+production code requires its own validation.
+
+## Earlier validation checkpoint
+
+The detailed evidence below was collected on the PR-43 working tree based on plan
+commit `40e62c8`, before PR-40/41 source integration. Its smaller counts are retained
+as historical evidence, separate from the integrated results above.
 
 ## Source selection and retrieval
 
@@ -53,8 +81,9 @@ Windows CI lane. Independent review accepted the production repairs. Its final
 fixture correction uses the retained transaction target as the Windows-safe
 publication witness; both changed-registration rollback cases passed afterward.
 The complete boundary selection passed 12 tests, including the changed valid
-record restore and foreign backup-lookalike preservation. Actual Windows CI,
-upstream PR integration, and post-integration validation remain delivery gates.
+record restore and foreign backup-lookalike preservation. Upstream source
+integration and post-integration validation are now recorded above. Actual Windows
+CI remains a delivery gate.
 These tests demonstrate local persistence, filesystem, SQLite and real-Git
 behavior. They do not certify model answers, native AI-app invocation, semantic
 search, cards, cloud/shared catalogs, project-source recovery or live sync.
