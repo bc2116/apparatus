@@ -21,6 +21,11 @@ can update their original instructions with `apparatus init WORKSPACE`. Custom
 instruction conflicts are preserved and reported for repair. The old interview
 and central Deliverables folder remain until their migration slices.
 
+People and Facts now support [correction, outdated status, and forgetting](docs/spec/memory.md).
+`apparatus memory recall WORKSPACE QUERY` returns current Memory with sources.
+Forgetting clears record content, with a filename marker to prevent automatic
+re-seeding; it does not erase historical copies. Per-task retention is still planned.
+
 The [approved rework](docs/design/design-brief.md) replaces that ceremony and
 adds native Skills, economical subagent guidance, lightweight prose editing,
 and a Library catalog referencing project files. **The remaining rework is planned,

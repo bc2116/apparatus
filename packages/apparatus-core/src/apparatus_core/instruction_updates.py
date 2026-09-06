@@ -1,4 +1,4 @@
-"""Bounded migration of original pre-rework workspace instructions.
+"""Bounded migration of known shipped workspace instructions.
 
 Only known shipped bytes may be automatically replaced. Other instructions
 remain user-owned; a conflicting retired gate is an actionable migration error.
@@ -30,6 +30,14 @@ LEGACY_INSTRUCTIONS = {
     "CLAUDE.md": "1438f32143f9c1211b2443d2b05fb7b87d71c0eeca77931bc1d6e472a1fc2780",
     ".cursor/rules/apparatus.mdc": "acfcb3006efa4016d38b8b697a8af7630b36ce59b2b3037230b68c0ce3dd7d73",
     ".github/copilot-instructions.md": "4bb639c7bfae8bffb2a36923a2079c861e4eb92f87201095a27296a5795a84a0"
+}
+
+# The gate-free PR-32 canon and pointers also upgrade to current Memory guidance.
+PREVIOUS_INSTRUCTIONS = {
+    "AGENTS.md": "4652aba0d9a9ea2067d8695c38f967327fae6a284da7b45571e89ecc9a2dd66e",
+    "CLAUDE.md": "8042d4fc3c111faca7fb6770347ee7cbe66f75bc7aa3c1629c96313f838c3754",
+    ".cursor/rules/apparatus.mdc": "82a785af868ba285c12ac86b9fe66b3a61c188ecd016dc9c72b55f976fb2ad76",
+    ".github/copilot-instructions.md": "36cc574ea3d7dbb49cd79860489a8cb526bf9fdb8d010c5d69cb5dd673df69ae",
 }
 
 
@@ -93,7 +101,7 @@ def instruction_updates(
             desired = proposed.get(relative)
             if current == desired:
                 continue
-            if _digest(current) == digest and desired is not None:
+            if _digest(current) in {digest, PREVIOUS_INSTRUCTIONS.get(relative)} and desired is not None:
                 if relative not in removals:
                     replacements[relative] = OverlayWrite(relative, desired)
             elif has_retired_gate(current):

@@ -235,3 +235,24 @@ def test_sharing_command_is_absent_but_legacy_receipts_remain_valid(capsys):
         "timestamp: '2026-08-08T12:00:00Z'\nsummary: Historical decision.\n---\n"
     )
     assert records.validate("receipt", data, filename="2026-08-08-120000-egress.md") == []
+
+
+@pytest.mark.parametrize("crlf", [False, True])
+def test_gate_free_workspace_updates_memory_guidance_without_losing_records(tmp_path, crlf):
+    workspace = tmp_path / "work"
+    shutil.copytree(shipped_payload(), workspace)
+    fixtures = FIXTURES.parent / "instruction_updates_pr32"
+    for source in fixtures.rglob("*"):
+        if source.is_file():
+            content = source.read_bytes().replace(b"\r\n", b"\n")
+            (workspace / source.relative_to(fixtures)).write_bytes(
+                content.replace(b"\n", b"\r\n") if crlf else content
+            )
+    fact = workspace / "Memory/Facts/a-preference.md"
+    original = b"---\nschema: apparatus/fact@v0\ntitle: A preference\n---\nKeep this.\n"
+    fact.write_bytes(original)
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    assert "apparatus memory recall" in (workspace / "AGENTS.md").read_text()
+    assert check_workspace(workspace).ok
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    assert fact.read_bytes() == original

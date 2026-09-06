@@ -55,6 +55,7 @@ jobs:
           packages/apparatus-core/tests/test_library_index.py
           packages/apparatus-core/tests/test_render.py
           packages/apparatus-core/tests/test_instruction_updates.py
+          packages/apparatus-core/tests/test_memory_lifecycle.py
           packages/apparatus-core/tests/test_backup.py
           packages/apparatus-core/tests/test_receipts.py
           packages/apparatus-core/tests/test_machine_report.py
