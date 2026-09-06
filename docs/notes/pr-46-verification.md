@@ -90,3 +90,28 @@ by PyPI. A successful build or setup is not native AI-app certification, which
 remains the separate R12 acceptance effort. Managed recovery does not include
 ordinary project files or registered originals, and a restored selection cannot
 recreate a missing source.
+
+
+## Windows bootstrap fixture repair
+
+The native bootstrap run `34054072972` reported nine failures, fourteen passes
+and one skip. Successful enrollment reached doctor, but eight failing paths
+reported `uv: null` despite finding uv. The fixture provided only `uv.cmd`;
+`shutil.which` recognizes that via PATHEXT, while the doctor's bare subprocess
+uses Windows executable lookup. The detector has no version-probe timeout, so
+its null-version fallback must not be called evidence of a detection timeout.
+
+The fixture now copies the already-required CI build tool's `uv.exe` into its
+isolated bin for the real wheel's read-only version probe. PowerShell's explicit
+`uv.cmd` installer collaborator remains selected by `Find-Uv`. Fresh-flow tests
+assert that report frontmatter exactly matches the isolated executable's version.
+Production installer, detection and report guards are unchanged. No downloads,
+live user installations, timeout increases or descendant changes were added.
+
+Independent lead review accepted the fixture correction and lookup precedence.
+Local bootstrap/wrapper checks passed **24 tests in 78.65 seconds**; the required
+full suite passed **1247 tests, 38 skipped in 528.24 seconds**. `git diff --check`
+passed. These local results do not establish the native Windows outcome.
+The separate complete-legacy test's 90-second Windows timeout is still
+unexplained; the native rerun must establish whether it persists. Its timeout
+and preservation assertions have not been weakened.
