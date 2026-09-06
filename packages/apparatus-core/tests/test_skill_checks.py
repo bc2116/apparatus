@@ -46,12 +46,36 @@ def test_complete_native_set_validates_and_counts_each_body_once(tmp_path):
     assert _bytes(root) == before
 
 
-def test_external_ancestor_alias_keeps_canonical_workspace_boundary(tmp_path):
+def test_external_ancestor_alias_keeps_canonical_workspace_boundary(tmp_path, monkeypatch):
+    from apparatus_core import check as checks
     root = _area(tmp_path)
     alias = tmp_path / "external-alias"
     alias.symlink_to(tmp_path, target_is_directory=True)
     assert _check(alias / root.name) == ([], 5, 0, 0)
+    read_rules = checks.load_ignore_rules
+    observed = []
+
+    def canonical_rules(workspace, **options):
+        assert workspace == root.resolve(), "ignore reads used the unresolved external alias"
+        observed.append(workspace)
+        return read_rules(workspace, **options)
+
+    monkeypatch.setattr(checks, "load_ignore_rules", canonical_rules)
     assert check_workspace(alias / root.name).ok
+    assert observed == [root.resolve()]
+
+
+def test_workspace_leaf_alias_remains_rejected_before_ignore_reads(tmp_path, monkeypatch):
+    from apparatus_core import check as checks
+    root = _area(tmp_path)
+    before = _bytes(root)
+    alias = tmp_path / "leaf-alias"
+    alias.symlink_to(root, target_is_directory=True)
+    monkeypatch.setattr(checks, "load_ignore_rules", lambda *_a, **_k: pytest.fail("followed a workspace leaf link"))
+    result = check_workspace(alias)
+    assert not result.ok
+    assert [finding.code for finding in result.findings] == ["project-binding-invalid"]
+    assert _bytes(root) == before
 
 
 @pytest.mark.parametrize("damage", ["all-bodies", "all-directories", "one-body"])

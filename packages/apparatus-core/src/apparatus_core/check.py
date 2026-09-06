@@ -402,11 +402,15 @@ def check_workspace(
     """Check a workspace tree and its v0 records without changing it."""
     root = Path(workspace)
     from apparatus_core.project_binding import BindingError, read_project_binding
+    from apparatus_core.payload import PayloadError, preflight_workspace_paths
     from apparatus_core.workspace_layout import LayoutError, read_layout
     try:
         if read_project_binding(root) is not None:
             raise BindingError("Use apparatus check PROJECT to check a bound project.")
-    except BindingError as error:
+        # Use the same canonical external ancestors for every check. The final
+        # workspace component and paths inside it remain no-follow boundaries.
+        root = preflight_workspace_paths(root)
+    except (BindingError, PayloadError, OSError) as error:
         return CheckResult((Finding("project-binding-invalid", ".apparatus/workspace.yaml", str(error)),), 0)
     try:
         layout = read_layout(root)

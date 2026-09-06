@@ -31,3 +31,12 @@ This checkpoint includes the current recovery and adoption branches plus the
 merged Library lock fix. Merge those dependencies and require actual Windows CI
 on the final PR before delivery. Portable conformance does not prove
 native app discovery or invocation; R4b and later app certification remain separate.
+
+Actual Windows CI exposed one additional path-consistency issue: Skill checks
+canonicalized an external ancestor alias while ignore checks still used that
+alias directly. The entry point now passes the existing preflight's canonical
+work-area root to all checks. The work area's final component and all managed
+paths remain no-follow boundaries. A direct workspace link is rejected before
+ignore reads. Canonical-path and leaf-link regressions pass; focused Skill,
+workspace and ignore tests passed **65 tests**. Independent repair review
+accepted this change. Integrated full and actual Windows reruns remain required.
