@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import zlib
+import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -30,6 +31,7 @@ from apparatus_core.snapshots import (
     _write_owned_snapshot_receipt, default_label,
 )
 from apparatus_core.workspace_layout import LayoutError, read_layout
+from apparatus_core.library.sources import Catalog, REGISTRATION_ROOT, parse_registration, registration_path
 
 STORE = "System/recovery/store"
 REF = "refs/heads/managed"
@@ -98,6 +100,8 @@ def _path(value: str) -> PurePosixPath:
 
 def _kind(relative: str) -> str | None:
     path = _path(relative)
+    if path.parent.as_posix() == REGISTRATION_ROOT and path.suffix == ".yaml":
+        return "library_source"
     if relative in skills.BUILTIN_PATHS:
         return "skill"
     learned = learned_skills.path_kind(relative)
@@ -128,6 +132,9 @@ def _validate_file(relative: str, content: bytes) -> bool:
             if skills.validate_skill(content, learned_skills.path_kind(relative)[1]):
                 raise ValueError("invalid learned Skill")
             return True
+        if kind == "library_source":
+            parse_registration(content, relative)
+            return True
         if kind == "text":
             return True
         if kind == "skill":
@@ -154,12 +161,43 @@ def _read_compatible(anchor: Any, relative: str) -> tuple[bytes, Any]:
         proof.close()
 
 
+def _validate_library_registration_set(
+    files: dict[str, bytes], workspace=None, *, transaction_compatible: bool = False,
+    temporary_files: dict | None = None,
+) -> None:
+    """Validate a historical catalog or its union with preserved later entries."""
+    selected = {}
+    try:
+        if workspace is not None:
+            with Catalog(workspace, transaction_compatible=transaction_compatible,
+                         temporary_files=temporary_files) as catalog:
+                selected.update((registration_path(source.source_path), source) for source in catalog.sources)
+                catalog.validate()
+        for relative, content in files.items():
+            if _kind(relative) == "library_source":
+                selected[relative] = parse_registration(content, relative)
+        seen = set()
+        for source in selected.values():
+            key = unicodedata.normalize("NFC", source.source_path).casefold()
+            if key in seen:
+                raise SnapshotError("Library source registrations have a portable path collision; resolve it before restore.")
+            seen.add(key)
+    except ValueError as error:
+        raise SnapshotError("Library source catalog is invalid or has a portable path conflict; repair it before recovery.") from error
+
+
 def _collect(anchor: Any) -> dict[str, bytes]:
     try:
         registered = learned_skills.registered_files(anchor)
     except (OSError, learned_skills.LearnedSkillError) as error:
         raise SnapshotError("Adopted Skill coverage is missing or invalid; repair the registered pair before recovery.") from error
     candidates = set(OPTIONAL_FILES) | set(registered)
+    try:
+        with Catalog(anchor.workspace) as catalog:
+            candidates.update(registration_path(source.source_path) for source in catalog.sources)
+            catalog.validate()
+    except ValueError as error:
+        raise SnapshotError("Library source catalog is invalid or changed; repair it before recovery.") from error
     for root in RECORD_ROOTS:
         if anchor.directory_exists(root):
             candidates.update(p.as_posix() for p in anchor.list_files(root, suffix=".md", include_hidden=False))
@@ -590,6 +628,7 @@ def _validated_manifest(identifier: str, files: dict[str, bytes]) -> dict[str, b
         if set(files) != set(included) | {MANIFEST}:
             raise ValueError("extra tree path")
         learned_skills.validate_pairs(included)
+        _validate_library_registration_set(included)
         return included
     except (KeyError, ValueError, TypeError, UnicodeError) as error:
         raise SnapshotError("Managed snapshot manifest or coverage is invalid.") from error
@@ -908,6 +947,9 @@ class RestorePlan:
 
     def validate(self) -> None:
         self.history.validate()
+        _validate_library_registration_set(
+            self.files, self.store.layout.workspace, transaction_compatible=True,
+        )
         for relative, proof in self.preimages.items():
             if proof is None:
                 if _exists(self.store.root, relative):
@@ -984,6 +1026,16 @@ class RestorePlan:
 
     def _validate_published(self) -> None:
         self.history.validate()
+        temporary = {}
+        for change in self.changes:
+            if not change.finished and _kind(change.target.relative.as_posix()) == "library_source":
+                backup = change.backup
+                name = backup.name if hasattr(backup, "name") else backup.path.name
+                temporary[name] = (backup.content, backup.identity)
+        _validate_library_registration_set(
+            self.files, self.store.layout.workspace, transaction_compatible=True,
+            temporary_files=temporary,
+        )
         _validate_layout(self.store.layout, self.store.root)
         changed = {change.target.relative.as_posix() for change in self.changes}
         for change in self.changes:

@@ -47,6 +47,11 @@ it preserves valid custom bodies. Missing new bodies remain actionable in check.
 Third-party Skills, optional resources beside a built-in body and project native
 adapters are outside coverage; `.agents/skills` is never recursively captured.
 
+The closed [Library source registrations](library-sources.md) under
+`System/library/sources/` are included. Capture validates the exact catalog;
+historical manifests validate records without requiring their originals to be
+available. Originals and extraction/index caches remain outside coverage.
+
 No other paths are inferred to be managed. Project files, Library originals,
 caches, unknown files, task controls, routing/bindings and recovery storage are
 outside snapshot contents. Filesystem traversal does not follow links or reparse
@@ -74,6 +79,11 @@ paths are validated before any replacement. Retained-root create/replace
 transactions compare preimages, preserve concurrent edits and compensate only
 their own changes. Task and routing controls stay in place, including later
 no-save choices.
+
+Restoring a Library registration preserves later registrations. The combined
+historical/current catalog must remain free of portable path collisions at every
+publication boundary. A conflicting restore stops with the existing state intact.
+Restoring a registration cannot restore a missing original or freshen an old cache.
 
 The CLI identifies the snapshot date and scope. Restored Memory reflects that
 historical saved state and can revive older information, including content that

@@ -16,6 +16,11 @@ extracted. A later refresh removes a newly matched source from the local index
 and recall evidence. Record checks skip matched records, while reporting their
 count so the exclusion is visible.
 
+The same rules cover [registered project originals](library-sources.md) before
+content reads. Ignoring a source preserves its original and registration while
+excluding its cached text from search. Retrieval reports the coverage gap;
+an old cached excerpt is not evidence for an ignored source.
+
 ## Safety boundaries
 
 **Ignore rules never relax the credential floor.** Managed text-write

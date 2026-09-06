@@ -466,6 +466,7 @@ def test_atomic_identity_and_descriptor_stale_cleanup_resist_substitution(monkey
         return original_stat(name, *args, **kwargs)
     with operation(workspace):
         monkeypatch.setattr(ingest_module.os, "stat", swap_parent)
+        monkeypatch.setattr(ingest_module.os, "supports_dir_fd", set(ingest_module.os.supports_dir_fd) | {swap_parent})
         with pytest.raises(OSError):
             ingest_library(workspace)
         assert (outside / "gone.txt.json").read_text() == "sentinel"

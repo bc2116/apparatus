@@ -33,6 +33,7 @@ class RecallEnvelope(TypedDict):
     threshold: float
     evidence: list[Evidence]
     generated_at: str
+    coverage: dict
 
 
 def _utcnow() -> datetime:
@@ -74,7 +75,7 @@ def _receipt_fields(
         or "- none"
     )
     return {
-        "summary": f"Recall {envelope['status']} with {len(safe_sources)} evidence source(s).",
+        "summary": f"Recall {envelope['status']} with {len(safe_sources)} evidence source(s); {envelope['coverage']['status']} Library coverage.",
         "question": question,
         "status": envelope["status"],
         "threshold": envelope["threshold"],
@@ -85,6 +86,7 @@ def _receipt_fields(
         "ignore_rule_provenance": ignore_report.provenance,
         "body": (
             ignore_report.sentence()
+            + "\nLibrary coverage: " + envelope["coverage"]["status"] + "."
             + "\n\nEvidence sources:\n"
             + source_details
             + "\n\nCredential-floor redactions:\n"
@@ -119,7 +121,8 @@ def _recall(
     if limit < 1:
         raise ValueError("limit must be positive")
 
-    hits, ignore_report = index.retrieve(workspace_path, question, limit)
+    result = index.retrieve(workspace_path, question, limit)
+    hits, ignore_report = result
     qualifying = [hit for hit in hits if hit.score >= RECALL_ABSTAIN_THRESHOLD]
     evidence: list[Evidence] = [
         {"source": hit.source_path, "snippet": hit.snippet, "score": hit.score}
@@ -131,6 +134,7 @@ def _recall(
         "threshold": RECALL_ABSTAIN_THRESHOLD,
         "evidence": evidence,
         "generated_at": _timestamp(_utcnow()),
+        "coverage": result.coverage.as_dict(),
     }
     if context_for(workspace_path).save_memory:
         write(workspace_path, "recall", _receipt_fields(envelope, ignore_report))

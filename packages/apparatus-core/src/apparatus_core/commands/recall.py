@@ -42,9 +42,16 @@ def _render_human(envelope: recall_engine.RecallEnvelope) -> None:
     print(f"Question: {_safe(envelope['question'])}")
     print(f"Threshold: {envelope['threshold']}")
     print(f"Generated at: {envelope['generated_at']}")
+    coverage = envelope["coverage"]
+    print(f"Library coverage: {coverage['status']}")
+    for issue in coverage["sources"]:
+        print(f"- {_safe(issue['source_path'])}: {_safe(issue['reason'])}")
     if envelope["status"] == "abstained":
         print("Evidence: none")
-        print("Not in your Library.")
+        if coverage["status"] == "partial":
+            print("No matching evidence from the available sources. Check the listed sources and run Library ingest after repair.")
+        else:
+            print("Not in your Library.")
         print("Answers from elsewhere are not grounded recall.")
         return
     print("Evidence:")
@@ -89,7 +96,9 @@ def run(args: argparse.Namespace) -> int:
             task_id=getattr(args, "task", None),
         )
     except recall_engine.NoExtractionsError as error:
-        if error.readonly:
+        if error.reason == "invalid":
+            print("Existing Library extraction evidence is invalid. Run apparatus library ingest to repair it; a no-save task needs a separate explicit Library request.")
+        elif error.readonly:
             print("Existing Library extractions are unavailable. A separate Library ingest is needed.")
         else:
             print("Nothing from your Library has been ingested yet. Run apparatus library ingest first.")

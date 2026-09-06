@@ -45,11 +45,13 @@ status and labeling remain available. Requested output files save normally.
 Automatic Library extraction, refresh, rebuild, future cards/learned Skills,
 activity notes and snapshots are suppressed. Routine Library offers are skipped.
 
-Library retrieval uses existing validated extraction state in a temporary
-in-memory index without cache directories, locks, files, database repair or
-receipts. It makes no stronger source-freshness claim. Unavailable extraction
-state is reported separately from no-match. A separate explicit Library write
-request uses its command's `--requested`; this does not enable Memory.
+Library retrieval compares existing extraction evidence with each selected
+original's current bytes and searches only validated text in a temporary
+in-memory index. A no-save query creates no cache directories, locks, files,
+database repair or receipts. Missing, changed or unusable sources produce
+partial coverage, distinct from a complete no-match. It does not re-extract
+changed content during retrieval. A separate explicit Library add, remove,
+ingest or rebuild uses its command's `--requested`; this does not enable Memory.
 
 Automatic snapshots stop before Git initialization or object capture. A separate
 explicit `snapshot --requested` or requested backup export remains available.

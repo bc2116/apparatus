@@ -168,7 +168,7 @@ def test_cli_read_paths_share_no_save_behavior(tmp_path, monkeypatch, capsys):
         workspace=str(workspace), query="cobalt", task=task.task_id,
         limit=5, as_json=True, rebuild=False,
     )) == 0
-    assert json.loads(capsys.readouterr().out)[0]["source_path"] == "Library/source.txt"
+    assert json.loads(capsys.readouterr().out)["hits"][0]["source_path"] == "Library/source.txt"
     assert recall_command.run(argparse.Namespace(
         workspace=str(workspace), question="cobalt", task=task.task_id,
         limit=5, as_json=True,
@@ -216,8 +216,9 @@ def test_terminal_extraction_requires_valid_metadata_and_no_text_pair(tmp_path, 
     record_path.write_text(json.dumps(metadata))
     task = start_task(workspace, save_memory=False)
     before = _tree(tmp_path)
-    with pytest.raises(index.NoExtractionsError):
-        index.retrieve(workspace, "cobalt", task_id=task.task_id)
+    result = index.retrieve(workspace, "cobalt", task_id=task.task_id)
+    assert [hit.source_path for hit in result.hits] == ["Library/source.txt"]
+    assert result.coverage.issues == (("Library/empty.txt", "invalid_cache"),)
     assert _tree(tmp_path) == before
 
 

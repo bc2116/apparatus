@@ -35,6 +35,11 @@ adds a relative link and instruction pointer, preserving project instructions.
 Commands then use that explicit area's context. Moving a linked project requires
 an explicit rebind; Apparatus never guesses another area.
 
+The [local Library catalog](docs/spec/library-sources.md) can reference selected
+project files in place. Add registers and extracts one original; existing files
+under `Library/` remain compatible. Search and recall cite original paths and
+report partial coverage when selected sources have changed or become unavailable.
+
 [Managed recovery](docs/spec/managed-recovery.md) snapshots and backs up declared
 Apparatus records and settings, excluding project files and Library originals.
 It leaves root and project Git repositories untouched. Unconverted workspaces keep
@@ -57,7 +62,7 @@ Adopted bodies stay editable and are covered by managed recovery through their
 explicit ownership records. Drafts remain inactive and outside that coverage.
 
 The [approved rework](docs/design/design-brief.md) adds native discovery adapters
-and a Library catalog referencing project files. **The remaining rework is planned,
+and lightweight Library cards and completion offers. **The remaining rework is planned,
 not yet implemented.** Existing specs and conformance tests describe the
 baseline until their migration PRs land. Formal app certification is held
 while the target changes; packaging code alone does not establish a signed

@@ -16,6 +16,7 @@ from apparatus_core.cache import library_cache_root
 from apparatus_core.fs_transactions import WindowsWorkspaceAnchor
 from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION, extract_bytes
+from apparatus_core.library.sources import Catalog, SourceUnavailable
 from apparatus_core.receipts import write_receipt
 from apparatus_core.render import is_reparse_path
 from apparatus_core.retention import operation
@@ -50,19 +51,31 @@ def ingest_library(
         return _ingest_authorized(workspace)
 
 
-def _ingest_authorized(workspace: str | Path) -> IngestResult:
+def ingest_source(
+    workspace: str | Path, source_path: str, *, task_id: str | None = None,
+    requested: bool = False,
+) -> IngestResult:
+    """Extract only the explicitly selected source, retaining its registration."""
+    with operation(workspace, task_id=task_id, requested=("library",) if requested else ()) as context:
+        context.require_library_write()
+        return _ingest_authorized(workspace, selected=source_path)
+
+
+def _ingest_authorized(workspace: str | Path, *, selected: str | None = None) -> IngestResult:
     """Extract all visible Library sources and write one honest receipt."""
     root = Path(workspace)
     rules = load_ignore_rules(root).require_valid()
     if is_reparse_path(root) or is_reparse_path(root / "Library"):
         raise ValueError("workspace and Library must not be symbolic links")
     library = root / "Library"
-    library_fd = _open_library_directory(library)
-    windows_anchor = _windows_source_anchor(root)
-    try:
-        return _ingest_library(root, library, library_fd, windows_anchor, rules)
-    finally:
-        _close_source_anchors(library_fd, windows_anchor)
+    with Catalog(root) as catalog:
+        source = catalog.source(selected) if selected is not None else None
+        library_fd = _open_library_directory(library)
+        windows_anchor = _windows_source_anchor(root)
+        try:
+            return _ingest_library(root, library, library_fd, windows_anchor, rules, catalog, source)
+        finally:
+            _close_source_anchors(library_fd, windows_anchor)
 
 
 def _ingest_library(
@@ -71,6 +84,8 @@ def _ingest_library(
     library_fd: int,
     windows_anchor: WindowsWorkspaceAnchor | None,
     rules: IgnoreRules,
+    catalog: Catalog,
+    selected=None,
 ) -> IngestResult:
     """Run ingestion while the workspace's source anchor remains retained."""
     cache = library_cache_root(root)
@@ -84,7 +99,8 @@ def _ingest_library(
     seen: set[tuple[str, ...]] = set()
     built_in_ignored = 0
     user_ignored = 0
-    entries = _library_entries(library, library_fd, rules)
+    entries = (_library_entries(library, library_fd, rules) if selected is None else
+               [root / selected.source_path] if selected.kind == "library" else [])
     for source in entries:
         if isinstance(source, _TraversalFailure):
             counts["scanned"] += 1
@@ -172,7 +188,64 @@ def _ingest_library(
         counts[result.status] += 1
         if result.status in {"no_text", "unsupported", "error"}:
             flagged.append((_safe(relative), result.status, _safe(result.error or "no text extracted")))
-    _remove_deleted(extractions, seen)
+    if selected is None:
+        _remove_deleted(extractions, seen)
+    registered = catalog.sources if selected is None else (
+        (selected,) if selected.kind == "registered" else ()
+    )
+    references = cache / "references"
+    if registered or references.exists():
+        if is_reparse_path(references):
+            raise ValueError("Library reference cache must not contain symbolic links")
+        references.mkdir(parents=True, exist_ok=True)
+        _validate_private_cache_tree(references)
+    for source in registered:
+        path = source.source_path
+        classification = rules.classification(path)
+        if classification is not None:
+            counts["ignored"] += 1
+            if classification == "built-in":
+                built_in_ignored += 1
+            else:
+                user_ignored += 1
+            continue
+        counts["scanned"] += 1
+        try:
+            with catalog.read(source, rules=rules) as current:
+                record_path = cache / (source.cache_relative + ".json")
+                text_path = cache / (source.cache_relative + ".txt")
+                if not _private_cache_path(cache, record_path) or not all(
+                    _private_regular_or_missing(candidate) for candidate in (record_path, text_path)
+                ):
+                    raise ValueError("Library cache target is not a private regular file")
+                old = _read_record(record_path)
+                if _valid_record(old, path, current.sha256, current.size_bytes, text_path):
+                    counts["unchanged"] += 1
+                    if old["status"] in {"no_text", "unsupported", "error"}:
+                        flagged.append((_safe(path), old["status"], _safe(old["error"] or "no text extracted")))
+                else:
+                    result = extract_bytes(root / path, current.content)
+                    record = {
+                        "source_path": path, "source_sha256": current.sha256,
+                        "size_bytes": current.size_bytes, "extractor": result.extractor,
+                        "extractor_version": EXTRACTOR_VERSION, "status": result.status,
+                        "error": result.error, "character_count": len(result.text),
+                        "timestamp": datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    }
+                    current.validate()
+                    catalog.validate()
+                    _publish_pair(record_path, text_path, json.dumps(record, sort_keys=True, indent=2) + "\n",
+                                  result.text if result.status == "extracted" else None)
+                    counts[result.status] += 1
+                    if result.status in {"no_text", "unsupported", "error"}:
+                        flagged.append((_safe(path), result.status, _safe(result.error or "no text extracted")))
+                current.validate()
+        except SourceUnavailable as error:
+            counts["error"] += 1
+            flagged.append((_safe(path), "error", str(error)))
+    catalog.validate()
+    if selected is None and references.exists():
+        _remove_deleted(references, {_portable_key(source.key) for source in catalog.sources})
     ignore_report = rules.report(
         built_in_paths=built_in_ignored, user_paths=user_ignored
     )
@@ -446,7 +519,8 @@ def _cache_files(directory: Path, suffix: str) -> list[Path]:
     return files
 
 
-def _valid_record(record: dict | None, source: str, digest: str, size: int, text: Path) -> bool:
+def _valid_record(record: dict | None, source: str, digest: str, size: int, text: Path,
+                  *, text_bytes=...) -> bool:
     if not isinstance(record, dict) or set(record) != {"source_path", "source_sha256", "size_bytes", "extractor", "extractor_version", "status", "error", "character_count", "timestamp"}:
         return False
     if record.get("source_path") != source or record.get("source_sha256") != digest or not isinstance(record.get("source_sha256"), str) or len(record["source_sha256"]) != 64 or any(c not in "0123456789abcdef" for c in record["source_sha256"]) or type(record.get("size_bytes")) is not int or record.get("size_bytes") != size or record.get("extractor") not in {"utf-8", "python-docx", "pypdf", "none"} or record.get("extractor_version") != EXTRACTOR_VERSION or type(record.get("character_count")) is not int or record["character_count"] < 0 or not _utc(record.get("timestamp")):
@@ -462,11 +536,19 @@ def _valid_record(record: dict | None, source: str, digest: str, size: int, text
     elif status != "unsupported":
         return False
     if status == "extracted":
+        if text_bytes is not ...:
+            if record.get("error") is not None or not isinstance(text_bytes, bytes):
+                return False
+            try:
+                return len(text_bytes.decode("utf-8")) == record["character_count"]
+            except UnicodeError:
+                return False
         if record.get("error") is not None or not text.is_file() or is_reparse_path(text): return False
         try: return len(text.read_text(encoding="utf-8")) == record["character_count"]
         except (OSError, UnicodeError): return False
-    if status == "no_text": return record.get("error") is None and record["character_count"] == 0 and not text.exists()
-    return status in {"unsupported", "error"} and isinstance(record.get("error"), str) and bool(record["error"]) and record["character_count"] == 0 and not text.exists()
+    absent = not text.exists() if text_bytes is ... else text_bytes is None
+    if status == "no_text": return record.get("error") is None and record["character_count"] == 0 and absent
+    return status in {"unsupported", "error"} and isinstance(record.get("error"), str) and bool(record["error"]) and record["character_count"] == 0 and absent
 
 
 def _safe(value: str) -> str:

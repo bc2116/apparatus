@@ -69,7 +69,9 @@ def test_grounded_envelope_has_exact_citation_shape_and_valid_receipt(
         "threshold",
         "evidence",
         "generated_at",
+        "coverage",
     }
+    assert envelope["coverage"] == {"status": "complete", "sources": []}
     assert envelope["status"] == "grounded"
     assert envelope["question"] == "cobalt calibration phrase"
     assert envelope["threshold"] == recall.RECALL_ABSTAIN_THRESHOLD
