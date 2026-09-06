@@ -47,7 +47,7 @@ jobs:
         run: uv sync --all-packages
       - name: Run Windows safety coverage
         run: >-
-          uv run pytest
+          uv run pytest --durations=20
           packages/apparatus-core/tests/test_credentials.py
           packages/apparatus-core/tests/test_fs_transactions.py
           packages/apparatus-core/tests/test_labeler.py

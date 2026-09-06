@@ -13,8 +13,8 @@ PR-38 implements R4a: portable Skill files, migration, checks and recovery.
 PR-39 implements R5: task-first welcome and everyday work, independently of R4b.
 PR-40 implements R6: economical native work and selective prose editing.
 PR-41 implements R7: draft and review-bound adoption of learned Skills.
-PR-46 implements R11 installer routing and explicit adoption; final delivery
-integrates PR-45 and retains separate native setup/release evidence.
+PR-46 implements R11 installer routing and explicit adoption on the integrated
+PR-45 core, with separate native setup/release evidence.
 Native discovery adapters and runtime evidence remain planned.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
@@ -107,7 +107,7 @@ later slices remain planned.
 | 43 | [Library references to originals](PR-43-library-references.md) | Rework | ✅ landed | 41, 42 |
 | 44 | [Library cards and completion offers](PR-44-library-cards.md) | Rework | ✅ landed | 43 |
 | 45 | [Quiet operations and concrete repair guidance](PR-45-quiet-operations.md) | Rework | ✅ landed | 44 |
-| 46 | [Install into a chosen work area](PR-46-installer-adoption.md) | Rework | ready | 45 |
+| 46 | [Install into a chosen work area](PR-46-installer-adoption.md) | Rework | ✅ landed | 45 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

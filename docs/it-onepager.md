@@ -3,13 +3,12 @@
 ## What gets installed and where
 
 Setup installs uv, managed Python and the `apparatus-core` uv tool in user
-scope. On Windows these live
-under `%USERPROFILE%\.local\bin`, `%USERPROFILE%\.local\share\uv\python`,
-and `%USERPROFILE%\.local\share\uv\tools`. On macOS they live under
+scope. Windows paths are `%USERPROFILE%\.local\bin`, `%USERPROFILE%\.local\share\uv\python`,
+and `%USERPROFILE%\.local\share\uv\tools`; macOS paths are
 `~/.local/bin`, `~/.local/share/uv/python`, and `~/.local/share/uv/tools`.
 Setup uses existing Git for snapshots without installing or modifying it.
 Releases include an Inno Setup `.exe` and a no-payload macOS `.pkg`, plus the
-bare scripts as fallbacks. The Windows wrapper only temporarily extracts its script. macOS Installer may request administrator
+bare scripts as fallbacks. The Windows wrapper temporarily extracts its script. macOS Installer may request administrator
 authentication and keeps its standard receipt and log metadata; its launcher
 runs the bootstrap chain as the logged-in user and installs no system payload.
 Signing uses explicit release gates; verify actual artifacts, not assumed gate
@@ -21,8 +20,7 @@ the payload, source distribution, wheel, two bare scripts, `.exe`, and `.pkg`.
 
 ## Workspace data
 
-A chosen work area holds projects beside Library, Goals, Memory and System. Defaults are `C:\Projects` on Windows and `~/Projects` on
-macOS; custom roots need no Apparatus enclosure. Existing
+A chosen work area holds projects beside Library, Goals, Memory and System. Defaults: `C:\Projects` on Windows, `~/Projects` on macOS. Custom roots need no Apparatus enclosure. Existing
 nonempty unmarked folders require explicit adoption. Setup preserves user work and task/profile choices; recognized shipped instructions can
 update through core repair. The work area must not be placed in
 sync-redirected folders such as OneDrive Documents/Desktop or iCloud Drive.
@@ -43,8 +41,7 @@ dependencies.
 ## Privacy model
 
 Apparatus labels personal content when it is written. There is no additional
-Apparatus review step for drafts, file movement, copies, or exports. Actual
-external actions require user authority and native AI app permissions. Passwords, API keys, tokens, private keys, and
+Apparatus review step for drafts, file movement, copies, or exports. External actions require user authority and native AI app permissions. Passwords, API keys, tokens, private keys, and
 high-confidence government or payment identifiers are redacted at managed
 text-write boundaries; this credential floor is never relaxed. A task can opt
 out of new Memory and automatic capture while requested deliverables still save.
@@ -59,7 +56,6 @@ state. They exclude ordinary project files, Library originals, derived caches
 and live task controls. Restoring a catalog does not recreate a deleted original.
 Legacy unadopted workspaces retain their documented older recovery behavior.
 Exports preserve covered historical bytes and do not sanitize historical files.
-Git detection alone does not establish a usable recovery point.
 
 ## Receipts
 
