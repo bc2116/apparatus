@@ -33,6 +33,13 @@ from apparatus_core.payload import (
     resolve_payload,
     resolve_profiles_manifest,
 )
+from apparatus_core.retention import (
+    RetentionSuppressed,
+    TaskContext,
+    TaskRetentionError,
+    context_for,
+    operation,
+)
 from apparatus_core.receipts import (
     ReceiptInvocation,
     ReceiptPublication,
@@ -142,7 +149,13 @@ def _exists(anchor: Any, relative: Path) -> bool:
         ) from error
 
 
-def _seed_plan(anchor: Any, profile: dict[str, Any]) -> _SeedPlan:
+def _seed_plan(
+    anchor: Any, profile: dict[str, Any], *, task_context: TaskContext | None = None
+) -> _SeedPlan:
+    context = task_context if task_context is not None else context_for(anchor.workspace)
+    if context.workspace != anchor.workspace:
+        raise TaskRetentionError("Task context cannot be used in another workspace.")
+    context.require_memory_write()
     people: list[PersonSeed] = []
     goals: list[GoalSeed] = []
     seeded: list[str] = []
@@ -152,7 +165,7 @@ def _seed_plan(anchor: Any, profile: dict[str, Any]) -> _SeedPlan:
         relative = Path("Memory/People") / f"{_slug(seed.name)}.md"
         if relative in reserved or _exists(anchor, relative):
             skipped.append(f"{relative.as_posix()} (already exists)")
-        elif profile["privacy_mode"] == "private":
+        elif context.legacy and profile["privacy_mode"] == "private":
             skipped.append(f"{relative.as_posix()} (blocked by private mode)")
         else:
             reserved.add(relative)
@@ -374,7 +387,13 @@ def _apply_changes(
     seed_plan: _SeedPlan,
     receipts: list[ReceiptPublication],
     profile: dict[str, Any],
+    *,
+    task_context: TaskContext | None = None,
 ) -> None:
+    context = task_context if task_context is not None else context_for(anchor.workspace)
+    if context.workspace != anchor.workspace:
+        raise TaskRetentionError("Task context cannot be used in another workspace.")
+    context.require_memory_write()
     replacements: list[Any] = []
     created: list[Any] = []
     removed: list[tuple[Path, bytes]] = []
@@ -425,6 +444,7 @@ def _apply_changes(
                 write=tracked_seed_receipt,
                 suffix_on_collision=False,
                 retain_ownership=True,
+                task_context=context,
             )
             if result is None or len(result) != 4:
                 raise ProfileCommandError("a planned People record could not be created")
@@ -470,6 +490,7 @@ def run(
     *,
     write: ReceiptPublisher = write_receipt,
     input_stream: TextIO | None = None,
+    task_id: str | None = None,
 ) -> int:
     """Validate and receipt a complete apply before committing its mutations."""
     if getattr(args, "profile_action", None) != "apply":
@@ -477,55 +498,63 @@ def run(
         return 2
     try:
         workspace = _workspace(args.workspace)
-        payload = resolve_payload(getattr(args, "payload", None))
-        manifest = load_manifest(resolve_profiles_manifest(payload), payload)
-        with memory._WorkspaceAnchor(workspace) as anchor:
-            original_profile, profile_identity = anchor.read_file("System/profile.yaml")
-            if getattr(args, "candidate_stdin", False):
-                stream = sys.stdin if input_stream is None else input_stream
-                candidate = stream.read().encode("utf-8")
-            else:
-                candidate = original_profile
-            profile, findings, rendered_profile = _profile_data(candidate)
-            if not getattr(args, "candidate_stdin", False) and not findings:
-                rendered_profile = original_profile
-            if profile["privacy_mode"] not in manifest.privacy_modes:
-                raise ProfileCommandError("profile privacy_mode is not available")
-            try:
-                canonical_work_types(manifest, profile["work_types"])
-            except ManifestError as error:
-                raise ProfileCommandError(
-                    "profile work_types includes an unknown work type"
-                ) from error
-            overlay_plan = plan_overlay(
-                payload,
-                workspace,
-                manifest,
-                privacy_mode=profile["privacy_mode"],
-                work_types=profile["work_types"],
-            )
-            seeds = _seed_plan(anchor, profile)
-            profile_updated = rendered_profile != original_profile
-            receipt_fields = _receipt_fields(
-                profile_updated,
-                _overlay_actions(overlay_plan),
-                seeds.seeded,
-                seeds.skipped,
-            )
-            receipts = _write_required_receipts(
-                anchor, findings, receipt_fields, write
-            )
-            _apply_changes(
-                anchor,
-                original_profile,
-                profile_identity,
-                rendered_profile,
-                overlay_plan,
-                seeds,
-                receipts,
-                profile,
-            )
-    except (PayloadError, ManifestError, ProfileCommandError) as error:
+        with operation(
+            workspace, task_id=task_id if task_id is not None else getattr(args, "task", None)
+        ) as task_context:
+            task_context.require_memory_write()
+            payload = resolve_payload(getattr(args, "payload", None))
+            manifest = load_manifest(resolve_profiles_manifest(payload), payload)
+            with memory._WorkspaceAnchor(workspace) as anchor:
+                original_profile, profile_identity = anchor.read_file("System/profile.yaml")
+                if getattr(args, "candidate_stdin", False):
+                    stream = sys.stdin if input_stream is None else input_stream
+                    candidate = stream.read().encode("utf-8")
+                else:
+                    candidate = original_profile
+                profile, findings, rendered_profile = _profile_data(candidate)
+                if not getattr(args, "candidate_stdin", False) and not findings:
+                    rendered_profile = original_profile
+                if profile["privacy_mode"] not in manifest.privacy_modes:
+                    raise ProfileCommandError("profile privacy_mode is not available")
+                try:
+                    canonical_work_types(manifest, profile["work_types"])
+                except ManifestError as error:
+                    raise ProfileCommandError(
+                        "profile work_types includes an unknown work type"
+                    ) from error
+                overlay_plan = plan_overlay(
+                    payload,
+                    workspace,
+                    manifest,
+                    privacy_mode=profile["privacy_mode"],
+                    work_types=profile["work_types"],
+                )
+                seeds = _seed_plan(anchor, profile, task_context=task_context)
+                profile_updated = rendered_profile != original_profile
+                receipt_fields = _receipt_fields(
+                    profile_updated,
+                    _overlay_actions(overlay_plan),
+                    seeds.seeded,
+                    seeds.skipped,
+                )
+                receipts = _write_required_receipts(
+                    anchor, findings, receipt_fields, write
+                )
+                _apply_changes(
+                    anchor,
+                    original_profile,
+                    profile_identity,
+                    rendered_profile,
+                    overlay_plan,
+                    seeds,
+                    receipts,
+                    profile,
+                    task_context=task_context,
+                )
+    except RetentionSuppressed:
+        print("Profile apply skipped: this task does not save answers or seed records.")
+        return 1
+    except (PayloadError, ManifestError, ProfileCommandError, TaskRetentionError) as error:
         print(f"profile: {error}")
         return 2
     except Exception:

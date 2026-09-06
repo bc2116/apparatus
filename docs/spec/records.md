@@ -106,7 +106,8 @@ optional keys listed here:
 
 - `schema`: `apparatus/profile@v0`.
 - `status`: `unconfigured` | `configured`.
-- `privacy_mode`: `standard` | `private`.
+- `privacy_mode`: `standard` | `private` (legacy compatibility; task decisions
+  govern current retention, and existing private profiles default to no-save).
 - `work_types`: list of strings (may be empty).
 - `review_day`: `null`, or a lowercase weekday name (`monday` … `sunday`).
 - Optional `spend`: `frugal` | `balanced` | `thorough` (the spend level;
@@ -128,6 +129,16 @@ the credential floor recursively before publishing the profile; interview
 answers never belong in command arguments or durable temporary files. Plain
 `apparatus profile apply` remains the compatible path for an existing profile
 and sanitizes legacy configured answers before deriving records.
+Both paths require a saving task once task controls are enabled; pass global
+`--task ID`. No-save blocks answer and seed capture before reading new input.
+
+## task control
+
+Plain YAML at `System/tasks/UUID.yaml`, managed by the task commands, with
+exactly three fields: `schema: apparatus/task@v0`, `id: UUID` (canonical random
+version 4), and `memory: save | no-save`. No user text or other keys are allowed.
+This is operational control metadata rather than a user-authored record. See
+[task retention](task-retention.md) for scope, migration and recovery rules.
 
 ## receipt
 
@@ -141,6 +152,10 @@ A machine-written, human-legible record of one machinery event.
   `library-ingest` | `recall` | `profile-apply` | `backup-export`.
 - Optional frontmatter: `labels`.
 - Body: the detail — what was examined, found, redacted, archived.
+  For a no-save task or anonymous task-enabled maintenance, necessary receipts
+  contain only fixed operational metadata, counts and opaque IDs; no body,
+  labels, query/path or free-form error text. Routine no-save retrieval emits
+  no receipt. These restrictions apply before publication ownership is bound.
 - Filename: `YYYY-MM-DD-HHMMSS-<event>.md` (UTC, all lowercase; same-second
   collisions append `-2`, `-3`, …). The `<event>` in the filename must equal
   the `event` field.

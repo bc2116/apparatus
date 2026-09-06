@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core import records
+from apparatus_core.retention import context_for, metadata_fields
 from apparatus_core.fs_transactions import (
     WorkspaceAnchor,
     exchange_names,
@@ -110,6 +111,7 @@ class ReceiptInvocation:
         "_state",
         "_publication_token",
         "_claimed",
+        "_retention_context",
     )
 
     def __init__(
@@ -119,6 +121,7 @@ class ReceiptInvocation:
         instant: datetime,
         content: bytes,
         seal: object,
+        retention_context=None,
     ):
         if seal is not _INVOCATION_SEAL:
             raise TypeError(
@@ -135,6 +138,7 @@ class ReceiptInvocation:
         self._state = "prepared"
         self._publication_token: object | None = None
         self._claimed = False
+        self._retention_context = retention_context
 
     def _consume(
         self,
@@ -150,7 +154,8 @@ class ReceiptInvocation:
                 raise OSError("receipt invocation freshness was already consumed")
             try:
                 _instant, rendered = prepare_receipt(
-                    event, fields, now=self._instant
+                    event, metadata_fields(self._workspace, event, fields,
+                                           context=self._retention_context), now=self._instant
                 )
             except Exception:
                 self._state = "closed"
@@ -217,14 +222,18 @@ def prepare_receipt_invocation(
     fields: Mapping[str, Any],
 ) -> ReceiptInvocation:
     """Prepare one fresh intent bound to exact rendered receipt bytes."""
-    instant, content = prepare_receipt(event, fields)
     workspace_path = Path(os.path.abspath(os.fspath(workspace)))
+    context = context_for(workspace_path)
+    instant, content = prepare_receipt(
+        event, metadata_fields(workspace_path, event, fields, context=context)
+    )
     return ReceiptInvocation(
         workspace_path,
         event,
         instant,
         content,
         _INVOCATION_SEAL,
+        context,
     )
 
 

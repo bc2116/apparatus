@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import os
 from pathlib import Path
 import shutil
@@ -261,7 +262,7 @@ def test_list_uses_head_history_only_and_never_mutates(tmp_path, capsys):
     assert [entry.identifier for entry in snapshots.list_snapshots(workspace)] == before_ids
 
 
-def test_internal_receipt_and_report_failures_return_two_and_do_not_leak_details(tmp_path, capsys):
+def test_internal_receipt_and_report_failures_return_two_and_do_not_leak_details(tmp_path, capsys, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     events: list[str] = []
@@ -323,6 +324,9 @@ def test_internal_receipt_and_report_failures_return_two_and_do_not_leak_details
     assert "raw" not in capsys.readouterr().out
 
     target = snapshots.Snapshot("a" * 40, "2026-08-09T00:00:00Z", "Target")
+    # This boundary test injects every recovery dependency; its synthetic target
+    # has no Git tree to preflight. Actual target/control behavior is tested with Git.
+    monkeypatch.setattr(restore, "restore_control_guard", lambda *_args, **_kwargs: nullcontext())
     assert restore.run(
         argparse.Namespace(workspace=str(workspace), snapshot_id=target.identifier, list=False),
         available=lambda: True,

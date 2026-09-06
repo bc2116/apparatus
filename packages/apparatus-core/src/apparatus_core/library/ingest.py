@@ -18,6 +18,7 @@ from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION, extract_bytes
 from apparatus_core.receipts import write_receipt
 from apparatus_core.render import is_reparse_path
+from apparatus_core.retention import operation
 
 _NOISE = {".DS_Store", "Thumbs.db", "desktop.ini"}
 _STATUSES = ("scanned", "ignored", "extracted", "unchanged", "no_text", "unsupported", "error")
@@ -40,7 +41,16 @@ class _TraversalFailure:
     relative: str
 
 
-def ingest_library(workspace: str | Path) -> IngestResult:
+def ingest_library(
+    workspace: str | Path, *, task_id: str | None = None, requested: bool = False,
+) -> IngestResult:
+    """Extract Library text only within this invocation's retention permission."""
+    with operation(workspace, task_id=task_id, requested=("library",) if requested else ()) as context:
+        context.require_library_write()
+        return _ingest_authorized(workspace)
+
+
+def _ingest_authorized(workspace: str | Path) -> IngestResult:
     """Extract all visible Library sources and write one honest receipt."""
     root = Path(workspace)
     rules = load_ignore_rules(root).require_valid()

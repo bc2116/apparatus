@@ -35,8 +35,14 @@ def test_workspace_instruction_canon_covers_the_required_contract():
         "The human starts with `Welcome.md`; at the start of every session, "
         "read this file first",
         "read files, write files, and run approved commands",
-        "Read `privacy_mode` in `System/profile.yaml`",
-        "`System/policy/standard.md` or `System/policy/private.md`",
+        "The task decision below takes precedence over legacy profile settings",
+        "apparatus task start WORKSPACE",
+        "apparatus task no-memory WORKSPACE ID",
+        "apparatus task show WORKSPACE ID",
+        "start a no-save continuation",
+        "Pass `apparatus --task ID` before managed commands",
+        "Follow this rule for direct file writes too",
+        "Task controls survive snapshot restore",
         "`Goals/`",
         "`Decisions/`",
         "`Projects/`",
@@ -47,7 +53,7 @@ def test_workspace_instruction_canon_covers_the_required_contract():
         "`System/`",
         "`System/procedures/`",
         "follow its numbered steps in order",
-        "Finish with its snapshot and receipt steps",
+        "Finish with permitted snapshot and receipt steps",
         "Never send, post, submit, delete",
         CREDENTIAL_FLOOR,
         "Before any durable write, redact",
@@ -155,9 +161,20 @@ def test_policy_overlays_preserve_native_authority_without_an_extra_approval():
             assert statement in text
 
 
-def test_private_mode_still_blocks_labeled_personal_memory():
+def test_private_profile_is_compatible_without_overriding_task_decisions():
     text = " ".join(policy_text("private").split())
+    assert "New tasks default to no-save" in text
+    assert "legacy operations before task enrollment" in text
+    assert "saving task uses the standard labeling/credential rules" in text
     assert "Block personally identifying content from durable writes under `Memory/`" in text
     assert "Approval does not relax this block" in text
     assert "never put the labeled content in durable Memory" in text
     assert "Private mode differs from standard mode only at Memory-write time" in text
+
+
+def test_welcome_replaces_global_privacy_choice_with_task_retention():
+    text = normalized(PAYLOAD_DIR / "System/procedures/welcome.md")
+    assert "If this task is no-save" in text
+    assert "without collecting or saving setup answers" in text
+    assert "Should privacy mode be" not in text
+    assert "Privacy mode (default" not in text

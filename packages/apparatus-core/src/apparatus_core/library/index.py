@@ -16,13 +16,24 @@ import tempfile
 import time
 
 from apparatus_core import fs_transactions
+from apparatus_core.cache import library_cache_root
+from apparatus_core.retention import operation
 from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION
+from apparatus_core.library.ingest import _valid_record
 from apparatus_core.render import is_reparse_path
 
 
 class IndexError(RuntimeError):
     """The derived Library index cannot safely be used."""
+
+
+class NoExtractionsError(IndexError):
+    """Existing Library extraction evidence is unavailable."""
+
+    def __init__(self, message: str, *, readonly: bool = False):
+        super().__init__(message)
+        self.readonly = readonly
 
 
 class FtsUnavailable(IndexError):
@@ -49,7 +60,17 @@ class SearchHit:
     score: float
 
 
-def refresh(cache: Path, workspace: str | Path) -> IgnoreReport:
+def refresh(
+    cache: Path, workspace: str | Path, *, task_id: str | None = None,
+    requested: bool = False,
+) -> IgnoreReport:
+    """Update derived state only with this invocation's Library permission."""
+    with operation(workspace, task_id=task_id, requested=("library",) if requested else ()) as context:
+        context.require_library_write()
+        return _refresh_authorized(cache, workspace)
+
+
+def _refresh_authorized(cache: Path, workspace: str | Path) -> IgnoreReport:
     """Synchronize changed extracted cache pairs into the local FTS index."""
     rules = load_ignore_rules(workspace).require_valid()
     with _writer_lock(cache):
@@ -93,7 +114,17 @@ def _refresh_connection(connection: sqlite3.Connection, desired: dict[str, tuple
         )
 
 
-def rebuild(cache: Path, workspace: str | Path) -> IgnoreReport:
+def rebuild(
+    cache: Path, workspace: str | Path, *, task_id: str | None = None,
+    requested: bool = False,
+) -> IgnoreReport:
+    """Update derived state only with this invocation's Library permission."""
+    with operation(workspace, task_id=task_id, requested=("library",) if requested else ()) as context:
+        context.require_library_write()
+        return _rebuild_authorized(cache, workspace)
+
+
+def _rebuild_authorized(cache: Path, workspace: str | Path) -> IgnoreReport:
     """Discard and deterministically recreate this cache's derived index."""
     rules = load_ignore_rules(workspace).require_valid()
     with _writer_lock(cache):
@@ -114,6 +145,7 @@ def rebuild(cache: Path, workspace: str | Path) -> IgnoreReport:
 
 def _fresh_database() -> sqlite3.Connection:
     connection = sqlite3.connect(":memory:")
+    connection.execute("PRAGMA temp_store = MEMORY")
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
 
@@ -281,31 +313,108 @@ def _unlink_owned_relative(
     return False
 
 
-def search(cache: Path, query: str, limit: int = 5) -> list[SearchHit]:
-    """Return deterministic FTS5 hits, with higher bm25-derived scores first."""
+def _search_connection(connection: sqlite3.Connection, query: str, limit: int) -> list[SearchHit]:
     if limit < 1:
         raise ValueError("search limit must be positive")
     terms = _query_terms(query)
     if not terms:
         return []
-    connection = _database_for_operation(cache)
     try:
-        try:
-            _create_schema(connection)
-            rows = connection.execute(
-                "SELECT source_path, snippet(library_fts, 1, '[', ']', '…', 12), "
-                "-bm25(library_fts) AS score FROM library_fts "
-                "WHERE library_fts MATCH ? ORDER BY score DESC, source_path ASC LIMIT ?",
-                (terms, limit),
-            ).fetchall()
-        except sqlite3.Error as error:
-            raise IndexError("Library index could not be opened") from error
-    finally:
-        _close_database(connection)
+        rows = connection.execute(
+            "SELECT source_path, snippet(library_fts, 1, '[', ']', '…', 12), "
+            "-bm25(library_fts) AS score FROM library_fts "
+            "WHERE library_fts MATCH ? ORDER BY score DESC, source_path ASC LIMIT ?",
+            (terms, limit),
+        ).fetchall()
+    except sqlite3.Error as error:
+        raise IndexError("Library index could not be opened") from error
     hits = [SearchHit(str(path), str(snippet), float(score)) for path, snippet, score in rows]
     if not all(math.isfinite(hit.score) for hit in hits):
         raise IndexError("local search returned an invalid score")
     return hits
+
+
+def search(cache: Path, query: str, limit: int = 5) -> list[SearchHit]:
+    """Read an existing index without creating schema, journals, or database files."""
+    if limit < 1:
+        raise ValueError("search limit must be positive")
+    if not _query_terms(query):
+        return []
+    connection = _readonly_database(cache)
+    try:
+        return _search_connection(connection, query, limit)
+    finally:
+        _close_database(connection)
+
+
+def _readonly_database(cache: Path) -> sqlite3.Connection:
+    _assert_private_cache(cache)
+    database = cache / "index.sqlite3"
+    _assert_sidecars(database)
+    descriptor = handle = -1
+    connection = None
+    try:
+        content = _read_database(database)
+        if content is None:
+            raise IndexError("Library index is unavailable")
+        if hasattr(sqlite3.Connection, "deserialize"):
+            connection = _fresh_database()
+            connection.deserialize(content)
+        elif _is_posix():
+            descriptor = os.open(database, os.O_RDONLY | os.O_NOFOLLOW)
+            if not _private_regular(os.fstat(descriptor)):
+                raise IndexError("Library index is not a private regular file")
+            connection = sqlite3.connect(f"file:/dev/fd/{descriptor}?mode=ro&immutable=1", uri=True)
+            _DATABASE_FDS[id(connection)] = descriptor
+            descriptor = -1
+        else:
+            handle = fs_transactions._win_open(
+                database, directory=False, lock_name=True, retain_readable=True,
+            )
+            connection = sqlite3.connect(database.as_uri() + "?mode=ro&immutable=1", uri=True)
+            _DATABASE_HANDLES[id(connection)] = handle
+            handle = -1
+        connection.execute("PRAGMA temp_store = MEMORY")
+        connection.execute("PRAGMA query_only = ON")
+        return connection
+    except (OSError, sqlite3.Error) as error:
+        if connection is not None:
+            _close_database(connection)
+        raise IndexError("Library index could not be opened") from error
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if handle >= 0:
+            fs_transactions._win_close(handle)
+
+
+def retrieve(
+    workspace: str | Path, query: str, limit: int = 5, *,
+    task_id: str | None = None, rebuild_index: bool = False, requested: bool = False,
+) -> tuple[list[SearchHit], IgnoreReport]:
+    """Share retrieval and retention behavior between Library search and recall."""
+    if limit < 1:
+        raise ValueError("search limit must be positive")
+    with operation(workspace, task_id=task_id, requested=("library",) if requested else ()) as context:
+        rules = load_ignore_rules(workspace).require_valid()
+        persistent = context.save_memory or (requested and rebuild_index)
+        if rebuild_index:
+            context.require_library_write()
+        cache = library_cache_root(workspace, create=persistent)
+        if not has_extractions(cache, rules):
+            raise NoExtractionsError("Existing Library extractions are unavailable.", readonly=not persistent)
+        if persistent:
+            report = rebuild(cache, workspace) if rebuild_index else refresh(cache, workspace)
+            return search(cache, query, limit), report
+        desired, report = _extracted_sources(cache, rules, strict=True)
+        connection = _fresh_database()
+        try:
+            _build_replacement(connection, desired)
+            return _search_connection(connection, query, limit), report
+        except sqlite3.Error as error:
+            raise IndexError("Library index could not be opened") from error
+        finally:
+            connection.close()
 
 
 def has_extractions(cache: Path, rules: IgnoreRules) -> bool:
@@ -630,11 +739,13 @@ def _create_schema(connection: sqlite3.Connection) -> None:
 
 
 def _extracted_sources(
-    cache: Path, rules: IgnoreRules
+    cache: Path, rules: IgnoreRules, *, strict: bool = False,
 ) -> tuple[dict[str, tuple[str, str, str]], IgnoreReport]:
     _assert_private_cache(cache)
     extractions = cache / "extractions"
     if not extractions.is_dir() or is_reparse_path(extractions):
+        if strict:
+            raise NoExtractionsError("Existing Library extractions are unavailable.", readonly=True)
         return {}, rules.report()
     sources: dict[str, tuple[str, str, str]] = {}
     record_paths, built_in_ignored, user_ignored = _record_paths(
@@ -645,15 +756,37 @@ def _extracted_sources(
         text_path = record_path.with_suffix(".txt")
         try:
             record = json.loads(_read_private_file(record_path).decode("utf-8"))
-        except (OSError, ValueError):
+        except (OSError, ValueError) as error:
+            if strict:
+                raise NoExtractionsError("Existing Library extraction evidence is invalid.", readonly=True) from error
+            continue
+        if strict and isinstance(record, dict) and record.get("status") in (
+            "no_text", "unsupported", "error"
+        ):
+            # Valid terminal extraction outcomes provide no searchable text.
+            # Apply the ingest metadata contract before omitting them so a
+            # malformed pair cannot masquerade as a legitimate empty result.
+            try:
+                valid_terminal = _valid_record(
+                    record, "Library/" + relative, record.get("source_sha256"),
+                    record.get("size_bytes"), text_path,
+                )
+            except (TypeError, ValueError):
+                valid_terminal = False
+            if not valid_terminal:
+                raise NoExtractionsError("Existing Library extraction evidence is invalid.", readonly=True)
             continue
         if not _is_extracted_record(record, relative, text_path):
+            if strict:
+                raise NoExtractionsError("Existing Library extraction evidence is unavailable.", readonly=True)
             continue
         try:
             sources[record["source_path"]] = (
                 record["source_sha256"], record["extractor_version"], _read_private_file(text_path).decode("utf-8")
             )
-        except OSError:
+        except (OSError, UnicodeError) as error:
+            if strict:
+                raise NoExtractionsError("Existing Library extraction evidence is invalid.", readonly=True) from error
             continue
     return sources, rules.report(
         built_in_paths=built_in_ignored, user_paths=user_ignored

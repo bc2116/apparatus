@@ -49,6 +49,7 @@ def build_parser(entry_points: Callable[[], Any] = importlib.metadata.entry_poin
     """Build the root parser and register built-ins and packs through entry points."""
     parser = argparse.ArgumentParser(prog="apparatus", description="Governed workspace tools")
     parser.add_argument("--version", action="version", version=__version__)
+    parser.add_argument("--task", metavar="ID", help="task ID from apparatus task start")
     subparsers = parser.add_subparsers(dest="verb")
     register_commands(subparsers, command_entry_points(entry_points))
     return parser
@@ -67,6 +68,10 @@ def main(argv: list[str] | None = None) -> int:
         if handler is None:
             parser.print_help()
             return 2
+        if parsed.verb != "task" and parsed.task is not None:
+            from apparatus_core.retention import operation
+            with operation(getattr(parsed, "workspace", "."), task_id=parsed.task):
+                return int(handler(parsed))
         return int(handler(parsed))
     except SystemExit as error:
         return int(error.code) if isinstance(error.code, int) else 2

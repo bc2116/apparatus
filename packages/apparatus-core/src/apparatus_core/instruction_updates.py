@@ -41,6 +41,24 @@ PREVIOUS_INSTRUCTIONS = {
 }
 
 
+# PR-33 instructions before task controls; exact-byte migration only.
+RETENTION_PREVIOUS_INSTRUCTIONS = {
+    "AGENTS.md": "d495acd9a91348aa605a10cc1fc15227ba35ce9165afc449f665e61f82c76f5c",
+    "Welcome.md": "dee784338e78b60c696d16e0d99ab736ac9df187375ad4201c8eb3aaff586197",
+    "System/ignore": "464121144931e07323d94f4e3bf3ab844b277c47eb74184d5aacf4995f7f5a35",
+    "System/policy/standard.md": "67598b46849d097a68f845118c73704854c9a1770c72a8673a246db0fefe4956",
+    "System/policy/private.md": "f3e31494bb62a825396369ec7fb4d5c4fd1a250a487b5b6511a003b19703a501",
+    "System/procedures/produce-deliverable.md": "16411ec4dc978884e86f59d0f9725c4487e653c169f876284ebdbf125fdc62b0",
+    "System/procedures/research-and-summarize.md": "e088f5b5739602d4be7ed93d1a33779e3cc455c78044f8f8e66403f5c8808b11",
+    "System/procedures/review-against-checklist.md": "0c8e5d902855b87c125f5fcd85eae6bdbbd5a64e4e7843616a763d52f44d96d3",
+    "System/procedures/weekly-review.md": "03d807292d4c28b5561717c35856b80fb70dd9a9ba88709c6990a783a22a379e",
+    "System/procedures/welcome.md": "6e0a2285cdb7558a5ad8dc80b44f0c7dd5740a97fcff133b442a88fb82956281",
+    "CLAUDE.md": "52089761e522375fdfd7b97cf429b2b0e1ff108b21253e6ef862ef40857a05c9",
+    ".cursor/rules/apparatus.mdc": "0caffa63077b3e3fb07516a888fbc94668097e6ebbebe8b2b24f555763cc5423",
+    ".github/copilot-instructions.md": "78e02fd2087983da9b56aaa317ea2c105ec902beadab18bd96dbdbf9b7737b56"
+}
+
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -52,6 +70,17 @@ def has_retired_gate(content: bytes) -> bool:
         "run the egress check", "keep outbound work as a draft",
         "your assistant drafts; you send", "with a cleaned copy offered",
     ))
+
+
+def has_retired_retention(content: bytes) -> bool:
+    text = " ".join(content.decode("utf-8", errors="replace").lower().split())
+    if any(marker in text for marker in (
+        "task-specific retention control is not available yet",
+        "should privacy mode be", "privacy mode (default `standard`)",
+    )):
+        return True
+    return ("block personally identifying content from durable writes under `memory/`"
+            in text and "legacy operations before task enrollment" not in text)
 
 
 def _read_optional(anchor: WorkspaceAnchor, relative: str) -> bytes | None:
@@ -85,6 +114,11 @@ def instruction_updates(
             if content is None:
                 continue
             proposed[relative] = content
+            if has_retired_retention(proposed[relative]):
+                raise PayloadError(
+                    f"payload instruction {relative!r} has obsolete task retention guidance; "
+                    "use the updated starter payload"
+                )
             if has_retired_gate(proposed[relative]):
                 raise PayloadError(
                     f"payload instruction {relative!r} contains the retired sharing gate; "
@@ -101,9 +135,16 @@ def instruction_updates(
             desired = proposed.get(relative)
             if current == desired:
                 continue
-            if _digest(current) in {digest, PREVIOUS_INSTRUCTIONS.get(relative)} and desired is not None:
+            if _digest(current) in {digest, PREVIOUS_INSTRUCTIONS.get(relative),
+                                   RETENTION_PREVIOUS_INSTRUCTIONS.get(relative)} and desired is not None:
                 if relative not in removals:
                     replacements[relative] = OverlayWrite(relative, desired)
+            elif has_retired_retention(current) and not has_retired_gate(current):
+                raise PayloadError(
+                    f"custom instruction {relative!r} needs migration; preserve your edits, "
+                    "reconcile its Memory rules with the updated task instructions, "
+                    "then rerun apparatus init"
+                )
             elif has_retired_gate(current):
                 raise PayloadError(
                     f"custom instruction {relative!r} needs migration; preserve your edits, "

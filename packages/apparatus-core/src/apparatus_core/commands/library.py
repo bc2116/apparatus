@@ -9,7 +9,6 @@ import sys
 from typing import Any
 import unicodedata
 
-from apparatus_core.cache import library_cache_root
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
@@ -19,6 +18,7 @@ from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.library.ingest import ingest_library
 from apparatus_core.library import index
 from apparatus_core.receipts import write_receipt
+from apparatus_core.retention import RetentionSuppressed, TaskRetentionError, context_for
 
 
 def register(subparsers: Any) -> None:
@@ -26,6 +26,7 @@ def register(subparsers: Any) -> None:
     actions = parser.add_subparsers(dest="library_action")
     ingest = actions.add_parser("ingest", help="extract Library text into the local cache")
     ingest.add_argument("workspace", metavar="WORKSPACE")
+    ingest.add_argument("--requested", action="store_true", help="apply a separately requested Library write")
     ingest.set_defaults(func=run)
     search = actions.add_parser("search", help="search extracted Library text")
     search.add_argument("workspace", metavar="WORKSPACE")
@@ -33,6 +34,7 @@ def register(subparsers: Any) -> None:
     search.add_argument("--limit", type=int, default=5)
     search.add_argument("--json", action="store_true", dest="as_json")
     search.add_argument("--rebuild", action="store_true")
+    search.add_argument("--requested", action="store_true", help="apply a separately requested index rebuild")
     search.set_defaults(func=run_search)
 
 
@@ -62,7 +64,15 @@ def run(args: argparse.Namespace) -> int:
         print("This feature is off; say the word and I'll enable it.")
         return 1
     try:
-        result = ingest_library(workspace)
+        options = {}
+        if getattr(args, "task", None) is not None:
+            options["task_id"] = args.task
+        if getattr(args, "requested", False):
+            options["requested"] = True
+        result = ingest_library(workspace, **options)
+    except RetentionSuppressed:
+        print("Library ingest skipped: this task does not save Memory.")
+        return 1
     except ValueError as error:
         print(f"library ingest: {_safe(str(error))}")
         return 2
@@ -93,28 +103,37 @@ def run_search(args: argparse.Namespace) -> int:
         return 2
     if not feature_is_enabled:
         try:
-            write_receipt(
-                workspace,
-                "library-ingest",
-                off_receipt_fields("library indexing", operation="Library search"),
-            )
+            if context_for(workspace, task_id=getattr(args, "task", None)).save_memory:
+                write_receipt(
+                    workspace,
+                    "library-ingest",
+                    off_receipt_fields("library indexing", operation="Library search"),
+                )
         except (OSError, ValueError):
             print("library search: could not record that this feature is off")
             return 2
         print("This feature is off; say the word and I'll enable it.")
         return 1
     try:
-        rules = load_ignore_rules(workspace).require_valid()
-        cache = library_cache_root(workspace)
-        if not index.has_extractions(cache, rules):
-            print("Nothing from your Library has been ingested yet. Run apparatus library ingest first.")
-            _print_ignore_report(rules.report(), args.as_json)
-            return 1
-        if args.rebuild:
-            ignore_report = index.rebuild(cache, workspace)
+        hits, ignore_report = index.retrieve(
+            workspace, args.query, args.limit,
+            task_id=getattr(args, "task", None),
+            rebuild_index=getattr(args, "rebuild", False),
+            requested=getattr(args, "requested", False),
+        )
+    except RetentionSuppressed:
+        print("Library index write skipped: this task does not save Memory.")
+        return 1
+    except TaskRetentionError as error:
+        print(f"library search: {_safe(str(error))}")
+        return 2
+    except index.NoExtractionsError as error:
+        if error.readonly:
+            print("Existing Library extractions are unavailable. A separate Library ingest is needed.")
         else:
-            ignore_report = index.refresh(cache, workspace)
-        hits = index.search(cache, args.query, args.limit)
+            print("Nothing from your Library has been ingested yet. Run apparatus library ingest first.")
+            _print_ignore_report(load_ignore_rules(workspace).require_valid().report(), args.as_json)
+        return 1
     except index.FtsUnavailable as error:
         print(f"library search: {_safe(str(error))}")
         return 1

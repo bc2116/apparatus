@@ -30,12 +30,14 @@ language. It knows how this workspace is organized and follows its rules.
    Apparatus adds no extra approval step and provides no sending service.
 2. **Credentials are redacted before managed writes.** The existing rules cover
    passwords, API keys, tokens, private keys, and high-confidence government or
-   payment identifiers. Personal details are labeled as they are saved; private
-   mode keeps labeled personal details out of durable Memory. Exported backups
+   payment identifiers. Personal details are labeled as they are saved. Say
+   "don't remember this task" to stop subsequent Memory and automatic capture
+   for that task. Requested work files still save normally. Exported backups
    preserve historical files and do not sanitize them.
-3. **You can't break anything.** When snapshots are on, the workspace saves
-   snapshots as you work. If something goes wrong, ask your assistant to go
-   back to an earlier snapshot.
+3. **Snapshots help you recover.** When snapshots are on and the task allows
+   automatic saves, the workspace can save a recovery point. Ask your assistant
+   to return to an earlier snapshot if needed. A task's no-save choice survives
+   restore; old copies and your AI app's history are not erased.
 
 ## Getting started
 

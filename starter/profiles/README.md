@@ -5,6 +5,8 @@ becomes a workspace. It has three closed sections:
 
 - `privacy_modes` maps each privacy-mode name to its policy file. All named
   policy files deploy; `System/profile.yaml` selects the active one.
+  This is legacy compatibility: current task Memory decisions take precedence,
+  and fresh setup does not ask the user to select a global privacy mode.
 - `work_types` maps each work-type name to its managed procedure files.
 - `default` names the privacy mode and work types used for a new workspace.
 

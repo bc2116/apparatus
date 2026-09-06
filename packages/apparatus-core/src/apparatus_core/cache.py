@@ -9,8 +9,8 @@ from pathlib import Path
 from apparatus_core.render import is_reparse_path
 
 
-def library_cache_root(workspace: str | Path) -> Path:
-    """Create and return this workspace's derived Library cache directory."""
+def library_cache_root(workspace: str | Path, *, create: bool = True) -> Path:
+    """Resolve a safe cache location, creating it only for permitted writes."""
     root = Path(workspace).resolve()
     workspace_id = hashlib.sha256(os.fsencode(root)).hexdigest()[:12]
     override = Path(os.environ.get("APPARATUS_HOME", Path.home() / ".apparatus")).expanduser()
@@ -26,12 +26,12 @@ def library_cache_root(workspace: str | Path) -> Path:
     # This guards a component created between the first lstat and mkdir.
     if is_reparse_path(library) or cache.resolve(strict=False).parent != library.resolve(strict=False):
         raise ValueError("Library cache path must not contain symbolic links")
-    if os.name == "posix":
+    if create and os.name == "posix":
         try:
             _mkdir_private_cache(home, workspace_id)
         except OSError as error:
             raise ValueError("Library cache path must not contain symbolic links") from error
-    else:  # pragma: no cover - protected by the Windows reparse checks above
+    elif create:  # pragma: no cover - protected by the Windows reparse checks above
         cache.mkdir(parents=True, exist_ok=True)
     if is_reparse_path(cache) or cache.resolve(strict=False).parent != library.resolve(strict=False):
         raise ValueError("Library cache path must not contain symbolic links")
