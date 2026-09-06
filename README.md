@@ -28,6 +28,12 @@ re-seeding; it does not erase historical copies. [Task Memory controls](docs/spe
 let a request opt out of new Memory and automatic capture while requested work
 files remain available. Live task choices survive snapshot restore.
 
+An [isolated managed-state recovery backend](docs/spec/managed-recovery.md) is
+ready for the upcoming shared work-area layout. Its snapshots and backups cover
+Apparatus records and settings, excluding project files and Library originals.
+The current starter still uses its existing layout and recovery behavior;
+this backend is not enabled by ordinary setup yet.
+
 The [approved rework](docs/design/design-brief.md) replaces that ceremony and
 adds native Skills, economical subagent guidance, lightweight prose editing,
 and a Library catalog referencing project files. **The remaining rework is planned,

@@ -23,8 +23,8 @@ establish public release, signing readiness, or current app certification.
 ## Execution rule
 
 PR-31 records this direction. R1 is implemented by PR-32 and R2 by PR-33/34.
-Later slices are **planned — prompt not cut**, not ready to execute.
-Next cut the R3 layout/adoption prompt. Each
+R3a is implemented by PR-35. Later slices are **planned — prompt not cut**,
+not ready to execute. Next cut PR-36 for R3b layout/adoption. Each
 prompt must state exact owned paths, migration behavior, acceptance tests, and
 dependencies; then add its row to the main plan. Do not implement the entire
 sequence on one branch. Product decisions below need no repeated interview.
@@ -88,7 +88,14 @@ cards, and history must use this same retention contract, not invent another.
 
 ### R3 — Work-area layout and project-local deliverables
 
-**After R2.** Specify the smallest layout supporting sibling projects and one
+**R3a implemented in PR-35; R3b next in PR-36.** Source inspection found that
+legacy recovery initializes or uses root Git and restores the whole workspace.
+PR-35 first adds an explicitly routed, isolated managed-state backend. Its marker
+is exercised only in fixtures until PR-36 deploys the new layout. Project files
+and Library originals are excluded from these snapshots and backups; CLI scope
+messages and exported notes identify this limit.
+
+R3b specifies the smallest layout supporting sibling projects and one
 Library, identifying where instructions, goals, Memory (including decisions),
 Skills, and operational state live and how a project finds them. Support a
 fresh folder and non-destructive adoption of an existing folder/repository.
@@ -248,8 +255,8 @@ distributed through updates. Existing native tools need no App module to work.
 
 ## Resume and validation
 
-The next concrete step is to cut the self-contained R3 layout/adoption prompt
-from merged source. PR-33 supplies record lifecycle and current Memory retrieval;
+The next concrete step is to cut PR-36 for R3b layout/adoption from merged source.
+PR-35 provides isolated recovery before a shared work area is enrolled. PR-33 supplies record lifecycle and current Memory retrieval;
 PR-34 supplies task identity, opt-out, derived capture rules and recovery limits.
 Do not resume the old PR-24 checklist. No product implementation is included
 in PR-31, and no further product-choice interview is required.

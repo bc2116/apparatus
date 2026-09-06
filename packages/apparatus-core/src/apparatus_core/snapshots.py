@@ -17,6 +17,7 @@ from typing import Any
 from apparatus_core.detect import detect_tool
 from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.retention import operation
+from apparatus_core.workspace_layout import LayoutError, read_layout
 from apparatus_core.receipts import (
     ReceiptInvocation,
     ReceiptPublication,
@@ -46,6 +47,27 @@ class SnapshotReceiptError(SnapshotError):
     """The workspace snapshot receipt could not be recorded."""
 
 
+def _managed_backend(workspace: str | Path):
+    try:
+        layout = read_layout(workspace)
+    except LayoutError as error:
+        raise SnapshotError(str(error)) from error
+    if layout is None:
+        return None
+    from apparatus_core import managed_state_recovery
+    return managed_state_recovery
+
+
+def _require_legacy_route(workspace: str | Path) -> None:
+    """Check again immediately before a legacy Git operation can use the root."""
+    try:
+        layout = read_layout(workspace)
+    except LayoutError as error:
+        raise SnapshotError(str(error)) from error
+    if layout is not None:
+        raise SnapshotError("This work area requires managed-state recovery.")
+
+
 @dataclass(frozen=True)
 class Snapshot:
     """A saved workspace state, presented without implementation vocabulary."""
@@ -53,6 +75,7 @@ class Snapshot:
     identifier: str
     timestamp: str
     label: str
+    scope: str = "workspace"
 
     @property
     def short_id(self) -> str:
@@ -321,6 +344,7 @@ def _run_git(
     run: Callable[..., Any] = subprocess.run,
 ) -> Any:
     """Run one git command with safe argv and captured output only."""
+    _require_legacy_route(workspace)
     try:
         return run(
             ["git", "-C", str(workspace), *arguments],
@@ -367,6 +391,7 @@ def _is_workspace_initialized(workspace: Path, *, run: Callable[..., Any]) -> bo
 
 def ensure_snapshot_store(workspace: str | Path, *, run: Callable[..., Any] = subprocess.run) -> Path:
     """Initialize the local implementation store and its generic identity when needed."""
+    _require_legacy_route(workspace)
     root = Path(workspace).resolve()
     if not _is_workspace_initialized(root, run=run):
         _require_success(_run_git(root, ["init"], run=run))
@@ -413,6 +438,11 @@ def take_snapshot(
     requested: bool = False,
 ) -> SnapshotResult:
     """Save content only when this invocation permits a snapshot."""
+    backend = _managed_backend(workspace)
+    if backend is not None:
+        return backend.take_snapshot(workspace, label=label, force=force, run=run,
+                                     write=write, clock=clock, task_id=task_id,
+                                     requested=requested)
     with operation(workspace, task_id=task_id, requested=("snapshot",) if requested else ()) as context:
         context.require_snapshot()
         safe_label = label if context.save_memory else "Requested workspace snapshot"
@@ -446,6 +476,7 @@ def _run_git_with_environment(
     *,
     run: Callable[..., Any],
 ) -> Any:
+    _require_legacy_route(workspace)
     try:
         return run(
             ["git", "-C", str(workspace), *arguments],
@@ -701,6 +732,12 @@ def prepare_snapshot(
     requested: bool = False,
 ) -> SnapshotTransaction:
     """Prepare a snapshot only within the current operation's permission."""
+    backend = _managed_backend(workspace)
+    if backend is not None:
+        # Managed recovery owns its declared capture scope. A legacy capture
+        # callback must never broaden it to the enclosing work area.
+        return backend.prepare_snapshot(workspace, label=label, run=run, write=write,
+                                        task_id=task_id, requested=requested)
     with operation(workspace, task_id=task_id, requested=("snapshot",) if requested else ()) as context:
         context.require_snapshot()
         safe_label = label if context.save_memory else "Requested workspace snapshot"
@@ -827,6 +864,9 @@ def list_snapshots(
     run: Callable[..., Any] = subprocess.run,
 ) -> list[Snapshot]:
     """Return snapshots newest first; an uninitialized workspace has none."""
+    backend = _managed_backend(workspace)
+    if backend is not None:
+        return backend.list_snapshots(workspace, run=run)
     root = Path(workspace).resolve()
     if not _is_workspace_initialized(root, run=run):
         return []
@@ -862,6 +902,9 @@ def resolve_snapshot_id(
     run: Callable[..., Any] = subprocess.run,
 ) -> str:
     """Resolve exactly one user-supplied snapshot id before any workspace mutation."""
+    backend = _managed_backend(workspace)
+    if backend is not None:
+        return backend.resolve_snapshot_id(workspace, identifier, run=run)
     if not _SNAPSHOT_ID.fullmatch(identifier):
         raise UnknownSnapshotError("That snapshot id is not available.")
     root = Path(workspace).resolve()
@@ -897,6 +940,11 @@ def restore_control_guard(
     workspace: str | Path, identifier: str, *, run: Callable[..., Any] = subprocess.run,
 ):
     """Keep live control directories in place while ordinary files are restored."""
+    backend = _managed_backend(workspace)
+    if backend is not None:
+        with backend.preflight_restore(workspace, identifier, run=run) as proof:
+            yield proof
+        return
     root = Path(workspace).resolve()
     with ExitStack() as stack:
         anchors = [stack.enter_context(WorkspaceAnchor(root))]
@@ -934,8 +982,13 @@ def restore_snapshot(
     *,
     run: Callable[..., Any] = subprocess.run,
     task_id: str | None = None,
+    write: ReceiptWriter = write_receipt,
 ) -> None:
     """Restore ordinary files while preserving live task controls in place."""
+    backend = _managed_backend(workspace)
+    if backend is not None:
+        return backend.restore_snapshot(workspace, identifier, run=run, task_id=task_id,
+                                        write=write)
     with operation(workspace, task_id=task_id):
         root = Path(workspace).resolve()
         with restore_control_guard(root, identifier, run=run) as checked_run:
