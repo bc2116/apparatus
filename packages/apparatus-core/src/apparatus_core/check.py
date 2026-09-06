@@ -446,11 +446,15 @@ def _library_card_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Fi
             result = cards.read_card(workspace, data["source"], include_text=False)
             if result["card_status"] != "current":
                 findings.append(Finding("library-card-" + result["card_status"], relative,
-                                        "This card is not current. Check its source and extraction, then ask for a grounded card refresh."))
+                                        ({"unselected": "This source is no longer selected. Leave the card inactive if that was intentional.",
+                                          "ignored": "This source or card is intentionally ignored. Leave it inactive unless you want to change that rule.",
+                                          "feature_off": "Library indexing is off. Leave the card inactive unless you want to enable the feature.",
+                                          "missing": "Restore the missing original first; then request fresh extraction and a grounded card if still useful."}.get(result.get("reason"),
+                                         "Preserve this card and check its selected original and extraction. Repair stale or invalid evidence, then request a grounded card refresh if still useful."))))
         return findings, len(files)
     except (OSError, ValueError):
         return [Finding("library-card-check-incomplete", cards.ROOT,
-                        "Repair invalid, unsafe or ignored card records before relying on card coverage.")], 0
+                        "Card coverage is incomplete. Inspect invalid or unsafe card records; leave intentionally ignored cards inactive. Do not rely on unchecked cards.")], 0
 
 
 def _library_source_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int]:

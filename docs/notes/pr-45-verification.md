@@ -1,8 +1,8 @@
 # PR-45 verification
 
-Implementation is authored on integrated PR-43. Final PR-44 dependency and stock
-instruction migration are pending; the results below do not claim final integrated
-acceptance or Windows execution.
+Runtime work was authored on integrated PR-43, then rebased onto final PR-44
+`de7c8bee` at `a497c260`. Final PR-44 stock instruction migration is implemented.
+The final integrated suite passed locally; actual Windows execution remains pending.
 
 ## Runtime boundary
 
@@ -39,8 +39,8 @@ bytes still produce required redaction evidence, without a profile-apply event.
 The public Windows safety lane includes the new quiet-operation file and affected
 check, recall and snapshot tests, alongside the existing profile tests. Actual
 Windows CI is still required; the local read-only-handle witness is a simulation,
-not evidence of a native Windows run. Full integrated tests and payload/package
-parity will be recorded after the final dependency and guidance migration.
+not evidence of a native Windows run. The quiet-guidance migration file is also
+included in that lane.
 
 ## Pre-integration full run
 
@@ -56,3 +56,50 @@ The final pre-integration targeted run (both R6 upgrade task modes, quiet
 operations, check and machine reports) passed **40 tests, 4 skipped** in **33.38
 seconds**. `git diff --check` passed. Runtime source is frozen for dependency
 integration; no remaining runtime failure is known from the completed runs.
+
+## Final PR-44 integration and guidance
+
+Only the plan-table merge conflicted; both PR-44 and PR-45 rows were preserved.
+The card command's required redaction writer import was retained after integration.
+Canonical `AGENTS.md` and `System/README.md` now state quiet history and truthful
+capability/repair guidance. The three generated pointers, their goldens and the
+embedded starter are synchronized. No built-in Skill body changed.
+
+Five exact final PR-44 instruction files are captured as LF/CRLF-normalized
+migration witnesses. Previous stock orientation remains recognized alongside the
+new System README. Customized canon and orientation stay user-owned. Tests keep
+cards, registrations, learned ownership/body pairs, preferences and no-save
+controls byte-identical; repeated repair adds no changes. A late custom instruction
+replacement rejects the stale deployment and preserves the competing bytes.
+
+- New migration/card-diagnostic cases: **9 passed** in **3.44 seconds**.
+- Complete new migration file, including late-preimage case: **6 passed** in
+  **2.62 seconds**.
+- The broader guidance/Library-card/instruction/payload set passed **92 cases**;
+  four new test-literal errors were corrected and passed in the targeted runs.
+- Universal ZIP, wheel and source distribution builders passed.
+- **25 tracked starter files** means **23 payload files plus 2 profile files**.
+  All 25 match the embedded starter, wheel, source distribution and universal ZIP
+  byte-for-byte. All seven built-in Skills remain byte-identical to final PR-44.
+  The wheel contains the updated card, profile, check and migration modules and
+  retains the `pypdf>=6.16.1` requirement.
+
+These scoped counts come from `git ls-files starter`; payload-only counts exclude
+`starter/profiles`. No native discovery/runtime claims are inferred from parity.
+
+Independent final guidance/integration review found no blockers. It verified the
+five exact PR-44 fixtures, 23-file payload parity, all three pointers, retained
+orientation hashes and the card command's required redaction writer. Lead review
+also accepted the profile preimage and exact deletion repairs. Actual Windows CI
+remains a delivery check, not a locally completed result.
+
+## Final integrated result
+
+`uv run pytest -o addopts= -q` passed **1,227 tests, 38 skipped** in **430.62
+seconds** after final PR-44 integration and all runtime/guidance changes.
+`uv sync --all-packages` completed; the PDF dependency remains 6.16.1.
+All **80 tracked package source/resource files** match both wheel and source
+distribution; the scoped 25-file starter parity above also passed. The final
+`git diff --check` is clean. PR-45 deliverables and plan status are complete for
+reviewed branch delivery. Actual Windows safety CI and remote delivery remain
+lead-owned follow-up checks; no native Windows success is claimed here.

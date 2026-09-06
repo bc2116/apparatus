@@ -17,6 +17,7 @@ from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.library.ingest import ingest_library, ingest_source
 from apparatus_core.library.sources import register_source, unregister_source, list_sources
 from apparatus_core.library import index
+from apparatus_core.receipts import write_receipt
 from apparatus_core.retention import RetentionSuppressed, TaskRetentionError
 
 
