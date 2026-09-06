@@ -31,6 +31,7 @@ from apparatus_core.snapshots import (
     _write_owned_snapshot_receipt, default_label,
 )
 from apparatus_core.workspace_layout import LayoutError, read_layout
+from apparatus_core.library.cards import ROOT as CARD_ROOT, card_files, parse_card
 from apparatus_core.library.sources import Catalog, REGISTRATION_ROOT, parse_registration, registration_path
 
 STORE = "System/recovery/store"
@@ -100,6 +101,8 @@ def _path(value: str) -> PurePosixPath:
 
 def _kind(relative: str) -> str | None:
     path = _path(relative)
+    if path.parent.as_posix() == CARD_ROOT and path.suffix == ".yaml":
+        return "library_card"
     if path.parent.as_posix() == REGISTRATION_ROOT and path.suffix == ".yaml":
         return "library_source"
     if relative in skills.BUILTIN_PATHS:
@@ -131,6 +134,9 @@ def _validate_file(relative: str, content: bytes) -> bool:
         if kind == "learned-body":
             if skills.validate_skill(content, learned_skills.path_kind(relative)[1]):
                 raise ValueError("invalid learned Skill")
+            return True
+        if kind == "library_card":
+            parse_card(content, relative)
             return True
         if kind == "library_source":
             parse_registration(content, relative)
@@ -191,7 +197,11 @@ def _collect(anchor: Any) -> dict[str, bytes]:
         registered = learned_skills.registered_files(anchor)
     except (OSError, learned_skills.LearnedSkillError) as error:
         raise SnapshotError("Adopted Skill coverage is missing or invalid; repair the registered pair before recovery.") from error
-    candidates = set(OPTIONAL_FILES) | set(registered)
+    try:
+        cards = card_files(anchor)
+    except (OSError, ValueError) as error:
+        raise SnapshotError("Library card records are invalid or unsafe; repair them before recovery.") from error
+    candidates = set(OPTIONAL_FILES) | set(registered) | set(cards)
     try:
         with Catalog(anchor.workspace) as catalog:
             candidates.update(registration_path(source.source_path) for source in catalog.sources)

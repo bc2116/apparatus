@@ -130,6 +130,16 @@ LEARNED_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '9206a676f72452b133efa03e61eccb546
  '.cursor/rules/apparatus.mdc': '5739c3f16b221586fb32642113ebf4169c218bbde907ff21d61a094a05daf883',
  '.github/copilot-instructions.md': '1b19dcd5573b5e20116ffbecf823ac7fd5a925374baa2cd2ca480279605e5025'}
 
+# Exact integrated PR-43 stock before cards and completion offers.
+CARDS_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '9c89a64552276fa35ba0419a0fb7c89d22ecfe9439b399274a96dbcd1e833b0e',
+ 'Welcome.md': 'cd52bfa9c714b9d2b3b9aa835732d7c414c346f0157a44f7f5c3e2a47eb0036b',
+ 'System/README.md': '9d77710dd6a053040603207a286544e61f7a5e07c0e5add6b9b93361ae73d004',
+ '.agents/skills/apparatus-produce-deliverable/SKILL.md': '83c60c29ca5a2324706125b4278850c45561817a82304a41592df3b82784d840',
+ '.agents/skills/apparatus-research-and-summarize/SKILL.md': '502e714bf115f276ea75efcb87effe12a978135c6554bd3f225fb7d1313cc7dc',
+ 'CLAUDE.md': '4db7fa399530b3e427c32e658a5995ac6eedfcc367170a8523f5231b8b3e5243',
+ '.cursor/rules/apparatus.mdc': '98cbeb29daa36df30abed7193cae5832a854b78916815bfa7340bf51f40976fa',
+ '.github/copilot-instructions.md': 'c87af003b6b071792a7e2e90734b7905ce6f8264d91e266c591d2855268398d2'}
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -139,7 +149,7 @@ def known_instruction(relative: str, content: bytes) -> bool:
         LEGACY_INSTRUCTIONS, PREVIOUS_INSTRUCTIONS, RETENTION_PREVIOUS_INSTRUCTIONS,
         LAYOUT_PREVIOUS_INSTRUCTIONS, SKILLS_PREVIOUS_INSTRUCTIONS,
         TASK_FIRST_PREVIOUS_INSTRUCTIONS, ECONOMY_PREVIOUS_INSTRUCTIONS,
-        LEARNED_PREVIOUS_INSTRUCTIONS,
+        LEARNED_PREVIOUS_INSTRUCTIONS, CARDS_PREVIOUS_INSTRUCTIONS,
     )}
 
 

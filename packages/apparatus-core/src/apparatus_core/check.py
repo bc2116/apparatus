@@ -409,6 +409,28 @@ def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding],
     return findings, checked, sum(value == "built-in" for value in skipped.values()), sum(value == "user" for value in skipped.values())
 
 
+def _library_card_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int]:
+    from apparatus_core.library import cards
+    from apparatus_core.fs_transactions import WorkspaceAnchor
+    from apparatus_core.payload import preflight_workspace_paths
+    try:
+        with WorkspaceAnchor(preflight_workspace_paths(workspace)) as anchor:
+            files = cards.card_files(anchor, excluded=rules.matches)
+        findings = []
+        for relative, content in files.items():
+            data = cards.parse_card(content, relative)
+            # Record parsing supplies the source; source/cache reads still honor
+            # original-path ignores. Never include summary text in diagnostics.
+            result = cards.read_card(workspace, data["source"], include_text=False)
+            if result["card_status"] != "current":
+                findings.append(Finding("library-card-" + result["card_status"], relative,
+                                        "This card is not current. Check its source and extraction, then ask for a grounded card refresh."))
+        return findings, len(files)
+    except (OSError, ValueError):
+        return [Finding("library-card-check-incomplete", cards.ROOT,
+                        "Repair invalid, unsafe or ignored card records before relying on card coverage.")], 0
+
+
 def _library_source_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int]:
     from apparatus_core.library.sources import REGISTRATION_ROOT, list_sources
     try:
@@ -472,6 +494,9 @@ def check_workspace(
     library_findings, library_count = _library_source_findings(root, rules)
     findings.extend(library_findings)
     records_checked += library_count
+    card_findings, card_count = _library_card_findings(root, rules)
+    findings.extend(card_findings)
+    records_checked += card_count
     built_in_ignored = 0
     user_ignored = 0
     skill_findings, skill_count, skill_built_in, skill_user = _skill_findings(root, rules)

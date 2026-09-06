@@ -67,3 +67,7 @@ Skills follow your request and preferences; simple work stays simple.
 When a workflow proves useful repeatedly, your assistant can offer an editable
 Skill draft. Review it once before adopting it for future work. You can decline
 without delaying the task; no-save tasks do not create learned drafts.
+
+After saving a reusable report or guide, your assistant may offer to add its
+original to your Library and make a small grounded card. You can ignore or decline
+without delaying completion. No-save tasks skip that offer and card capture.

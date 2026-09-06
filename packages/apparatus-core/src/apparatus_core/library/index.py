@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Callable
 from datetime import datetime, timezone
 from contextlib import contextmanager, ExitStack
 import json
@@ -493,9 +494,7 @@ def _current_evidence(cache: Path, workspace: Path, rules: IgnoreRules, *, reado
     with ExitStack() as stack:
         catalog = stack.enter_context(Catalog(workspace))
         cache_anchor = stack.enter_context(fs_transactions.WorkspaceAnchor(cache))
-        proofs = []
-        readers = []
-        absent_text = set()
+        evidence = []
         issues: set[tuple[str, str]] = set()
         selected = {source.source_path: source for source in catalog.sources}
         extractions = cache / "extractions"
@@ -540,23 +539,6 @@ def _current_evidence(cache: Path, workspace: Path, rules: IgnoreRules, *, reado
                 continue
             selected[name] = catalog.source(name)
 
-        def cached(relative: str):
-            try:
-                status = os.lstat(cache / relative)
-            except FileNotFoundError:
-                return None
-            if not _private_regular(status) or is_reparse_path(cache / relative):
-                raise IndexError("Library extraction cache is not a private regular file")
-            try:
-                proof = cache_anchor.capture_file(relative, publication_compatible=True)
-            except FileNotFoundError:
-                return None
-            stack.callback(proof.close)
-            if not _private_path(cache / relative):
-                raise IndexError("Library extraction cache is not a private regular file")
-            proofs.append(proof)
-            return proof.content
-
         desired: dict[str, tuple[str, str, str]] = {}
         for name, source in sorted(selected.items()):
             classification = rules.classification(name)
@@ -569,56 +551,98 @@ def _current_evidence(cache: Path, workspace: Path, rules: IgnoreRules, *, reado
                         user += 1
                 continue
             try:
-                current = stack.enter_context(catalog.read(source, rules=rules))
-                readers.append(current)
+                item = stack.enter_context(selected_evidence(cache, catalog, source, rules, cache_anchor=cache_anchor))
+                evidence.append(item)
+                if item.status != "extracted":
+                    issues.add((name, item.status))
+                    continue
+                desired[name] = (item.source_sha256, item.extractor_version, item.text)
             except SourceUnavailable as error:
                 issues.add((name, error.reason))
-                continue
-            record_relative = source.cache_relative + ".json"
-            text_relative = source.cache_relative + ".txt"
-            try:
-                raw = cached(record_relative)
-                if raw is None:
-                    issues.add((name, "not_ingested"))
-                    continue
-                record = json.loads(raw.decode("utf-8"))
-                text = cached(text_relative)
-                if text is None:
-                    absent_text.add(text_relative)
-                if not _valid_record(record, name, record.get("source_sha256"), record.get("size_bytes"),
-                                     cache / text_relative, text_bytes=text):
-                    issues.add((name, "invalid_cache"))
-                    continue
-                if record["source_sha256"] != current.sha256 or record["size_bytes"] != current.size_bytes:
-                    issues.add((name, "stale"))
-                    continue
-                if record["status"] != "extracted":
-                    issues.add((name, record["status"]))
-                    continue
-                desired[name] = (current.sha256, record["extractor_version"], text.decode("utf-8"))
             except (IndexError, OSError, ValueError, AttributeError, TypeError, UnicodeError):
                 issues.add((name, "invalid_cache"))
 
         def validate():
             catalog.validate()
-            for current in readers:
-                current.validate()
-            if not cache_anchor.root_is_current() or any(
-                not cache_anchor.matches_owned(proof) for proof in proofs
-            ):
+            if not cache_anchor.root_is_current():
                 raise IndexError("Library extraction evidence changed during retrieval")
-            for relative in absent_text:
-                try:
-                    unexpected = cache_anchor.capture_file(relative, publication_compatible=True)
-                except FileNotFoundError:
-                    continue
-                unexpected.close()
-                raise IndexError("Library extraction evidence changed during retrieval")
+            for item in evidence:
+                item.validate()
 
         validate()
         if not desired and any(reason == "invalid_cache" for _, reason in issues):
             raise NoExtractionsError("Existing Library extraction evidence is invalid.", readonly=readonly, reason="invalid")
         yield desired, rules.report(built_in_paths=built_in, user_paths=user), SourceCoverage(tuple(sorted(issues))), validate
+
+
+@dataclass(frozen=True)
+class SelectedEvidence:
+    source_sha256: str
+    extractor_version: str | None
+    text: str | None
+    status: str
+    validate: Callable[[], None]
+
+
+@contextmanager
+def selected_evidence(cache: Path, catalog: Catalog, source: Source, rules: IgnoreRules, *, cache_anchor=None):
+    """Retain one selected original and its exact private extraction pair.
+
+    Selection inventory metadata is validated by Catalog; no source discovery,
+    extraction, index update or other original-content read occurs here.
+    """
+    with ExitStack() as stack:
+        current = stack.enter_context(catalog.read(source, rules=rules))
+        _assert_private_cache(cache)
+        anchor = cache_anchor or stack.enter_context(fs_transactions.WorkspaceAnchor(cache))
+        proofs, absent = [], []
+
+        def cached(relative):
+            try:
+                status = os.lstat(cache / relative)
+            except FileNotFoundError:
+                absent.append(relative)
+                return None
+            if not _private_regular(status) or is_reparse_path(cache / relative):
+                raise IndexError("Library extraction cache is not a private regular file")
+            proof = anchor.capture_file(relative, publication_compatible=True)
+            stack.callback(proof.close)
+            if not _private_path(cache / relative):
+                raise IndexError("Library extraction cache is not a private regular file")
+            proofs.append(proof)
+            return proof.content
+
+        def validate():
+            current.validate()
+            if not anchor.root_is_current() or any(not anchor.matches_owned(proof) for proof in proofs):
+                raise IndexError("Library extraction evidence changed during retrieval")
+            for relative in absent:
+                try:
+                    present = anchor.entry_exists(relative)
+                except FileNotFoundError:
+                    present = False
+                if present:
+                    raise IndexError("Library extraction evidence changed during retrieval")
+
+        raw = cached(source.cache_relative + ".json")
+        record, text, status = None, None, "not_ingested"
+        if raw is not None:
+            record = json.loads(raw.decode("utf-8"))
+            text_relative = source.cache_relative + ".txt"
+            content = cached(text_relative)
+            if (not isinstance(record, dict) or not _valid_record(
+                    record, source.source_path, record.get("source_sha256"), record.get("size_bytes"),
+                    cache / text_relative, text_bytes=content)):
+                status = "invalid_cache"
+            elif record["source_sha256"] != current.sha256 or record["size_bytes"] != current.size_bytes:
+                status = "stale"
+            else:
+                status = record["status"]
+                if status == "extracted":
+                    text = content.decode("utf-8")
+        validate()
+        yield SelectedEvidence(current.sha256, record.get("extractor_version") if isinstance(record, dict) else None,
+                               text, status, validate)
 
 
 def _database(cache: Path) -> sqlite3.Connection:

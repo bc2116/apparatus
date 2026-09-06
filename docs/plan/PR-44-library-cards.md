@@ -1,6 +1,6 @@
 # PR-44 — Grounded Library cards and optional completion offers
 
-Implementation contract on `pr-44-library-cards`. Depends on integrated PR-43 source references and PR-41 learned Skills, including PR-40's seven built-ins and current platform fixes. Grounded in ADR-0006 §§3–5, 9–10, the design brief's Library/card and completion-offer decisions, R9, `docs/spec/library-sources.md` and `PR-43-source-api.md`. The inspected PR-43 checkout is still based on PR-39; its present payload is not the final migration baseline.
+Implementation contract on `pr-44-library-cards`. Depends on integrated PR-43 source references and PR-41 learned Skills, including PR-40's seven built-ins and current platform fixes. Grounded in ADR-0006 §§3–5, 9–10, the design brief's Library/card and completion-offer decisions, R9, `docs/spec/library-sources.md` and `PR-43-source-api.md`. The implementation baseline is integrated PR-43 `735d4b2`, including PR-41, PR-40 and the platform/PDF repairs. Recheck exact stock bytes from that commit before payload edits.
 
 ## Outcome and boundary
 
@@ -37,9 +37,9 @@ Core verifies source selection, exact current original hash, a valid successful 
 
 ## Minimal assistant handoff and publication
 
-Add one action under the existing Library verb: `library card WORKSPACE RELATIVE_PATH` reads validated selected evidence and card status; `library card WORKSPACE RELATIVE_PATH --stdin` publishes a supplied candidate. Keep the path relative to the resolved work area, including bound-project invocation. Read mode returns a small JSON envelope with exact source/extraction hashes and version, available extracted text, and card status, returning existing summary/topics only when current. Report evidence completeness/limitations honestly; do not silently truncate text and describe it as complete. It performs no ingest, cache creation, refresh or routine receipt. Ignore rules run before source/card-content reads. Reuse one bounded shared extraction-evidence reader instead of duplicating index validators.
+Add one action under the existing Library verb: `library card WORKSPACE RELATIVE_PATH` reads validated selected evidence and card status; `library card WORKSPACE RELATIVE_PATH --stdin` publishes a supplied candidate. Keep the path relative to the resolved work area, including bound-project invocation. Read mode returns a small JSON envelope with exact source/extraction hashes and version, available extracted text, and card status, returning existing summary/topics only when current. Report evidence completeness/limitations honestly; do not silently truncate text and describe it as complete. It performs no ingest, cache creation, refresh or routine receipt. Source-known reads apply source/card ignores before content reads. Check honors card-record ignore before parsing metadata, then applies source ignore before original/cache reads; it never exposes an ignored summary. Reuse one bounded shared extraction-proof reader instead of duplicating index validators. Read only the explicitly selected original and its exact extraction pair; do not scan Library or read other registered/project sources to generate one card. Catalog metadata validation remains required.
 
-Write mode consumes summary/topics plus the hashes/version from that handoff; the core fills schema/source/key. Require enrollment and an explicit saving task before reading candidate stdin, following PR-41's existing repair action. `--requested` Library/snapshot contexts cannot bypass the card guard. Redact candidate content before persistence with the unchanged credential floor, then validate. Keep source, catalog, cache-evidence and destination proofs through final publication and any required redaction receipt; reject stale evidence even after same-size/same-mtime edits. Replace only a valid matching card via exact preimage/identity CAS; create absent cards without claiming foreign files/directories. Preserve competitors and compensate only this invocation on failure, including late receipt failure. An exact repeat is a validated no-op.
+Write mode consumes summary/topics plus the hashes/version from that handoff; the core fills schema/source/key. Require enrollment and an explicit saving task before reading candidate stdin, following PR-41's existing repair action. `--requested` Library/snapshot contexts cannot bypass the card guard. Redact candidate content before persistence with the unchanged credential floor, then validate. Keep source, catalog, cache-evidence and destination proofs through final publication and any required redaction receipt; reject stale evidence even after same-size/same-mtime edits. Replace only a valid matching card via exact preimage/identity CAS; create absent cards without claiming foreign files/directories. Preserve competitors and compensate only this invocation on failure, including late receipt failure. An exact clean repeat is a validated no-op; required redaction evidence remains even when sanitized card bytes are unchanged.
 
 The canonical workflow uses add, reads the evidence, then submits a supported card. Existing current cards avoid unnecessary regeneration on repeat add. Bare add reports card `absent`/`current`/`stale`/`unavailable`; it never claims to have generated prose. Generation failure is reported in the current response, not retained as another task-content log. Preserve existing necessary ingest/redaction evidence; add no routine card/offer receipt event.
 
@@ -55,18 +55,7 @@ Managed recovery includes only schema-valid direct card records under the exact 
 
 Update the existing canon plus produce-deliverable/research workflows with a pointer to one concise Library card/offer section; avoid a new questionnaire or duplicated workflow bodies. Update Welcome/System orientation only where needed. Preserve the seven-item index and learned-Skill fallback, all unrelated/custom Skills, custom canon/guidance, profile/task bytes and project Git. Regenerate three shims and goldens, synchronize embedded payload, and retain every byte/absence preimage through deployment.
 
-Before payload edits, capture **final integrated PR-43 HEAD** stock fixtures/hashes for every changed instruction. Do not replace files based on headers or a clean three-way merge. Current integrated PR-41 `403cee5` has these verified LF-normalized witnesses (recheck against the final dependency, retain historical witnesses):
-
-| Path | SHA-256 |
-|---|---|
-| AGENTS.md | `9c89a64552276fa35ba0419a0fb7c89d22ecfe9439b399274a96dbcd1e833b0e` |
-| Welcome.md | `cd52bfa9c714b9d2b3b9aa835732d7c414c346f0157a44f7f5c3e2a47eb0036b` |
-| System/README.md | `9d77710dd6a053040603207a286544e61f7a5e07c0e5add6b9b93361ae73d004` |
-| .agents/skills/apparatus-produce-deliverable/SKILL.md | `83c60c29ca5a2324706125b4278850c45561817a82304a41592df3b82784d840` |
-| .agents/skills/apparatus-research-and-summarize/SKILL.md | `502e714bf115f276ea75efcb87effe12a978135c6554bd3f225fb7d1313cc7dc` |
-| CLAUDE.md | `4db7fa399530b3e427c32e658a5995ac6eedfcc367170a8523f5231b8b3e5243` |
-| .cursor/rules/apparatus.mdc | `98cbeb29daa36df30abed7193cae5832a854b78916815bfa7340bf51f40976fa` |
-| .github/copilot-instructions.md | `c87af003b6b071792a7e2e90734b7905ce6f8264d91e266c591d2855268398d2` |
+Before payload edits, capture **final integrated PR-43 HEAD** stock fixtures/hashes for every changed instruction. Do not replace files based on headers or a clean three-way merge. Capture fixtures from committed dependency `735d4b2`, compare their LF-normalized hashes with the migration table, and retain exact LF/CRLF preimages. Preserve historical witnesses rather than using headers as ownership.
 
 New orientation must remain seven-Skill completeness evidence alongside exact PR40/41 witnesses; historical five-Skill sources remain supported. LF/CRLF recognition must retain exact deployment preimages. No learned ownership registry changes.
 

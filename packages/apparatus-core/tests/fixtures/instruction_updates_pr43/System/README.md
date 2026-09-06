@@ -34,8 +34,3 @@ selective prose pass. Both live in the canonical Skill directory above.
 Learned workflow drafts live in `skill-drafts/` for review, outside native
 discovery and managed recovery coverage. `skills/adopted/` holds small ownership
 records pointing to the canonical adopted `.agents/skills/NAME/SKILL.md` bodies.
-
-`library/sources/` selects project originals without copying them. `library/cards/`
-holds small assistant-written summaries with exact source/extraction provenance.
-Cards aid discovery; originals remain authoritative. Missing, changed or ignored
-sources make cards unusable until their evidence and summary are refreshed.

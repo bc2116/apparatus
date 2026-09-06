@@ -15,7 +15,8 @@ description: Use when the user wants a finished file for a defined purpose.
 4. Save the finished work in the same project and report its path, checks and
    material limitations. Do not require an acceptance pause before saving.
    If completion is blocked, save the useful partial work and state what is
-   missing without claiming it is finished.
+   missing without claiming it is finished. After saving reusable finished work,
+   follow the canon’s “Library cards and completion offers” section.
 5. Keep a related goal accurate when the task permits retention. Mark it done
    only when its verifiable `done-when` is supported by evidence. For a no-save
    task, do not persist goal updates or task content in Memory, activity notes,

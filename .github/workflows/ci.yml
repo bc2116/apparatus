@@ -54,6 +54,7 @@ jobs:
           packages/apparatus-core/tests/test_library_ingest.py
           packages/apparatus-core/tests/test_library_index.py
           packages/apparatus-core/tests/test_library_sources.py
+          packages/apparatus-core/tests/test_library_cards.py
           packages/apparatus-core/tests/test_library_references.py
           packages/apparatus-core/tests/test_library_reference_boundaries.py
           packages/apparatus-core/tests/test_library_index_sources.py

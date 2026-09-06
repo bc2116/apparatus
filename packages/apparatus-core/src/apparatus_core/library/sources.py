@@ -279,8 +279,8 @@ class Catalog:
 
     def __init__(self, workspace: str | Path, *, transaction_compatible: bool = False,
                  temporary_files: dict | None = None):
-        # Restore retains DELETE-capable preimages and publication proofs.
-        # Its validation aliases must share DELETE access with those exact
+        # Restore and card publication retain DELETE-capable owned parents
+        # and publication proofs. Their validation aliases must share DELETE access with those exact
         # objects and any created parents. Ordinary catalog reads keep their
         # existing readable, name-locked proofs. Both modes revalidate all
         # parent identities, record bytes and names at the final boundary.

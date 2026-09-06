@@ -50,7 +50,11 @@ adapters are outside coverage; `.agents/skills` is never recursively captured.
 The closed [Library source registrations](library-sources.md) under
 `System/library/sources/` are included. Capture validates the exact catalog;
 historical manifests validate records without requiring their originals to be
-available. Originals and extraction/index caches remain outside coverage.
+available. Closed [Library card records](library-cards.md) directly under
+`System/library/cards/` are also covered and validated offline. No paired
+registration is required: implicit and removed-source cards remain recoverable.
+Restored cards require current matching source evidence before use. Originals
+and extraction/index caches remain outside coverage.
 
 No other paths are inferred to be managed. Project files, Library originals,
 caches, unknown files, task controls, routing/bindings and recovery storage are

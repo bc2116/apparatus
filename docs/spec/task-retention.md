@@ -42,7 +42,7 @@ receipts and cannot silently save new content.
 No-save suppresses new Memory, content-bearing corrections, profile answers and
 their People/Goal seeds before reading task input. Reads, forgetting, outdated
 status and labeling remain available. Requested output files save normally.
-Automatic Library extraction, refresh, rebuild, future cards/learned Skills,
+Automatic Library extraction, refresh, rebuild, Library cards and learned Skills,
 activity notes and snapshots are suppressed. Routine Library offers are skipped.
 
 Library retrieval compares existing extraction evidence with each selected
@@ -88,3 +88,7 @@ reading candidate text or creating files. Snapshot and Library requested
 exceptions never enable learned capture. New capture also requires managed
 work-area enrollment, ensuring drafts stay outside managed recovery. These
 controls do not block reading previously adopted Skills or erase older copies.
+
+Library card publication requires an explicit saving task. The requested Library
+exception permits registration/extraction only; it never permits card capture.
+Routine completion offers are suppressed in no-save tasks.
