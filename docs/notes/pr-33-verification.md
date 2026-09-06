@@ -22,11 +22,12 @@ state can restore old Memory. Task-specific retention remains R2b; private
 profiles retain their existing behavior. Read `rework-next-step.md` to resume.
 Remote CI and exact merge state are recorded by the pull request.
 
-Initial Windows CI rejected two concurrency tests. The first diagnosis assumed
-a sharing violation without recording one; subsequent CI disproved that
-assumption by showing successful byte writes. The corrected tests use explicit
-byte writes on both platforms, require the real stale-target validator to reject
-them without injected validation failure, and require exact concurrent bytes and
-receipt/temp cleanup. Production is unchanged. Independent review accepted this
-evidence-based correction. The local full suite remains 572 passed/38 skipped;
-actual Windows CI must establish the platform outcome before merge.
+Initial Windows CI rejected two concurrency tests. Earlier diagnoses conflated
+an untagged result with proof of either a sharing violation or a successful
+write. The tests now record an explicit successful byte count or a Windows
+PermissionError/EACCES outcome. A successful competing write must be rejected by
+the real stale-target validator. Only an observed blocked write permits the
+rollback fault injection, after real validation succeeds. Both branches assert
+exact final bytes and receipt/temp cleanup. Production is unchanged. Independent
+review accepted the repair. Actual Windows CI establishes the platform result
+before merge; no particular Windows error code is assumed.

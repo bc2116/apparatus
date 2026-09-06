@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import errno
+import os
 from pathlib import Path
 
 import pytest
@@ -152,6 +154,30 @@ def test_lifecycle_requires_existing_safe_same_kind_record(tmp_path):
     assert (workspace / target).read_bytes() == original
 
 
+def attempt_concurrent_write(path, content, outcomes):
+    try:
+        written = path.write_bytes(content)
+    except PermissionError as error:
+        # The CRT can report EACCES without a Win32 code. Preserve both fields
+        # and a distinct tag so a missing winerror cannot look like success.
+        outcomes.append(("blocked", error.errno, getattr(error, "winerror", None)))
+        if os.name != "nt" or error.errno != errno.EACCES:
+            raise
+    else:
+        outcomes.append(("written", written))
+
+
+def assert_write_outcome(outcomes, content):
+    assert len(outcomes) == 1, outcomes
+    outcome = outcomes[0]
+    if outcome[0] == "written":
+        assert outcome == ("written", len(content)), outcomes
+        return True
+    assert os.name == "nt" and outcome[0] == "blocked", outcomes
+    assert len(outcome) == 3 and outcome[1] == errno.EACCES, outcomes
+    return False
+
+
 @pytest.mark.parametrize("concurrent", [False, True])
 def test_correct_receipt_failure_rolls_back_only_owned_write(tmp_path, concurrent):
     workspace = _workspace(tmp_path / "workspace")
@@ -161,18 +187,19 @@ def test_correct_receipt_failure_rolls_back_only_owned_write(tmp_path, concurren
     write_attempts = []
     def fail(*args, **kwargs):
         if concurrent:
-            write_attempts.append(
-                (workspace / target).write_bytes(b"Concurrent replacement\n")
+            attempt_concurrent_write(
+                workspace / target, b"Concurrent replacement\n", write_attempts
             )
         raise OSError("publication failed")
     args = argparse.Namespace(workspace=str(workspace), memory_action="correct",
                               record=target.as_posix(), from_file=source)
-    assert memory.run(args, write=fail) == 2
-    # Use bytes to make the competing write and its expected content exact on
-    # every platform. Reaching the failure alone does not prove it happened.
-    assert write_attempts == ([len(b"Concurrent replacement\n")] if concurrent else [])
+    result = memory.run(args, write=fail)
+    written = assert_write_outcome(write_attempts, b"Concurrent replacement\n") if concurrent else False
+    assert result == 2, write_attempts
+    if not concurrent:
+        assert write_attempts == []
     assert (workspace / target).read_bytes() == (
-        b"Concurrent replacement\n" if concurrent else original)
+        b"Concurrent replacement\n" if written else original), write_attempts
     assert not list((workspace / "System/receipts").glob("*.md"))
     assert not list((workspace / "Memory/Facts").glob(".apparatus*"))
 
@@ -223,6 +250,7 @@ def test_correct_rolls_back_published_receipt_after_concurrent_write_attempt(tmp
     from apparatus_core.receipts import write_receipt
     workspace = _workspace(tmp_path / "workspace")
     target = record(workspace)
+    original = (workspace / target).read_bytes()
     source = replacement(tmp_path, body="password=synthetic-proof\n")
     write_attempts = []
     validation_attempts = []
@@ -235,23 +263,31 @@ def test_correct_rolls_back_published_receipt_after_concurrent_write_attempt(tmp
             validation_attempts.append("stale target rejected")
             raise
         else:
+            if write_attempts and write_attempts[0][0] == "blocked":
+                # Only an observed, permitted CRT denial reaches this branch.
+                # The real validator proved unchanged state before injection.
+                validation_attempts.append("unchanged target validated; injected failure")
+                raise OSError("injected failure after blocked write and successful validation")
             validation_attempts.append("stale target accepted")
 
     monkeypatch.setattr(memory._ReplacementTransaction, "validate_commit", observe_commit_validation)
 
     def publish(*args, **kwargs):
         proof = write_receipt(*args, **kwargs)
-        write_attempts.append((workspace / target).write_bytes(b"Concurrent content\n"))
-        # The caller must receive and claim publication ownership before the
-        # real stale-target check fails; no injected failure substitutes for it.
+        attempt_concurrent_write(workspace / target, b"Concurrent content\n", write_attempts)
+        # Return publication ownership even if the competing writer is blocked.
         return proof
 
     args = argparse.Namespace(workspace=str(workspace), memory_action="correct",
                               record=target.as_posix(), from_file=source)
-    assert memory.run(args, write=publish) == 2
-    assert write_attempts == [len(b"Concurrent content\n")]
-    assert validation_attempts == ["stale target rejected"]
-    assert (workspace / target).read_bytes() == b"Concurrent content\n"
+    result = memory.run(args, write=publish)
+    written = assert_write_outcome(write_attempts, b"Concurrent content\n")
+    assert result == 2, (write_attempts, validation_attempts)
+    assert validation_attempts == (["stale target rejected"] if written else [
+        "unchanged target validated; injected failure"
+    ]), (write_attempts, validation_attempts)
+    assert (workspace / target).read_bytes() == (
+        b"Concurrent content\n" if written else original), (write_attempts, validation_attempts)
     assert not list((workspace / "System/receipts").glob("*.md"))
     assert not list((workspace / "Memory/Facts").glob(".apparatus*"))
 
