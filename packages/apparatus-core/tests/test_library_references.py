@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -340,3 +341,33 @@ def test_temporarily_unreadable_registered_source_reports_partial_without_deregi
     assert result.coverage.issues == ((REPORT, "unavailable"),)
     assert tree(tmp_path) == before
     assert (root / sources.registration_path(REPORT)).is_file()
+
+
+def test_add_keeps_registration_when_cache_access_is_denied(area, monkeypatch, capsys, tmp_path):
+    root, _task = area
+    originals = {path: (root / path).read_bytes() for path in (REPORT, HEALTHY)}
+    memory_before = tree(root / "Memory")
+    home = (tmp_path / "home").resolve()
+    original_mkdir = os.mkdir
+    denied = []
+
+    def deny_cache(path, *args, **kwargs):
+        if Path(path) == home:
+            denied.append(path)
+            raise PermissionError(errno.EACCES, "synthetic-private-error", "synthetic-private-path")
+        return original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "mkdir", deny_cache)
+    assert add(area) == 1
+    output = capsys.readouterr().out
+    assert "Registration: added " + REPORT in output
+    assert "Registration remains selected; extraction unavailable:" in output
+    assert "cache access was denied" in output and "APPARATUS_HOME" in output
+    assert "outside the work area" in output
+    assert "Card: unavailable; no card was generated." in output
+    assert "symbolic link" not in output and "synthetic-private" not in output
+    assert len(denied) == 1 and not home.exists()
+    assert [item.source_path for item in sources.list_sources(root)] == [REPORT]
+    assert {path: (root / path).read_bytes() for path in originals} == originals
+    assert tree(root / "Memory") == memory_before
+    assert list((root / "Library").iterdir()) == []
