@@ -1,0 +1,146 @@
+{
+  "evidence_kind": "normalized operator observation with independently checked synthetic files",
+  "classification": "diagnostic PR46 run; not final certification",
+  "observed_date": "2026-09-06",
+  "approximate_local_time": "11:40",
+  "timezone": "America/Los_Angeles",
+  "duration_seconds_approximate": 45,
+  "app": {
+    "name": "Cursor",
+    "variant": "IDE Agent",
+    "version": "3.18.25",
+    "os": "macOS",
+    "os_version": "27.0",
+    "model_label": "Sol Medium",
+    "delegation": "none"
+  },
+  "build": {
+    "integration_commit": "78e09ece6225deef9f84e36f42eec3b451aeed84",
+    "package_source_commit": "240bfad",
+    "core_source_commit": "607d5599f99606deead134ea727ea6196db92a17",
+    "version": "0.0.1",
+    "wheel_sha256": "04d6dfa6a26e513e5955c72d1d17465126d6797829f90300cf59fd5ae7f0dca1",
+    "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+    "python_dependencies": {
+      "lxml": "6.1.3",
+      "PyYAML": "6.0.3",
+      "python-docx": "1.2.0",
+      "apparatus-core": "0.0.1",
+      "typing_extensions": "4.16.0",
+      "pypdf": "6.17.0"
+    }
+  },
+  "path_notation": {
+    "WORKAREA": "isolated synthetic work area opened in Cursor; relative evidence paths below",
+    "APPARATUS": "isolated CLI installed from the identified test wheel; no machine path retained"
+  },
+  "prompt_normalized_summary": "Use Apparatus instructions and the isolated test CLI. Create a short workshop plan from project-a/source.md, cite the source and identify missing details. Use synthetic material only and do not delegate.",
+  "task": {
+    "id": "c324fd93-ee0a-4d25-a5e2-b43ac398b6ff",
+    "memory": "save",
+    "observation": "task-start result observed by operator in UI"
+  },
+  "observed_ui_actions": [
+    "Used apparatus-produce-deliverable with link to WORKAREA/.agents/skills/apparatus-produce-deliverable/SKILL.md",
+    "Read source and custom project AGENTS.md",
+    "Resolve project binding",
+    "Recall",
+    "Write workshop plan",
+    "Lint action",
+    "Attempt snapshot"
+  ],
+  "step_1": {
+    "status": "partial",
+    "shared_root_fragment": "pass",
+    "bound_project_opening_case": "not run",
+    "verified_output": {
+      "path": "project-a/workshop-plan.md",
+      "sha256": "bec91a250cfd1f49c88a3bb2dc9b4307cff52ddb5c45d965b0147e7957de6206",
+      "source_path": "project-a/source.md",
+      "source_sha256": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+      "content_checks": [
+        "two sessions",
+        "12 places in each session",
+        "break after 45 minutes",
+        "venue remains undecided",
+        "relative source citation resolves to supplied source",
+        "additional activities and timings explicitly provisional"
+      ]
+    },
+    "interaction_observations": {
+      "setup_questionnaire": false,
+      "extra_approval_pause": false,
+      "evidence_basis": "operator UI observation, not a raw transcript"
+    },
+    "preserved_files": {
+      "project-a/source.md": {
+        "before_sha256": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+        "after_sha256": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248"
+      },
+      "project-a/local-note.md": {
+        "before_sha256": "dd6bcd7ee1d79ac1e4750f6b95ed88682a7a8f54f00d49d3474baf45a77a6939",
+        "after_sha256": "dd6bcd7ee1d79ac1e4750f6b95ed88682a7a8f54f00d49d3474baf45a77a6939"
+      },
+      "project-a/AGENTS.md": {
+        "before_sha256": "b956717a1b1d40fe7955540f35957a74baa003cab42b0c4f252a7948e75e8063",
+        "after_sha256": "b956717a1b1d40fe7955540f35957a74baa003cab42b0c4f252a7948e75e8063"
+      },
+      "AGENTS.md": {
+        "before_sha256": "96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8",
+        "after_sha256": "96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8"
+      },
+      "System/profile.yaml": {
+        "before_sha256": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2",
+        "after_sha256": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2"
+      },
+      ".agents/skills/apparatus-produce-deliverable/SKILL.md": {
+        "before_sha256": "bbf09304eb6b015869017fbd0a495de6f3cf357970227e621fe06921092183be",
+        "after_sha256": "bbf09304eb6b015869017fbd0a495de6f3cf357970227e621fe06921092183be"
+      }
+    },
+    "root_git_created": false,
+    "created_observed": [
+      "task context",
+      "project-a/workshop-plan.md"
+    ]
+  },
+  "snapshot_attempt": {
+    "status": "failed",
+    "normalized_command": "APPARATUS --task c324fd93-ee0a-4d25-a5e2-b43ac398b6ff snapshot WORKAREA",
+    "diagnostic": "snapshot: System/profile.yaml could not be read safely; repair the workspace profile before using this feature",
+    "path_condition": "OS external-ancestor alias for the work area",
+    "final_response_observation": "Reported saved plan, citations and limitations; honestly reported unavailable snapshot.",
+    "diagnosis": {
+      "basis": "independent core reproduction reported by operator, outside Cursor",
+      "result": "alias failed and canonical path passed against the same profile inode",
+      "repair": "PR48 pending; this failed attempt must not be relabeled as passing"
+    }
+  },
+  "library_offer": {
+    "observed": false,
+    "result": "not assessed",
+    "reason": "Short plan was not explicitly a reusable guide; absence alone establishes neither offer pass nor failure."
+  },
+  "native_skill_observation": {
+    "canonical_target": ".agents/skills/apparatus-produce-deliverable/SKILL.md",
+    "sha256": "bbf09304eb6b015869017fbd0a495de6f3cf357970227e621fe06921092183be",
+    "observation": "Native Used label linked to this exact canonical body; subsequent output is retained.",
+    "limit": "This fragment does not establish the complete built-in, humanizer, learned adoption or optional delegation cases in step 4."
+  },
+  "step_results": {
+    "1": "partial",
+    "2": "not run",
+    "3": "not run",
+    "4": "not run; native usage fragment only",
+    "5": "failed snapshot attempt; remaining recovery cases not run",
+    "6": "not run"
+  },
+  "limits": [
+    "No app certified",
+    "No separate bound-project opening case",
+    "No full Memory, Library, learned Skill, recovery or quiet-history case",
+    "No general native discovery or cross-variant claim",
+    "No raw conversation, native configuration or machine absolute paths retained",
+    "Final certification requires a common build including PR48 repair"
+  ]
+}

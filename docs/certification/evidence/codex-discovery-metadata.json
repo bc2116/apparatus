@@ -1,0 +1,49 @@
+{
+  "app": "Codex CLI 0.153.4",
+  "platform": "macOS",
+  "evidence": "skills/list native metadata only",
+  "body_sha256": "a33be99af24a9634f14c7484a7cfad201b79933416d419fadae077b2bc2e3697",
+  "results": [
+    {
+      "condition": "project-local canonical control",
+      "entries": [
+        {
+          "name": "apparatus-r4b-native-metadata-probe",
+          "path": "project-a/.agents/skills/apparatus-r4b-native-metadata-probe/SKILL.md",
+          "scope": "repo",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "condition": "work-area canonical outside independent repository",
+      "entries": []
+    },
+    {
+      "condition": "relative project directory symlink to sole canonical body",
+      "entries": [
+        {
+          "name": "apparatus-r4b-native-metadata-probe",
+          "path": ".agents/skills/apparatus-r4b-native-metadata-probe/SKILL.md",
+          "scope": "repo",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "condition": "same target through agents and claude roots",
+      "entries": [
+        {
+          "name": "apparatus-r4b-native-metadata-probe",
+          "path": ".agents/skills/apparatus-r4b-native-metadata-probe/SKILL.md",
+          "scope": "repo",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "condition": "only claude compatibility symlink exposed in project",
+      "entries": []
+    }
+  ]
+}

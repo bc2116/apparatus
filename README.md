@@ -72,11 +72,17 @@ After an explicit Library addition, the assistant can write a small grounded
 Finished work may receive one brief optional addition offer; no-save suppresses
 these offers and card capture. Card freshness is checked against current evidence.
 
-The [approved rework](docs/design/design-brief.md) still includes native discovery adapters. **The remaining rework is planned,
-not yet implemented.** Existing specs and conformance tests describe the
-baseline until their migration PRs land. Formal app certification is held
-while the target changes; packaging code alone does not establish a signed
-public release or certified support.
+The [approved rework](docs/design/design-brief.md) still includes planned native
+discovery adapters. PR47 is collecting real first-task evidence against the
+integrated local pre-alpha build. The first Cursor task saved its deliverable
+but exposed a core path-alias defect; final certification awaits PR48.
+**No reworked app is certified yet**; see the
+[dated support matrix](docs/certification/matrix.md) and [six-step checklist](docs/certification/checklist.md).
+Start with the short [Codex](docs/quickstarts/codex.md),
+[Claude Code](docs/quickstarts/claude-code.md), or [Cursor](docs/quickstarts/cursor.md)
+guide. These documented routes are not completed runtime certification.
+Packaging checks do not establish a signed public release, and the current
+PyPI package must not be assumed to contain this rework.
 
 Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
 [refactor sequence](docs/plan/rework-sequence.md), and

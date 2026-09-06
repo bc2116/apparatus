@@ -15,7 +15,8 @@ PR-40 implements R6: economical native work and selective prose editing.
 PR-41 implements R7: draft and review-bound adoption of learned Skills.
 PR-46 implements R11 installer routing and explicit adoption on the integrated
 PR-45 core, with separate native setup/release evidence.
-Native discovery adapters and runtime evidence remain planned.
+PR-47 is in progress: [actual app certification](../certification/matrix.md) is
+incomplete and depends on PR-49, including the PR-48 external path-alias repair. Native discovery adapters remain planned.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
 
@@ -118,7 +119,7 @@ later slices remain planned.
 | 55 | [Prepare the first release notes](PR-55-first-release-notes.md) | Release | ✅ landed | 54 |
 | 56 | [Verify published installers on clean native runners](PR-56-native-installer-acceptance.md) | Release | ✅ landed | 55 |
 | 57 | [Diagnose native Windows signature checks](PR-57-native-signature-diagnostics.md) | Release | ✅ landed | 56 |
-| 47 | [Prove the reworked first task](PR-47-first-task-certification.md) | Rework | ready | 46 |
+| 47 | [Prove the reworked first task](PR-47-first-task-certification.md) | Rework | in progress — pr-47-first-task-certification | 49 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

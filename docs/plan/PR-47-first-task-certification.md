@@ -1,7 +1,10 @@
 # PR-47 — Prove the reworked first-task experience
 
-R12 replaces PR-24's held checklist. Execute after PR-46 and all preceding
-rework are integrated. Preserve the held worktree and all historical evidence;
+R12 replaces PR-24's held checklist. Final certification depends on PR-48
+(feature-profile external path aliases), following PR-46 and all preceding
+rework. The first PR-46 Cursor run exposed the independently reproduced defect;
+retain that run as diagnostic evidence and use a repaired common baseline for
+final certification. Do not relabel the earlier snapshot failure as a pass. Preserve the held worktree and all historical evidence;
 it establishes only the earlier payload's behavior. This contract can be
 prepared now, but neither unit tests nor native metadata discovery satisfy its
 app certification requirement.

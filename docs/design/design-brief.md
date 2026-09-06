@@ -170,6 +170,9 @@ Preserve user-scope installation, signed public artifacts, a readable machine
 report, and repair by rerunning setup. Detect capabilities without forcing an
 AI app choice. Report unavailable dependencies and snapshot coverage honestly.
 Basic compatibility, adapter availability, and tested support are distinct.
+The [dated certification matrix](../certification/matrix.md) records actual
+coverage; the [quickstarts](../quickstarts/codex.md) describe opening an actual
+task without implying certified support or a signed public release.
 
 Current implementation constraints remain until deliberately changed:
 
@@ -219,9 +222,11 @@ and recovery within documented coverage. Certify one payload in at least
 three AI apps with dated app/OS/version evidence. A green unit suite or a
 detected app is not that certification.
 
-No further product-choice interview is needed to prepare the refactor.
-Implementation matters remain: migration layout, task-control plumbing,
-current native discovery paths, Windows snapshot availability, signing
-provisioning, and actual certification runs. Resolve small reversible choices
-in each implementation prompt. Return to the owner only if evidence requires
-a material change to this direction.
+The reworked layout, task controls and installer routing are implemented.
+[PR47](../plan/PR-47-first-task-certification.md) is gathering actual app evidence;
+its six-case, three-app gate remains incomplete and requires the PR48 path-alias
+repair exposed by the first Cursor run. Native discovery adapters,
+platform evidence, signing provisioning and public delivery retain their own
+acceptance requirements. No further product-choice interview is needed. Resolve
+small reversible implementation choices in their focused prompts; return to the
+owner only if evidence requires a material change to this direction.
