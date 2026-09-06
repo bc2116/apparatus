@@ -4,9 +4,9 @@ Executable work is pre-cut into focused PRs with self-contained prompts.
 The [approved rework sequence](rework-sequence.md) also contains explicitly
 uncut outlines; these are not ready-to-execute prompts.
 
-**Current entry:** PR-31 records the new product direction. Next, cut PR-32
-for R1 (remove the sharing gate), including its source-backed migration and
-acceptance tests. PR-24 is held: its old checklist must not certify the new
+**Current entry:** PR-32 implements R1, removing the sharing gate with bounded
+legacy-instruction repair. Next, cut PR-33 for R2 (task Memory control and
+corrections), with its explicit retention and migration contract. PR-24 is held: its old checklist must not certify the new
 target. Preserve any existing certification work.
 
 ## How to execute a PR
@@ -34,7 +34,7 @@ on every commit.
 ## Original implementation phases
 
 These phases describe the legacy baseline, not the approved rework. The new
-sequence is linked above; its implementation has not started.
+sequence is linked above; R1 is implemented in PR-32; remaining slices are still planned.
 
 - **Phase 0 — birth:** repository skeleton, decisions, this plan. *(landed at bootstrap)*
 - **Phase 1 — protocol on files:** the workspace works as pure files in ≥ 2 AI
@@ -82,6 +82,7 @@ sequence is linked above; its implementation has not started.
 | 29 | [First-run feature selection](PR-29-first-run-feature-selection.md) | 4 | ✅ landed | 17, 27, 28 |
 | 30 | [Embed payload in apparatus-core](PR-30-embed-payload-wheel.md) | 5 | ✅ landed | 20 |
 | 31 | [Lean product direction and refactor sequence](PR-31-product-rework-plan.md) | Rework | ✅ landed | Existing baseline |
+| 32 | [Remove the sharing gate](PR-32-remove-sharing-gate.md) | Rework | ✅ landed | 31 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

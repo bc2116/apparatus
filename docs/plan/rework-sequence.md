@@ -14,16 +14,16 @@ accepts sources in the workspace Library; it does not yet provide a catalog of
 project references or generated cards. Procedures do not yet use the native
 Skill format. Private behavior is profile-wide, not task-scoped.
 
-The legacy specification also requires the sharing gate, seven-question
-interview, separate finished-output folder, and routine receipts. These are
-implemented behaviors to migrate, not new product requirements. Existing
-tests deliberately pin them. Packaging code and earlier dogfood do not
+The original specification also required a sharing gate, seven-question
+interview, separate finished-output folder, and routine receipts. PR-32 removes
+the gate. The other behaviors still await their named migration slices;
+current tests pin the remaining baseline. Packaging code and earlier dogfood do not
 establish public release, signing readiness, or current app certification.
 
 ## Execution rule
 
-PR-31 records this direction only. The following slices are **planned — prompt
-not cut**, not ready to execute. Start by cutting PR-32 for R1 below. Each
+PR-31 records this direction. R1 is implemented by PR-32. Remaining slices
+are **planned — prompt not cut**, not ready to execute. Next cut PR-33 for R2. Each
 prompt must state exact owned paths, migration behavior, acceptance tests, and
 dependencies; then add its row to the main plan. Do not implement the entire
 sequence on one branch. Product decisions below need no repeated interview.
@@ -40,11 +40,11 @@ repeatable, and recoverable, with explicit collision handling.
 
 ### R1 — Remove the sharing gate
 
-**First implementation slice; no dependencies beyond PR-31.** Remove the
+**Implemented in PR-32; dependency PR-31.** Remove the
 App-specific draft/export/share approval protocol, command exposure, and starter
-instructions. Inventory the backup/egress coupling before deleting code: keep
-credential redaction, path containment, transaction safety, and source-as-data
-protections. Remove the gate from the IT explanation too. Preserve readability
+instructions. Backup export has no runtime egress dependency and is unchanged.
+Credential redaction, path containment, transaction safety, and source-as-data
+protections remain. Remove the gate from the IT explanation too. Preserve readability
 of old receipts, without letting obsolete policies remain active in migrated
 workspaces. A compatibility tombstone, if needed, must not run a hidden gate.
 
@@ -241,8 +241,9 @@ distributed through updates. Existing native tools need no App module to work.
 
 ## Resume and validation
 
-The next concrete step is to cut the self-contained PR-32 prompt for R1 from
-current source, including backup coupling and legacy-workspace migration.
+The next concrete step is to cut the self-contained PR-33 prompt for R2 from
+current source, specifying task retention, resumption, correction/forgetting,
+and safe conversion of existing private profiles.
 Do not resume the old PR-24 checklist. No product implementation is included
 in PR-31, and no further product-choice interview is required.
 

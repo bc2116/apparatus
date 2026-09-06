@@ -175,6 +175,7 @@ def test_missing_canon_marks_present_shims_as_drift_without_reading_symlinks(tmp
         ("shim-drift", "CLAUDE.md"),
         ("shim-drift", ".cursor/rules/apparatus.mdc"),
         ("shim-drift", ".github/copilot-instructions.md"),
+        ("instruction-read-error", "."),
     ]
     assert outside.read_text(encoding="utf-8") == "outside sentinel\n"
 
@@ -191,6 +192,7 @@ def test_unusable_canon_keeps_absent_targets_missing_and_present_targets_drift(t
         ("shim-drift", "CLAUDE.md"),
         ("shim-missing", ".cursor/rules/apparatus.mdc"),
         ("shim-missing", ".github/copilot-instructions.md"),
+        ("instruction-read-error", "."),
     ]
     assert outside.read_text(encoding="utf-8") == "# Outside canon\n"
 

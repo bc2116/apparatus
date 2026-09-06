@@ -63,7 +63,7 @@ normative in `docs/spec/records.md`, machine-readable in
 | `System/policy/` | now (PR-06) | Both policy overlays ship; `System/profile.yaml`'s `privacy_mode` selects the active one. |
 | `System/receipts/` | now (PR-05); PR-09 machinery | The assistant writes receipts from the first procedure run; CLI machinery also writes them from PR-09. |
 | `System/machine-report.md` | PR-08 | Environment capabilities, written by `doctor`/the bootstrapper. |
-| `System/ignore` | PR-28 | Workspace-relative rules that hide selected paths from Library machinery and record checks; they never change egress or credential redaction. |
+| `System/ignore` | PR-28 | Workspace-relative rules that hide selected paths from Library machinery and record checks; they never relax credential redaction or instruction-migration checks. |
 | Workspace instruction canon and shims | now (PR-07) | `AGENTS.md` canon at the workspace root plus `CLAUDE.md`, `.cursor/rules/apparatus.mdc`, and `.github/copilot-instructions.md` shims (ADR-0003). |
 
 ### Bootstrapper handoff seam
@@ -102,3 +102,8 @@ contain real content.
   confusion. Headless runs could not test visual editor clutter or prove that
   editor hiding preserves assistant access, so any future optional UI-only
   hiding treatment needs separate evidence.
+
+## Instruction repair after sharing-gate removal
+
+See [the migration contract](egress.md) for known-original updates,
+custom-instruction preservation, and historical receipt compatibility.

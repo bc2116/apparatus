@@ -25,14 +25,12 @@ language. It knows how this workspace is organized and follows its rules.
 
 ## Three promises this workspace makes
 
-1. **You direct outside actions.** Your assistant follows your request and your
-   AI app's permissions for sending, copying, exporting, or publishing.
-   Apparatus adds no extra approval step and provides no sending service.
-2. **Credentials are redacted before managed writes.** The existing rules cover
-   passwords, API keys, tokens, private keys, and high-confidence government or
-   payment identifiers. Personal details are labeled as they are saved; private
-   mode keeps labeled personal details out of durable Memory. Exported backups
-   preserve historical files and do not sanitize them.
+1. **Nothing leaves without you.** Your assistant drafts; you send. Emails,
+   posts, submissions — always your decision, never the assistant's.
+2. **Sensitive things are guarded where it matters.** Personal details are
+   quietly labeled as they're saved, and if something containing them is about
+   to leave the workspace, you'll be shown exactly what — with a cleaned copy
+   offered. Passwords and keys are never stored, period.
 3. **You can't break anything.** When snapshots are on, the workspace saves
    snapshots as you work. If something goes wrong, ask your assistant to go
    back to an earlier snapshot.

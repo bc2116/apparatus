@@ -35,11 +35,13 @@ def _run(
     *arguments: str | Path,
     env: dict[str, str],
     expected: int = 0,
+    input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     assert APPARATUS is not None, "the installed apparatus console script is required"
     result = subprocess.run(
         [APPARATUS, *(str(argument) for argument in arguments)],
         capture_output=True,
+        input=input_text,
         text=True,
         env=env,
         check=False,
@@ -160,14 +162,28 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     fresh_check = _run("check", workspace, env=environment)
     assert "check passed" in fresh_check.stdout
 
-    # Configured interview answers apply into valid People and Goal records.
-    shutil.copyfile(
-        FIXTURES / "profile-configured.yaml",
-        workspace / "System" / "profile.yaml",
+    # Configured interview answers pass through stdin so the retained credential
+    # floor runs before any profile or Memory record reaches durable storage.
+    candidate = yaml.safe_load(
+        (FIXTURES / "profile-configured.yaml").read_text(encoding="utf-8")
+    )
+    candidate["key_people"][0]["role"] = (
+        "Review lead; temporary password=profile-fixture-only for this fake fixture."
     )
     apply_before = len(_receipts(workspace, "profile-apply"))
-    _run("profile", "apply", workspace, env=environment)
+    redaction_before = _receipt_paths(workspace, "redaction")
+    applied = _run(
+        "profile", "apply", workspace, "--stdin",
+        input_text=yaml.safe_dump(candidate, sort_keys=False),
+        env=environment,
+    )
+    assert "profile-fixture-only" not in applied.stdout + applied.stderr
     assert len(_receipts(workspace, "profile-apply")) == apply_before + 1
+    redaction_path, redaction_data, _redaction_body = _new_receipt(
+        workspace, "redaction", redaction_before
+    )
+    assert redaction_data["counts"] == {"password": 1}
+    assert "profile-fixture-only" not in redaction_path.read_text(encoding="utf-8")
     people = {
         "Memory/People/riley-sample.md",
         "Memory/People/northstar-quality-council.md",
@@ -232,8 +248,8 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     assert missed_receipt["status"] == "abstained"
     assert missed_receipt["evidence_sources"] == []
 
-    # The assistant writes a cited draft, then the gate finds both People data
-    # and the credential floor before any copy is published.
+    # The assistant saves an ordinary cited draft containing useful People
+    # context. There is no sharing-gate inspection or decision to request.
     project = workspace / "Projects" / "orion-readiness"
     project.mkdir()
     draft = project / "orion-readiness-brief.md"
@@ -241,78 +257,18 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
         "# Orion readiness brief\n\n"
         "The Orion readiness brief must include the cobalt readiness marker "
         "before the Thursday review with Riley Sample "
-        "(`Library/reference-note.md`).\n\n"
-        "Temporary password=sample-only for this clearly fake fixture.\n",
+        "(`Library/reference-note.md`).\n",
         encoding="utf-8",
     )
-    offered = draft.with_name("orion-readiness-brief.redacted.md")
-    inspected_egress_before = _receipt_paths(workspace, "egress")
-    inspected_redaction_before = _receipt_paths(workspace, "redaction")
-    inspection = _run(
-        "egress",
-        "check",
-        workspace,
-        draft,
-        "--destination",
-        "the readiness review team",
-        env=environment,
-        expected=1,
-    )
-    assert "people/person-name" in inspection.stdout
-    assert "credential/password" in inspection.stdout
-    assert "redacted-copy offer" in inspection.stdout
-    assert not offered.exists()
-    _inspection_path, inspected_egress, _inspection_body = _new_receipt(
-        workspace, "egress", inspected_egress_before
-    )
-    _new_receipt(workspace, "redaction", inspected_redaction_before)
-    assert inspected_egress["decision"] is None
-    assert inspected_egress["outcome"] == "decision-required"
-    assert inspected_egress["anything_left_workspace"] is False
-    assert inspected_egress["finding_counts"]["people/person-name"] == 1
-    assert inspected_egress["finding_counts"]["credential/password"] == 1
-
-    decided_egress_before = _receipt_paths(workspace, "egress")
-    decided_redaction_before = _receipt_paths(workspace, "redaction")
-    decision = _run(
-        "egress",
-        "check",
-        workspace,
-        draft,
-        "--destination",
-        "the readiness review team",
-        "--decision",
-        "use-redacted",
-        env=environment,
-    )
-    assert "egress decision recorded: use-redacted" in decision.stdout
-    assert offered.is_file()
-    redacted = offered.read_text(encoding="utf-8")
-    assert "Riley Sample" not in redacted
-    assert "sample-only" not in redacted
-    assert "[redacted-person-name]" in redacted
-    assert "password=[redacted-password]" in redacted
-    _decision_path, decided_egress, _decision_body = _new_receipt(
-        workspace, "egress", decided_egress_before
-    )
-    assert decided_egress["decision"] == "use-redacted"
-    assert decided_egress["outcome"] == "use-redacted"
-    assert decided_egress["pre_share_authorized"] is True
-    assert decided_egress["anything_left_workspace"] is False
-    assert decided_egress["redacted_copies"] == [
-        "Projects/orion-readiness/orion-readiness-brief.redacted.md"
-    ]
-    redaction_path, redaction_data, _redaction_body = _new_receipt(
-        workspace, "redaction", decided_redaction_before
-    )
-    assert redaction_data["counts"] == {"password": 1}
-    assert redaction_data["copies_published"] is True
-    assert "sample-only" not in redaction_path.read_text(encoding="utf-8")
+    draft_text = draft.read_text(encoding="utf-8")
+    assert "Riley Sample" in draft_text
+    assert "Library/reference-note.md" in draft_text
+    assert not _receipts(workspace, "egress")
 
     # Filing remains inside the workspace. The related goal names the filed
     # deliverable before the final snapshot and whole-workspace check.
     deliverable = workspace / "Deliverables" / "orion-readiness-brief.md"
-    offered.replace(deliverable)
+    draft.replace(deliverable)
     goal = workspace / goal_relative
     goal_data, goal_body = _frontmatter(goal)
     goal_data["status"] = "done"
@@ -343,6 +299,24 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     final_check = _run("check", workspace, env=environment)
     assert "check passed" in final_check.stdout
     assert deliverable.is_file()
+    assert deliverable.read_text(encoding="utf-8") == draft_text
+    durable_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in workspace.rglob("*")
+        if path.is_file() and ".git" not in path.parts and path.suffix in {".md", ".yaml"}
+    )
+    assert "profile-fixture-only" not in durable_text
+    assert "password=[redacted-password]" in durable_text
+    # Imported source files remain intact; the managed-write redaction floor
+    # does not promise to sanitize original files or historical content.
+    assert library_source.read_bytes() == (
+        FIXTURES / "library" / "reference-note.md"
+    ).read_bytes()
+    assert "sample-only" not in draft_text
+    assert "Riley Sample" in (workspace / "Memory/People/riley-sample.md").read_text(
+        encoding="utf-8"
+    )
+    assert not _receipts(workspace, "egress")
     _assert_receipts_are_bound_and_well_formed(workspace)
 
     expected_events = {
@@ -351,7 +325,6 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
         "profile-apply",
         "library-ingest",
         "recall",
-        "egress",
         "redaction",
         "snapshot",
     }

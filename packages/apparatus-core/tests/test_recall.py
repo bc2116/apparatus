@@ -249,7 +249,8 @@ def test_research_procedure_keeps_nine_steps_and_grounding_rules():
     frontmatter, body = records.parse_record(text)
     assert records.validate("procedure", frontmatter, filename=procedure.name) == []
     assert re.findall(r"(?m)^(\d+)\. ", body) == [str(number) for number in range(1, 10)]
-    assert re.search(r"(?m)^7\. \[share\]", body)
+    assert "[share]" not in body and "apparatus egress" not in body
+    assert "user" in prose and "native permissions" in prose
     for required in (
         "apparatus recall",
         "cite its `source` path next to the claim it supports",

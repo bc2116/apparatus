@@ -20,7 +20,7 @@ RECEIPT_EVENTS: tuple[str, ...] = (
     "snapshot",
     "restore",
     "init",
-    "egress",
+    "egress",  # Legacy receipts remain readable; no new gate decisions are emitted.
     "library-ingest",
     "recall",
     "profile-apply",

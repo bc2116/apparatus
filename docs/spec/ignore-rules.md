@@ -1,8 +1,8 @@
 # Workspace ignore rules (v1)
 
 - **Status:** Normative for `System/ignore`.
-- Governing decisions: ADR-0002 (files-first and derived caches), ADR-0004
-  (privacy at egress and the credential floor).
+- Governing decisions: ADR-0002 (files-first and derived caches), ADR-0006
+  (sharing-gate removal, preserving the credential floor).
 
 `System/ignore` lets the user tell the workspace machinery to leave selected
 workspace-relative paths alone. It is useful for a scratch area, a sensitive
@@ -18,11 +18,10 @@ count so the exclusion is visible.
 
 ## Safety boundaries
 
-**Ignore rules never affect the egress gate or the credential floor.** Content
-explicitly sent outside the workspace is always scanned at egress, even when
-its path matches `System/ignore`. Durable-write credential redaction always
-applies. Ignore rules are not an approval to send, publish, share, or retain a
-credential.
+**Ignore rules never relax the credential floor.** Managed text-write
+redaction still applies. There is no App-specific sharing gate; ignore rules
+do not supply authority for external actions or permission to retain a
+credential. Instruction-migration checks are independent of Library exclusions.
 
 Every existing receipt-producing command records accurate skip counts and rule
 provenance in its receipt; receipts do not list ignored paths or file contents.

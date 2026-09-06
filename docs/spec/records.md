@@ -127,3 +127,7 @@ A machine-written, human-legible record of one machinery event.
 - Filename: `YYYY-MM-DD-HHMMSS-<event>.md` (UTC, all lowercase; same-second
   collisions append `-2`, `-3`, …). The `<event>` in the filename must equal
   the `event` field.
+
+PR-32 retains `event: egress` solely for historical receipt compatibility.
+There is no current egress command or new gate decision; old receipts never
+authorize a new action.

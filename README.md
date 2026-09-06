@@ -16,12 +16,14 @@ app features are optional enhancements.
 
 Pre-alpha. The existing implementation includes Memory, local Library
 extraction/search/citations, snapshots, backup, profiles, five procedure files,
-and packaging machinery. It still has the old interview, sharing gate, and
-central Deliverables folder.
+and packaging machinery. The sharing gate has been removed; existing workspaces
+can update their original instructions with `apparatus init WORKSPACE`. Custom
+instruction conflicts are preserved and reported for repair. The old interview
+and central Deliverables folder remain until their migration slices.
 
 The [approved rework](docs/design/design-brief.md) replaces that ceremony and
 adds native Skills, economical subagent guidance, lightweight prose editing,
-and a Library catalog referencing project files. **Those changes are planned,
+and a Library catalog referencing project files. **The remaining rework is planned,
 not yet implemented.** Existing specs and conformance tests describe the
 baseline until their migration PRs land. Formal app certification is held
 while the target changes; packaging code alone does not establish a signed
