@@ -775,31 +775,42 @@ def prepare_snapshot(workspace: str | Path, *, label: str | None = None, force: 
             result.validate()
             return result
         except Exception:
-            if inner:
-                try:
-                    inner.rollback()
-                except Exception:
-                    pass  # Preserve concurrent files; the initiating error still fails the save.
-            else:
-                if published_ref is not None and store is not None and history is not None:
+            try:
+                if inner:
                     try:
-                        if history.head:
-                            store.anchor.restore_owned_if_unchanged(published_ref, (history.head + "\n").encode())
-                        else:
-                            store.anchor.unlink_owned_if_present(published_ref)
-                    except OSError:
-                        pass  # preserve a concurrent reference
-                if receipt is not None:
-                    try:
-                        receipt.rollback()
-                    finally:
-                        _close_nonraising(receipt)
+                        inner.rollback()
+                    except Exception:
+                        pass  # Preserve concurrent files; the initiating error still fails the save.
+                else:
+                    if published_ref is not None and store is not None and history is not None:
+                        try:
+                            if history.head:
+                                store.anchor.restore_owned_if_unchanged(published_ref, (history.head + "\n").encode())
+                            else:
+                                store.anchor.unlink_owned_if_present(published_ref)
+                        except OSError:
+                            pass  # preserve a concurrent reference
+                    if receipt is not None:
+                        # Preparation can fail after receipt proofs are retained
+                        # but before the snapshot transaction exists. Use its
+                        # same exact-owned fallback when publication rollback
+                        # cannot acquire DELETE access beside those proofs.
+                        try:
+                            SnapshotTransaction(
+                                capture.layout.workspace, SnapshotResult(None),
+                                receipt=receipt, receipt_files=receipt_files,
+                                workspace_anchor=capture.anchor,
+                            ).rollback()
+                        except Exception:
+                            pass  # Preserve concurrent receipts and the initiating error.
+            finally:
+                _close_nonraising(receipt)
                 for proof in receipt_files:
                     _close_nonraising(proof)
                 _close_nonraising(published_ref)
-            _close_nonraising(history)
-            _close_nonraising(store)
-            capture.close()
+                _close_nonraising(history)
+                _close_nonraising(store)
+                capture.close()
             raise
 
 

@@ -212,6 +212,7 @@ def test_planning_preimage_handoff_keeps_exact_cas_and_preserves_competitors(tmp
     root = workspace(tmp_path / "area")
     first = recovery.take_snapshot(root).snapshot
     fact(root, "Current context before handoff.")
+    prior_receipts = receipts(root)
     target = recovery.REF if action == "snapshot" else "Memory/Facts/sample.md"
     planning = []
     original_publish = recovery._publish_reference
@@ -256,10 +257,86 @@ def test_planning_preimage_handoff_keeps_exact_cas_and_preserves_competitors(tmp
                 assert observed.content == witnessed[0][1]
             finally:
                 observed.close()
+        assert receipts(root) == prior_receipts
     else:
         invoke()
         assert not competitor
     assert len(witnessed) == 1
+
+
+def test_pre_reference_failure_uses_exact_receipt_fallback_and_closes_proofs(tmp_path, monkeypatch):
+    root = workspace(tmp_path / "area")
+    first = recovery.take_snapshot(root).snapshot
+    fact(root, "Current context before rejected reference publication.")
+    before = receipts(root)
+    captured = []
+    original_capture = recovery._capture_snapshot_receipt_files
+    def capture(workspace, anchor, publication, transients):
+        proofs = original_capture(workspace, anchor, publication, transients)
+        captured.append((anchor, proofs))
+        return proofs
+    rollback_attempts = []
+    def blocked_publication_rollback(publication):
+        anchor, proofs = captured[-1]
+        assert proofs and all(anchor.matches_owned(proof) for proof in proofs)
+        rollback_attempts.append(publication.path)
+        # Model the failure after publication rollback releases its readable
+        # pin; the independent exact receipt proofs must finish compensation.
+        publication._handle.close()
+        raise PermissionError(errno.EACCES, "synthetic publication rollback sharing denial")
+    def reject_reference(*_values, **_options):
+        assert captured
+        raise OSError("synthetic reference publication rejection")
+    monkeypatch.setattr(recovery, "_capture_snapshot_receipt_files", capture)
+    monkeypatch.setattr(recovery.ReceiptPublication, "rollback", blocked_publication_rollback)
+    monkeypatch.setattr(recovery, "_publish_reference", reject_reference)
+    with pytest.raises(OSError, match="synthetic reference publication rejection"):
+        recovery.take_snapshot(root)
+    assert len(rollback_attempts) == 1
+    assert all(proof.parent < 0 for _, proofs in captured for proof in proofs)
+    assert receipts(root) == before
+    assert [snapshot.identifier for snapshot in recovery.list_snapshots(root)] == [first.identifier]
+
+
+def test_pre_reference_failure_preserves_concurrent_receipt_and_original_error(tmp_path, monkeypatch):
+    root = workspace(tmp_path / "area")
+    first = recovery.take_snapshot(root).snapshot
+    fact(root, "Current context before competing receipt edit.")
+    before = receipts(root)
+    captured = []
+    outcomes = []
+    competitor = b"Concurrent synthetic receipt content.\n"
+    original_capture = recovery._capture_snapshot_receipt_files
+    def capture(workspace, anchor, publication, transients):
+        proofs = original_capture(workspace, anchor, publication, transients)
+        captured.append((publication.path, proofs))
+        return proofs
+    def reject_reference(*_values, **_options):
+        path, proofs = captured[-1]
+        assert proofs and all(proof.parent >= 0 for proof in proofs)
+        try:
+            count = path.write_bytes(competitor)
+        except PermissionError as error:
+            assert os.name == "nt" and error.errno == errno.EACCES
+            outcomes.append(("blocked", error.errno, getattr(error, "winerror", None)))
+        else:
+            outcomes.append(("written", count))
+            assert count == len(competitor) and path.read_bytes() == competitor
+        raise OSError("initiating reference failure")
+    monkeypatch.setattr(recovery, "_capture_snapshot_receipt_files", capture)
+    monkeypatch.setattr(recovery, "_publish_reference", reject_reference)
+    with pytest.raises(OSError, match="initiating reference failure"):
+        recovery.take_snapshot(root)
+    assert len(outcomes) == 1, outcomes
+    assert all(proof.parent < 0 for _, proofs in captured for proof in proofs), outcomes
+    if outcomes[0][0] == "written":
+        path = captured[0][0]
+        assert path.read_bytes() == competitor, outcomes
+        assert receipts(root) == {**before, path.name: competitor}, outcomes
+    else:
+        assert os.name == "nt" and outcomes[0][1] == errno.EACCES, outcomes
+        assert receipts(root) == before, outcomes
+    assert [snapshot.identifier for snapshot in recovery.list_snapshots(root)] == [first.identifier]
 
 
 def test_restore_preserves_additions_projects_and_live_task_controls(tmp_path):
