@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,24 @@ def run(
     if not workspace.is_dir():
         print("check: workspace path is not a directory")
         return 2
+    from apparatus_core.project_binding import BindingError, check_project_pointer, read_project_binding, resolve_project_context
+    try:
+        with ExitStack() as stack:
+            context = getattr(args, "_project_context", None)
+            if (not getattr(args, "_project_context_selected", False)
+                    and read_project_binding(workspace) is not None):
+                context = stack.enter_context(resolve_project_context(workspace))
+            if context is not None:
+                context.validate()
+                check_project_pointer(workspace, context=context)
+                workspace = context.workspace
+            return _run_selected(args, workspace, engine, write)
+    except BindingError as error:
+        print(f"check: {error}")
+        return 2
+
+
+def _run_selected(args, workspace, engine, write) -> int:
     result = engine(workspace)
     for finding in result.findings:
         print(f"{finding.path}: {finding.code}: {finding.hint}")

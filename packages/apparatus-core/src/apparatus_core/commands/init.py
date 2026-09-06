@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import os
+from contextlib import ExitStack
+from dataclasses import replace
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -10,6 +13,11 @@ from typing import Any
 from apparatus_core import records
 from apparatus_core.detect import detect_sync_redirection
 from apparatus_core.init_deploy import deploy_init_plan
+from apparatus_core.fs_transactions import WorkspaceAnchor
+from apparatus_core.retention import RetentionSuppressed, TaskRetentionError, operation
+from apparatus_core.workspace_layout import (
+    LayoutError, MARKER, RECOVERY_DIRECTORY, _root_identity, new_layout_bytes, read_layout,
+)
 from apparatus_core.instruction_updates import instruction_updates
 from apparatus_core.overlays import (
     ManifestError,
@@ -26,6 +34,9 @@ from apparatus_core.payload import (
     resolve_payload,
     resolve_profiles_manifest,
 )
+from apparatus_core.project_binding import (
+    BindingError, read_project_binding, require_unbound_root, resolve_project_context,
+)
 from apparatus_core.receipts import write_receipt
 from apparatus_core.snapshots import (
     SnapshotError,
@@ -40,6 +51,7 @@ def register(subparsers: Any) -> None:
     """Register init through the shared command entry-point path."""
     parser = subparsers.add_parser("init", help="create or repair a workspace")
     parser.add_argument("workspace", metavar="WORKSPACE")
+    parser.add_argument("--adopt", action="store_true", help="enroll an existing unmarked folder without moving its files")
     parser.add_argument("--privacy-mode", choices=records.PRIVACY_MODES)
     parser.add_argument("--work-types", metavar="LIST", help="comma-separated work types")
     parser.add_argument("--payload", metavar="PATH", help="starter payload source")
@@ -55,14 +67,14 @@ def _parse_work_types(value: str) -> tuple[str, ...]:
     return parts
 
 
-def _read_existing_profile(workspace: Path, manifest: OverlayManifest) -> dict[str, Any] | None:
+def _read_existing_profile(workspace: Path, manifest: OverlayManifest, content: bytes | None = None) -> dict[str, Any] | None:
     profile = workspace / "System" / "profile.yaml"
     if not profile.exists():
         return None
     if not profile.is_file():
         raise ManifestError("existing System/profile.yaml is not a file")
     try:
-        data = records.yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data = records.yaml.safe_load(content.decode("utf-8") if content is not None else profile.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, records.yaml.YAMLError) as error:
         raise ManifestError("existing System/profile.yaml could not be read") from error
     if not isinstance(data, dict):
@@ -105,7 +117,7 @@ def _profile_data(
         "spend": existing.get("spend", "balanced") if existing is not None else "balanced",
     }
     if existing is not None:
-        for key in ("key_people", "current_efforts", "source_locations"):
+        for key in ("features", "key_people", "current_efforts", "source_locations"):
             if key in existing:
                 profile[key] = existing[key]
     problems = records.validate("profile", profile, filename="profile.yaml")
@@ -143,9 +155,10 @@ def _warning(sync: dict[str, Any]) -> None:
     print(f"Warning: {sync.get('reason', 'A sync-redirection risk was found.')}")
 
 
-def run(
+def _run(
     args: argparse.Namespace,
     *,
+    stack: ExitStack,
     available: Callable[[], bool] = git_available,
     detect: Callable[..., dict[str, Any]] = detect_sync_redirection,
     write: Callable[[str | Path, str, dict[str, str]], object] = write_receipt,
@@ -165,22 +178,75 @@ def run(
         workspace = preflight_workspace_paths(requested_workspace)
         reject_payload_workspace_overlap(payload, workspace)
         manifest = load_manifest(resolve_profiles_manifest(payload), payload)
-        # A valid existing profile drives omitted selectors, but the profile
-        # destination and its ancestors must be contained before it is read.
-        preflight_workspace_paths(workspace, files=("System/profile.yaml",))
-        existing = _read_existing_profile(workspace, manifest) if workspace.is_dir() else None
-        profile = _profile_data(
-            manifest,
-            existing,
-            getattr(args, "privacy_mode", None),
-            getattr(args, "work_types", None),
-        )
-        profile_content = _profile_content(profile)
-        profile_path = workspace / "System/profile.yaml"
-        profile_write_required = (
-            not profile_path.is_file()
-            or profile_path.read_text(encoding="utf-8") != profile_content
-        )
+        # Reject control collisions before reading or deploying content. No
+        # repository discovery or .git inspection participates in enrollment.
+        preflight_workspace_paths(workspace, files=("System/profile.yaml", MARKER))
+        existing_root = stack.enter_context(WorkspaceAnchor(workspace)) if workspace.is_dir() else None
+        layout = read_layout(workspace) if existing_root else None
+        if existing_root and read_project_binding(workspace) is not None:
+            with resolve_project_context(workspace) as selected:
+                selected.validate()
+                raise PayloadError(f"this is a bound project; run apparatus init on its work area: {selected.workspace}")
+        was_empty = existing_root is not None and not os.listdir(
+            existing_root._root if os.name == "posix" else workspace)
+        if existing_root and layout is None and not was_empty and not getattr(args, "adopt", False):
+            raise PayloadError("existing unmarked folder requires --adopt; its files and repositories will stay in place")
+        task_id = getattr(args, "task", None)
+        context = stack.enter_context(operation(workspace, task_id=task_id)) if existing_root else None
+        if task_id is not None and existing_root is None:
+            raise TaskRetentionError("A fresh work area has no task controls; initialize it before starting a task.")
+        profile_proof = None
+        if existing_root is not None:
+            try:
+                profile_proof = existing_root.capture_file(
+                    "System/profile.yaml", publication_compatible=True)
+                stack.callback(profile_proof.close)
+            except FileNotFoundError:
+                pass
+        previous_profile = profile_proof.content if profile_proof else None
+        existing = _read_existing_profile(workspace, manifest, previous_profile) if existing_root else None
+        selectors = (getattr(args, "privacy_mode", None), getattr(args, "work_types", None))
+        if existing is not None and selectors == (None, None):
+            profile = existing
+            profile_content = previous_profile
+            profile_write_required = False
+        else:
+            profile = _profile_data(manifest, existing, *selectors)
+            profile_content = _profile_content(profile).encode("utf-8")
+            profile_write_required = previous_profile != profile_content
+            if selectors != (None, None) and profile_write_required and context is not None:
+                context.require_memory_write()
+        enrollment_content = None if layout is not None else new_layout_bytes()
+
+        def validate_enrollment(anchor: WorkspaceAnchor, published: bool) -> None:
+            nonlocal profile_proof
+            if existing_root is not None and _root_identity(anchor) != _root_identity(existing_root):
+                raise PayloadError("work-area directory changed after planning; rerun apparatus init")
+            require_unbound_root(anchor)
+            if layout is not None:
+                layout.validate(anchor)
+            elif not published:
+                # New marker bytes are checked by deploy_init_plan's retained
+                # created-file proof at every final gate, without reopening a
+                # newly created System directory with incompatible handles.
+                try:
+                    present = anchor.entry_exists(MARKER) or anchor.entry_exists(RECOVERY_DIRECTORY)
+                except FileNotFoundError:
+                    present = False
+                if present:
+                    raise LayoutError("Work-area enrollment or recovery appeared after planning; rerun init.")
+                if was_empty and not getattr(args, "adopt", False) and os.listdir(
+                    anchor._root if os.name == "posix" else workspace):
+                    raise PayloadError("folder is no longer empty; rerun with --adopt to enroll it")
+            if profile_proof is not None and (not published or not profile_write_required):
+                if not anchor.matches_owned(profile_proof):
+                    raise PayloadError("profile changed after planning; rerun apparatus init")
+                if profile_write_required and not published:
+                    # Hand the validated preimage to deployment's byte check and
+                    # CAS transaction before it acquires replacement ownership.
+                    profile_proof.close()
+                    profile_proof = None
+
         payload_plan = plan_payload_deployment(payload, manifest.managed_paths, workspace)
         overlay_plan = plan_overlay(
             payload,
@@ -192,7 +258,24 @@ def run(
         overlay_plan, instruction_preimages = instruction_updates(
             workspace, payload, overlay_plan
         )
-    except (PayloadError, ManifestError) as error:
+        instruction_preimages["System/profile.yaml"] = previous_profile
+        if layout is not None:
+            instruction_preimages[MARKER] = layout.content
+        overlay_paths = {item.relative for item in overlay_plan.writes}
+        payload_plan = replace(payload_plan, files=tuple(
+            entry for entry in payload_plan.files if entry.relative.as_posix() not in overlay_paths))
+        payload_paths = (*payload_plan.directories, *payload_plan.placeholders,
+                         *(entry.relative for entry in payload_plan.files))
+        if any(path.parts[0].casefold() in {".git", ".apparatus"}
+               or path.as_posix().casefold() == MARKER.casefold()
+               or tuple(part.casefold() for part in path.parts[:2]) in {
+                   ("system", "recovery"), ("system", "tasks")}
+               for path in payload_paths):
+            raise PayloadError("starter payload must not contain repository, binding, task, or enrollment controls")
+    except RetentionSuppressed as error:
+        print(f"init: {error}")
+        return 1
+    except (PayloadError, ManifestError, LayoutError, TaskRetentionError, BindingError) as error:
         print(f"init: {error}")
         return 2
     except Exception:  # pragma: no cover - filesystem failures vary by host
@@ -217,19 +300,18 @@ def run(
         file_targets = (
             *(entry.relative for entry in payload_plan.files),
             *payload_plan.placeholders,
+            *(item.relative for item in overlay_plan.writes), *overlay_plan.removals,
             *manifest.managed_paths,
-            Path("System/profile.yaml"),
+            Path("System/profile.yaml"), Path(MARKER),
         )
         directory_targets = (*payload_plan.directories, Path("System/receipts"))
-        if snapshots_available:
-            directory_targets = (*directory_targets, Path(".git"))
-        else:
+        if not snapshots_available:
             file_targets = (*file_targets, Path("System/machine-report.md"))
         preflight_workspace_paths(
             workspace,
             directories=directory_targets,
             files=file_targets,
-            inspect_git_store=snapshots_available,
+            inspect_git_store=False,
         )
     except PayloadError as error:
         print(f"init: {error}")
@@ -244,56 +326,82 @@ def run(
                 workspace,
                 payload_plan,
                 overlay_plan,
-                profile_content.encode("utf-8"),
+                profile_content,
                 profile_write_required=profile_write_required,
                 expected_contents=instruction_preimages,
+                enrollment_content=enrollment_content,
+                validate_enrollment=validate_enrollment,
             )
         )
-    except PayloadError as error:
+    except (PayloadError, LayoutError, BindingError) as error:
         print(f"init: could not deploy workspace: {error}")
         return 2
     except Exception:  # pragma: no cover - filesystem failures vary by host
         print("init: could not deploy workspace")
         return 2
 
+    if context is None:
+        context = stack.enter_context(operation(workspace))
     if bool(sync.get("at_risk")):
         _warning(sync)
-    try:
-        write(workspace, "init", _init_receipt_fields(tuple(changes), sync))
-    except Exception:  # pragma: no cover - custom receipt backends vary by host
-        print("init: could not write receipt")
-        return 2
-
+    if changes:
+        try:
+            write(workspace, "init", _init_receipt_fields(tuple(changes), sync))
+        except Exception:
+            print("init: work-area deployment completed, but its receipt could not be written")
+            return 2
+    state = "Workspace created." if enrollment_content is not None else (
+        "Work area repaired." if changes else "Work area is already up to date.")
+    if not context.save_memory:
+        print(state)
+        if context.task_id is None:
+            print("Automatic managed snapshot skipped: pass --task ID to select this operation's task.")
+        else:
+            print("Automatic managed snapshot skipped: this task does not save to Memory.")
+        return 0
     if not snapshots_available:
         snapshot_receipt_written = True
         report_updated = True
-        try:
-            write(workspace, "snapshot", _unavailable_snapshot_fields())
-        except Exception:
-            snapshot_receipt_written = False
+        if changes:
+            try:
+                write(workspace, "snapshot", _unavailable_snapshot_fields())
+            except Exception:
+                snapshot_receipt_written = False
         try:
             report_updated = bool(update_report(workspace))
         except Exception:
             report_updated = False
         if not snapshot_receipt_written or not report_updated:
-            print("init: could not record the unavailable snapshot state")
+            print("init: work-area deployment completed, but the unavailable snapshot state could not be recorded")
             return 2
-        print("Snapshots are unavailable on this machine. Run apparatus doctor for details.")
-        print("Workspace created.")
+        print("Snapshots are unavailable on this machine. Managed recovery excludes project files and Library originals; run apparatus doctor for details.")
+        print(state)
         return 0
     try:
-        result = take(workspace, label="Workspace created")
-    except SnapshotReceiptError:
-        print("init: could not write the snapshot receipt")
+        result = take(workspace, label="Workspace created" if enrollment_content is not None else "Work area repaired")
+    except (SnapshotReceiptError, SnapshotError):
+        print("init: work-area deployment completed, but its managed snapshot failed; enrollment remains installed. Run apparatus snapshot to retry.")
         return 2
-    except SnapshotError:
-        print("init: could not save the initial snapshot")
+    except Exception:
+        print("init: work-area deployment completed, but its managed snapshot could not be saved")
         return 2
-    except Exception:  # pragma: no cover - snapshot backends vary by host
-        print("init: could not save the initial snapshot")
+    if result.snapshot is None and not getattr(result, "no_changes", False):
+        print("init: work-area deployment completed, but its managed snapshot could not be saved")
         return 2
-    if result.snapshot is None:
-        print("init: could not save the initial snapshot")
-        return 2
-    print("Workspace created.")
+    print(state)
+    if getattr(result, "no_changes", False):
+        print("Managed snapshot unchanged; no new snapshot was needed.")
     return 0
+
+
+def run(args: argparse.Namespace, **kwargs: Any) -> int:
+    """Keep the explicit destination and selected task context for the command."""
+    if getattr(args, "_project_context", None) is not None:
+        print("init: this invocation selected a bound project; run apparatus init on its work area")
+        return 2
+    with ExitStack() as stack:
+        try:
+            return _run(args, stack=stack, **kwargs)
+        except (PayloadError, ManifestError, LayoutError, TaskRetentionError, BindingError) as error:
+            print(f"init: {error}")
+            return 2

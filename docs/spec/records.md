@@ -45,7 +45,7 @@ One page per goal, with a verification oracle.
 - `status` enum: `active` | `waiting` | `done` | `dropped`.
 - `done-when` is the verification oracle: a plain-language statement of how
   anyone — not just the author — could check that the goal is complete
-  (e.g. "the finished report is in Deliverables/ and the recipient confirmed
+  (e.g. "the finished report is saved in its project and the recipient confirmed
   receipt"), not a restatement of the title.
 - Optional frontmatter: `labels`.
 - Body: context, notes, history.
@@ -56,8 +56,10 @@ One page per goal, with a verification oracle.
 A running record of what was decided and why.
 
 - Required frontmatter: `schema`, `title`, `date` (`YYYY-MM-DD`).
-- Optional frontmatter: `labels`.
+- Optional frontmatter: `labels`, `status` (see Memory lifecycle below).
 - Body states what was decided, why, and the alternatives considered.
+- New records live in `Memory/Decisions/`. Existing `Decisions/` records remain
+  in place with the same lifecycle; equal filenames at the two roots are distinct.
 - Filename: kebab-case, e.g. `choose-a-report-template.md`.
 
 ## fact
@@ -83,11 +85,11 @@ One page per person **or organization** the user works with.
 
 ## Memory lifecycle
 
-Facts and People accept `status: current | outdated | forgotten`. An omitted
+Facts, People and Decisions accept `status: current | outdated | forgotten`. An omitted
 status means current, so existing records need no rewrite. Current and outdated
 records retain their normal required fields. A forgotten record is a closed
 exception: its frontmatter contains exactly `schema` and `status: forgotten`,
-with no Markdown body. It carries no title, name, labels, source, or custom data.
+with no Markdown body. It carries no title, date, name, labels, source, or custom data.
 The existing filename remains as a marker preventing automatic profile seeding
 at the same path. It may still reveal the original title or name.
 

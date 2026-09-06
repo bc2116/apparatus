@@ -62,6 +62,9 @@ jobs:
           packages/apparatus-core/tests/test_receipt_retention.py
           packages/apparatus-core/tests/test_snapshot_retention.py
           packages/apparatus-core/tests/test_workspace_layout.py
+          packages/apparatus-core/tests/test_workarea_adoption.py
+          packages/apparatus-core/tests/test_project_binding.py
+          packages/apparatus-core/tests/test_decision_memory.py
           packages/apparatus-core/tests/test_managed_state_recovery.py
           packages/apparatus-core/tests/test_managed_state_backup.py
           packages/apparatus-core/tests/test_managed_recovery_commands.py

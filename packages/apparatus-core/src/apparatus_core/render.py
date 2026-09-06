@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import hashlib
 from importlib import resources
 import os
+import re
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import stat
 from string import Template
@@ -176,6 +177,64 @@ def rendered_shims_from_bytes(
     return tuple(rendered)
 
 
+def owns_shim(content: bytes, target: str, *,
+              registry: tuple[tuple[str, str], ...] | None = None) -> bool:
+    """Recognize the entire generated template, never just its header or digest."""
+    exemplar = next((shim.content for shim in rendered_shims_from_bytes(b"", registry=registry)
+                     if shim.target == target), None)
+    if exemplar is None:
+        return False
+    digest = hashlib.sha256(b"").hexdigest().encode("ascii")
+    for candidate in (exemplar, exemplar.replace(b"\n", b"\r\n")):
+        pattern = re.escape(candidate).replace(re.escape(digest), b"[0-9a-f]{64}")
+        if re.fullmatch(pattern, content):
+            return True
+    return False
+
+
+def _render_enrolled(root: Path, layout: object, *,
+                     registry: tuple[tuple[str, str], ...] | None) -> RenderResult:
+    from apparatus_core.fs_transactions import WorkspaceAnchor
+    from apparatus_core.init_deploy import deploy_init_plan
+    from apparatus_core.overlays import OverlayPlan, OverlayWrite
+    from apparatus_core.payload import PayloadError, PayloadPlan
+    from apparatus_core.workspace_layout import LayoutError, MARKER
+    from apparatus_core.instruction_updates import known_instruction
+
+    try:
+        with WorkspaceAnchor(root) as anchor:
+            layout.validate(anchor)
+            canon, _ = anchor.read_file(CANON_PATH)
+            expected = {CANON_PATH: canon, MARKER: layout.content}
+            writes = []
+            actions = []
+            for shim in rendered_shims_from_bytes(canon, registry=registry):
+                try:
+                    current, _ = anchor.read_file(shim.target)
+                except FileNotFoundError:
+                    current = None
+                expected[shim.target] = current
+                if current == shim.content:
+                    actions.append(("unchanged", shim.target))
+                elif current is None or owns_shim(current, shim.target, registry=registry) or known_instruction(shim.target, current):
+                    writes.append(OverlayWrite(shim.target, shim.content))
+                    actions.append(("written", shim.target))
+                else:
+                    raise RenderError(f"custom pointer {shim.target!r} conflicts; preserve and reconcile it before rendering")
+            layout.validate(anchor)
+        parents = {parent for relative in expected for parent in Path(relative).parents
+                   if parent != Path(".")}
+        directories = tuple(sorted(parents, key=lambda path: (len(path.parts), path.as_posix())))
+        deploy_init_plan(root, PayloadPlan(directories, (), ()), OverlayPlan(tuple(writes), ()), b"",
+                         profile_write_required=False, expected_contents=expected,
+                         validate_enrollment=lambda anchor, _published: layout.validate(anchor))
+        return RenderResult(tuple(target for action, target in actions if action == "written"),
+                            tuple(target for action, target in actions if action == "unchanged"),
+                            tuple(actions))
+    except (OSError, PayloadError, LayoutError) as error:
+        raise RenderError("could not safely publish work-area pointers") from error
+
+
 def _preflight_target(root: Path, target: str) -> Path:
     """Reject unsafe target components without creating or writing anything."""
     relative = normalize_target(target)
@@ -202,6 +261,19 @@ def render_workspace(
     root = Path(workspace)
     if is_reparse_path(root):
         raise RenderError("workspace path '.' must not be a symbolic link")
+    from apparatus_core.project_binding import BindingError, read_project_binding
+    try:
+        if read_project_binding(root) is not None:
+            raise RenderError("Use apparatus render PROJECT to repair a bound project's pointer.")
+    except BindingError as error:
+        raise RenderError(str(error)) from error
+    from apparatus_core.workspace_layout import LayoutError, read_layout
+    try:
+        layout = read_layout(root)
+    except LayoutError as error:
+        raise RenderError(str(error)) from error
+    if layout is not None:
+        return _render_enrolled(layout.workspace, layout, registry=registry)
     rendered = rendered_shims(root, registry=registry)
     targets = tuple((shim, _preflight_target(root, shim.target)) for shim in rendered)
     written: list[str] = []

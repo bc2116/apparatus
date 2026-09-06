@@ -9,7 +9,7 @@ intent: Use on the chosen review day or whenever the user asks to review the wee
 2. Surface stalled goals and open loops. Flag an active goal with no usable next
    action, a waiting goal with no stated dependency, an overdue action, and any
    mismatch between a goal's status and the evidence in the workspace.
-3. Read the week's records in `Decisions/` and the new or changed records in
+3. Read the week's records in `Memory/Decisions/` and legacy `Decisions/` and the new or changed records in
    `Memory/People/` and `Memory/Facts/`. When a record has no date, use an
    approved command to read its modified time. Summarize what changed, note
    unresolved questions or contradictions, and ask before replacing older
@@ -20,9 +20,9 @@ intent: Use on the chosen review day or whenever the user asks to review the wee
 5. Propose a short list of priorities for the coming week, grounded in the
    active goals and open loops. Agree the priorities with the user, then update
    affected goal statuses and next actions.
-6. Save a weekly plan in the appropriate folder in `Projects/` if the user
+6. Save a weekly plan in the appropriate folder in the relevant project folder if the user
    wants one.
-7. Prepare any requested email, update, or submission in `Projects/`.
+7. Prepare any requested email, update, or submission in the relevant project folder.
    Perform actual external actions only with the user's authority and the AI
    app's native permissions; no second Apparatus approval is needed.
 8. Take a snapshot using the workspace's snapshot command if it is available

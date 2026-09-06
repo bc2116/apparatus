@@ -6,13 +6,11 @@
 .github/copilot-instructions.md
 AGENTS.md
 CLAUDE.md
-Decisions/.gitkeep
-Deliverables/.gitkeep
 Goals/.gitkeep
 Library/.gitkeep
+Memory/Decisions/.gitkeep
 Memory/Facts/.gitkeep
 Memory/People/.gitkeep
-Projects/.gitkeep
 System/README.md
 System/guidance/model-guidance.md
 System/ignore

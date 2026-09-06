@@ -16,23 +16,28 @@ app features are optional enhancements.
 
 Pre-alpha. The existing implementation includes Memory, local Library
 extraction/search/citations, snapshots, backup, profiles, five procedure files,
-and packaging machinery. The sharing gate has been removed; existing workspaces
-can update their original instructions with `apparatus init WORKSPACE`. Custom
-instruction conflicts are preserved and reported for repair. The old interview
-and central Deliverables folder remain until their migration slices.
+and packaging machinery. The sharing gate has been removed. Fresh setup creates
+a shared work area; `apparatus init WORKAREA --adopt` enrolls an existing folder
+while preserving project files and custom instructions. Finished work stays in
+its project. The old interview remains until its migration slice.
 
-People and Facts now support [correction, outdated status, and forgetting](docs/spec/memory.md).
+People, Facts and Decisions support [correction, outdated status, and forgetting](docs/spec/memory.md).
 `apparatus memory recall WORKSPACE QUERY` returns current Memory with sources.
 Forgetting clears record content, with a filename marker to prevent automatic
 re-seeding; it does not erase historical copies. [Task Memory controls](docs/spec/task-retention.md)
 let a request opt out of new Memory and automatic capture while requested work
 files remain available. Live task choices survive snapshot restore.
 
-An [isolated managed-state recovery backend](docs/spec/managed-recovery.md) is
-ready for the upcoming shared work-area layout. Its snapshots and backups cover
+An enrolled [work area](docs/spec/workspace.md) keeps one Library, goals and Memory
+beside existing project folders. `apparatus project bind PROJECT --workspace WORKAREA`
+adds a relative link and instruction pointer, preserving project instructions.
+Commands then use that explicit area's context. Moving a linked project requires
+an explicit rebind; Apparatus never guesses another area.
+
+[Managed recovery](docs/spec/managed-recovery.md) snapshots and backs up declared
 Apparatus records and settings, excluding project files and Library originals.
-The current starter still uses its existing layout and recovery behavior;
-this backend is not enabled by ordinary setup yet.
+It leaves root and project Git repositories untouched. Unconverted workspaces keep
+their legacy recovery behavior until explicit adoption.
 
 The [approved rework](docs/design/design-brief.md) replaces that ceremony and
 adds native Skills, economical subagent guidance, lightweight prose editing,

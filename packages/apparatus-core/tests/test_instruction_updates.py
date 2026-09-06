@@ -22,7 +22,7 @@ FIXTURES = Path(__file__).parent / "fixtures/instruction_updates"
 
 def _args(workspace: Path, payload: Path | None = None) -> argparse.Namespace:
     return argparse.Namespace(workspace=str(workspace), payload=payload,
-                              privacy_mode=None, work_types=None)
+                              privacy_mode=None, work_types=None, adopt=True)
 
 
 def _legacy_workspace(workspace: Path, *, crlf: bool = False) -> None:
@@ -36,6 +36,7 @@ def _legacy_workspace(workspace: Path, *, crlf: bool = False) -> None:
         (workspace / relative).write_bytes(
             content.replace(b"\n", b"\r\n") if crlf else content
         )
+    (workspace / "Projects").mkdir(exist_ok=True)
     (workspace / "Projects/keep.bin").write_bytes(b"untouched\x00\xff")
 
 
@@ -153,16 +154,12 @@ def test_reconciled_custom_policy_can_finish_repair_without_losing_edits(tmp_pat
     assert check_workspace(workspace).ok
 
 
-def test_reconciled_custom_canon_gets_actionable_render_then_safe_retry(tmp_path, capsys):
+def test_custom_canon_updates_recognized_pointers_without_losing_edits(tmp_path, capsys):
     workspace = tmp_path / "work"
     _legacy_workspace(workspace)
     canon = (shipped_payload() / "AGENTS.md").read_bytes() + b"\nUse sentence case.\n"
     (workspace / "AGENTS.md").write_bytes(canon)
-    before = _files(workspace)
-    assert init.run(_args(workspace), available=lambda: False) == 2
-    assert "apparatus render WORKSPACE" in capsys.readouterr().out
-    assert _files(workspace) == before
-    render_workspace(workspace)
+    assert init.run(_args(workspace), available=lambda: False) == 0
     assert init.run(_args(workspace), available=lambda: False) == 0
     assert (workspace / "AGENTS.md").read_bytes() == canon
     assert check_workspace(workspace).ok
@@ -175,7 +172,7 @@ def test_custom_old_shim_is_preserved_and_not_claimed_as_migrated(tmp_path, caps
     shim.write_bytes(shim.read_bytes() + b"\nCustom pointer instruction.\n")
     before = _files(workspace)
     assert init.run(_args(workspace), available=lambda: False) == 2
-    assert "apparatus render WORKSPACE" in capsys.readouterr().out
+    assert "preserve and reconcile" in capsys.readouterr().out
     assert _files(workspace) == before
 
 
@@ -209,6 +206,16 @@ def test_deployment_reads_preimages_through_retained_immediate_parents(tmp_path,
                 raise PermissionError("nested reopen conflicts with owned directory handle")
             return original_read(self, relative)
 
+        # Enrollment validates binding/marker state independently; exempt only
+        # that callback. All deployment/preimage reads still reject nested reopen.
+        validate_enrollment = kwargs["validate_enrollment"]
+
+        def validate(*values):
+            with monkeypatch.context() as validation_patch:
+                validation_patch.setattr(WorkspaceAnchor, "read_file", original_read)
+                return validate_enrollment(*values)
+
+        kwargs["validate_enrollment"] = validate
         with monkeypatch.context() as patch:
             patch.setattr(WorkspaceAnchor, "read_file", read)
             return original_deploy(*args, **kwargs)
@@ -294,3 +301,41 @@ def test_custom_obsolete_task_guidance_requires_non_destructive_reconciliation(t
     assert init.run(_args(workspace), available=lambda: False) == 2
     assert "preserve your edits" in capsys.readouterr().out
     assert _files(workspace) == before
+
+
+@pytest.mark.parametrize("crlf", [False, True])
+def test_pr34_payload_migrates_exact_bytes_to_project_local_guidance(tmp_path, crlf):
+    from apparatus_core.instruction_updates import LAYOUT_PREVIOUS_INSTRUCTIONS
+    workspace = tmp_path / "area"
+    shutil.copytree(shipped_payload(), workspace)
+    fixtures = FIXTURES.parent / "instruction_updates_pr34"
+    for source in fixtures.rglob("*"):
+        if source.is_file():
+            relative = source.relative_to(fixtures)
+            content = source.read_bytes().replace(b"\r\n", b"\n")
+            assert _digest(content) == LAYOUT_PREVIOUS_INSTRUCTIONS[relative.as_posix()]
+            (workspace / relative).write_bytes(content.replace(b"\n", b"\r\n") if crlf else content)
+    (workspace / "Projects").mkdir()
+    (workspace / "Deliverables").mkdir()
+    (workspace / "Decisions").mkdir()
+    old = workspace / "Deliverables/keep.txt"
+    old.write_bytes(b"finished work remains here")
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    assert (workspace / "AGENTS.md").read_bytes() == (shipped_payload() / "AGENTS.md").read_bytes()
+    assert old.read_bytes() == b"finished work remains here"
+    assert (workspace / "Decisions").is_dir()
+    assert (workspace / "Memory/Decisions").is_dir()
+    assert check_workspace(workspace).ok
+
+
+def test_adoption_generates_missing_pointers_from_preserved_custom_canon(tmp_path):
+    from apparatus_core.render import rendered_shims
+    workspace = tmp_path / "area"
+    workspace.mkdir()
+    custom = b"# Existing canon\r\nPreserve project-specific instructions.\r\n"
+    (workspace / "AGENTS.md").write_bytes(custom)
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    assert (workspace / "AGENTS.md").read_bytes() == custom
+    for shim in rendered_shims(workspace):
+        assert (workspace / shim.target).read_bytes() == shim.content
+    assert check_workspace(workspace).ok
