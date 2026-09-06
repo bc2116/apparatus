@@ -3,18 +3,18 @@ from pathlib import Path
 
 import yaml
 
-from apparatus_core import records
+from apparatus_core import records, skills
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = REPO_ROOT / "conformance" / "golden" / "records"
 SHIPPED_PROFILE = REPO_ROOT / "starter" / "payload" / "System" / "profile.yaml"
-SHIPPED_PROCEDURES = REPO_ROOT / "starter" / "payload" / "System" / "procedures"
-EXPECTED_SHIPPED_PROCEDURES = {
-    "produce-deliverable.md",
-    "research-and-summarize.md",
-    "review-against-checklist.md",
-    "weekly-review.md",
-    "welcome.md",
+SHIPPED_SKILLS = REPO_ROOT / "starter/payload/.agents/skills"
+EXPECTED_SHIPPED_SKILLS = {
+    "apparatus-produce-deliverable",
+    "apparatus-research-and-summarize",
+    "apparatus-review-against-checklist",
+    "apparatus-weekly-review",
+    "apparatus-welcome",
 }
 
 
@@ -58,9 +58,9 @@ def test_shipped_payload_profile_is_valid():
     assert not problems, problems
 
 
-def test_shipped_starter_procedures_are_valid():
-    paths = sorted(path for path in SHIPPED_PROCEDURES.iterdir() if path.is_file())
-    assert {path.name for path in paths} == EXPECTED_SHIPPED_PROCEDURES
+def test_shipped_starter_skills_are_valid():
+    paths = sorted(SHIPPED_SKILLS.glob("*/SKILL.md"))
+    assert {path.parent.name for path in paths} == EXPECTED_SHIPPED_SKILLS
 
     failures = []
     for path in paths:
@@ -69,7 +69,7 @@ def test_shipped_starter_procedures_are_valid():
         except ValueError as error:
             failures.append(f"{path.relative_to(REPO_ROOT)}: {error}")
             continue
-        problems = records.validate("procedure", data, filename=path.name)
+        problems = skills.validate_skill(path.read_bytes(), path.parent.name)
         step_numbers = [
             int(match.group(1))
             for line in body.splitlines()
@@ -83,10 +83,8 @@ def test_shipped_starter_procedures_are_valid():
     assert not failures, "\n".join(failures)
 
 
-def test_shipped_starter_procedures_use_native_authority_without_share_markers():
-    for path in sorted(SHIPPED_PROCEDURES.iterdir()):
-        if not path.is_file():
-            continue
+def test_shipped_starter_skills_use_native_authority_without_share_markers():
+    for path in sorted(SHIPPED_SKILLS.glob("*/SKILL.md")):
         _data, body = records.parse_record(path.read_text(encoding="utf-8"))
         text = " ".join(body.split())
         assert "[share]" not in text
@@ -95,9 +93,9 @@ def test_shipped_starter_procedures_use_native_authority_without_share_markers()
         assert "native permissions" in text
 
 
-def test_welcome_procedure_ends_with_snapshot_and_receipt_confirmation():
+def test_welcome_skill_ends_with_snapshot_and_receipt_confirmation():
     _data, body = records.parse_record(
-        (SHIPPED_PROCEDURES / "welcome.md").read_text(encoding="utf-8")
+        (SHIPPED_SKILLS / "apparatus-welcome/SKILL.md").read_text(encoding="utf-8")
     )
     steps = [
         (int(match.group(1)), line)

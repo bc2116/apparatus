@@ -1,4 +1,5 @@
 from apparatus_core.render import rendered_shims
+from apparatus_core.skills import BUILTIN_PATHS, SKILL_INDEX, validate_skill
 from payload_check import PAYLOAD_DIR, diff
 
 
@@ -52,8 +53,8 @@ def test_workspace_instruction_canon_covers_the_required_contract():
         "`Memory/People/`",
         "`Memory/Facts/`",
         "`System/`",
-        "`System/procedures/`",
-        "follow its numbered steps in order",
+        "`.agents/skills/NAME/SKILL.md`",
+        "Follow the selected Skill's numbered steps in order",
         "Finish with permitted snapshot and receipt steps",
         "Never send, post, submit, delete",
         CREDENTIAL_FLOOR,
@@ -76,6 +77,22 @@ def test_workspace_instruction_canon_covers_the_required_contract():
         assert statement in text
 
 
+def test_fresh_payload_has_exactly_five_portable_skills_and_no_legacy_bodies():
+    actual = {path.relative_to(PAYLOAD_DIR).as_posix()
+              for path in (PAYLOAD_DIR / ".agents").rglob("*") if path.is_file()}
+    assert actual == set(BUILTIN_PATHS)
+    assert len(actual) == 5
+    assert not (PAYLOAD_DIR / "System/procedures").exists()
+    for relative, name in BUILTIN_PATHS.items():
+        path = PAYLOAD_DIR / relative
+        assert path.is_file() and not path.is_symlink()
+        assert validate_skill(path.read_bytes(), name) == []
+        assert "apparatus/procedure@v0" not in path.read_text(encoding="utf-8")
+        assert f"`{relative}`" in SKILL_INDEX
+    assert SKILL_INDEX.encode("utf-8") in CANON.read_bytes()
+    assert "Ordinary file reading is the fallback" in SKILL_INDEX
+
+
 def test_workspace_instruction_shims_are_exact_minimal_pointers():
     for shim in SHIMS:
         assert (PAYLOAD_DIR / shim.target).read_bytes() == shim.content
@@ -84,7 +101,8 @@ def test_workspace_instruction_shims_are_exact_minimal_pointers():
 def test_workspace_instruction_files_do_not_name_ai_app_brands():
     brand_names = ("claude", "cursor", "copilot")
 
-    for path in (CANON, *(PAYLOAD_DIR / shim.target for shim in SHIMS)):
+    for path in (CANON, *(PAYLOAD_DIR / shim.target for shim in SHIMS),
+                 *(PAYLOAD_DIR / relative for relative in BUILTIN_PATHS)):
         text = path.read_text(encoding="utf-8").lower()
         assert not any(brand in text for brand in brand_names)
 
@@ -174,7 +192,7 @@ def test_private_profile_is_compatible_without_overriding_task_decisions():
 
 
 def test_welcome_replaces_global_privacy_choice_with_task_retention():
-    text = normalized(PAYLOAD_DIR / "System/procedures/welcome.md")
+    text = normalized(PAYLOAD_DIR / ".agents/skills/apparatus-welcome/SKILL.md")
     assert "If this task is no-save" in text
     assert "without collecting or saving setup answers" in text
     assert "Should privacy mode be" not in text

@@ -41,13 +41,8 @@ def test_shipped_manifest_references_only_real_payload_files():
         "writing",
     )
     assert manifest.default_work_types == tuple(manifest.work_types)
-    required = {
-        "System/procedures/welcome.md",
-        "System/procedures/produce-deliverable.md",
-        "System/procedures/research-and-summarize.md",
-        "System/procedures/review-against-checklist.md",
-        "System/procedures/weekly-review.md",
-    }
+    from apparatus_core.skills import BUILTIN_PATHS
+    required = set(BUILTIN_PATHS)
     assert all(set(procedures) == required for procedures in manifest.work_types.values())
 
 

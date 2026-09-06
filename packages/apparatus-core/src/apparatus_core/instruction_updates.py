@@ -7,12 +7,17 @@ remain user-owned; a conflicting retired gate is an actionable migration error.
 from __future__ import annotations
 
 import hashlib
+from contextlib import nullcontext
 from pathlib import Path
 
 from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.overlays import OverlayPlan, OverlayWrite
 from apparatus_core.payload import PayloadError, preflight_workspace_paths
 from apparatus_core.render import owns_shim, rendered_shims_from_bytes
+from apparatus_core.skills import (
+    BUILTIN_PATHS, BUILTIN_SKILLS, canonical_path, has_skill_index, is_legacy_pointer,
+    legacy_pointer, validate_skill,
+)
 
 # Original instruction bytes from the pre-rework payload. CRLF is normalized
 # for recognition only; the exact captured bytes remain the transaction preimage.
@@ -75,6 +80,23 @@ LAYOUT_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '7fb4a3f94806cd7e83d1eb0598dee5b7f6
  '.github/copilot-instructions.md': 'd387e08d1c847a5242f8fdc75756cd433343920361d2b19375f6dc2f6e269b44'}
 
 
+# PR-36 stock work-area instructions before portable Skills. Exact LF/CRLF bytes only.
+SKILLS_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '9182c04aa101e3180004fe0aeac3751b00bde60f909ae596269bdf88400c9b4d',
+ 'Welcome.md': '9ad4a11406a156894fb501fd9e1c9452d8abd21618c70daa7efea140ab6326f0',
+ 'System/ignore': '464121144931e07323d94f4e3bf3ab844b277c47eb74184d5aacf4995f7f5a35',
+ 'System/policy/standard.md': '41e7804882adb2ad4544634028841fcedd2422394ee6d44071654b64621b4613',
+ 'System/policy/private.md': 'f3472ceaacef9b1dd1091ed56aa56c9aad3b79b2109e79199223e13a84dd2576',
+ 'System/procedures/produce-deliverable.md': '8d3e0e9645e6a32ba5fc056a918d5415e90fdbcdbfbc1b5dccf772e7ad4f568b',
+ 'System/procedures/research-and-summarize.md': 'edc06bbdeb01d264f5fa1426db3df856ce670c97e202ac75b2470002a2aa67d3',
+ 'System/procedures/review-against-checklist.md': 'c34aa1f8d0ec06510358dcdff06d290239b0d395b566246e4fe83c11775251de',
+ 'System/procedures/weekly-review.md': 'c742304cc6055fc67b5838b5ff9faa20ca06ca9ff6eca2be1dc1457eddba6dd6',
+ 'System/procedures/welcome.md': '0a03e51ba37cf7cb24e64a73b3803a43947e08f69c422e18cada86aa26682ef4',
+ 'CLAUDE.md': '1b7ca4784a39cc170eb7574cd0cc562eac62f64fc0d510de57d65c8499b8151f',
+ '.cursor/rules/apparatus.mdc': 'f2d7a240813c5d3438d9d62c8a0981808e782a4ac8dc7275cf010f42c74ea12e',
+ '.github/copilot-instructions.md': 'f7ecf9a293035948bb9d12a063c6aa7a81085337d9d65d02ae8a5d42f55f6dcb',
+ 'System/README.md': 'aa8f93085522ef69ae0624fe07260b0794005c06a4f22774814f8f0bdf680885'}
+
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -82,7 +104,7 @@ def _digest(content: bytes) -> str:
 def known_instruction(relative: str, content: bytes) -> bool:
     return _digest(content) in {table.get(relative) for table in (
         LEGACY_INSTRUCTIONS, PREVIOUS_INSTRUCTIONS, RETENTION_PREVIOUS_INSTRUCTIONS,
-        LAYOUT_PREVIOUS_INSTRUCTIONS,
+        LAYOUT_PREVIOUS_INSTRUCTIONS, SKILLS_PREVIOUS_INSTRUCTIONS,
     )}
 
 
@@ -128,11 +150,12 @@ def instruction_updates(
 ) -> tuple[OverlayPlan, dict[str, bytes | None]]:
     """Preflight known instructions and return replacements with exact preimages."""
     replacements: dict[str, OverlayWrite] = {item.relative: item for item in overlay.writes}
-    expected: dict[str, bytes | None] = dict.fromkeys(LEGACY_INSTRUCTIONS)
+    instruction_paths = (*LEGACY_INSTRUCTIONS, "System/README.md")
+    expected: dict[str, bytes | None] = dict.fromkeys(instruction_paths)
     removals = set(overlay.removals)
     with WorkspaceAnchor(payload) as source:
         proposed: dict[str, bytes] = {}
-        for relative in LEGACY_INSTRUCTIONS:
+        for relative in instruction_paths:
             content = _read_optional(source, relative)
             if content is None:
                 continue
@@ -147,9 +170,23 @@ def instruction_updates(
                     f"payload instruction {relative!r} contains the retired sharing gate; "
                     "use the updated starter payload"
                 )
+        native = {relative: _read_optional(source, relative) for relative in BUILTIN_PATHS}
+        native_migration = (any(content is not None for content in native.values())
+                            or any(source.directory_exists(Path(relative).parent) for relative in BUILTIN_PATHS)
+                            or has_skill_index(proposed.get("AGENTS.md", b"")))
+        if native_migration:
+            for relative, name in BUILTIN_PATHS.items():
+                if native[relative] is None or validate_skill(native[relative], name):
+                    raise PayloadError(f"payload Skill {relative!r} is missing or invalid; use a complete portable Skill payload")
+            for relative in BUILTIN_SKILLS:
+                if relative in proposed:
+                    raise PayloadError(f"native payload contains legacy workflow {relative!r}; ship only its canonical Skill")
+                expected.pop(relative)
     if workspace.exists():
         with WorkspaceAnchor(workspace) as root:
-            for relative, digest in LEGACY_INSTRUCTIONS.items():
+            for relative in instruction_paths:
+                if native_migration and relative in BUILTIN_SKILLS:
+                    continue
                 current = _read_optional(root, relative)
                 expected[relative] = current
                 if current is None:
@@ -177,6 +214,33 @@ def instruction_updates(
                     # an overlay would normally replace or remove this path.
                     replacements.pop(relative, None)
                     removals.discard(relative)
+    if native_migration:
+        with WorkspaceAnchor(workspace) if workspace.exists() else nullcontext(None) as root:
+            for relative, name in BUILTIN_PATHS.items():
+                current = _read_optional(root, relative) if root is not None else None
+                expected[relative] = current
+                removals.discard(relative)
+                if current is not None:
+                    if validate_skill(current, name):
+                        raise PayloadError(f"canonical Skill {relative!r} is a collision; preserve and reconcile it before retrying init")
+                    replacements.pop(relative, None)
+                else:
+                    replacements[relative] = OverlayWrite(relative, native[relative])
+            for relative, name in BUILTIN_SKILLS.items():
+                current = _read_optional(root, relative) if root is not None else None
+                replacements.pop(relative, None)
+                removals.discard(relative)
+                if current is None:
+                    continue
+                expected[relative] = current
+                if is_legacy_pointer(relative, current):
+                    continue
+                if not known_instruction(relative, current):
+                    raise PayloadError(
+                        f"custom legacy procedure {relative!r} needs migration; preserve your edits, "
+                        f"migrate them to {canonical_path(name)!r}, then rerun apparatus init"
+                    )
+                replacements[relative] = OverlayWrite(relative, legacy_pointer(relative))
     def final_content(relative: str) -> bytes | None:
         if relative in replacements:
             return replacements[relative].content

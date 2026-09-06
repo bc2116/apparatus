@@ -24,8 +24,9 @@ establish public release, signing readiness, or current app certification.
 ## Execution rule
 
 PR-31 records this direction. R1 is implemented by PR-32 and R2 by PR-33/34.
-R3 is implemented by PR-35/36. Later slices are **planned — prompt not cut**,
-not ready to execute. Next cut R4 for native Skills and procedure migration. Each
+R3 is implemented by PR-35/36. R4a is implemented by PR-38; native discovery
+adapters and runtime evidence remain R4b. Later slices are **planned — prompt not cut**,
+not ready to execute. Next cut R4b from the current discovery evidence. Each
 prompt must state exact owned paths, migration behavior, acceptance tests, and
 dependencies; then add its row to the main plan. Do not implement the entire
 sequence on one branch. Product decisions below need no repeated interview.
@@ -114,7 +115,13 @@ not modify unrelated project work. A missing snapshot facility is reported.
 
 ### R4 — Portable native Skills
 
-**After R3.** Migrate procedure names, schema, paths, and discovery together.
+**R4a implemented in PR-38; R4b planned, prompt not cut.** PR-38 converts built-in
+procedure bodies to standard Skills, migrates known legacy files to small pointers,
+and connects checks and managed recovery. It preserves custom content and ships
+ordinary file fallback. The dated primary-source note records discovery evidence;
+no native runtime certification or adapters are claimed by that format migration.
+
+R4b completes native discovery and its actual runtime probes.
 Choose one canonical Skill directory set, with optional native adapters and
 plain-file fallback. Each `SKILL.md` has name/description and readable body;
 do not keep independently editable duplicate copies. Preserve customized
@@ -255,8 +262,9 @@ distributed through updates. Existing native tools need no App module to work.
 
 ## Resume and validation
 
-The next concrete step is to cut PR-36 for R3b layout/adoption from merged source.
-PR-35 provides isolated recovery before a shared work area is enrolled. PR-33 supplies record lifecycle and current Memory retrieval;
+The next concrete step is to cut R4b for native discovery from the PR-38 format
+and source evidence. PR-35/36 provide isolated recovery and work-area adoption.
+PR-33 supplies record lifecycle and current Memory retrieval;
 PR-34 supplies task identity, opt-out, derived capture rules and recovery limits.
 Do not resume the old PR-24 checklist. No product implementation is included
 in PR-31, and no further product-choice interview is required.

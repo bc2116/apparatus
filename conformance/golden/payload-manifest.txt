@@ -2,6 +2,11 @@
 # relative to starter/payload/. Normative source: docs/spec/workspace.md.
 # Change deliberately, never to silence a failure. Lines starting with #
 # and blank lines are ignored.
+.agents/skills/apparatus-produce-deliverable/SKILL.md
+.agents/skills/apparatus-research-and-summarize/SKILL.md
+.agents/skills/apparatus-review-against-checklist/SKILL.md
+.agents/skills/apparatus-weekly-review/SKILL.md
+.agents/skills/apparatus-welcome/SKILL.md
 .cursor/rules/apparatus.mdc
 .github/copilot-instructions.md
 AGENTS.md
@@ -16,10 +21,5 @@ System/guidance/model-guidance.md
 System/ignore
 System/policy/private.md
 System/policy/standard.md
-System/procedures/produce-deliverable.md
-System/procedures/research-and-summarize.md
-System/procedures/review-against-checklist.md
-System/procedures/weekly-review.md
-System/procedures/welcome.md
 System/profile.yaml
 Welcome.md

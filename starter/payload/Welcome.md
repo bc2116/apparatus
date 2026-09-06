@@ -50,7 +50,8 @@ its selected work area, so a nearby folder is never guessed.
 
 ## Getting started
 
-Just say hello. If this workspace is new, your assistant will ask you a few
+Just say hello. Your assistant reads `.agents/skills/apparatus-welcome/SKILL.md`
+from the selected work-area root. If this workspace is new, your assistant will ask you a few
 questions about your work — what you do, who you work with, what you're working
 on now — and set the workspace up around your answers. The features you choose
 are never permanent: re-run my setup interview or just ask your assistant to

@@ -1,7 +1,7 @@
 ---
-schema: apparatus/procedure@v0
-title: Research and summarize
-intent: Use when the user wants a source-grounded answer or summary from the Library.
+name: apparatus-research-and-summarize
+description: Use when the user wants a source-grounded answer or summary from the
+  Library.
 ---
 1. Confirm the question, intended reader, desired depth, and requested file
    format. Ask which project folder should hold the working notes.
@@ -37,5 +37,5 @@ intent: Use when the user wants a source-grounded answer or summary from the Lib
    named `YYYY-MM-DD-HHMMSS-snapshot.md` using the current UTC time. If that
    name exists, append `-2`, `-3`, and so on before `.md`. Include
    `schema: apparatus/receipt@v0`, `event: snapshot`, the UTC `timestamp`, and
-   a one-sentence `summary`; in the body, name this procedure, list the files
+   a one-sentence `summary`; in the body, name this Skill, list the files
    changed, and state whether the snapshot was taken or unavailable.

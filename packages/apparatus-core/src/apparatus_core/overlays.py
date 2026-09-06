@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping
 
-from apparatus_core import records
+from apparatus_core import records, skills
 from apparatus_core.payload import (
     PayloadError,
     canonical_source_directory,
@@ -34,12 +34,17 @@ class OverlayManifest:
         return tuple(self.privacy_modes.values())
 
     @property
-    def managed_procedure_paths(self) -> tuple[str, ...]:
+    def managed_workflow_paths(self) -> tuple[str, ...]:
         return _unique(path for paths in self.work_types.values() for path in paths)
 
     @property
+    def managed_procedure_paths(self) -> tuple[str, ...]:
+        """Compatibility name for callers using legacy procedure manifests."""
+        return self.managed_workflow_paths
+
+    @property
     def managed_paths(self) -> tuple[str, ...]:
-        return _unique((*self.managed_policy_paths, *self.managed_procedure_paths))
+        return _unique((*self.managed_policy_paths, *self.managed_workflow_paths))
 
 
 def _unique(values: Iterable[str]) -> tuple[str, ...]:
@@ -100,6 +105,26 @@ def _name(value: object, entry: str) -> str:
     return value
 
 
+def _workflow_path(value: object, payload: Path, entry: str) -> str:
+    if isinstance(value, str) and value in skills.BUILTIN_PATHS:
+        relative = _payload_path(value, payload, entry, (".agents", "skills"))
+        problems = skills.validate_skill(
+            _managed_source_bytes(payload / relative, entry), skills.BUILTIN_PATHS[relative]
+        )
+        if problems:
+            raise ManifestError(f"profiles.yaml: {entry}: {problems[0]}")
+        return relative
+    return _payload_path(value, payload, entry, ("System", "procedures"))
+
+
+def _validate_native_payload(payload: Path) -> None:
+    """A native built-in source is a complete set, with no recursive ownership."""
+    if any((payload / relative).parent.exists() or (payload / relative).parent.is_symlink()
+           for relative in skills.BUILTIN_PATHS):
+        for relative in skills.BUILTIN_PATHS:
+            _workflow_path(relative, payload, relative)
+
+
 def load_manifest(path: str | Path, payload: str | Path) -> OverlayManifest:
     """Load and completely validate the closed manifest before deployment."""
     manifest_path = Path(path)
@@ -137,16 +162,17 @@ def load_manifest(path: str | Path, payload: str | Path) -> OverlayManifest:
         if not isinstance(procedures, list) or not procedures:
             raise ManifestError(f"profiles.yaml: work_types.{name} must be a non-empty list")
         work_types[name] = tuple(
-            _payload_path(
+            _workflow_path(
                 procedure,
                 payload_path,
                 f"work_types.{name}[{index}]",
-                ("System", "procedures"),
             )
             for index, procedure in enumerate(procedures)
         )
         if len(set(work_types[name])) != len(work_types[name]):
-            raise ManifestError(f"profiles.yaml: work_types.{name} repeats a procedure path")
+            raise ManifestError(f"profiles.yaml: work_types.{name} repeats a workflow path")
+
+    _validate_native_payload(payload_path)
 
     default = _mapping(root["default"], "default")
     _closed_keys(default, {"privacy_mode", "work_types"}, "default")
@@ -182,18 +208,21 @@ def canonical_work_types(manifest: OverlayManifest, work_types: Iterable[str]) -
     return tuple(name for name in manifest.work_types if name in requested_set)
 
 
-def selected_procedure_paths(
+def selected_workflow_paths(
     manifest: OverlayManifest, work_types: Iterable[str]
 ) -> tuple[str, ...]:
-    """Resolve managed procedures without mode-specific program branches.
+    """Resolve managed workflows without mode-specific program branches.
 
     An empty selection intentionally means no filtering: keep every manifest-
-    managed starter procedure. This preserves a hand-copied, unconfigured
+    managed starter workflow. This preserves a hand-copied, unconfigured
     payload while making new-workspace defaults explicit.
     """
     selected = canonical_work_types(manifest, work_types)
     source_types = selected or tuple(manifest.work_types)
     return _unique(path for work_type in source_types for path in manifest.work_types[work_type])
+
+
+selected_procedure_paths = selected_workflow_paths
 
 
 @dataclass(frozen=True)
@@ -236,7 +265,8 @@ def plan_overlay(
         source_root = canonical_source_directory(payload, "payload source path")
     except PayloadError as error:
         raise ManifestError(str(error)) from error
-    desired = set(selected_procedure_paths(manifest, work_types))
+    _validate_native_payload(source_root)
+    desired = set(selected_workflow_paths(manifest, work_types))
     candidate_writes: list[OverlayWrite] = []
     for mode, relative in manifest.privacy_modes.items():
         _payload_path(
@@ -253,11 +283,10 @@ def plan_overlay(
         )
     for work_type, procedures in manifest.work_types.items():
         for index, relative in enumerate(procedures):
-            _payload_path(
+            _workflow_path(
                 relative,
                 source_root,
                 f"work_types.{work_type}[{index}]",
-                ("System", "procedures"),
             )
     for work_type, procedures in manifest.work_types.items():
         for index, relative in enumerate(procedures):
@@ -281,19 +310,36 @@ def plan_overlay(
         target = root / write.relative
         if target.is_file():
             try:
-                if target.read_bytes() == write.content:
+                current = target.read_bytes()
+                if current == write.content:
                     continue
+                if write.relative in skills.BUILTIN_PATHS:
+                    problems = skills.validate_skill(current, skills.BUILTIN_PATHS[write.relative])
+                    if problems:
+                        raise ManifestError(f"workspace Skill {write.relative!r}: {problems[0]}")
+                    continue  # A valid customized canonical body belongs to the user.
             except OSError as error:
                 raise ManifestError(
                     f"workspace path {write.relative!r} could not be read"
                 ) from error
         writes.append(write)
-    removals = tuple(
-        relative
-        for relative in manifest.managed_procedure_paths
-        if relative not in desired and (root / relative).is_file()
-    )
-    return OverlayPlan(tuple(writes), removals)
+    removals: list[str] = []
+    for relative in manifest.managed_workflow_paths:
+        target = root / relative
+        if relative in desired or not target.is_file():
+            continue
+        if relative in skills.BUILTIN_PATHS:
+            try:
+                current = target.read_bytes()
+            except OSError as error:
+                raise ManifestError(f"workspace path {relative!r} could not be read") from error
+            problems = skills.validate_skill(current, skills.BUILTIN_PATHS[relative])
+            if problems:
+                raise ManifestError(f"workspace Skill {relative!r}: {problems[0]}")
+            if current != _managed_source_bytes(source_root / relative, relative):
+                continue
+        removals.append(relative)
+    return OverlayPlan(tuple(writes), tuple(removals))
 
 
 def _write_managed(content: bytes, target: Path, relative: str, changes: list[str]) -> None:
@@ -310,7 +356,7 @@ def apply_overlay(
     privacy_mode: str,
     work_types: Iterable[str],
 ) -> tuple[str, ...]:
-    """Apply only manifest-managed policy and procedure file operations."""
+    """Apply only manifest-managed policy and workflow file operations."""
     plan = plan_overlay(
         payload,
         workspace,
@@ -332,13 +378,17 @@ def apply_overlay_plan(workspace: str | Path, plan: OverlayPlan) -> tuple[str, .
             relative = normalize_workspace_relative(write.relative)
         except PayloadError as error:
             raise ManifestError(str(error)) from error
-        if relative.parts[:2] not in {
+        if relative.as_posix() not in skills.BUILTIN_PATHS and (relative.parts[:2] not in {
             ("System", "policy"),
             ("System", "procedures"),
-        } or len(relative.parts) < 3:
+        } or len(relative.parts) < 3):
             raise ManifestError(
                 f"overlay operation path {relative.as_posix()!r} is outside managed folders"
             )
+        if relative.as_posix() in skills.BUILTIN_PATHS:
+            problems = skills.validate_skill(write.content, skills.BUILTIN_PATHS[relative.as_posix()])
+            if problems:
+                raise ManifestError(f"overlay Skill {relative.as_posix()!r}: {problems[0]}")
         if relative in write_paths:
             raise ManifestError(f"overlay plan repeats write {relative.as_posix()!r}")
         write_paths.add(relative)
@@ -351,9 +401,11 @@ def apply_overlay_plan(workspace: str | Path, plan: OverlayPlan) -> tuple[str, .
             relative = normalize_workspace_relative(value)
         except PayloadError as error:
             raise ManifestError(str(error)) from error
-        if relative.parts[:2] != ("System", "procedures") or len(relative.parts) < 3:
+        if relative.as_posix() not in skills.BUILTIN_PATHS and (
+            relative.parts[:2] != ("System", "procedures") or len(relative.parts) < 3
+        ):
             raise ManifestError(
-                f"overlay removal path {relative.as_posix()!r} is outside System/procedures/"
+                f"overlay removal path {relative.as_posix()!r} is outside System/procedures/ or built-in Skills"
             )
         if relative in removal_paths:
             raise ManifestError(f"overlay plan repeats removal {relative.as_posix()!r}")

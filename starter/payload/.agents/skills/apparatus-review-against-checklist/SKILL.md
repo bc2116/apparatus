@@ -1,7 +1,7 @@
 ---
-schema: apparatus/procedure@v0
-title: Review against a checklist
-intent: Use when the user wants a draft or deliverable checked item by item against a checklist.
+name: apparatus-review-against-checklist
+description: Use when the user wants a draft or deliverable checked item by item against
+  a checklist.
 ---
 1. Ask the user to identify the draft or deliverable and the checklist. The
    checklist may come directly from the user or from a named file in
@@ -31,5 +31,5 @@ intent: Use when the user wants a draft or deliverable checked item by item agai
    named `YYYY-MM-DD-HHMMSS-snapshot.md` using the current UTC time. If that
    name exists, append `-2`, `-3`, and so on before `.md`. Include
    `schema: apparatus/receipt@v0`, `event: snapshot`, the UTC `timestamp`, and
-   a one-sentence `summary`; in the body, name this procedure, list the files
+   a one-sentence `summary`; in the body, name this Skill, list the files
    changed, and state whether the snapshot was taken or unavailable.

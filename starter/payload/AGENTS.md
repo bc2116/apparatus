@@ -54,7 +54,7 @@ erases previous copies, backups or the AI app's conversation history.
 - `Memory/People/` — one record per person or organization, with role, context,
   commitments, and useful history, subject to the active policy overlay.
 - `Memory/Facts/` — one durable fact per record, with its source when known.
-- `System/` — the profile, procedures, policy, and receipts used by the
+- `System/` — the profile, policy, and receipts used by the
   workspace machinery; do not put ordinary working files here.
 
 ## Select the work area explicitly
@@ -91,14 +91,27 @@ when still valid. Forgetting removes the record's content and leaves a marker
 at its existing filename; it does not erase setup answers, snapshots, backups,
 or the AI app's history. Corrections that add content require a saving task.
 
-## Follow procedures
+<!-- Apparatus Skill index: v1 -->
+## Skills
 
-For repeatable work, open the matching record in `System/procedures/` and
-follow its numbered steps in order, subject to the task's Memory choice. Finish
-with permitted snapshot and receipt steps;
-if snapshots are unavailable, say so plainly and continue as directed. If no
-procedure fits, tell the user, work carefully, and still follow every rule in
-this file and the active policy overlay.
+Read the relevant Skill from this work-area root; keep the other bodies closed.
+
+- Getting started: `.agents/skills/apparatus-welcome/SKILL.md`.
+- Producing finished work: `.agents/skills/apparatus-produce-deliverable/SKILL.md`.
+- Research with sources: `.agents/skills/apparatus-research-and-summarize/SKILL.md`.
+- A requested checklist review: `.agents/skills/apparatus-review-against-checklist/SKILL.md`.
+- A requested weekly review: `.agents/skills/apparatus-weekly-review/SKILL.md`.
+
+Skills provide instructions for the assistant. Apparatus does not execute them
+or call a model. Ordinary file reading is the fallback when native discovery is
+unavailable. In a project, use its explicit work-area link before resolving paths.
+<!-- /Apparatus Skill index -->
+
+Follow the selected Skill's numbered steps in order, subject to the task's Memory
+choice. Finish with permitted snapshot and receipt steps; if snapshots are
+unavailable, say so plainly and continue as directed. If no Skill fits, tell the
+user, work carefully, and still follow every rule in this file and the active
+policy overlay.
 
 ## Keep the workspace safe
 
@@ -125,3 +138,7 @@ Keep one record per file and use kebab-case filenames. Except for
 YAML, records are Markdown with YAML
 frontmatter and the matching `apparatus/<kind>@v0` schema. Preserve required
 fields and existing valid values unless the user confirms a change.
+
+Portable Skills at `.agents/skills/NAME/SKILL.md` use standard `name` and
+`description` frontmatter, followed by their instructions; they do not use an
+`apparatus/<kind>@v0` record schema.

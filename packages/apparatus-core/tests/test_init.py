@@ -14,6 +14,7 @@ from apparatus_core import init_deploy
 from apparatus_core import payload as payload_module
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import init
+from apparatus_core.skills import BUILTIN_PATHS
 from apparatus_core.overlays import (
     OverlayPlan,
     OverlayWrite,
@@ -157,6 +158,7 @@ def test_repeat_preserves_unmanaged_bytes_repairs_tree_and_updates_profile(tmp_p
     welcome = workspace / "Welcome.md"
     welcome.write_bytes(b"my welcome\x00edit")
     user_procedure = workspace / "System/procedures/user-added.md"
+    user_procedure.parent.mkdir()
     user_procedure_bytes = (
         b"---\nschema: apparatus/procedure@v0\ntitle: User added\n"
         b"intent: Preserve this procedure.\n---\nUser procedure bytes.\n"
@@ -198,7 +200,7 @@ def test_invalid_existing_profile_exits_before_mutating_workspace(tmp_path, caps
     assert not (workspace / "Welcome.md").exists()
 
 
-def test_empty_existing_work_types_keep_all_managed_starter_procedures(tmp_path):
+def test_empty_existing_work_types_keep_all_managed_starter_skills(tmp_path):
     workspace = tmp_path / "workspace"
     assert init.run(_args(workspace), available=lambda: False) == 0
     profile = _profile(workspace)
@@ -206,11 +208,11 @@ def test_empty_existing_work_types_keep_all_managed_starter_procedures(tmp_path)
     (workspace / "System/profile.yaml").write_text(
         records.yaml.safe_dump(profile, sort_keys=False), encoding="utf-8"
     )
-    for path in (workspace / "System/procedures").glob("*.md"):
-        path.unlink()
+    for relative in BUILTIN_PATHS:
+        (workspace / relative).unlink()
     assert init.run(_args(workspace), available=lambda: False) == 0
     assert _profile(workspace)["work_types"] == []
-    assert len(list((workspace / "System/procedures").glob("*.md"))) == 5
+    assert all((workspace / relative).is_file() for relative in BUILTIN_PATHS)
 
 
 def test_work_type_flags_are_trimmed_validated_and_canonicalized_before_deployment(tmp_path, capsys):
@@ -229,7 +231,7 @@ def test_custom_payload_prefers_its_sibling_profiles_manifest(tmp_path):
     profiles = tmp_path / "profiles"
     profiles.mkdir()
     (profiles / "profiles.yaml").write_text(
-        """privacy_modes:\n  standard: System/policy/standard.md\n  private: System/policy/private.md\nwork_types:\n  analysis:\n    - System/procedures/welcome.md\ndefault:\n  privacy_mode: private\n  work_types: [analysis]\n""",
+        """privacy_modes:\n  standard: System/policy/standard.md\n  private: System/policy/private.md\nwork_types:\n  analysis:\n    - .agents/skills/apparatus-welcome/SKILL.md\ndefault:\n  privacy_mode: private\n  work_types: [analysis]\n""",
         encoding="utf-8",
     )
     workspace = tmp_path / "workspace"

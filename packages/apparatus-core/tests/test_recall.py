@@ -239,15 +239,16 @@ def test_invalid_ignore_stops_recall_before_cache_inspection(monkeypatch, tmp_pa
         recall.recall(workspace, "cobalt")
 
 
-def test_research_procedure_keeps_nine_steps_and_grounding_rules():
+def test_research_skill_keeps_nine_steps_and_grounding_rules():
+    from apparatus_core.skills import validate_skill
     procedure = (
         Path(__file__).parents[3]
-        / "starter/payload/System/procedures/research-and-summarize.md"
+        / "starter/payload/.agents/skills/apparatus-research-and-summarize/SKILL.md"
     )
     text = procedure.read_text(encoding="utf-8")
     prose = " ".join(text.split())
     frontmatter, body = records.parse_record(text)
-    assert records.validate("procedure", frontmatter, filename=procedure.name) == []
+    assert validate_skill(text, procedure.parent.name) == []
     assert re.findall(r"(?m)^(\d+)\. ", body) == [str(number) for number in range(1, 10)]
     assert "[share]" not in body and "apparatus egress" not in body
     assert "user" in prose and "native permissions" in prose

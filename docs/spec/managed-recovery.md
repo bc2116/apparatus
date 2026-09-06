@@ -36,6 +36,13 @@ The following named UTF-8 files are included when present:
   `System/README.md`, and `System/guidance/model-guidance.md`.
 - `System/policy/standard.md` and `System/policy/private.md`.
 
+The five exact built-in `.agents/skills/NAME/SKILL.md` paths listed in the
+[Skill specification](skills.md) are also included when present. They use
+portable Skill validation, not the legacy procedure schema. Capture, manifest
+membership and every reachable historical tree apply the same validation.
+Third-party Skills, optional resources beside a built-in body and project native
+adapters are outside coverage; `.agents/skills` is never recursively captured.
+
 No other paths are inferred to be managed. Project files, Library originals,
 caches, unknown files, task controls, routing/bindings and recovery storage are
 outside snapshot contents. Filesystem traversal does not follow links or reparse
@@ -68,6 +75,11 @@ The CLI identifies the snapshot date and scope. Restored Memory reflects that
 historical saved state and can revive older information, including content that
 was subsequently corrected or forgotten. It does not promise secure erasure,
 provider-retention control or recovery of project files and Library originals.
+
+An older snapshot may restore full legacy procedures beside surviving new Skill
+bodies. Check reports the mixed workflow state and suggests init migration.
+Restore does not silently remove those old records. Re-migration preserves valid
+custom canonical bodies and stops before writing if an old procedure is custom.
 
 ## Backup
 

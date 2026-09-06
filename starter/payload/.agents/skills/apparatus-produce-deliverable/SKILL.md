@@ -1,7 +1,6 @@
 ---
-schema: apparatus/procedure@v0
-title: Produce a deliverable
-intent: Use when the user wants to create a finished file for a defined purpose.
+name: apparatus-produce-deliverable
+description: Use when the user wants to create a finished file for a defined purpose.
 ---
 1. Ask what the finished work must accomplish, who it is for, which format it
    needs, and how the user will know it is done. Restate that definition of done
@@ -35,5 +34,5 @@ intent: Use when the user wants to create a finished file for a defined purpose.
     named `YYYY-MM-DD-HHMMSS-snapshot.md` using the current UTC time. If that
     name exists, append `-2`, `-3`, and so on before `.md`. Include
     `schema: apparatus/receipt@v0`, `event: snapshot`, the UTC `timestamp`, and
-    a one-sentence `summary`; in the body, name this procedure, list the files
+    a one-sentence `summary`; in the body, name this Skill, list the files
     changed, and state whether the snapshot was taken or unavailable.
