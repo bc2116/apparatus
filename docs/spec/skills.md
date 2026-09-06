@@ -132,3 +132,53 @@ inference, personal voice learning or automatic draft archive is introduced.
 No-save still permits requested project prose while blocking automatic derived
 retention. Synthetic examples and their evidence limits are recorded in the
 [scenario note](../notes/r6-synthetic-scenarios.md).
+
+## Learned workflows
+
+After useful repetition, the assistant may offer a reusable workflow draft. The
+user reviews the actual credential-checked file once before adoption. Declining
+or ignoring the offer does not delay the original work. No-save tasks neither
+offer capture nor store learned drafts; reading adopted Skills remains available.
+
+New capture requires an enrolled work area and an explicit saving task. If absent,
+use the existing `apparatus init WORKSPACE --adopt` enrollment action and
+`apparatus task start WORKSPACE`; there is no new setup questionnaire.
+
+`apparatus --task ID skill draft WORKSPACE NAME --stdin` accepts a complete portable
+Skill with a name beginning `learned-`. It redacts before storing
+`System/skill-drafts/NAME.md`, then returns its path and exact SHA-256. Existing
+draft files are never overwritten. Show the actual stored bytes for review.
+Drafts are inactive, outside native discovery and managed recovery coverage.
+Reading a draft for review never authorizes following its instructions.
+
+Only after the user's adoption instruction, run `apparatus --task ID skill adopt
+WORKSPACE NAME --digest SHA256`. A changed draft, invalid format or further-needed
+credential redaction rejects adoption unchanged; review a safe draft first. The
+command never silently sanitizes the reviewed bytes. It publishes one canonical
+`.agents/skills/NAME/SKILL.md` and a closed ownership file
+`System/skills/adopted/NAME.yaml` in one retained-root transaction. The ownership
+YAML has exactly `schema: apparatus/learned-skill@v0` and `name: NAME`; both name
+and filename must match, and duplicate keys, aliases and nested values are invalid.
+Paths derive from that name rather than user-supplied metadata paths.
+
+Existing native directories, partial pairs and foreign occupants are preserved
+with a repair message. Repeat adoption is a no-op only when the draft, digest,
+body and valid ownership record agree. The draft stays as an inactive review copy.
+Rejected drafts may be deleted explicitly with ordinary file tools. Adopted
+bodies remain user-editable; no digest freezes later edits or prompts per use.
+
+The canon points to these small ownership records for fallback discovery; native
+adapters may discover the same canonical bodies. Capture never rewrites the canon
+or other Skills. No script/asset copying, model calls, routine adoption receipts,
+new approval framework or Library registration is provided. Existing redaction
+receipts remain required with exact publication compensation.
+
+Checks and managed recovery validate registered body/ownership pairs, including
+pairs within each historical manifest. Only exact registered bodies are covered;
+prefixes or directory names do not claim unrelated native files. Ignored pairs
+produce incomplete-check findings. Missing or invalid pairs prevent capture.
+Individual ownership records preserve later adoptions when an older snapshot is
+restored. Restore may revive an older adopted workflow; live task controls remain
+protected. Drafts and unrelated native files are excluded from managed exports.
+Legacy whole-workspace history/backups keep their existing scope and may contain
+older drafts or other content; this feature does not sanitize historical copies.

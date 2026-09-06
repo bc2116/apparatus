@@ -26,11 +26,11 @@ NEW_SKILL_PATHS = {path: name for path, name in BUILTIN_PATHS.items() if path no
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 _FIELDS = {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
 
-# Complete PR-38 and PR-39 shipped orientation bytes, normalized only for CRLF.
+# Complete PR-38, PR-39 and PR-41 shipped orientation bytes, normalized only for CRLF.
 # Keep historical witnesses when later payload revisions change the prose.
 _SKILL_ORIENTATION_DIGESTS = {
-    "Welcome.md": {"9c9612b04aae89667e0f9697d99a9b146dc2ee9f4d143c19dc54534cb1ecad87", "5bcf362d72d507a8896498d9da83646cc95b8e2b3395cfbbe21b631860048be1"},
-    "System/README.md": {"32d22c2e88c1cd3aa49a3dc74b6d54d84bc51c5ed3c96b19e59553796fde911d", "51ee1850ff9653584142b0b5a789040169bed33ce6f42c0a6c6d8ab984ddb5d6"},
+    "Welcome.md": {"9c9612b04aae89667e0f9697d99a9b146dc2ee9f4d143c19dc54534cb1ecad87", "5bcf362d72d507a8896498d9da83646cc95b8e2b3395cfbbe21b631860048be1", "d3527ca2be2a12255f63a7fb068c68eabde81864d825a54631f5883d13e57d83"},
+    "System/README.md": {"32d22c2e88c1cd3aa49a3dc74b6d54d84bc51c5ed3c96b19e59553796fde911d", "51ee1850ff9653584142b0b5a789040169bed33ce6f42c0a6c6d8ab984ddb5d6", "b4d4edd9121abf5b1a15fc62b19a0a4940134136a12a4feace7c3cd6b617e958"},
 }
 
 HISTORICAL_SKILL_INDEX = """<!-- Apparatus Skill index: v1 -->

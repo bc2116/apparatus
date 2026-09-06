@@ -292,6 +292,20 @@ def _shim_target_present(workspace: Path, target: str) -> bool:
     return current.exists()
 
 
+def _learned_skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int]:
+    from apparatus_core import learned_skills
+    from apparatus_core.fs_transactions import WorkspaceAnchor
+    from apparatus_core.payload import preflight_workspace_paths
+    try:
+        with WorkspaceAnchor(preflight_workspace_paths(workspace)) as anchor:
+            files = learned_skills.registered_files(anchor, excluded=rules.matches)
+            return [], len(files)
+    except (OSError, ValueError) as error:
+        message = str(error) if isinstance(error, learned_skills.LearnedSkillError) else (
+            "Adopted Skill ownership or its body is missing or unsafe; preserve the files and repair the pair.")
+        return [Finding("learned-skill-check-incomplete", learned_skills.ADOPTED, message)], 0
+
+
 def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int, int, int]:
     """Read only visible built-in bodies and exact orientation/legacy evidence.
 
@@ -446,7 +460,9 @@ def check_workspace(
     user_ignored = 0
     skill_findings, skill_count, skill_built_in, skill_user = _skill_findings(root, rules)
     findings.extend(skill_findings)
-    records_checked += skill_count
+    learned_findings, learned_count = _learned_skill_findings(root, rules)
+    findings.extend(learned_findings)
+    records_checked += skill_count + learned_count
     built_in_ignored += skill_built_in
     user_ignored += skill_user
     for relative, kind in RECORD_FOLDERS:

@@ -63,3 +63,7 @@ work saved without adding new Memory or automatic captures.
 Your assistant can keep larger work economical with small, bounded teams when
 your AI app supports them, and make a light prose pass when it helps. These
 Skills follow your request and preferences; simple work stays simple.
+
+When a workflow proves useful repeatedly, your assistant can offer an editable
+Skill draft. Review it once before adopting it for future work. You can decline
+without delaying the task; no-save tasks do not create learned drafts.

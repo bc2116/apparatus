@@ -216,3 +216,10 @@ Installers retain their existing user-scope placement and sync-redirection check
 this layout does not claim support for concurrent live synchronization of mutable
 Apparatus state. One-way backup may target synced storage. Existing legacy backup
 storage restrictions remain applicable to unconverted workspaces.
+
+Learned Skill drafts live outside discovery at `System/skill-drafts/NAME.md`.
+Adoption after review publishes a canonical `.agents/skills/NAME/SKILL.md` plus
+a closed `System/skills/adopted/NAME.yaml` control with schema
+`apparatus/learned-skill@v0` and the matching name. This is control YAML, not a
+new factual Memory kind. See [learned workflows](skills.md#learned-workflows)
+for explicit task/enrollment requirements and recovery exclusions.

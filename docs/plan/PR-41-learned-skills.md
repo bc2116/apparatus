@@ -33,6 +33,8 @@ The shipped canon points once to `System/skills/adopted/`: read those small reco
 
 ## Retention, checking and recovery
 
+New learned capture requires an enrolled work area before input is read. Missing enrollment returns the existing `apparatus init WORKSPACE --adopt` repair action, with no new setup question. This makes draft exclusion enforceable; legacy read/use and whole-workspace recovery remain unchanged and may contain historical drafts.
+
 Both commands use `operation(...)` and `require_memory_write()` before candidate persistence; no-save has no learned-Skill exception, even when snapshot or Library exceptions were requested. Do not offer capture or store draft text during a no-save task. Existing adopted Skills remain readable. Content already saved in earlier tasks/backups is not erased by a later opt-out.
 
 Reuse credential handling, retained parent proofs, absent-only publication, exact-byte/identity validation and receipt compensation. Neither command creates a routine adoption receipt: its result and the durable adoption record provide the small lifecycle proof. Existing redaction evidence remains mandatory when credentials are removed, with its exact compensation retained through the final checkpoint. Add no new receipt event or task-prose audit log.

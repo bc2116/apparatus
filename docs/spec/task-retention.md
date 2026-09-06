@@ -80,3 +80,9 @@ Init recognizes known shipped instruction bytes, including CRLF variants, and
 updates them with retained-root preimage checks. Custom conflicting guidance is
 preserved with instructions to reconcile it before rerunning init. Existing
 profile answers and historical files are not rewritten into new task controls.
+
+Learned Skill draft and adoption commands require an explicit saving task before
+reading candidate text or creating files. Snapshot and Library requested
+exceptions never enable learned capture. New capture also requires managed
+work-area enrollment, ensuring drafts stay outside managed recovery. These
+controls do not block reading previously adopted Skills or erase older copies.

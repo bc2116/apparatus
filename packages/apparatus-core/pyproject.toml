@@ -28,6 +28,7 @@ recall = "apparatus_core.commands.recall:register"
 render = "apparatus_core.commands.render:register"
 restore = "apparatus_core.commands.restore:register"
 snapshot = "apparatus_core.commands.snapshot:register"
+skill = "apparatus_core.commands.skill:register"
 
 [project.urls]
 Repository = "https://github.com/bc2116/apparatus"

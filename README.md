@@ -51,6 +51,11 @@ humanizer provides a selective prose pass. Both preserve task authority and
 Memory controls. These instructions do not establish measured savings or prose
 quality, and unsupported native controls remain unavailable.
 
+After useful repetition, the assistant can offer an editable learned Skill draft.
+The user reviews it once before adoption; no-save tasks do not capture drafts.
+Adopted bodies stay editable and are covered by managed recovery through their
+explicit ownership records. Drafts remain inactive and outside that coverage.
+
 The [approved rework](docs/design/design-brief.md) adds native discovery adapters
 and a Library catalog referencing project files. **The remaining rework is planned,
 not yet implemented.** Existing specs and conformance tests describe the

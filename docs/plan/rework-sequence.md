@@ -174,7 +174,8 @@ beyond the evidence obtained.
 
 ### R7 — Capture learned Skills
 
-**After R2 and R4.** Offer a reusable workflow after useful repetition, produce
+**Implemented by PR-41 after R2/R4a, integrating R6 before delivery.**
+Offer a reusable workflow after useful repetition, produce
 an editable draft, and adopt it only after the user's one-time review. Reuse
 native discovery and fallback from R4. Factual Memory is not a Skill library.
 
