@@ -99,6 +99,7 @@ later slices remain planned.
 | 38 | [Portable built-in Skills](PR-38-portable-skills.md) | Rework | ✅ landed | 36, 37 |
 | 39 | [Task-first welcome and everyday work](PR-39-task-first-welcome.md) | Rework | ✅ landed | 38 |
 | 40 | [Economizer and humanizer Skills](PR-40-economizer-humanizer.md) | Rework | ✅ landed | 39 |
+| 41 | [Reviewed learned Skills](PR-41-learned-skills.md) | Rework | ready | 40 |
 | 42 | [Patched PDF dependency](PR-42-pdf-dependency.md) | Repair | ✅ landed | 35 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
