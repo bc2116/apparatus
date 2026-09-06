@@ -1,5 +1,10 @@
 # PR-39 verification
 
+Final local integration includes the patched PDF dependency and the inherited
+Windows binding/canonical-path repairs. `uv run pytest` passed **949 tests,
+38 skipped** in 247.20 seconds. The welcome implementation is unchanged;
+actual Windows CI must pass the integrated head before delivery.
+
 Local preparation on macOS, Python 3.12.4, 2026-09-06:
 
 - Full `uv run pytest`: **946 passed, 38 skipped** in 223.53 seconds after integrating recovery,
