@@ -336,7 +336,10 @@ def bind_project(project: str | Path, workspace: str | Path, *, replace: bool = 
                         if not transaction.finished:
                             transaction.validate_commit()
                             if transaction.anchor is control_anchor:
-                                names.add(transaction.backup.name)
+                                # Both proofs keep relative as the original target;
+                                # the retained backup name is platform-specific.
+                                backup = transaction.backup
+                                names.add(backup.name if hasattr(backup, "name") else backup.path.name)
                         elif not transaction.anchor.matches_owned(transaction.target):
                             raise BindingError("Project link changed before completion.")
                     if _names(control_anchor) != names:

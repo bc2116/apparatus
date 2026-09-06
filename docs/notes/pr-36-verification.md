@@ -37,3 +37,29 @@ before merge. PR-35's platform repair and the separately reproduced Library lock
 release race are tracked in their own focused changes; this suite includes both.
 Packaging checks do not establish native AI app discovery, app certification,
 signing readiness, project-file recovery or live sync support.
+
+## Windows binding compatibility repair
+
+The first actual Windows run (34044945604) found five binding failures because
+inventory validation read `backup.name`, a POSIX-only retained-proof field.
+`WindowsOwnedFile` stores the actual backup pathname in `path`; both backends'
+`relative` fields intentionally identify the original target. Binding now uses
+the existing backend's actual backup name. Identity/content checks, exact control
+inventory validation, transaction commit and compensation remain unchanged.
+
+Two deterministic regressions expose the Windows backup field shape while
+retaining real native transaction methods and handles. The earlier implementation
+failed with the missing-name error. The repaired implementation permits explicit
+retargeting and still rejects a concurrently added foreign control file, rolls
+back the owned replacement, and preserves that foreign file and instructions.
+
+The sixth Windows failure was an outdated diagnostic assertion: a System junction
+now fails in the enrollment reader before deployment. That native junction test
+requires the exact earlier safety diagnostic and forbids deployment, retaining
+its original foreign-byte and foreign-directory inventory assertions.
+
+Focused binding/init validation passed **96 tests with 7 skipped** in 17.27
+seconds. The skips are native Windows cases on the local macOS host. The full
+`uv run pytest -o addopts= -q` suite passed **840 tests with 38 skipped** in
+194.92 seconds. `git diff --check` passed. An actual Windows rerun and independent
+review remain required before this repair is accepted for delivery.

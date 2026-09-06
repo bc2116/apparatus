@@ -303,3 +303,55 @@ def test_resolution_rejects_a_replaced_project_and_symlinked_control(tmp_path):
     (project / binding.CONTROL).symlink_to(pointer)
     with pytest.raises(binding.BindingError):
         binding.read_project_binding(project)
+
+
+@pytest.mark.parametrize("foreign_entry", [False, True])
+def test_retarget_uses_windows_backup_path_and_preserves_control_inventory(tmp_path, monkeypatch, foreign_entry):
+    from types import SimpleNamespace
+
+    outer = workarea(tmp_path / "outer")
+    inner = workarea(outer / "inner")
+    project = inner / "project"
+    project.mkdir()
+    binding.bind_project(project, inner)
+    before = files(project)
+    foreign = project / binding.CONTROL_DIRECTORY / "foreign.txt"
+    replace = WorkspaceAnchor.replace_if_unchanged
+    observed = []
+
+    class WindowsShapeTransaction:
+        """Expose Windows backup fields while real methods retain native proofs."""
+        def __init__(self, transaction):
+            self.transaction = transaction
+            backup = transaction.backup
+            # relative identifies the original target on both backends; Windows
+            # keeps the actual temporary pathname in path and has no name field.
+            backup_path = (transaction.anchor.workspace / backup.relative.parent / backup.name
+                           if hasattr(backup, "name") else backup.path)
+            self.backup = SimpleNamespace(relative=backup.relative, path=backup_path,
+                                          content=backup.content)
+
+        def __getattr__(self, name):
+            return getattr(self.transaction, name)
+
+        def validate_commit(self):
+            self.transaction.validate_commit()
+            if foreign_entry and not observed:
+                foreign.write_bytes(b"Concurrent foreign control file\n")
+                observed.append(True)
+
+    def windows_shape(anchor, relative, identity, expected, content, **options):
+        return WindowsShapeTransaction(replace(anchor, relative, identity, expected, content, **options))
+
+    monkeypatch.setattr(WorkspaceAnchor, "replace_if_unchanged", windows_shape)
+    if foreign_entry:
+        with pytest.raises(binding.BindingError, match="control directory changed"):
+            binding.bind_project(project, outer, replace=True)
+        assert observed == [True]
+        assert files(project) == {**before, foreign.relative_to(project).as_posix(): b"Concurrent foreign control file\n"}
+    else:
+        assert binding.bind_project(project, outer, replace=True).changed
+        with binding.resolve_project_context(project) as context:
+            assert context.workspace == outer
+        assert (project / "AGENTS.md").read_bytes() == before["AGENTS.md"]
+        assert sorted(p.name for p in (project / binding.CONTROL_DIRECTORY).iterdir()) == ["workspace.yaml"]
