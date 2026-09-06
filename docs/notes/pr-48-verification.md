@@ -61,3 +61,37 @@ the embedded copy and universal ZIP and remain byte-identical to base `78e09ec`.
 The payload hash is unchanged because this repair edits core feature reading
 only. Renewed native AI app acceptance must use the repaired wheel and a new
 fixture; artifacts and local tests are not native-app certification.
+
+
+## Final combined integration
+
+The two PR-48 commits were rebased onto reviewed PR-46 head
+`7686b66a717c822e67dc646c24a8e0a88348cb8d`, producing source head
+`7c0c6c4252bf948a0e4dd32decfb35cf308e963d`. Comparison with the previous
+PR-48 head adds exactly the inherited three-file Windows repair: explicit UTF-8
+conformance reads, contextual unsafe optional-payload diagnostics in `skills.py`,
+and the PR-40 verification note. No additional payload or installer behavior
+changed.
+
+- The final combined `uv run pytest` passed: **1258 passed, 38 skipped in
+  530.38 seconds**. Focused tests were not needlessly repeated.
+- Fresh payload and package builders passed. All **80 tracked package
+  source/resource files** match the final wheel and source distribution.
+- All **25 starter files** (**23 payload plus 2 profile files**) match the
+  embedded copy, final universal ZIP and the reviewed PR-46 base.
+- `git diff --check` passed. Only this verification note and PR-48's plan status
+  changed after the tested and packaged source head.
+
+Final combined artifact SHA-256 values:
+
+- `apparatus_core-0.0.1-py3-none-any.whl`:
+  `5b3f11834131f564d0c521d5dfb77a39c9da4d08d13dd50e11bd39c587c02936`.
+- `apparatus_core-0.0.1.tar.gz`:
+  `7e6dff6c05aad6db629218166d4ae72dab62ed7a3ac5ba508faf837ce99b1da7`.
+- `apparatus-payload-0.0.1.zip`:
+  `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`.
+
+These combined artifacts supersede the preliminary alias-only builds above.
+The lead has the final wheel for fresh native acceptance. Local verification
+does not establish native Windows CI or AI app certification, and the earlier
+failing Cursor fixture remains unchanged.
