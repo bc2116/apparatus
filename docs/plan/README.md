@@ -105,6 +105,7 @@ later slices remain planned.
 | 43 | [Library references to originals](PR-43-library-references.md) | Rework | ✅ landed | 41, 42 |
 | 44 | [Library cards and completion offers](PR-44-library-cards.md) | Rework | ✅ landed | 43 |
 | 45 | [Quiet operations and concrete repair guidance](PR-45-quiet-operations.md) | Rework | ✅ landed | 44 |
+| 46 | [Install into a chosen work area](PR-46-installer-adoption.md) | Rework | ready | 45 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
