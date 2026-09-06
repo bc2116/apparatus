@@ -289,6 +289,25 @@ jobs:
             throw 'The Windows wrapper lost a reordered option or hostile path character.'
           }
 
+          $adoptLog = Join-Path $env:RUNNER_TEMP 'apparatus-installer-adopt.log'
+          $adoptExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN', '/ADOPT',
+            "/WORKSPACEPATH=$hostilePath", "/LOG=$adoptLog"
+          )
+          if ($adoptExit -ne 0 -or (Test-Path -LiteralPath $marker)) {
+            throw 'The Windows wrapper failed explicit adoption dry-run or treated the path as code.'
+          }
+          $adoptText = Get-Content -LiteralPath $adoptLog -Raw
+          if ($adoptText -notmatch 'Adoption:.*explicitly requested') {
+            throw 'The Windows wrapper did not forward explicit adoption.'
+          }
+          $duplicateAdoptExit = Invoke-ApparatusInstaller -Arguments @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN', '/ADOPT', '/ADOPT'
+          )
+          if ($duplicateAdoptExit -eq 0) {
+            throw 'The Windows wrapper accepted duplicate adoption options.'
+          }
+
           $duplicateExit = Invoke-ApparatusInstaller -Arguments @(
             '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN', '/DRYRUN'
           )

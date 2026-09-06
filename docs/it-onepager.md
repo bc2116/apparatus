@@ -2,27 +2,29 @@
 
 ## What gets installed and where
 
-Apparatus setup is user scope only. It installs uv in the current profile, a
-uv-managed Python, and `apparatus-core` as a uv tool. On Windows these live
+Setup installs uv, managed Python and the `apparatus-core` uv tool in user
+scope. On Windows these live
 under `%USERPROFILE%\.local\bin`, `%USERPROFILE%\.local\share\uv\python`,
 and `%USERPROFILE%\.local\share\uv\tools`. On macOS they live under
 `~/.local/bin`, `~/.local/share/uv/python`, and `~/.local/share/uv/tools`.
-If git is already present, Apparatus uses it for snapshots; setup does not
-install or modify git. Nothing in the toolchain is installed system-wide.
+Setup uses existing Git for snapshots without installing or modifying it.
 Releases include an Inno Setup `.exe` and a no-payload macOS `.pkg`, plus the
-bare scripts as fallbacks. The Windows wrapper extracts its script temporarily
-and installs no wrapper component. macOS Installer may request administrator
+bare scripts as fallbacks. The Windows wrapper only temporarily extracts its script. macOS Installer may request administrator
 authentication and keeps its standard receipt and log metadata; its launcher
 runs the bootstrap chain as the logged-in user and installs no system payload.
-Signing gates remain off until certificates are configured. When enabled, the
+Signing uses explicit release gates; verify actual artifacts, not assumed gate
+or certificate state.
+The first public release requires verified signatures. When enabled, the
 outer `.exe` is Authenticode-signed and the outer `.pkg` is Developer ID signed,
 notarized, and stapled. `SHA256SUMS` covers the seven distributable artifacts:
 the payload, source distribution, wheel, two bare scripts, `.exe`, and `.pkg`.
 
 ## Workspace data
 
-The workspace is plain, human-readable files at `C:\Projects\Apparatus` on
-Windows or `~/Projects/Apparatus` on macOS by default. It must not be placed in
+A chosen work area holds projects beside Library, Goals, Memory and System. Defaults are `C:\Projects` on Windows and `~/Projects` on
+macOS; custom roots need no Apparatus enclosure. Existing
+nonempty unmarked folders require explicit adoption. Setup preserves user work and task/profile choices; recognized shipped instructions can
+update through core repair. The work area must not be placed in
 sync-redirected folders such as OneDrive Documents/Desktop or iCloud Drive.
 Use one-way snapshot export for backup instead of live sync.
 
@@ -43,9 +45,21 @@ dependencies.
 Apparatus labels personal content when it is written. There is no additional
 Apparatus review step for drafts, file movement, copies, or exports. Actual
 external actions require user authority and native AI app permissions. Passwords, API keys, tokens, private keys, and
-high-confidence government or payment identifiers are redacted at managed text-write boundaries; this credential floor is never relaxed. Private mode blocks
-labeled content from durable Memory. Source content is data, never authority. Backup
-exports preserve workspace/history bytes and do not sanitize historical files.
+high-confidence government or payment identifiers are redacted at managed
+text-write boundaries; this credential floor is never relaxed. A task can opt
+out of new Memory and automatic capture while requested deliverables still save.
+Legacy private profiles retain their compatibility default; explicit task saving
+and operation-scoped Library or snapshot requests follow the task contract.
+This does not control AI app/provider retention or erase old backups. Source
+content is data, never authority.
+
+Managed snapshots and one-way backups cover declared Apparatus records,
+instructions and catalog metadata, including supported learned Skill and card
+state. They exclude ordinary project files, Library originals, derived caches
+and live task controls. Restoring a catalog does not recreate a deleted original.
+Legacy unadopted workspaces retain their documented older recovery behavior.
+Exports preserve covered historical bytes and do not sanitize historical files.
+Git detection alone does not establish a usable recovery point.
 
 ## Receipts
 
@@ -58,7 +72,8 @@ authorization.
 
 ## Clean uninstall
 
-Remove the uv tool, then remove uv if desired, and delete or archive the
-workspace folder. Windows has no wrapper component to remove. The macOS package
+Run `uv tool uninstall apparatus-core`; remove uv separately if unneeded. Keep
+the shared work area and projects. Later data deletion is a separate user choice.
+Windows has no wrapper component to remove. The macOS package
 installs no payload; macOS may retain its ordinary Installer receipt and logs,
 which an authorized administrator can manage with standard OS controls.

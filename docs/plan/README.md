@@ -13,6 +13,8 @@ PR-38 implements R4a: portable Skill files, migration, checks and recovery.
 PR-39 implements R5: task-first welcome and everyday work, independently of R4b.
 PR-40 implements R6: economical native work and selective prose editing.
 PR-41 implements R7: draft and review-bound adoption of learned Skills.
+PR-46 implements R11 installer routing and explicit adoption; final delivery
+integrates PR-45 and retains separate native setup/release evidence.
 Native discovery adapters and runtime evidence remain planned.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.

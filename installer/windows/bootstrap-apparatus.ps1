@@ -5,7 +5,10 @@ param(
     [string] $Path,
 
     [Parameter()]
-    [switch] $DryRun
+    [switch] $DryRun,
+
+    [Parameter()]
+    [switch] $Adopt
 )
 
 Set-StrictMode -Version Latest
@@ -37,7 +40,7 @@ if ([string]::IsNullOrWhiteSpace($UserProfile) -or -not [IO.Path]::IsPathRooted(
 
 try {
     $Target = if ([string]::IsNullOrWhiteSpace($Path)) {
-        "C:\Projects\Apparatus"
+        "C:\Projects"
     } elseif ([IO.Path]::IsPathRooted($Path)) {
         [IO.Path]::GetFullPath($Path)
     } else {
@@ -88,7 +91,7 @@ try {
 
 $Separators = [char[]] @([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
 $Components = $Target.Split($Separators, [StringSplitOptions]::RemoveEmptyEntries)
-if ($Components | Where-Object { $_ -match '^(?i:OneDrive)(?:\s*-.*)?$' }) {
+if ($Components | Where-Object { $_ -cmatch '^(?i:OneDrive)(?:\s*-.*)?$' }) {
     $TargetSafe = $false
     $TargetReason = "blocked: the location is inside OneDrive"
 }
@@ -201,39 +204,6 @@ function Test-ManagedPython {
         Select-Object -First 1)
 }
 
-function Test-WorkspacePresent {
-    if (-not (Test-Path -LiteralPath $Target -PathType Container)) { return $false }
-    $RequiredFiles = @(
-        "AGENTS.md", "CLAUDE.md", "Welcome.md",
-        ".cursor\rules\apparatus.mdc", ".github\copilot-instructions.md",
-        "System\README.md", "System\profile.yaml", "System\ignore",
-        "System\guidance\model-guidance.md",
-        "System\policy\private.md", "System\policy\standard.md",
-        "System\procedures\welcome.md",
-        "System\procedures\produce-deliverable.md",
-        "System\procedures\research-and-summarize.md",
-        "System\procedures\review-against-checklist.md",
-        "System\procedures\weekly-review.md"
-    )
-    $RequiredDirectories = @(
-        "Goals", "Decisions", "Projects", "Library", "Deliverables",
-        "Memory\People", "Memory\Facts", "System\receipts"
-    )
-    foreach ($Relative in $RequiredFiles) {
-        $Candidate = Join-Path $Target $Relative
-        if (-not (Test-Path -LiteralPath $Candidate -PathType Leaf) -or -not (Test-ReparseBoundary $Candidate)) {
-            return $false
-        }
-    }
-    foreach ($Relative in $RequiredDirectories) {
-        $Candidate = Join-Path $Target $Relative
-        if (-not (Test-Path -LiteralPath $Candidate -PathType Container) -or -not (Test-ReparseBoundary $Candidate)) {
-            return $false
-        }
-    }
-    return $true
-}
-
 function Write-State([string] $Step, [string] $State) {
     Write-Output ("  {0,-18} {1}" -f ($Step + ":"), $State)
 }
@@ -247,9 +217,10 @@ if ($DryRun) {
     Write-State "Target safety" $(if ($TargetSafe) { "present ($Target; $TargetReason)" } else { "missing ($Target; $TargetReason)" })
     Write-State "uv" $(if ($null -ne $UvPath) { "present" } else { "missing (install planned)" })
     Write-State "Managed Python" $(if (Test-ManagedPython) { "present" } else { "missing (install planned)" })
-    Write-State "Git" $(if ($null -ne $GitPath) { "present" } else { "missing (snapshots unavailable; continue planned)" })
+    Write-State "Git" $(if ($null -ne $GitPath) { "present" } else { "missing (capability unconfirmed; continue planned)" })
     Write-State "Apparatus tool" $(if (Test-Path -LiteralPath $ApparatusBin -PathType Leaf) { "present (upgrade planned)" } else { "missing (install planned)" })
-    Write-State "Workspace" $(if (-not $TargetSafe) { "missing (blocked until a safe target is chosen)" } elseif ($TargetIsUnc) { "missing (state inspection deferred; non-destructive init planned)" } elseif (Test-WorkspacePresent) { "present (init skip planned)" } else { "missing (non-destructive init planned)" })
+    Write-State "Workspace" $(if (-not $TargetSafe) { "missing (blocked until a safe target is chosen)" } elseif ($TargetIsUnc) { "planned (UNC inspection deferred; core validation and repair)" } else { "planned (core validation and repair; existing nonempty folders require -Adopt)" })
+    if ($Adopt) { Write-State "Adoption" "planned (explicitly requested)" }
     Write-State "Doctor" $(if ($TargetSafe) { "planned (report verification follows)" } else { "planned after target repair" })
     Write-State "Network" "planned only for missing/upgrade steps from approved sources"
     return
@@ -338,7 +309,7 @@ if (Test-ManagedPythonReady) {
 if ($null -ne $GitPath) {
     Write-Output "Git is present; snapshots can be checked."
 } else {
-    Write-Output "Git was not found. Setup will continue and doctor will record snapshots as unavailable."
+    Write-Output "Git was not confirmed by the initial probe. Doctor will report actual snapshot capability."
 }
 
 if (Test-Path -LiteralPath $ApparatusBin -PathType Leaf) {
@@ -372,12 +343,15 @@ $WindowsDirectory = [IO.Directory]::GetParent($SystemDirectory).FullName
 if (-not $ControlledPath.Contains($WindowsDirectory)) { $ControlledPath.Add($WindowsDirectory) }
 $env:PATH = $ControlledPath -join ";"
 
-if (Test-WorkspacePresent) {
-    Write-Output "The existing workspace is intact; init is not needed."
-} else {
-    Write-Output "Creating or repairing the workspace without replacing existing files..."
-    & $ApparatusBin init $Target
-    if ($LASTEXITCODE -ne 0) { Stop-Setup "The workspace could not be created or repaired." }
+Write-Output "Validating the chosen work area and repairing recognized shipped content..."
+$InitOptions = @()
+if ($Adopt) { $InitOptions += "--adopt" }
+& $ApparatusBin init $Target @InitOptions
+if ($LASTEXITCODE -ne 0) {
+    [Console]::Error.WriteLine("If core requests adoption and you want to enroll this folder, run the released script:")
+    $QuotedTarget = "'" + $Target.Replace("'", "''") + "'"
+    [Console]::Error.WriteLine("  .\bootstrap-apparatus.ps1 -Path $QuotedTarget -Adopt")
+    Stop-Setup "Core init stopped. Follow its diagnostic; check target permissions if it is not writable. Existing deployment may remain when a later snapshot failed."
 }
 
 $Report = Join-Path $Target "System\machine-report.md"
@@ -396,22 +370,33 @@ if (-not (Test-ReportBoundary) -or -not (Test-Path -LiteralPath $Report -PathTyp
     Stop-Setup "The workspace report path changed during doctor."
 }
 $ReportText = Get-Content -LiteralPath $Report -Raw -Encoding UTF8
-if ($ReportText -notmatch '(?m)^uv: ".+"\r?$') {
+$ReportLines = @($ReportText -split "`r?`n")
+if ($ReportLines.Count -lt 3 -or $ReportLines[0] -cne '---') {
+    Stop-Setup "Doctor returned malformed report frontmatter."
+}
+$ReportEnd = [Array]::IndexOf($ReportLines, '---', 1)
+if ($ReportEnd -lt 2) { Stop-Setup "Doctor returned empty or unclosed report frontmatter." }
+$ReportFields = $ReportLines[1..($ReportEnd - 1)]
+$UvFields = @($ReportFields | Where-Object { $_ -cmatch '^uv:' })
+if ($UvFields.Count -ne 1 -or $UvFields[0] -cnotmatch '^uv: "[^"\p{C}]+"$') {
     Stop-Setup "Doctor did not confirm the installed user-scope toolchain."
 }
-if ($ReportText -notmatch '(?m)^  at_risk: false\r?$') {
+$RiskFields = @($ReportFields | Where-Object { $_ -cmatch '^  at_risk:' })
+if ($RiskFields.Count -ne 1 -or $RiskFields[0] -cne '  at_risk: false') {
     Stop-Setup "Doctor reported that the workspace is inside a sync engine."
 }
-if ($null -eq $GitPath) {
-    if ($DoctorStatus -notin @(0, 1)) { Stop-Setup "Doctor could not complete the workspace check." }
-    if ($ReportText -notmatch '(?m)^git: null\r?$' -or $ReportText -notmatch '(?m)^snapshots: "unavailable"\r?$') {
-        Stop-Setup "Doctor did not record the expected git-absent snapshot state."
-    }
-} else {
+$GitFields = @($ReportFields | Where-Object { $_ -cmatch '^git:' })
+$SnapshotFields = @($ReportFields | Where-Object { $_ -cmatch '^snapshots:' })
+if ($GitFields.Count -ne 1 -or $SnapshotFields.Count -ne 1) {
+    Stop-Setup "Doctor returned missing or duplicate capability fields. Rerun doctor and inspect its report."
+}
+if ($GitFields[0] -ceq 'git: null' -and $SnapshotFields[0] -ceq 'snapshots: "unavailable"') {
+    if ($DoctorStatus -notin @(0, 1)) { Stop-Setup "Doctor could not complete capability detection." }
+    Write-Output "Snapshots are unavailable. Make Git available to your AI app, then rerun setup."
+} elseif ($GitFields[0] -cmatch '^git: "[^"\p{C}]+"$' -and $SnapshotFields[0] -ceq 'snapshots: "available"') {
     if ($DoctorStatus -ne 0) { Stop-Setup "Doctor found a blocked or incomplete toolchain." }
-    if ($ReportText -notmatch '(?m)^git: ".+"\r?$' -or $ReportText -notmatch '(?m)^snapshots: "available"\r?$') {
-        Stop-Setup "Doctor did not confirm the expected snapshot state."
-    }
+} else {
+    Stop-Setup "Doctor returned inconsistent Git and snapshot capability fields. Rerun doctor and inspect its report."
 }
 
-Write-Output "Apparatus is ready at $Target. Open Welcome.md with your AI app to begin."
+Write-Output "Apparatus is ready at $Target. Open this work area in your AI app and ask for your actual task; Welcome.md explains the available help."
