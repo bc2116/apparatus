@@ -1,18 +1,14 @@
 # First-task certification checklist — certification incomplete
 
-Prepared 2026-09-06 for PR47. Final certification now requires PR48, the
-feature-profile external path-alias repair. Re-run required cases against one
-repaired common build; retain the first Cursor run as diagnostic evidence only.
-The earlier diagnostic baseline is PR46 core commit
-`78e09ece6225deef9f84e36f42eec3b451aeed84`, version `0.0.1`. Integrated tests and
-local package parity passed; actual app acceptance is incomplete. The shared
-payload SHA-256 is
-`24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`;
-the local wheel SHA-256 is
-`04d6dfa6a26e513e5955c72d1d17465126d6797829f90300cf59fd5ae7f0dca1`.
-These identify a tested local pre-alpha build, not a signed public release.
-Preserve held PR24 and its older evidence separately. The [matrix](matrix.md)
-records actual run progress; checklist instructions alone prove no result.
+Prepared 2026-09-06 for PR47. The latest observed common build includes PR49
+and PR48: core `1e50521f1aae41759123cc21f1a9f91c9f89a6a9`, version `0.0.1`,
+payload SHA-256 `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`,
+and wheel SHA-256 `84dea9eb17fcaea356013bb673dfbcc90677962eb2011c00815094327c71b956`.
+Only bounded shared-root smokes are being recorded on that build. Earlier PR46
+and PR48 failures, fragments and cache workarounds remain dated observations;
+they do not complete this checklist. No signed release or app certification is
+established. Preserve held PR24 separately. The [matrix](matrix.md) records
+actual progress; checklist instructions alone prove no result.
 
 Use the same final core version, commit and payload SHA-256 in every app run.
 Record app **and variant**, exact version, OS/version, date, native permission

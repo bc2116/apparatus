@@ -1,13 +1,14 @@
 # PR-47 — Prove the reworked first-task experience
 
-R12 replaces PR-24's held checklist. Final certification depends on PR-48
-(feature-profile external path aliases), following PR-46 and all preceding
-rework. The first PR-46 Cursor run exposed the independently reproduced defect;
-retain that run as diagnostic evidence and use a repaired common baseline for
-final certification. Do not relabel the earlier snapshot failure as a pass. Preserve the held worktree and all historical evidence;
-it establishes only the earlier payload's behavior. This contract can be
-prepared now, but neither unit tests nor native metadata discovery satisfy its
-app certification requirement.
+R12 replaces PR-24's held checklist. Final certification depends on PR-49's
+cache error diagnostic repair and PR-48's feature-profile external path alias
+repair, following PR-46 and preceding rework. The first PR-46 Cursor run exposed
+the alias defect. Later observations on the PR-48 build exposed misleading cache
+error wording and a Codex cache workaround. Preserve these dated observations;
+use one final common baseline for certification. Neither failed attempts nor
+workaround runs become clean passes after a source repair. Preserve the held
+PR-24 worktree and historical evidence; they establish only that earlier payload's
+behavior. Unit tests and native metadata discovery do not satisfy app acceptance.
 
 ## Deliverables
 

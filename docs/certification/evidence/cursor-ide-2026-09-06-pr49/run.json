@@ -1,0 +1,36 @@
+{
+  "status": "Shared-root first-task smoke only; not certified",
+  "date": "2026-09-06",
+  "timezone": "America/Los_Angeles",
+  "ui_time": "12:40 PM",
+  "seconds": 48,
+  "app": "Cursor IDE Agent",
+  "app_version": "3.18.25",
+  "os": "macOS 27.0",
+  "model": "Sol",
+  "effort": "Medium",
+  "delegation": "none; single assistant",
+  "core_commit": "1e50521f1aae41759123cc21f1a9f91c9f89a6a9",
+  "wheel_sha256": "84dea9eb17fcaea356013bb673dfbcc90677962eb2011c00815094327c71b956",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "cache_override": "Explicit APPARATUS_HOME under operator-evidence/cursor-ide/cache; outside work area, inside fixture",
+  "saving_task_id": "71e39d0f-f7f8-4c19-9dca-4a78c3a448a4",
+  "operator_ui_observation": "Saved 27-line plan; snapshot with explicit cache prefix returned no changes since last snapshot. Final reply reported source citation, venue uncertainty, missing details and optional Library offer. Nine file reads observed, but exact canonical Skill body target was not expanded or verified.",
+  "direct_file_review": "Two sessions and 12 places each, break after 45 minutes, venue undecided; break duration and total session length explicitly unknown; direct source links.",
+  "files": {
+    "project-a/source.md": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+    "project-a/workshop-plan.md": "2b0eabe1ddc03038898c82a3eff5b21459156e020bd8aab0ffc0f2bbaa5d66bc"
+  },
+  "preservation": {
+    "preexisting_file_count": 67,
+    "changed_or_missing_preexisting_files": [],
+    "preexisting_project_git_file_count": 28,
+    "changed_or_missing_preexisting_project_git_files": []
+  },
+  "limits": [
+    "No Library acceptance follow-up.",
+    "Bound-project opening and remaining complete cases not run on this build.",
+    "Explicit fixture cache means default cache environment is not tested.",
+    "No canonical Skill body invocation claim inferred from earlier build or generic finished-workflow UI claim."
+  ]
+}

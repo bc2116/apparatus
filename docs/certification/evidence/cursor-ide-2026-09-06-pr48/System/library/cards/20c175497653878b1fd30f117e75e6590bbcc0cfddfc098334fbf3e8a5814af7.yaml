@@ -1,0 +1,18 @@
+schema: apparatus/library-card@v0
+source: project-a/facilitation-guide.md
+summary: A practical guide for preparing, facilitating, and following up on a two-session
+  workshop with 12 places per session and a water break after 45 minutes. It provides
+  reusable checklists and a session flow while clearly leaving the venue, purpose,
+  audience, schedule, staffing, agenda, materials, registration, communications, and
+  accessibility arrangements to be confirmed.
+topics:
+- workshop facilitation
+- session planning
+- facilitator checklist
+- participant capacity
+- workshop logistics
+- accessibility
+- follow-up
+source_sha256: 1ee49830d0d5ad9d1bcc4aea80067df3e88619bd3b418a7598b0a7d7d4bbf80e
+text_sha256: 1ee49830d0d5ad9d1bcc4aea80067df3e88619bd3b418a7598b0a7d7d4bbf80e
+extractor_version: '1'

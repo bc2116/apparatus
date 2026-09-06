@@ -1,0 +1,426 @@
+{
+  "classification": "partial diagnostic observations; no app certified; PR49 now required final baseline",
+  "date": "2026-09-06",
+  "app": "Claude Code CLI",
+  "version": "2.1.263",
+  "os": "macOS27.0",
+  "requested_model": "sonnet",
+  "resolved_model": "claude-sonnet-5",
+  "requested_effort": "medium",
+  "core_commit": "7c0c6c4252bf948a0e4dd32decfb35cf308e963d",
+  "wheel_sha256": "5b3f11834131f564d0c521d5dfb77a39c9da4d08d13dd50e11bd39c587c02936",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "mode": "print; safe-mode portable file fallback; restricted; dontAsk; no permission prompts; no session persistence",
+  "preserved_original_hashes": {
+    "project-a/source.md": {
+      "before": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+      "after": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248"
+    },
+    "project-a/local-note.md": {
+      "before": "dd6bcd7ee1d79ac1e4750f6b95ed88682a7a8f54f00d49d3474baf45a77a6939",
+      "after": "dd6bcd7ee1d79ac1e4750f6b95ed88682a7a8f54f00d49d3474baf45a77a6939"
+    },
+    "project-a/AGENTS.md": {
+      "before": "b956717a1b1d40fe7955540f35957a74baa003cab42b0c4f252a7948e75e8063",
+      "after": "b956717a1b1d40fe7955540f35957a74baa003cab42b0c4f252a7948e75e8063"
+    },
+    "AGENTS.md": {
+      "before": "96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8",
+      "after": "96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8"
+    },
+    "System/profile.yaml": {
+      "before": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2",
+      "after": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2"
+    }
+  },
+  "root_git_created": false,
+  "semantic_failures": {
+    "02-root-deliverable": "Final reply says a 45-minute water break, although the saved file correctly says a break after 45 minutes.",
+    "03-bound-project": "Final reply falsely claims the untracked deliverable is captured via project Git.",
+    "06-no-save-snapshot": "Final reply again falsely portrays Git as backup for untracked files and makes an unsupported generalization about every snapshot mechanism."
+  },
+  "scope_limits": [
+    "First Library request used unset APPARATUS_HOME and wrote synthetic workspace cache outside the assigned fixture. That cache preimage was not inventoried. No unrelated caches were inspected or deleted.",
+    "From call 07 onward APPARATUS_HOME points to the operator-owned fixture cache; earlier no-save cases are not relabeled as fully contained.",
+    "Native built-in read-only Bash ls/cat commands ran without individual custom allow rules; exact-only subprocess enforcement is not claimed.",
+    "Parent run-directory Glob/Bash requests in calls 03 and 05 were denied natively; no added grant or bypass.",
+    "No learned draft/adoption or Memory Fact creation/correction ran; Memory remained unchanged.",
+    "No full restore/export, stale/ignored/partial-extraction matrix or quiet/redaction/repair case ran.",
+    "Offer decline and acceptance used different target files in one work area, not fresh whole-work-area replicas.",
+    "Safe mode tested direct canonical-file fallback, not native Skill discovery.",
+    "Recall grounding establishes retrieved source evidence; the assistant claim that recall independently verifies card discoverability is not established by that output."
+  ],
+  "execution": {
+    "calls": 10,
+    "model_call_seconds": 407.95,
+    "timeouts": 0,
+    "fixture_isolation_corrections": 1,
+    "retry_calls": 0,
+    "stopped_after": "single missing-original case"
+  },
+  "artifacts_sha256": {
+    "cards/35211ca3bf279cba8cc8516e418e9a0ed4e4a9ba830382d5525cc16d4b3fac68.yaml": "d0f90e098885ef2eae480b933e211675e855c4c65181bb36029d2d3edf18ea42",
+    "project-a/facilitator-guide.md": "cdac818026b263fe0011eb399ab8d046a3fe0d512dbde876aff5e572f626c982",
+    "project-a/card-input.json": "f436ec104a0dd245e7b207938ca17bd37d2dbec6f9667aac0809798583399f91",
+    "project-a/source.md": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+    "project-a/library-facilitator-guide.moved.md": "69fabb0eed27197ac2862ece0a9e9431f3843a060ff938b3cd8f989b79ddafdd",
+    "project-a/workshop-plan-bound.md": "d591eb79bf606011c49fe529e52dab45570c51d94aef73b69135b083c2089bcf",
+    "project-a/no-memory-plan.md": "11d4032539dbcaf0dae6f8caf8b436ec31daa440d453cf87273d87664cbdf81d",
+    "project-a/workshop-plan.md": "11d4032539dbcaf0dae6f8caf8b436ec31daa440d453cf87273d87664cbdf81d"
+  },
+  "calls": [
+    {
+      "case": "01-task-start",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 10.9,
+      "completed_utc": "2026-09-06T19:14:39.611239+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash",
+        "Read"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS task start WORKAREA --save-memory",
+          "is_error": false,
+          "result": "{\"task_id\": \"17b2dd99-6d86-4a88-bd61-5a3bda39eb20\", \"memory\": \"save\"}"
+        }
+      ],
+      "final_reply": "Task ID: `17b2dd99-6d86-4a88-bd61-5a3bda39eb20` (memory: save)",
+      "permission_denials": []
+    },
+    {
+      "case": "02-root-deliverable",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 46.27,
+      "completed_utc": "2026-09-06T19:16:03.336441+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash",
+        "Read",
+        "Write"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 check WORKAREA",
+          "is_error": false,
+          "result": "check passed: 10 record(s) checked; 0 path(s) ignored\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 recall WORKAREA workshop",
+          "is_error": true,
+          "result": "Exit code 1\nNothing from your Library has been ingested yet. Run apparatus library ingest first."
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 snapshot WORKAREA",
+          "is_error": false,
+          "result": "no changes since the last snapshot"
+        }
+      ],
+      "final_reply": "Saved: `project-a/workshop-plan.md`.\n\n**Checks performed:**\n- `apparatus check` on the work area: passed (10 records checked, 0 ignored).\n- `apparatus recall \u2026 workshop`: no existing Memory/Library evidence on this topic (Library not yet ingested), so nothing to reconcile or cite beyond the project source.\n- `apparatus snapshot`: no changes since the last snapshot (managed-state snapshots don't cover project files anyway, so this is expected).\n- Verified `project-a`'s workspace binding (`.apparatus/workspace.yaml` \u2192 `System/workspace.yaml` id match) before using this work area's canon/Skill.\n- `project-a/local-note.md` and `project-a/AGENTS.md` (custom project instructions) left untouched.\n\n**Material limits (from `project-a/source.md`):** the source establishes only two sessions of 12 places each and a 45-minute water break; it explicitly leaves the venue undecided, and it does not establish overall session duration/times, dates, curriculum, facilitators, or registration process \u2014 I noted these gaps in the plan rather than inventing them.",
+      "permission_denials": []
+    },
+    {
+      "case": "03-bound-project",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 79.49,
+      "completed_utc": "2026-09-06T19:19:06.616030+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash",
+        "Glob",
+        "Grep",
+        "Read",
+        "Write"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 check WORKAREA/project-a",
+          "is_error": false,
+          "result": "check passed: 10 record(s) checked; 0 path(s) ignored\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 snapshot WORKAREA/project-a",
+          "is_error": false,
+          "result": "no changes since the last snapshot"
+        }
+      ],
+      "final_reply": "Task complete. Summary:\n\n**Binding verified**: `project-a/AGENTS.md` points to `.apparatus/workspace.yaml` (`workspace_id: 63c17f48-d0f7-4b16-a58c-3ab4e0cffa65`), which matches `System/workspace.yaml` in the shared workspace root \u2014 confirmed before reading the shared canon (`AGENTS.md`) and the `apparatus-produce-deliverable` Skill. `apparatus check` on the project also passed (10 records, 0 issues).\n\n**Saved file**: `project-a/workshop-plan-bound.md` \u2014 a finished plan citing `source.md:3`, correctly distinguishing that the water break comes *after* 45 minutes (not that it lasts 45 minutes), noting the venue is undecided, and listing the same unresolved gaps (break duration, total session length, dates/times, curriculum, facilitators, registration/eligibility).\n\n**Preserved unchanged**: `source.md`, `local-note.md`, the project's custom instructions in `AGENTS.md`, and the previous `workshop-plan.md`.\n\n**Snapshot**: Ran the allowed `snapshot` command; it reported \"no changes since the last snapshot\" \u2014 expected, since managed-state snapshots exclude project files/deliverables by design, so this new file isn't captured there (it's captured via project git instead, which shows it as untracked).\n\n**Limitations**: I did not run `apparatus task show` or any command outside the two explicitly allowed calls (`check`, `snapshot`), so I relied on the task ID as given rather than independently confirming its Memory (save/no-save) setting via that command \u2014 the deliverable was saved on the assumption it's the stated \"saving task.\" No questionnaire, delegation, MCP, browser, network, or global state was used.",
+      "permission_denials": [
+        {
+          "tool_name": "Glob",
+          "tool_input": {
+            "pattern": "**/workshop-plan-bound*",
+            "path": "RUN"
+          }
+        }
+      ]
+    },
+    {
+      "case": "04-no-save",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 34.72,
+      "completed_utc": "2026-09-06T19:20:28.441991+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash",
+        "Glob",
+        "Read",
+        "Write"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS task start WORKAREA --no-memory",
+          "is_error": false,
+          "result": "{\"task_id\": \"2f42208c-7ae5-4eb6-8ad7-4850d252f2ea\", \"memory\": \"no-save\"}"
+        }
+      ],
+      "final_reply": "No goal updates, Library offers, snapshots, or Memory writes are being made per the no-memory task rules.\n\n**Task ID:** `2f42208c-7ae5-4eb6-8ad7-4850d252f2ea` (no-memory)\n\n**Saved:** `project-a/no-memory-plan.md` \u2014 cites `project-a/source.md`, preserves the venue as undecided, and lists honest unknowns (venue, total duration/times, dates, curriculum/facilitator, registration/eligibility details).\n\n**Not retained (per no-memory task rules):** no Memory/Decisions/Facts entries, no goal updates, no learned-Skill capture, no Library card or automatic extraction/index, no automatic snapshot, and no Library offer was made. `local-note.md`, `workshop-plan.md`, `workshop-plan-bound.md`, and all existing Memory/goals/Library/Skill state were left untouched. Note this covers Apparatus-managed state only \u2014 I have no ability to promise or control retention by any underlying model/infrastructure provider.",
+      "permission_denials": []
+    },
+    {
+      "case": "05-no-save-library",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 50.52,
+      "completed_utc": "2026-09-06T19:21:43.134044+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash",
+        "Glob",
+        "Read"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task 2f42208c-7ae5-4eb6-8ad7-4850d252f2ea library add WORKAREA project-a/no-memory-plan.md --requested",
+          "is_error": false,
+          "result": "Registration: added project-a/no-memory-plan.md\nExtraction: scanned=1, ignored=0, extracted=1, unchanged=0, no_text=0, unsupported=0, error=0\nCard: absent; card generation requires the current assistant."
+        },
+        {
+          "command": "APPARATUS --task 2f42208c-7ae5-4eb6-8ad7-4850d252f2ea library ingest WORKAREA --requested",
+          "is_error": false,
+          "result": "Library cache: DEFAULT_APPARATUS_HOME/library/85be97c26e8a\nLibrary ingest: scanned=1, ignored=0, extracted=0, unchanged=1, no_text=0, unsupported=0, error=0\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        },
+        {
+          "command": "APPARATUS --task 2f42208c-7ae5-4eb6-8ad7-4850d252f2ea recall WORKAREA workshop",
+          "is_error": false,
+          "result": "Status: grounded\nQuestion: workshop\nThreshold: 0.0\nGenerated at: 2026-09-06T19:21:28Z\nLibrary coverage: complete\nEvidence:\n- project-a/no-memory-plan.md (0.000001): # Practice [Workshop] Plan  Source: `project-a/source.md`  ## Sessions  - Two sessions, 12\u2026\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        }
+      ],
+      "final_reply": "All three commands ran successfully. Here's the report:\n\n**Library registration** \u2014 `project-a/no-memory-plan.md` was added to this work area's Library and extracted via the `--requested` exception (registration=added, extraction=1). No card was generated (none requested, and card generation is excluded under `--requested`).\n\n**Ingest confirmation** \u2014 the follow-up `library ingest` scan confirmed the extraction was already current (unchanged=1), nothing new needed.\n\n**Recall \u2014 what the workshop source establishes:**\n- Two sessions, 12 places each (24 places total)\n- Water break after 45 minutes in each session\n\n**What it explicitly does not establish:** venue/location; total session duration or start/end times; dates or times; topic/curriculum, facilitator(s), or materials; registration process or eligibility for the 12 places.\n\nCitation: `project-a/no-memory-plan.md`, sourced from `project-a/source.md` (per its own header), recall status \"grounded,\" Library coverage \"complete.\"\n\n**Scope retained/not retained:** This task remains no-save (`memory: no-save`). Only the requested Library registration/extraction occurred \u2014 no card, no Memory update, no learned Skill, no activity note, and no snapshot were created, per your instruction. I'm not making any promise about what the provider's systems may separately retain beyond this workspace's declared managed state.",
+      "permission_denials": [
+        {
+          "tool_name": "Bash",
+          "tool_input": {
+            "command": "ls -la RUN/ 2>&1",
+            "description": "List apparatus root directory contents"
+          }
+        }
+      ]
+    },
+    {
+      "case": "06-no-save-snapshot",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 18.06,
+      "completed_utc": "2026-09-06T19:22:49.595565+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task 2f42208c-7ae5-4eb6-8ad7-4850d252f2ea snapshot WORKAREA --requested",
+          "is_error": false,
+          "result": "Snapshot saved. Snapshot id: 15254f95c96a\nSaved Apparatus Memory, goals and settings. Project files and Library originals are not included."
+        }
+      ],
+      "final_reply": "The command ran and produced one managed snapshot:\n\n- **Snapshot id:** `15254f95c96a`\n- **Scope:** Apparatus Memory, goals, and settings only.\n- **Not included:** ordinary project files and Library originals \u2014 this snapshot does not back those up.\n- Untracked Git files are also not covered by this or any snapshot mechanism \u2014 Git itself is the only backup for those.\n\nNo other files were changed, no cards/Memory/skills/goals/activity/notes were created, no Library additions were offered, and no parent directories were browsed \u2014 this was the single requested command only. This is a local managed snapshot; it does not give you any control over retention on the model/service provider side.",
+      "permission_denials": []
+    },
+    {
+      "case": "07-library-offer",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 53.06,
+      "completed_utc": "2026-09-06T19:25:49.225737+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash",
+        "Read",
+        "Write"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 check WORKAREA",
+          "is_error": false,
+          "result": "check passed: 12 record(s) checked; 0 path(s) ignored\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 snapshot WORKAREA",
+          "is_error": false,
+          "result": "no changes since the last snapshot"
+        }
+      ],
+      "final_reply": "Saved `project-a/facilitator-guide.md`, a short reusable facilitator's guide built from `project-a/source.md` and the existing bound plan.\n\n**Content:** capacity (2 sessions \u00d7 12 places), the 45-minute water-break timing, and the unresolved venue are cited to `source.md:3`; suggested opening/check-in/feedback activities are clearly marked optional and not from the source; venue, break duration, total length, dates, curriculum, facilitator, and registration process are left unresolved as unknowns to confirm each time.\n\n**Preserved unchanged:** `local-note.md`, `source.md`, `workshop-plan.md`, `workshop-plan-bound.md`, `no-memory-plan.md`, and `project-a/AGENTS.md`.\n\n**Material limits:** the snapshot command reported \"no changes since the last snapshot\" \u2014 snapshots cover managed workspace state only and exclude project files, so this new deliverable isn't captured there (expected behavior, not a failure).\n\nSince this is a finished, reusable deliverable in a saving task: would you like me to register it as a Library source (`apparatus library add`) for a discoverable card, or is it fine left as a project file only?",
+      "permission_denials": []
+    },
+    {
+      "case": "08-decline",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 48.28,
+      "completed_utc": "2026-09-06T19:27:37.198391+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Glob",
+        "Read",
+        "Write"
+      ],
+      "native_cli_results": [],
+      "final_reply": "Done. Two things:\n\n1. **facilitator-guide.md** \u2014 left as-is, project file only. Not added to the Library, no card created, nothing delayed.\n2. **project-a/library-facilitator-guide.md** \u2014 created as a new reusable guide from `source.md`, structured with clearly labeled sections: **Facts from the source** (cited to `source.md:3` \u2014 24 total places across two sessions, water break starts at 45 minutes, venue undecided), **Suggestions** (not in the source, marked as adaptable ideas), and **Unknown/left open** (venue, break duration, total session length, dates, curriculum, registration). All existing project files (`source.md`, `local-note.md`, `workshop-plan.md`, `workshop-plan-bound.md`, `no-memory-plan.md`, `facilitator-guide.md`, `AGENTS.md`) are untouched.\n\nThis is a saving task, so per the canon I'll make one brief offer: would you like `project-a/library-facilitator-guide.md` added to the Library? No action needed either way \u2014 the file is already finished and saved.",
+      "permission_denials": []
+    },
+    {
+      "case": "09-accept-card",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 53.5,
+      "completed_utc": "2026-09-06T19:29:28.388052+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash",
+        "Read",
+        "Write"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 library add WORKAREA project-a/library-facilitator-guide.md",
+          "is_error": false,
+          "result": "Registration: added project-a/library-facilitator-guide.md\nExtraction: scanned=1, ignored=0, extracted=1, unchanged=0, no_text=0, unsupported=0, error=0\nCard: absent; card generation requires the current assistant."
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 library ingest WORKAREA",
+          "is_error": false,
+          "result": "Library cache: OPERATOR_EVIDENCE/cache/library/85be97c26e8a\nLibrary ingest: scanned=2, ignored=0, extracted=1, unchanged=1, no_text=0, unsupported=0, error=0\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 library card WORKAREA project-a/library-facilitator-guide.md",
+          "is_error": false,
+          "result": "{\"source\": \"project-a/library-facilitator-guide.md\", \"card_status\": \"absent\", \"evidence_status\": \"extracted\", \"source_sha256\": \"69fabb0eed27197ac2862ece0a9e9431f3843a060ff938b3cd8f989b79ddafdd\", \"text_sha256\": \"69fabb0eed27197ac2862ece0a9e9431f3843a060ff938b3cd8f989b79ddafdd\", \"extractor_version\": \"1\", \"coverage\": \"Available extracted text; extraction success does not establish complete page, image or table coverage.\", \"text_artifact\": \"project-a/library-facilitator-guide.moved.md\"}"
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 library card WORKAREA project-a/library-facilitator-guide.md --stdin < project-a/card-input.json",
+          "is_error": false,
+          "result": "{\"source\": \"project-a/library-facilitator-guide.md\", \"card_status\": \"current\", \"status\": \"written\"}"
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 recall WORKAREA workshop",
+          "is_error": false,
+          "result": "Status: grounded\nQuestion: workshop\nThreshold: 0.0\nGenerated at: 2026-09-06T19:29:21Z\nLibrary coverage: complete\nEvidence:\n- project-a/library-facilitator-guide.md (0.000002): # Practice [Workshop] \u2014 Facilitator's Guide (for a future organizer)  Source: `project-a\u2026\n- project-a/no-memory-plan.md (0.000001): # Practice [Workshop] Plan  Source: `project-a/source.md`  ## Sessions  - Two sessions, 12\u2026\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        }
+      ],
+      "final_reply": "All files preserved, `facilitator-guide.md` untouched and unregistered as instructed. Task complete:\n\n- **Registered & ingested**: `project-a/library-facilitator-guide.md` (original left in place, no copy/symlink made)\n- **Card written**: source-grounded summary + 8 topics, built only from the \"Facts from the source\" content (two 12-place sessions, 45-minute water break start, undecided venue) \u2014 the suggested activities section was excluded from facts, only noted contextually as labeled suggestions\n- **`facilitator-guide.md`**: left unregistered, per the earlier-decline\n- **Recall check**: confirms the new card is discoverable (`grounded` status, evidence includes `library-facilitator-guide.md`)",
+      "permission_denials": []
+    },
+    {
+      "case": "10-missing-original",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 13.15,
+      "completed_utc": "2026-09-06T19:30:54.574594+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tool_names_used": [
+        "Bash"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 library list WORKAREA --json",
+          "is_error": false,
+          "result": "[{\"source_path\": \"project-a/library-facilitator-guide.md\", \"availability\": \"missing\"}, {\"source_path\": \"project-a/no-memory-plan.md\", \"availability\": \"available\"}]"
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 library card WORKAREA project-a/library-facilitator-guide.md",
+          "is_error": true,
+          "result": "Exit code 1\n{\"source\": \"project-a/library-facilitator-guide.md\", \"card_status\": \"unavailable\", \"evidence_status\": \"unavailable\", \"reason\": \"missing\"}"
+        },
+        {
+          "command": "APPARATUS --task 17b2dd99-6d86-4a88-bd61-5a3bda39eb20 recall WORKAREA 'What suggested facilitator activities are established by project-a/library-facilitator-guide.md?'",
+          "is_error": false,
+          "result": "Status: abstained\nQuestion: What suggested facilitator activities are established by project-a/library-facilitator-guide.md?\nThreshold: 0.0\nGenerated at: 2026-09-06T19:30:48Z\nLibrary coverage: partial\n- project-a/library-facilitator-guide.md: missing\nEvidence: none\nNo matching evidence from the available sources. Check the listed sources and run Library ingest after repair.\nAnswers from elsewhere are not grounded recall.\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        }
+      ],
+      "final_reply": "## Result: Cannot cite \u2014 no grounded evidence available\n\n**Findings from the three commands:**\n\n1. **`library list --json`** \u2014 confirms `project-a/library-facilitator-guide.md` has `availability: \"missing\"`. The only other entry, `project-a/no-memory-plan.md`, is `available` (a distinct file for the other selected plan \u2014 not applicable here).\n\n2. **`library card ...`** \u2014 errored (exit 1) with `card_status: \"unavailable\"`, `evidence_status: \"unavailable\"`, `reason: \"missing\"`. The card itself carries no independent authority; it cannot substitute for the missing original.\n\n3. **`recall ...`** \u2014 status **abstained**. Library coverage is \"partial,\" the source is listed as `missing`, and evidence is `none`. The tool explicitly states: *\"No matching evidence from the available sources... Answers from elsewhere are not grounded recall.\"*\n\n**Conclusion:** The suggested facilitator activities from `project-a/library-facilitator-guide.md` **cannot be cited**. The original file is missing at its registered path, its library card holds no independent authority in that absence, and recall abstained due to lack of grounded evidence. No claim about the guide's suggested activities can be made. This is unrelated to `project-a/no-memory-plan.md`, which remains available but was not the subject of this query.",
+      "permission_denials": []
+    }
+  ],
+  "04-no-save-diff": {
+    "added": [
+      "System/tasks/2f42208c-7ae5-4eb6-8ad7-4850d252f2ea.yaml",
+      "project-a/no-memory-plan.md"
+    ],
+    "removed": [],
+    "changed": []
+  },
+  "05-no-save-library-diff": {
+    "added": [
+      "System/library/sources/6543c9c7d20490a158c97bd9448c1020d854db04f7035d9d3fada33a99d28bf7.yaml"
+    ],
+    "removed": [],
+    "changed": []
+  },
+  "06-no-save-snapshot-diff": {
+    "added": [
+      "System/receipts/2026-09-06-192244-snapshot.md",
+      "System/recovery/store/objects/0d/8a262185073f35a7e790df80acb274920bf4a1",
+      "System/recovery/store/objects/15/254f95c96a2c144698a81b6472b831e4990c5b",
+      "System/recovery/store/objects/25/ee9a54d440facfc323978de65ad1f599967d76",
+      "System/recovery/store/objects/41/6dfdd0c38143db9fd596e46cf7c9fc0375e6c7",
+      "System/recovery/store/objects/7e/ca7883f8ede2504003aa96e0fd9e2d9825f909",
+      "System/recovery/store/objects/ba/9f01e4861e3e568021a3a42a9ecd07f3b7ad25",
+      "System/recovery/store/objects/cb/1f7e3de5c3bc7d3acc9632e9c1999ab4f01eff"
+    ],
+    "removed": [],
+    "changed": [
+      "System/recovery/store/refs/heads/managed"
+    ]
+  },
+  "08-decline-diff": {
+    "added": [
+      "project-a/library-facilitator-guide.md"
+    ],
+    "removed": [],
+    "changed": []
+  },
+  "10-missing-fixture": {
+    "action": "moved registered original to unselected sibling; bytes preserved",
+    "original": "project-a/library-facilitator-guide.md",
+    "moved": "project-a/library-facilitator-guide.moved.md",
+    "sha256": "69fabb0eed27197ac2862ece0a9e9431f3843a060ff938b3cd8f989b79ddafdd"
+  },
+  "normalization": "Operator-supplied normalized CLI outcomes and final replies; paths use placeholders. Redundant extracted guide text is omitted from one result because exact bytes are included as an artifact. Tool invocation IDs are omitted. No raw JSONL or global app state is copied."
+}

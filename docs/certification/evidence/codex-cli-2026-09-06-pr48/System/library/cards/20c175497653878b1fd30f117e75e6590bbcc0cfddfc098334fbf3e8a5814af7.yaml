@@ -1,0 +1,15 @@
+schema: apparatus/library-card@v0
+source: project-a/facilitation-guide.md
+summary: 'A facilitation guide for two practice workshop sessions: each has up to
+  12 places and a water break after 45 minutes. It provides a preparation checklist
+  and session flow while explicitly leaving the venue, schedule, content, facilitator,
+  audience, registration, allocation, and logistics open until confirmed.'
+topics:
+- workshop facilitation
+- session planning
+- participant capacity
+- break scheduling
+- open logistics
+source_sha256: 2e6e0b2f93cf2e64809af8b9b7b01e7f725d4f1767170e2f988b40a7695fe000
+text_sha256: 2e6e0b2f93cf2e64809af8b9b7b01e7f725d4f1767170e2f988b40a7695fe000
+extractor_version: '1'

@@ -1,0 +1,134 @@
+{
+  "classification": "final49 first-root-task smoke only; no full app certification",
+  "date": "2026-09-06",
+  "app": "Claude Code CLI",
+  "version": "2.1.263",
+  "os": "macOS27.0",
+  "source_commit": "1e50521f1aae41759123cc21f1a9f91c9f89a6a9",
+  "wheel_sha256": "84dea9eb17fcaea356013bb673dfbcc90677962eb2011c00815094327c71b956",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "requested_model": "sonnet",
+  "resolved_model": "claude-sonnet-5",
+  "requested_effort": "medium",
+  "native_mode": "print, safe-mode direct file fallback, restricted, dontAsk, permission-prompts none, no-session-persistence, strict empty MCP, noChrome, no delegation or bypass",
+  "cache_override": "OPERATOR_EVIDENCE/cache explicitly set for both calls",
+  "saving_task_id": "aafc1f8d-18a2-4430-88b0-55f8056cb524",
+  "result": "Shared-root fragment completed with saved file, check passed, recall honestly reported never ingested, snapshot honestly reported no change and excluded project output. Separate bound-project case and steps2\u20136 not rerun on this build.",
+  "content_review": [
+    "Two sessions and 12 places each preserved.",
+    "Saved file says break after 45 minutes; final reply does not call it a 45-minute duration.",
+    "Venue remains undecided.",
+    "Unknown dates/times, total duration, content, facilitator and eligibility are explicit.",
+    "Source citation identifies project-a/source.md.",
+    "No false claim that Git backs up untracked files in the final reply."
+  ],
+  "preserved_original_hashes": {
+    "project-a/source.md": {
+      "before": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+      "after": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248"
+    },
+    "project-a/local-note.md": {
+      "before": "dd6bcd7ee1d79ac1e4750f6b95ed88682a7a8f54f00d49d3474baf45a77a6939",
+      "after": "dd6bcd7ee1d79ac1e4750f6b95ed88682a7a8f54f00d49d3474baf45a77a6939"
+    },
+    "project-a/AGENTS.md": {
+      "before": "b956717a1b1d40fe7955540f35957a74baa003cab42b0c4f252a7948e75e8063",
+      "after": "b956717a1b1d40fe7955540f35957a74baa003cab42b0c4f252a7948e75e8063"
+    },
+    "AGENTS.md": {
+      "before": "96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8",
+      "after": "96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8"
+    },
+    "System/profile.yaml": {
+      "before": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2",
+      "after": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2"
+    }
+  },
+  "root_git_created": false,
+  "artifact_sha256": {
+    "project-a/source.md": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+    "project-a/workshop-plan.md": "b9ab45e27ce5b5cddde7b72c27f5ddf02d1e79a6f32f46e2d404e361c2ea7e52"
+  },
+  "calls": [
+    {
+      "case": "01-task-start",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 8.23,
+      "completed_utc": "2026-09-06T19:35:58.622629+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tools_used": [
+        "Bash",
+        "Read"
+      ],
+      "shell_commands": [
+        "APPARATUS task start WORKAREA --save-memory"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS task start WORKAREA --save-memory",
+          "is_error": false,
+          "result": "{\"task_id\": \"aafc1f8d-18a2-4430-88b0-55f8056cb524\", \"memory\": \"save\"}"
+        }
+      ],
+      "final_reply": "Task started successfully.\n\n- **Task ID:** `aafc1f8d-18a2-4430-88b0-55f8056cb524`\n- **Memory:** save (enabled)\n\nStopping here as instructed, no deliverable produced.",
+      "permission_denials": []
+    },
+    {
+      "case": "02-root-deliverable",
+      "exit": 0,
+      "timed_out": false,
+      "seconds": 43.08,
+      "completed_utc": "2026-09-06T19:37:26.223481+00:00",
+      "model": "claude-sonnet-5",
+      "permission_mode": "dontAsk",
+      "mcp_servers": [],
+      "tools_used": [
+        "Bash",
+        "Read",
+        "Write"
+      ],
+      "shell_commands": [
+        "ls -la",
+        "echo \"--- CLAUDE.md ---\"; cat CLAUDE.md; echo \"--- project-a ---\"; ls -la project-a; echo \"--- System ---\"; find System -maxdepth 3",
+        "cat \"WORKAREA/project-a/.apparatus/workspace.yaml\"; echo ---; cat \"WORKAREA/System/workspace.yaml\"",
+        "APPARATUS --task aafc1f8d-18a2-4430-88b0-55f8056cb524 check WORKAREA",
+        "APPARATUS --task aafc1f8d-18a2-4430-88b0-55f8056cb524 recall WORKAREA workshop",
+        "APPARATUS --task aafc1f8d-18a2-4430-88b0-55f8056cb524 snapshot WORKAREA"
+      ],
+      "native_cli_results": [
+        {
+          "command": "APPARATUS --task aafc1f8d-18a2-4430-88b0-55f8056cb524 check WORKAREA",
+          "is_error": false,
+          "result": "check passed: 10 record(s) checked; 0 path(s) ignored\nIgnore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0)."
+        },
+        {
+          "command": "APPARATUS --task aafc1f8d-18a2-4430-88b0-55f8056cb524 recall WORKAREA workshop",
+          "is_error": true,
+          "result": "Exit code 1\nNothing from your Library has been ingested yet. Run apparatus library ingest first."
+        },
+        {
+          "command": "APPARATUS --task aafc1f8d-18a2-4430-88b0-55f8056cb524 snapshot WORKAREA",
+          "is_error": false,
+          "result": "no changes since the last snapshot"
+        }
+      ],
+      "final_reply": "**Saved:** `project-a/workshop-plan.md`\n\n**Checks:**\n- `apparatus check` \u2014 passed (10 records checked, 0 ignored)\n- `apparatus recall \u2026 workshop` \u2014 no Library ingestion yet, so no prior evidence surfaced; plan drafted from `source.md` alone\n- `apparatus snapshot` \u2014 no changes since last snapshot (managed state already current; the new project file itself is outside snapshot scope)\n- `local-note.md` and `project-a/AGENTS.md` left untouched, as instructed\n\n**Material limits (from source.md, cited in the plan):** venue is explicitly undecided; source gives no total session duration, topic/content, date/time, facilitator, or eligibility criteria for the 24 places \u2014 only the 45-minute water-break timing and 2\u00d712 structure are established. These gaps are called out in the plan's closing section rather than invented.",
+      "permission_denials": []
+    }
+  ],
+  "limits": [
+    "No native Skill discovery result: direct file reading was explicitly requested",
+    "No full native app certification; earlier7c semantic failures remain in separate evidence",
+    "No Memory Fact/correction or learned Skill case ran",
+    "No broad negative matrix, restore or backup on this final build",
+    "Library not ingested: this smoke does not validate new cache-creation diagnostic",
+    "No account, authentication or global configuration artifacts copied",
+    "Full integrated suite and release gates remain operator-owned"
+  ],
+  "project_git_files_unchanged": true,
+  "project_git_file_count": 28,
+  "semantic_review_caveat": "The saved sample outline proposes a 15-minute break and second 45-minute practice block absent from the source. The Sample label and unknown total duration distinguish a proposal, but break duration is not explicitly listed as unresolved. This qualification prevents inferring an unqualified passing case."
+}

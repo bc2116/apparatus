@@ -1,0 +1,16 @@
+{
+  "summary": "A facilitator's guide for a future organizer of the practice workshop, distinguishing sourced facts from suggestions and open items. The source confirms two sessions of 12 places each (24 total) and a water break starting 45 minutes into each session, with break length unspecified. The venue is undecided per the source and must be confirmed fresh for each run. The guide also lists unsourced facilitation suggestions (opening round, post-break check-in, end-of-session feedback) explicitly labeled as adaptable, not as source facts, plus a list of items left open such as total session length, dates/times, curriculum, and registration process.",
+  "topics": [
+    "workshop facilitation",
+    "session capacity",
+    "water break timing",
+    "venue undecided",
+    "facilitator guide",
+    "source-cited facts",
+    "open items",
+    "suggested activities"
+  ],
+  "source_sha256": "69fabb0eed27197ac2862ece0a9e9431f3843a060ff938b3cd8f989b79ddafdd",
+  "text_sha256": "69fabb0eed27197ac2862ece0a9e9431f3843a060ff938b3cd8f989b79ddafdd",
+  "extractor_version": "1"
+}

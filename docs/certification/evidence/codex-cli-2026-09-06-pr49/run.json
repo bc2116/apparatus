@@ -1,0 +1,38 @@
+{
+  "variant": "Codex CLI",
+  "requested_model": "gpt-5.6-terra",
+  "effort": "medium",
+  "sandbox": "workspace-write",
+  "approvals": "never",
+  "delegation": "disabled",
+  "user_config": "ignored",
+  "ephemeral": true,
+  "exit_code": 0,
+  "timed_out": false,
+  "seconds": 47.91,
+  "work_area": "codex-cli",
+  "case": "first-task",
+  "cache_override": "operator-evidence/codex-cli/cache",
+  "date": "2026-09-06",
+  "app_version": "0.153.4",
+  "os": "macOS 27.0",
+  "status": "Shared-root first-task smoke only; not certified",
+  "files": {
+    "project-a/source.md": "90dce1ba9814be342de47a1687169c250bd2dda05898fa7faa7802d0a8ef7248",
+    "project-a/workshop-plan.md": "90f9858fe2f0bb3f43a5b639c960b8e958d8aeb5ed752adf854c4814dd13b7c4"
+  },
+  "wheel_sha256": "84dea9eb17fcaea356013bb673dfbcc90677962eb2011c00815094327c71b956",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "preservation": {
+    "preexisting_file_count": 67,
+    "changed_or_missing_preexisting_files": [],
+    "preexisting_project_git_file_count": 28,
+    "changed_or_missing_preexisting_project_git_files": []
+  },
+  "limits": [
+    "Explicit per-app fixture cache configured; default cache path not tested.",
+    "Bound-project opening and remaining five complete cases not run on this build.",
+    "Generalized native hook parse warning observed; no global configuration copied."
+  ],
+  "core_commit": "1e50521f1aae41759123cc21f1a9f91c9f89a6a9"
+}
