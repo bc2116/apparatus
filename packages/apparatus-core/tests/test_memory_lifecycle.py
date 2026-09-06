@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 import pytest
@@ -162,21 +161,18 @@ def test_correct_receipt_failure_rolls_back_only_owned_write(tmp_path, concurren
     write_attempts = []
     def fail(*args, **kwargs):
         if concurrent:
-            try:
+            write_attempts.append(
                 (workspace / target).write_bytes(b"Concurrent replacement\n")
-            except PermissionError as error:
-                write_attempts.append(error.winerror)
-            else:
-                write_attempts.append(None)
+            )
         raise OSError("publication failed")
     args = argparse.Namespace(workspace=str(workspace), memory_action="correct",
                               record=target.as_posix(), from_file=source)
     assert memory.run(args, write=fail) == 2
-    # Windows retains a target handle denying FILE_SHARE_WRITE; POSIX permits
-    # the injected writer, whose replacement must then survive rollback.
-    assert write_attempts == ([32 if os.name == "nt" else None] if concurrent else [])
+    # Use bytes to make the competing write and its expected content exact on
+    # every platform. Reaching the failure alone does not prove it happened.
+    assert write_attempts == ([len(b"Concurrent replacement\n")] if concurrent else [])
     assert (workspace / target).read_bytes() == (
-        b"Concurrent replacement\n" if concurrent and os.name != "nt" else original)
+        b"Concurrent replacement\n" if concurrent else original)
     assert not list((workspace / "System/receipts").glob("*.md"))
     assert not list((workspace / "Memory/Facts").glob(".apparatus*"))
 
@@ -227,40 +223,35 @@ def test_correct_rolls_back_published_receipt_after_concurrent_write_attempt(tmp
     from apparatus_core.receipts import write_receipt
     workspace = _workspace(tmp_path / "workspace")
     target = record(workspace)
-    original = (workspace / target).read_bytes()
     source = replacement(tmp_path, body="password=synthetic-proof\n")
     write_attempts = []
     validation_attempts = []
     validate_commit = memory._ReplacementTransaction.validate_commit
 
-    def reject_commit(transaction):
-        validation_attempts.append(True)
-        validate_commit(transaction)
-        # On Windows the concurrent writer is blocked, so explicitly fail at
-        # the post-publication validation boundary to exercise receipt rollback.
-        if os.name == "nt":
-            raise OSError("injected final validation failure")
+    def observe_commit_validation(transaction):
+        try:
+            validate_commit(transaction)
+        except OSError:
+            validation_attempts.append("stale target rejected")
+            raise
+        else:
+            validation_attempts.append("stale target accepted")
 
-    monkeypatch.setattr(memory._ReplacementTransaction, "validate_commit", reject_commit)
+    monkeypatch.setattr(memory._ReplacementTransaction, "validate_commit", observe_commit_validation)
 
     def publish(*args, **kwargs):
         proof = write_receipt(*args, **kwargs)
-        try:
-            (workspace / target).write_bytes(b"Concurrent content\n")
-        except PermissionError as error:
-            write_attempts.append(error.winerror)
-        else:
-            write_attempts.append(None)
-        # Return ownership even when Windows refuses the competing writer.
+        write_attempts.append((workspace / target).write_bytes(b"Concurrent content\n"))
+        # The caller must receive and claim publication ownership before the
+        # real stale-target check fails; no injected failure substitutes for it.
         return proof
 
     args = argparse.Namespace(workspace=str(workspace), memory_action="correct",
                               record=target.as_posix(), from_file=source)
     assert memory.run(args, write=publish) == 2
-    assert write_attempts == [32 if os.name == "nt" else None]
-    assert validation_attempts == [True]
-    assert (workspace / target).read_bytes() == (
-        original if os.name == "nt" else b"Concurrent content\n")
+    assert write_attempts == [len(b"Concurrent content\n")]
+    assert validation_attempts == ["stale target rejected"]
+    assert (workspace / target).read_bytes() == b"Concurrent content\n"
     assert not list((workspace / "System/receipts").glob("*.md"))
     assert not list((workspace / "Memory/Facts").glob(".apparatus*"))
 
