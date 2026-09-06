@@ -26,11 +26,11 @@ NEW_SKILL_PATHS = {path: name for path, name in BUILTIN_PATHS.items() if path no
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 _FIELDS = {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
 
-# Complete PR-38, PR-39 and PR-41 shipped orientation bytes, normalized only for CRLF.
+# Complete PR-38 and PR-39 shipped orientation bytes, normalized only for CRLF.
 # Keep historical witnesses when later payload revisions change the prose.
 _SKILL_ORIENTATION_DIGESTS = {
-    "Welcome.md": {"9c9612b04aae89667e0f9697d99a9b146dc2ee9f4d143c19dc54534cb1ecad87", "5bcf362d72d507a8896498d9da83646cc95b8e2b3395cfbbe21b631860048be1", "d3527ca2be2a12255f63a7fb068c68eabde81864d825a54631f5883d13e57d83"},
-    "System/README.md": {"32d22c2e88c1cd3aa49a3dc74b6d54d84bc51c5ed3c96b19e59553796fde911d", "51ee1850ff9653584142b0b5a789040169bed33ce6f42c0a6c6d8ab984ddb5d6", "b4d4edd9121abf5b1a15fc62b19a0a4940134136a12a4feace7c3cd6b617e958"},
+    "Welcome.md": {"9c9612b04aae89667e0f9697d99a9b146dc2ee9f4d143c19dc54534cb1ecad87", "5bcf362d72d507a8896498d9da83646cc95b8e2b3395cfbbe21b631860048be1"},
+    "System/README.md": {"32d22c2e88c1cd3aa49a3dc74b6d54d84bc51c5ed3c96b19e59553796fde911d", "51ee1850ff9653584142b0b5a789040169bed33ce6f42c0a6c6d8ab984ddb5d6"},
 }
 
 HISTORICAL_SKILL_INDEX = """<!-- Apparatus Skill index: v1 -->
@@ -58,9 +58,12 @@ SKILL_INDEX = HISTORICAL_SKILL_INDEX.replace("index: v1", "index: v2").replace(
 )
 
 # Exact orientation for the seven-Skill payload; older witnesses remain above.
-CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a69d8616bcb28bfeda08b0ca15d908945626d4bebc71531631dc1f439b7fe508',
+PREVIOUS_CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a69d8616bcb28bfeda08b0ca15d908945626d4bebc71531631dc1f439b7fe508',
  'System/README.md': '9e0ea94ba15433754a4fde40121293bb1bc4a17efe3ce297d5ddcb3991cfbdb3'}
 
+
+CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'cd52bfa9c714b9d2b3b9aa835732d7c414c346f0157a44f7f5c3e2a47eb0036b',
+ 'System/README.md': '9d77710dd6a053040603207a286544e61f7a5e07c0e5add6b9b93361ae73d004'}
 
 def valid_name(value: object) -> bool:
     return isinstance(value, str) and 1 <= len(value) <= 64 and bool(_NAME.fullmatch(value))
@@ -163,7 +166,7 @@ def is_shipped_skill_orientation(relative: str, content: bytes) -> bool:
     """Recognize a whole known orientation file, never its header or links."""
     expected = _SKILL_ORIENTATION_DIGESTS.get(relative)
     digest = hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
-    return digest == CURRENT_ORIENTATION_DIGESTS.get(relative) or (expected is not None and digest in expected)
+    return digest in {CURRENT_ORIENTATION_DIGESTS.get(relative), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(relative)} or (expected is not None and digest in expected)
 
 
 def read_skill_payload(anchor: WorkspaceAnchor) -> dict[str, bytes]:
@@ -187,7 +190,7 @@ def read_skill_payload(anchor: WorkspaceAnchor) -> dict[str, bytes]:
     orientation = {path: optional(path) or b"" for path in ("AGENTS.md", "Welcome.md", "System/README.md")}
     current = any(directories[path] for path in NEW_SKILL_PATHS) or any(
         SKILL_INDEX.encode() in content.replace(b"\r\n", b"\n")
-        or hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() == CURRENT_ORIENTATION_DIGESTS.get(path)
+        or hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() in {CURRENT_ORIENTATION_DIGESTS.get(path), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(path)}
         for path, content in orientation.items()
     )
     native = current or any(directories.values()) or any(

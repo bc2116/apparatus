@@ -38,3 +38,29 @@ After this repair, the complete learned-Skill/check/recovery selection passed
 **71 tests**, and `uv run pytest` passed **981 tests, 38 skipped** in 270.02 seconds.
 `git diff --check` passed. Actual Windows validation and PR-40 integration remain
 delivery checks; no native runtime evidence is inferred from this local run.
+
+## Integration with PR-40
+
+Rebased onto PR-40 `6ad3e04`, retaining its seven canonical Skills, economy/prose
+guidance, historical five-Skill source compatibility and named recovery coverage.
+Exact PR-40 orientation and shim fixtures now provide stock migration witnesses.
+Current PR-41 and historical PR-40 orientation both require a complete seven-Skill
+source; PR-38/39 witnesses retain their historical five-Skill meaning.
+
+- The migration cases cover LF/CRLF stock, custom bodies/instructions/guidance,
+  saving/no-save tasks, unchanged profile/task controls and repeat no-op behavior.
+- The real-Git case restores PR-40 state while preserving later learned adoptions,
+  then remigrates the canon and exports all seven built-ins and registered learned
+  pairs without drafts.
+- The integration selection passed **160 tests**. The updated historical case
+  and new migration/source checks then passed **17 tests** (33 deselected).
+- Integrated `uv run pytest`: **1040 passed, 38 skipped** in 457.23 seconds.
+- Payload ZIP and core source-distribution/wheel builds passed. All 23 canonical
+  and embedded files match, with regenerated shims matching goldens. All seven
+  bodies match the universal ZIP, wheel and source distribution; learned command
+  modules and the CLI entry point were verified in the wheel.
+- `git diff --check` passed.
+
+PR-40 dependency integration is complete for this validation state. Independent
+integration review, actual Windows validation and subsequent upstream repairs
+remain delivery checks. No native AI-app invocation or certification is claimed.

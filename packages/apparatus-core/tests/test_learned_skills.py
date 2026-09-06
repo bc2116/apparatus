@@ -291,7 +291,16 @@ def test_ignored_adopted_body_reports_incomplete_without_reading(area, monkeypat
 @pytest.mark.skipif(shutil.which("git") is None, reason="real Git recovery/export proof")
 def test_history_export_restore_pairs_preserve_later_adoptions(area, tmp_path):
     from apparatus_core.managed_state_backup import export_backup
+    from apparatus_core.instruction_updates import LEARNED_PREVIOUS_INSTRUCTIONS
+    from apparatus_core.skills import BUILTIN_PATHS
     root, task = area
+    fixtures = Path(__file__).parent / "fixtures/instruction_updates_pr40"
+    for relative in LEARNED_PREVIOUS_INSTRUCTIONS:
+        (root / relative).write_bytes((fixtures / relative).read_bytes())
+    historical = recovery.take_snapshot(root, task_id=task).snapshot
+    options = argparse.Namespace(workspace=str(root), payload=None, privacy_mode=None,
+                                 work_types=None, adopt=True, task=task)
+    assert init.run(options, available=lambda: False) == 0
     adopt(area)
     first = recovery.take_snapshot(root, task_id=task).snapshot
     later = "learned-later-review"
@@ -302,11 +311,19 @@ def test_history_export_restore_pairs_preserve_later_adoptions(area, tmp_path):
     assert (root / learned.body_path(NAME)).read_bytes() == body()
     assert (root / learned.body_path(later)).read_bytes() == body(later)
     assert (root / learned.marker_path(later)).is_file()
+    with operation(root, task_id=task):
+        recovery.restore_snapshot(root, historical.identifier)
+    assert b"System/skills/adopted/" not in (root / "AGENTS.md").read_bytes()
+    assert all((root / learned.body_path(name)).is_file() and (root / learned.marker_path(name)).is_file()
+               for name in (NAME, later))
+    assert init.run(options, available=lambda: False) == 0
+    assert b"System/skills/adopted/" in (root / "AGENTS.md").read_bytes()
     destination = tmp_path / "exports"; destination.mkdir()
     with operation(root, task_id=task):
         result = export_backup(root, destination)
     with zipfile.ZipFile(result.archive) as archive:
         names = archive.namelist()
+        assert set(BUILTIN_PATHS) <= set(names)
         for name in (NAME, later):
             assert learned.body_path(name) in names and learned.marker_path(name) in names
             assert learned.draft_path(name) not in names
@@ -403,3 +420,67 @@ def test_exact_pr39_orientation_migrates_without_changing_custom_canon(area):
     assert init.run(argparse.Namespace(workspace=str(root),payload=None,privacy_mode=None,
                                       work_types=None,adopt=True,task=task),available=lambda:False)==0
     assert (root / "AGENTS.md").read_bytes() == custom
+
+
+@pytest.mark.parametrize("crlf", [False, True])
+@pytest.mark.parametrize("custom", [False, True])
+@pytest.mark.parametrize("no_save", [False, True])
+def test_actual_pr40_stock_migration_preserves_seven_skills_and_task_controls(area, crlf, custom, no_save):
+    from apparatus_core.instruction_updates import LEARNED_PREVIOUS_INSTRUCTIONS, _digest
+    from apparatus_core.payload import shipped_payload
+    from apparatus_core.skills import BUILTIN_PATHS, SKILL_INDEX
+    root, task = area
+    if no_save:
+        task = start_task(root, save_memory=False).task_id
+    fixtures = Path(__file__).parent / "fixtures/instruction_updates_pr40"
+    for relative, expected in LEARNED_PREVIOUS_INSTRUCTIONS.items():
+        content = (fixtures / relative).read_bytes().replace(b"\r\n", b"\n")
+        assert _digest(content) == expected
+        (root / relative).write_bytes(content.replace(b"\n", b"\r\n") if crlf else content)
+    preserved = [*BUILTIN_PATHS, "System/profile.yaml", "System/guidance/model-guidance.md"]
+    if custom:
+        for relative in (*BUILTIN_PATHS, "AGENTS.md", "Welcome.md", "System/README.md",
+                         "System/guidance/model-guidance.md"):
+            path = root / relative
+            path.write_bytes(path.read_bytes() + b"\nUser-owned customization.\n")
+        preserved.extend(("AGENTS.md", "Welcome.md", "System/README.md"))
+    preserved.extend(p.relative_to(root).as_posix() for p in (root / "System/tasks").rglob("*") if p.is_file())
+    assert f"System/tasks/{task}.yaml" in preserved
+    before = {relative: (root / relative).read_bytes() for relative in preserved}
+    options = argparse.Namespace(workspace=str(root), payload=None, privacy_mode=None,
+                                 work_types=None, adopt=True, task=task)
+    assert init.run(options, available=lambda: False) == 0
+    assert all((root / relative).read_bytes() == content for relative, content in before.items())
+    assert SKILL_INDEX.encode() in (root / "AGENTS.md").read_bytes().replace(b"\r\n", b"\n")
+    if not custom:
+        for relative in LEARNED_PREVIOUS_INSTRUCTIONS:
+            assert (root / relative).read_bytes() == (shipped_payload() / relative).read_bytes()
+        assert b"System/skills/adopted/" in (root / "AGENTS.md").read_bytes()
+    assert check_workspace(root).ok
+    assert not (root / learned.DRAFTS).exists()
+    after = files(root)
+    assert init.run(options, available=lambda: False) == 0
+    assert files(root) == after
+
+
+@pytest.mark.parametrize("version", ["pr40", "current"])
+@pytest.mark.parametrize("orientation", ["Welcome.md", "System/README.md"])
+@pytest.mark.parametrize("crlf", [False, True])
+def test_old_and_new_seven_skill_orientation_rejects_partial_source(tmp_path, version, orientation, crlf):
+    from apparatus_core.payload import shipped_payload
+    from apparatus_core.skills import NEW_SKILL_PATHS, read_skill_payload
+    payload = tmp_path / "payload"
+    shutil.copytree(shipped_payload(), payload)
+    source = (Path(__file__).parent / "fixtures/instruction_updates_pr40" if version == "pr40"
+              else shipped_payload())
+    content = (source / orientation).read_bytes().replace(b"\r\n", b"\n")
+    for relative in ("AGENTS.md", "Welcome.md", "System/README.md"):
+        (payload / relative).write_bytes(b"Custom orientation.\n")
+    (payload / orientation).write_bytes(content.replace(b"\n", b"\r\n") if crlf else content)
+    for relative in NEW_SKILL_PATHS:
+        shutil.rmtree((payload / relative).parent)
+    before = files(payload)
+    with WorkspaceAnchor(payload) as anchor:
+        with pytest.raises(ValueError, match="complete portable Skill payload"):
+            read_skill_payload(anchor)
+    assert files(payload) == before
