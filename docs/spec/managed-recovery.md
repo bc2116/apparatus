@@ -1,8 +1,10 @@
 # Recovery for shared work areas
 
-PR-35 provides this backend for the layout/adoption slice. The current starter
-does not yet publish the new layout marker. Existing workspaces without a marker
-or residual managed-recovery state retain their legacy recovery behavior.
+Fresh initialization and explicit existing-folder adoption enroll the shared
+work-area layout and select this backend. Existing workspaces without a marker
+or residual managed-recovery state retain their legacy recovery behavior until
+adoption. See the [workspace specification](workspace.md) for enrollment and
+project links; engine calls here receive the already selected explicit work area.
 
 ## Explicit routing
 

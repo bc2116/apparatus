@@ -8,7 +8,8 @@ uncut outlines; these are not ready-to-execute prompts.
 Memory correction, outdated status, forgetting, and current-record recall.
 PR-34 implements R2b: task retention across managed writers and derived content.
 PR-35 implements R3a: isolated recovery for shared work areas.
-Next, cut PR-36 for R3b layout, project bindings and existing-folder adoption.
+PR-36 implements R3b: layout, project bindings and existing-folder adoption.
+Next, cut R4 for portable native Skills and procedure migration.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
 
@@ -37,7 +38,8 @@ on every commit.
 ## Original implementation phases
 
 These phases describe the legacy baseline, not the approved rework. The new
-sequence is linked above; R1, R2 and R3a are implemented in PR-32/33/34/35; later slices remain planned.
+sequence is linked above; R1, R2 and R3 are implemented in PR-32 through PR-36;
+later slices remain planned.
 
 - **Phase 0 — birth:** repository skeleton, decisions, this plan. *(landed at bootstrap)*
 - **Phase 1 — protocol on files:** the workspace works as pure files in ≥ 2 AI
@@ -89,6 +91,7 @@ sequence is linked above; R1, R2 and R3a are implemented in PR-32/33/34/35; late
 | 33 | [Memory lifecycle and current recall](PR-33-memory-lifecycle.md) | Rework | ✅ landed | 32 |
 | 34 | [Task Memory retention](PR-34-task-retention.md) | Rework | ✅ landed | 33 |
 | 35 | [Isolated recovery for shared work areas](PR-35-managed-recovery.md) | Rework | ✅ landed | 34 |
+| 36 | [Work-area adoption and project binding](PR-36-workarea-adoption.md) | Rework | ✅ landed | 35 |
 | 37 | [Library writer-lock release race](PR-37-library-lock.md) | Repair | ✅ landed | 34 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),

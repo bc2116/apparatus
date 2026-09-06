@@ -297,3 +297,61 @@ def test_check_reports_invalid_ignore_without_reading_records(monkeypatch, tmp_p
     assert [(finding.code, finding.path) for finding in result.findings] == [
         ("ignore-file-encoding-error", "System/ignore")
     ]
+
+
+def test_enrolled_check_requires_new_layout_and_reads_both_decision_roots(tmp_path):
+    import shutil
+    from uuid import uuid4
+    from apparatus_core.payload import shipped_payload
+    area = tmp_path / "area"
+    shutil.copytree(shipped_payload(), area)
+    (area / "System/workspace.yaml").write_text(
+        f"schema: apparatus/workspace@v0\nid: {uuid4()}\nlayout: sibling-projects\nrecovery: managed-state\n",
+        encoding="utf-8",
+    )
+    for folder in ("Decisions", "Memory/Decisions"):
+        (area / folder).mkdir(exist_ok=True)
+        (area / folder / "a-choice.md").write_text(
+            "---\nschema: apparatus/decision@v0\ntitle: A choice\ndate: 2026-09-06\n---\nReason.\n",
+            encoding="utf-8",
+        )
+    assert not (area / "Projects").exists()
+    assert not (area / "Deliverables").exists()
+    baseline = check_workspace(area)
+    assert baseline.ok
+    (area / "Memory/Decisions/a-choice.md").write_text("invalid record", encoding="utf-8")
+    result = check_workspace(area)
+    assert result.records_checked == baseline.records_checked
+    assert [finding.path for finding in result.findings] == ["Memory/Decisions/a-choice.md"]
+
+
+def test_project_check_reports_pointer_conflict_and_never_scans_project_files(tmp_path, capsys):
+    import shutil
+    from uuid import uuid4
+    from apparatus_core.payload import shipped_payload
+    from apparatus_core.project_binding import bind_project
+    area = tmp_path / "area"
+    shutil.copytree(shipped_payload(), area)
+    (area / "System/workspace.yaml").write_text(
+        f"schema: apparatus/workspace@v0\nid: {uuid4()}\nlayout: sibling-projects\nrecovery: managed-state\n",
+        encoding="utf-8",
+    )
+    project = area / "arbitrary-project"
+    project.mkdir()
+    (project / "Memory").mkdir()
+    (project / "Memory/bad.md").write_bytes(b"not managed records")
+    bind_project(project, area)
+    direct = check_workspace(project)
+    assert direct.records_checked == 0
+    assert [finding.code for finding in direct.findings] == ["project-binding-invalid"]
+    assert "Use apparatus check PROJECT" in direct.findings[0].hint
+    assert check.run(argparse.Namespace(workspace=str(project), no_receipt=True)) == 0
+    assert "check passed:" in capsys.readouterr().out
+    before = {p.relative_to(project): p.read_bytes() for p in project.rglob("*") if p.is_file()}
+    pointer = project / "AGENTS.md"
+    pointer.write_bytes(pointer.read_bytes().replace(b"Use that area's", b"Ignore that area's"))
+    conflict_before = {p.relative_to(project): p.read_bytes() for p in project.rglob("*") if p.is_file()}
+    assert check.run(argparse.Namespace(workspace=str(project), no_receipt=True)) == 2
+    assert "Project instruction link is customized; preserve and reconcile it before binding." in capsys.readouterr().out
+    assert {p.relative_to(project): p.read_bytes() for p in project.rglob("*") if p.is_file()} == conflict_before
+    assert (project / "Memory/bad.md").read_bytes() == before[Path("Memory/bad.md")]

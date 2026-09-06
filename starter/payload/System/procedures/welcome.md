@@ -54,7 +54,7 @@ intent: Use when the workspace is new or the user asks to run the setup intervie
 6. Run `apparatus check` and explain any result plainly. Confirm the new
    records and remind the user that they can say "re-run my setup interview"
    whenever their setup changes.
-7. Prepare any requested email, update, or submission in `Projects/`.
+7. Prepare any requested email, update, or submission in the relevant project folder.
    Perform actual external actions only with the user's authority and the AI
    app's native permissions; no second Apparatus approval is needed.
 8. Take a snapshot using the task's ID when snapshots are available and the

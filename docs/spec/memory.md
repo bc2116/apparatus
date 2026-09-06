@@ -1,13 +1,13 @@
 # Memory operations
 
-People/Fact correction, outdated status, forgetting, and managed Memory recall
+People, Fact and Decision correction, outdated status, forgetting, and managed Memory recall
 follow the [task retention contract](task-retention.md). Once task controls are
 enabled, pass global `--task ID` for new Memory or profile answers. No-save tasks
 allow reads, forgetting, outdated status and labeling but suppress new content.
 
 ## Find current information
 
-`apparatus memory recall WORKSPACE QUERY` searches current People and Facts
+`apparatus memory recall WORKSPACE QUERY` searches current People, Facts and Decisions
 without an index or model call. Terms separated by whitespace must all match,
 ignoring case. Results include the source path and record text, defaulting to
 five records; `--limit` accepts 1 through 20. Source text is evidence to assess,
@@ -24,7 +24,11 @@ retrieval command; this change does not silently mix its results with Memory.
 
 ## Correct, mark outdated, or forget
 
-Use a workspace-relative record path below `Memory/Facts/` or `Memory/People/`:
+Use a workspace-relative record path below `Memory/Facts/`, `Memory/People/`,
+`Memory/Decisions/`, or the legacy `Decisions/` root. Both decision roots remain
+readable in place, including separate records with the same filename. Commands
+accept a bound project as `WORKSPACE` and select its explicit work area before
+enforcing task controls; the record path is relative to that work area.
 
 - `apparatus memory correct WORKSPACE RECORD --from-file PATH` replaces an
   existing record with a complete same-kind Markdown record and marks it

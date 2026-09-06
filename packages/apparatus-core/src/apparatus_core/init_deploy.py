@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+from collections.abc import Callable
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -213,6 +214,8 @@ def deploy_init_plan(
     *,
     profile_write_required: bool,
     expected_contents: dict[str, bytes | None] | None = None,
+    enrollment_content: bytes | None = None,
+    validate_enrollment: Callable[[WorkspaceAnchor, bool], None] | None = None,
 ) -> tuple[str, ...]:
     """Execute one pre-read init plan through retained directory identities."""
     _validate_plan(payload, overlay)
@@ -223,6 +226,10 @@ def deploy_init_plan(
             raise PayloadError("instruction preimage must be bytes or expected absence")
     if not isinstance(profile_content, bytes):
         raise PayloadError("profile content must be bytes")
+    if enrollment_content is not None:
+        from apparatus_core.workspace_layout import MARKER, _parse
+        _parse(enrollment_content)
+        expected_contents[MARKER] = None
 
     workspace_path = Path(os.path.abspath(os.fspath(workspace)))
     created_files: list[_CreatedFile] = []
@@ -242,6 +249,8 @@ def deploy_init_plan(
         stack.callback(root.close)
         anchors: dict[Path, WorkspaceAnchor] = {Path("."): root}
         try:
+            if validate_enrollment is not None:
+                validate_enrollment(root, False)
             if workspace_created:
                 changes.append("created workspace")
 
@@ -283,7 +292,14 @@ def deploy_init_plan(
             def check_preimage(relative: str) -> None:
                 anchor, name = parent_for(Path(relative))
                 try:
-                    actual = anchor.read_file(name)[0]
+                    if relative == "System/profile.yaml" and not profile_write_required:
+                        proof = anchor.capture_file(name, publication_compatible=True)
+                        try:
+                            actual = proof.content
+                        finally:
+                            proof.close()
+                    else:
+                        actual = anchor.read_file(name)[0]
                 except FileNotFoundError:
                     actual = None
                 require_preimage(Path(relative), actual)
@@ -373,8 +389,12 @@ def deploy_init_plan(
             for value in overlay.removals:
                 relative = normalize_workspace_relative(value)
                 remove(relative, f"removed {relative.as_posix()}")
+            if enrollment_content is not None:
+                create_missing(Path(MARKER), enrollment_content, "enrolled work area")
 
             def validate_final_state(*, removals_are_published: bool) -> None:
+                if validate_enrollment is not None:
+                    validate_enrollment(root, True)
                 for relative in expected_contents.keys() - published:
                     check_preimage(relative)
                 all_anchors = (*root_ancestors, *anchors.values())

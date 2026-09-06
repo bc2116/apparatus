@@ -55,9 +55,14 @@ REQUIRED_ENTRIES: tuple[tuple[str, bool], ...] = (
     ("System", True),
 )
 
+MANAGED_REQUIRED_ENTRIES = tuple(
+    entry for entry in REQUIRED_ENTRIES if entry[0] not in {"Projects", "Deliverables", "Decisions"}
+) + (("Memory/Decisions", True),)
+
 RECORD_FOLDERS: tuple[tuple[str, str], ...] = (
     ("Goals", "goal"),
     ("Decisions", "decision"),
+    ("Memory/Decisions", "decision"),
     ("Memory/People", "person"),
     ("Memory/Facts", "fact"),
     ("System/procedures", "procedure"),
@@ -294,6 +299,17 @@ def check_workspace(
 ) -> CheckResult:
     """Check a workspace tree and its v0 records without changing it."""
     root = Path(workspace)
+    from apparatus_core.project_binding import BindingError, read_project_binding
+    from apparatus_core.workspace_layout import LayoutError, read_layout
+    try:
+        if read_project_binding(root) is not None:
+            raise BindingError("Use apparatus check PROJECT to check a bound project.")
+    except BindingError as error:
+        return CheckResult((Finding("project-binding-invalid", ".apparatus/workspace.yaml", str(error)),), 0)
+    try:
+        layout = read_layout(root)
+    except LayoutError as error:
+        return CheckResult((Finding("workspace-layout-invalid", "System/workspace.yaml", str(error)),), 0)
     findings: list[Finding] = []
     rules = load_ignore_rules(root, respect_feature=False)
     findings.extend(
@@ -306,7 +322,7 @@ def check_workspace(
     )
     if not rules.valid:
         return CheckResult(tuple(findings), 0, rules.report())
-    for relative, is_directory in REQUIRED_ENTRIES:
+    for relative, is_directory in (MANAGED_REQUIRED_ENTRIES if layout is not None else REQUIRED_ENTRIES):
         path = root / relative
         exists = path.is_dir() if is_directory else path.is_file()
         if not exists:

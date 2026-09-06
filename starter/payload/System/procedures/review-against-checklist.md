@@ -20,8 +20,8 @@ intent: Use when the user wants a draft or deliverable checked item by item agai
    draft or deliverable being reviewed, and do not present an edited file as
    though it were the original.
 6. Make changes only when the user asks. Save the revised work as a draft in
-   `Projects/` until the user accepts it.
-7. Prepare any requested email, update, or submission in `Projects/`.
+   the relevant project folder until the user accepts it.
+7. Prepare any requested email, update, or submission in the relevant project folder.
    Perform actual external actions only with the user's authority and the AI
    app's native permissions; no second Apparatus approval is needed.
 8. Take a snapshot using the workspace's snapshot command if it is available

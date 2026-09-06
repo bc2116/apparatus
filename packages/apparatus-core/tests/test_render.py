@@ -180,7 +180,7 @@ def test_missing_canon_marks_present_shims_as_drift_without_reading_symlinks(tmp
     assert outside.read_text(encoding="utf-8") == "outside sentinel\n"
 
 
-def test_unusable_canon_keeps_absent_targets_missing_and_present_targets_drift(tmp_path):
+def test_unsafe_canon_fails_project_pointer_preflight_without_mutation(tmp_path):
     workspace = _checked_workspace(tmp_path / "workspace")
     outside = tmp_path / "outside-agents.md"
     outside.write_text("# Outside canon\n", encoding="utf-8")
@@ -188,12 +188,11 @@ def test_unusable_canon_keeps_absent_targets_missing_and_present_targets_drift(t
     (workspace / "AGENTS.md").symlink_to(outside)
     (workspace / "CLAUDE.md").write_text("stale shim\n", encoding="utf-8")
 
+    before = _tree_state(workspace)
     assert [(finding.code, finding.path) for finding in check_workspace(workspace).findings] == [
-        ("shim-drift", "CLAUDE.md"),
-        ("shim-missing", ".cursor/rules/apparatus.mdc"),
-        ("shim-missing", ".github/copilot-instructions.md"),
-        ("instruction-read-error", "."),
+        ("project-binding-invalid", ".apparatus/workspace.yaml"),
     ]
+    assert _tree_state(workspace) == before
     assert outside.read_text(encoding="utf-8") == "# Outside canon\n"
 
 
@@ -355,3 +354,178 @@ def test_render_records_mixed_actions_in_registry_order(tmp_path):
         ("written", ".cursor/rules/apparatus.mdc"),
         ("unchanged", ".github/copilot-instructions.md"),
     )
+
+
+def _enrolled_workspace(path, canon=b"# Custom instructions\r\nKeep these bytes.\r\n"):
+    from uuid import uuid4
+    workspace = _workspace(path, canon)
+    (workspace / "System").mkdir()
+    (workspace / "System/workspace.yaml").write_text(
+        f"schema: apparatus/workspace@v0\nid: {uuid4()}\nlayout: sibling-projects\nrecovery: managed-state\n",
+        encoding="utf-8",
+    )
+    return workspace
+
+
+def test_enrolled_render_preserves_custom_canon_and_updates_exact_generated_pointers(tmp_path):
+    workspace = _enrolled_workspace(tmp_path / "area")
+    canon = (workspace / "AGENTS.md").read_bytes()
+    assert len(render_workspace(workspace).written) == len(SHIM_REGISTRY)
+    assert (workspace / "AGENTS.md").read_bytes() == canon
+    (workspace / "AGENTS.md").write_bytes(canon + b"New project guidance.\r\n")
+    # The whole generated template, in either line-ending form, proves ownership.
+    target = workspace / "CLAUDE.md"
+    target.write_bytes(target.read_bytes().replace(b"\n", b"\r\n"))
+    assert len(render_workspace(workspace).written) == len(SHIM_REGISTRY)
+    assert (workspace / "AGENTS.md").read_bytes() == canon + b"New project guidance.\r\n"
+    assert render_workspace(workspace).written == ()
+    assert not (workspace / ".git").exists()
+
+
+@pytest.mark.parametrize("content", [b"My custom pointer\n", b"append", b"header"])
+def test_enrolled_render_rejects_custom_or_header_only_pointer_before_any_write(tmp_path, content):
+    workspace = _enrolled_workspace(tmp_path / "area")
+    target = workspace / ".github/copilot-instructions.md"
+    target.parent.mkdir()
+    generated = rendered_shims(workspace)[-1].content
+    target.write_bytes(generated + b"Custom rule\n" if content == b"append" else
+                       generated.split(b"-->\n", 1)[0] + b"-->\n\nCustom rule\n" if content == b"header" else content)
+    before = _tree_state(workspace)
+    with pytest.raises(RenderError, match="custom pointer"):
+        render_workspace(workspace)
+    assert _tree_state(workspace) == before
+
+
+@pytest.mark.parametrize("changed", ["AGENTS.md", "System/workspace.yaml"])
+def test_enrolled_render_rejects_changed_preimage_preserving_concurrent_bytes(tmp_path, monkeypatch, changed):
+    from apparatus_core import init_deploy
+    workspace = _enrolled_workspace(tmp_path / "area")
+    original = init_deploy.deploy_init_plan
+    concurrent = (workspace / changed).read_bytes() + b"\n# Concurrent edit\n"
+
+    def race(*args, **kwargs):
+        (workspace / changed).write_bytes(concurrent)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(init_deploy, "deploy_init_plan", race)
+    with pytest.raises(RenderError):
+        render_workspace(workspace)
+    assert (workspace / changed).read_bytes() == concurrent
+    assert not any((workspace / target).exists() for target, _ in SHIM_REGISTRY)
+
+
+@pytest.mark.parametrize("changed", ["root", "marker"])
+def test_enrolled_render_rejects_identical_byte_identity_replacement(tmp_path, monkeypatch, changed):
+    import shutil
+    from apparatus_core import init_deploy
+    workspace = _enrolled_workspace(tmp_path / "area")
+    before = _tree_state(workspace)
+    original = init_deploy.deploy_init_plan
+    moved = tmp_path / "original-area"
+    injected = False
+
+    def race(*args, **kwargs):
+        nonlocal injected
+        if changed == "root":
+            replacement = tmp_path / "replacement-area"
+            shutil.copytree(workspace, replacement)
+            workspace.rename(moved)
+            replacement.rename(workspace)
+            assert workspace.stat().st_ino != moved.stat().st_ino
+        else:
+            marker = workspace / "System/workspace.yaml"
+            replacement = tmp_path / "replacement-marker.yaml"
+            replacement.write_bytes(marker.read_bytes())
+            old_identity = marker.stat().st_ino
+            os.replace(replacement, marker)
+            assert marker.stat().st_ino != old_identity
+        injected = True
+        assert _tree_state(workspace) == before
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(init_deploy, "deploy_init_plan", race)
+    with pytest.raises(RenderError):
+        render_workspace(workspace)
+    assert injected
+    assert _tree_state(workspace) == before
+    if changed == "root":
+        assert _tree_state(moved) == before
+
+
+def test_enrolled_render_compensates_after_late_identical_byte_marker_replacement(tmp_path, monkeypatch):
+    from apparatus_core.fs_transactions import WorkspaceAnchor
+    workspace = _enrolled_workspace(tmp_path / "area")
+    before = _tree_state(workspace)
+    marker = workspace / "System/workspace.yaml"
+    original = WorkspaceAnchor.create_file
+    injected = False
+
+    def create_then_replace(self, relative, content):
+        nonlocal injected
+        result = original(self, relative, content)
+        if str(relative) == "CLAUDE.md" and not injected:
+            replacement = tmp_path / "replacement-marker.yaml"
+            replacement.write_bytes(marker.read_bytes())
+            old_identity = marker.stat().st_ino
+            os.replace(replacement, marker)
+            assert marker.stat().st_ino != old_identity
+            injected = True
+        return result
+
+    monkeypatch.setattr(WorkspaceAnchor, "create_file", create_then_replace)
+    with pytest.raises(RenderError):
+        render_workspace(workspace)
+    assert injected
+    assert _tree_state(workspace) == before
+
+
+def test_enrolled_render_compensates_created_pointers_after_late_marker_change(tmp_path, monkeypatch):
+    from apparatus_core.fs_transactions import WorkspaceAnchor
+    workspace = _enrolled_workspace(tmp_path / "area")
+    marker = workspace / "System/workspace.yaml"
+    before = marker.read_bytes()
+    original = WorkspaceAnchor.create_file
+    injected = False
+
+    def create_then_change(self, relative, content):
+        nonlocal injected
+        result = original(self, relative, content)
+        if str(relative) == "CLAUDE.md" and not injected:
+            injected = True
+            marker.write_bytes(before + b"# Concurrent marker edit\n")
+        return result
+
+    monkeypatch.setattr(WorkspaceAnchor, "create_file", create_then_change)
+    with pytest.raises(RenderError):
+        render_workspace(workspace)
+    assert injected
+    assert marker.read_bytes() == before + b"# Concurrent marker edit\n"
+    assert not any((workspace / target).exists() for target, _ in SHIM_REGISTRY)
+
+
+def test_project_render_repairs_only_missing_owned_pointer_and_rejects_edits(tmp_path, capsys):
+    from apparatus_core.project_binding import bind_project
+    area = _enrolled_workspace(tmp_path / "area")
+    render_workspace(area)
+    project = area / "existing-project"
+    project.mkdir()
+    custom = b"# Project instructions\r\nPreserve these.\r\n"
+    (project / "AGENTS.md").write_bytes(custom)
+    bind_project(project, area)
+    pointer = project / "AGENTS.md"
+    accepted = pointer.read_bytes()
+    root_before = {target: (area / target).read_bytes() for target, _ in SHIM_REGISTRY}
+    pointer.unlink()
+    before = _tree_state(project)
+    with pytest.raises(RenderError, match="Use apparatus render PROJECT"):
+        render_workspace(project)
+    assert _tree_state(project) == before
+    assert render_command.run(argparse.Namespace(workspace=str(project))) == 0
+    assert capsys.readouterr().out == "written AGENTS.md\n"
+    assert {target: (area / target).read_bytes() for target, _ in SHIM_REGISTRY} == root_before
+    assert not (project / "CLAUDE.md").exists()
+    pointer.write_bytes(accepted.replace(b"Use that area's", b"Ignore that area's"))
+    before = _tree_state(project)
+    assert render_command.run(argparse.Namespace(workspace=str(project))) == 2
+    assert "Project instruction link is customized; preserve and reconcile it before binding." in capsys.readouterr().out
+    assert _tree_state(project) == before

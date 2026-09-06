@@ -10,10 +10,14 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
-- Add an isolated recovery backend for the upcoming shared work-area layout.
+- Add work-area enrollment, explicit existing-folder adoption and relative project
+  links to one Library and Memory. Preserve existing repositories and custom
+  instructions; keep finished work in its project. Decisions in both the new
+  Memory folder and legacy location support the existing Memory lifecycle.
+- Add an isolated recovery backend for the shared work-area layout.
   Managed snapshots and backups cover declared Apparatus state and recovery
-  history without changing root or project Git. Existing starter setup does not
-  enable the new layout yet; project documents and Library originals are excluded.
+  history without changing root or project Git. New setup and explicit adoption
+  enable this scope; project documents and Library originals are excluded.
 
 - Add resumable task Memory decisions. No-save tasks suppress new Memory, setup
   answers and automatic capture; requested work files, Library additions and

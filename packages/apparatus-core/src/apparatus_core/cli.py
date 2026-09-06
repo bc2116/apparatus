@@ -4,13 +4,45 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable, Iterable
+from contextlib import ExitStack
 import importlib.metadata
+from pathlib import Path
 import sys
 from typing import Any
 
 from apparatus_core import __version__
+from apparatus_core.project_binding import BindingError
 
 ENTRY_POINT_GROUP = "apparatus.commands"
+WORKSPACE_VERBS = {"backup", "check", "doctor", "library", "memory", "profile",
+                   "recall", "render", "restore", "snapshot", "task"}
+
+
+def _dispatch(parsed, handler) -> int:
+    """Select an explicit project context before any task decision is resolved."""
+    from apparatus_core.project_binding import read_project_binding, resolve_project_context
+    from apparatus_core.retention import operation
+
+    with ExitStack() as stack:
+        parsed._project_context = None
+        parsed._project_context_selected = True
+        task_workspace = getattr(parsed, "workspace", None) or "."
+        if parsed.verb in WORKSPACE_VERBS or parsed.verb == "init":
+            requested = getattr(parsed, "workspace", None) or "."
+            if Path(requested).exists() and read_project_binding(requested) is not None:
+                context = stack.enter_context(resolve_project_context(requested))
+                context.validate()
+                parsed._project_context = context
+                task_workspace = context.workspace
+                if parsed.verb not in {"check", "render", "init"}:
+                    parsed.workspace = str(context.workspace)
+        elif parsed.verb == "project" and parsed.project_action == "show":
+            context = stack.enter_context(resolve_project_context(parsed.project))
+            parsed._project_context = context
+            task_workspace = context.workspace
+        if parsed.verb != "task" and parsed.task is not None:
+            stack.enter_context(operation(task_workspace, task_id=parsed.task))
+        return int(handler(parsed))
 
 
 def command_entry_points(
@@ -68,13 +100,12 @@ def main(argv: list[str] | None = None) -> int:
         if handler is None:
             parser.print_help()
             return 2
-        if parsed.verb != "task" and parsed.task is not None:
-            from apparatus_core.retention import operation
-            with operation(getattr(parsed, "workspace", "."), task_id=parsed.task):
-                return int(handler(parsed))
-        return int(handler(parsed))
+        return _dispatch(parsed, handler)
     except SystemExit as error:
         return int(error.code) if isinstance(error.code, int) else 2
+    except BindingError as error:
+        print(f"apparatus: {error}", file=sys.stderr)
+        return 2
     except Exception as error:  # pragma: no cover - exact failures are environment-specific
         print(f"apparatus: internal error: {error}", file=sys.stderr)
         return 2

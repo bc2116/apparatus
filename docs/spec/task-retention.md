@@ -7,6 +7,13 @@ before subsequent managed commands. `task show WORKSPACE ID` reads the decision
 on resumption. Lost context starts a no-save continuation; no shared active-task
 file or title/query/transcript storage is introduced.
 
+Commands can take an explicitly bound project as `WORKSPACE`. Its relative
+binding and work-area UUID resolve before task enforcement, including task
+start/show/no-memory and commands without global `--task`. The selected work area
+owns the task control. A missing or invalid link is never repaired by ancestor
+search, and a later link edit cannot redirect an in-flight command. See the
+[workspace contract](workspace.md#context-selection) for command scope.
+
 The user can say "don't remember this task." Start it with `--no-memory`, or
 use `task no-memory WORKSPACE ID` to change an existing decision one way. Opt-out
 affects subsequent invocations; an in-flight invocation freezes its entry
@@ -46,8 +53,9 @@ request uses its command's `--requested`; this does not enable Memory.
 
 Automatic snapshots stop before Git initialization or object capture. A separate
 explicit `snapshot --requested` or requested backup export remains available.
-Backup includes current workspace files and existing history; it does not
-sanitize old data. Requested exceptions are scoped to that operation and do not
+Managed work-area backup includes declared Apparatus state and its existing
+history; legacy backup retains its full-workspace scope. Neither sanitizes old
+data. Requested exceptions are scoped to that operation and do not
 enable general capture.
 
 Necessary receipts are shaped before exact-byte ownership binding: fixed event,

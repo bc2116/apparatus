@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from apparatus_core import records
-from apparatus_core.memory import MemoryReadError, recall as recall_memory, record_path, read_record
+from apparatus_core.memory import MemoryReadError, RECORD_ROOTS, recall as recall_memory, record_path, read_record
 from apparatus_core.credentials import RedactionFinding, redact
 from apparatus_core.fs_transactions import (
     OwnedFile as _OwnedFile,
@@ -525,11 +525,11 @@ def _sweep(
     anchor: _WorkspaceAnchor,
     write: ReceiptWriter,
 ) -> tuple[int, int]:
-    people = anchor.list_memory_records("Memory/People")
-    facts = anchor.list_memory_records("Memory/Facts")
     plans = [
-        *(_plan_sweep_record(path, anchor, "person") for path in people),
-        *(_plan_sweep_record(path, anchor, "fact") for path in facts),
+        _plan_sweep_record(path, anchor, kind)
+        for folder, kind in RECORD_ROOTS
+        if kind != "decision" or anchor.directory_exists(folder)
+        for path in anchor.list_memory_records(folder)
     ]
     return len(plans), _apply_changes(anchor, plans, write)
 

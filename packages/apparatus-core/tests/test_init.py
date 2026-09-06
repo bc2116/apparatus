@@ -46,6 +46,8 @@ def _args(workspace: Path, **kwargs) -> argparse.Namespace:
         privacy_mode=kwargs.get("privacy_mode"),
         work_types=kwargs.get("work_types"),
         payload=kwargs.get("payload"),
+        adopt=kwargs.get("adopt", True),
+        task=kwargs.get("task"),
     )
 
 
@@ -150,6 +152,7 @@ def test_repeat_preserves_unmanaged_bytes_repairs_tree_and_updates_profile(tmp_p
     workspace = tmp_path / "workspace"
     assert init.run(_args(workspace)) == 0
     user_file = workspace / "Projects/user.bin"
+    user_file.parent.mkdir()
     user_file.write_bytes(b"keep\x00all\xffbytes")
     welcome = workspace / "Welcome.md"
     welcome.write_bytes(b"my welcome\x00edit")
@@ -277,10 +280,9 @@ def test_unexpected_initial_snapshot_failure_is_not_reported_as_success(tmp_path
         ("Goals", "file"),
         ("System/policy/standard.md", "directory"),
         ("System/receipts", "file"),
-        (".git", "file"),
     ),
 )
-def test_complete_plan_rejects_generic_managed_receipt_and_git_collisions_atomically(
+def test_complete_plan_rejects_generic_managed_and_receipt_collisions_atomically(
     tmp_path, collision, kind
 ):
     workspace = tmp_path / "workspace"
@@ -338,7 +340,7 @@ def test_full_init_rejects_workspace_ancestor_symlink_without_touching_outside(t
     (
         ("System/receipts", False, True),
         ("System/machine-report.md", False, False),
-        (".git", True, True),
+        ("System/workspace.yaml", True, False),
     ),
 )
 def test_full_init_preflights_receipts_report_and_snapshot_store_symlinks(

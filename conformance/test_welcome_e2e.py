@@ -250,7 +250,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
 
     # The assistant saves an ordinary cited draft containing useful People
     # context. There is no sharing-gate inspection or decision to request.
-    project = workspace / "Projects" / "orion-readiness"
+    project = workspace / "orion-readiness"
     project.mkdir()
     draft = project / "orion-readiness-brief.md"
     draft.write_text(
@@ -265,19 +265,20 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     assert "Library/reference-note.md" in draft_text
     assert not _receipts(workspace, "egress")
 
-    # Filing remains inside the workspace. The related goal names the filed
-    # deliverable before the final snapshot and whole-workspace check.
-    deliverable = workspace / "Deliverables" / "orion-readiness-brief.md"
-    draft.replace(deliverable)
+    # Completion preserves the file in its project; managed snapshots do not
+    # claim recovery of this project original.
+    deliverable = draft
+    _run("project", "bind", project, "--workspace", workspace, env=environment)
+    assert (project / ".apparatus/workspace.yaml").is_file()
     goal = workspace / goal_relative
     goal_data, goal_body = _frontmatter(goal)
     goal_data["status"] = "done"
     goal_data["next-action"] = (
-        "Review Deliverables/orion-readiness-brief.md with the readiness team."
+        "Review orion-readiness/orion-readiness-brief.md with the readiness team."
     )
     _write_record(goal, goal_data, goal_body)
     assert _frontmatter(goal)[0]["status"] == "done"
-    assert "Deliverables/orion-readiness-brief.md" in str(
+    assert "orion-readiness/orion-readiness-brief.md" in str(
         _frontmatter(goal)[0]["next-action"]
     )
 
@@ -294,7 +295,14 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
         workspace, "snapshot", snapshot_before
     )
     assert snapshot_data["label"] == "Welcome end-to-end"
-    assert snapshot_data["snapshot_id"] == "self"
+    actual_head = subprocess.run(
+        ["git", "--git-dir", str(workspace / "System/recovery/store"),
+         "rev-parse", "refs/heads/managed"],
+        capture_output=True, text=True, check=True, env=environment,
+    ).stdout.strip()
+    assert snapshot_data["snapshot_id"] == actual_head
+    assert re.fullmatch(r"[0-9a-f]{40}", actual_head)
+    assert not (workspace / ".git").exists()
 
     final_check = _run("check", workspace, env=environment)
     assert "check passed" in final_check.stdout
