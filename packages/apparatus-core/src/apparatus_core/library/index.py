@@ -843,9 +843,20 @@ def _writer_lock(cache: Path):
             except FileExistsError:
                 try:
                     status = os.lstat(lock)
+                except FileNotFoundError:
+                    # The owner released the lock after our exclusive open.
+                    time.sleep(0.01)
+                    continue
                 except OSError as error:
                     raise IndexError("Library index writer lock could not be inspected") from error
-                if not _private_regular(status) or is_reparse_path(lock):
+                if is_reparse_path(lock):
+                    raise IndexError("Library index writer lock is not private")
+                if stat.S_ISREG(status.st_mode) and stat.S_IMODE(status.st_mode) == 0o600 and status.st_nlink == 0:
+                    # Native metadata can describe the just-unlinked inode.
+                    # Retry exclusive creation; this observation grants no lock.
+                    time.sleep(0.01)
+                    continue
+                if not _private_regular(status):
                     raise IndexError("Library index writer lock is not private")
                 time.sleep(0.01)
         else:
