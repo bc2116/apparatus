@@ -1,5 +1,10 @@
 # PR-41 verification
 
+Final local integration includes PR-40, the patched PDF dependency and both
+inherited Windows repairs. `uv run pytest` passed **1,043 tests, 38 skipped**
+in 415.44 seconds. Independent review accepted the seven-Skill stock migration
+and learned-Skill integration. Actual Windows CI remains required before merge.
+
 Author validation before PR-40 integration:
 
 - `uv run pytest`: **979 passed, 38 skipped** in 305.28 seconds.
