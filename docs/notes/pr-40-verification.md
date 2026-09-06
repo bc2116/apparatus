@@ -1,5 +1,10 @@
 # PR-40 verification
 
+Final local integration includes the patched PDF dependency and inherited
+Windows binding/canonical-path repairs. `uv run pytest` passed **992 tests,
+38 skipped** in 363.82 seconds. Actual Windows CI must pass this integrated
+source before delivery. The two Skill bodies are unchanged from accepted review.
+
 Authoring and local validation: 2026-09-06, macOS, Python 3.12.4.
 
 The payload has seven canonical portable Skills. Five legacy procedure mappings
