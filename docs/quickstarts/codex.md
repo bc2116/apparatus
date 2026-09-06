@@ -1,7 +1,7 @@
 # Apparatus with Codex — pre-alpha quickstart
 
 Open your chosen local work area and ask for useful work. This is a documented
-setup route, not a certified Codex run. The tested local PR46 build is pre-alpha;
+setup route, not a certified Codex run. The observed local build remains pre-alpha;
 a signed public release is not established.
 
 1. In the desktop app, use a local project with the work-area folder attached.
@@ -25,7 +25,7 @@ a signed public release is not established.
 
 If setup is needed, use the tested local build described in the
 [setup guide](../../installer/README.md); do not assume PyPI contains this rework.
-PR46 uses the chosen root directly: fresh/empty roots use normal setup; existing
+The installer uses the chosen root directly: fresh/empty roots use normal setup; existing
 nonempty roots need explicit `--adopt` (macOS script) or `-Adopt` (Windows script;
 wrapper `/ADOPT`). Defaults are `~/Projects` and `C:\Projects`, without a required
 Apparatus subfolder. The macOS package cannot forward custom-path/adoption flags;
@@ -37,5 +37,7 @@ Keep one body; do not create duplicate Skills or infer execution from a menu.
 For a task you do not want retained, say “Don't save this task to Memory”; this
 still allows its requested deliverable and does not control provider retention.
 
-Official setup pages checked 2026-09-06. App versions, permissions and completed
-first-task behavior still require the [certification checklist](../certification/checklist.md).
+Official setup pages checked 2026-09-06. The current build has a bounded Codex
+CLI first-task observation, not desktop certification. See exact build identifiers
+and remaining cases in the [dated matrix](../certification/matrix.md). Windows CI,
+signing and full app certification remain incomplete.

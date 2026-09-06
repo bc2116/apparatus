@@ -35,5 +35,7 @@ no duplicate body or symlink is needed. Existing Cursor **CLI** metadata probes
 were inconclusive and establish neither IDE discovery nor body execution.
 
 Official setup pages checked 2026-09-06. Cursor IDE/CLI are separate variants;
-local PR46 validation passed, but the [six-step app checklist](../certification/checklist.md)
-still needs complete actual-run evidence.
+the current local build completes a basic IDE task. Earlier Memory correction
+and Library addition observations remain tied to their build. See the [dated
+matrix](../certification/matrix.md) for exact identifiers and missing cases.
+Required Windows CI, signing and full app certification remain incomplete.

@@ -73,9 +73,11 @@ Finished work may receive one brief optional addition offer; no-save suppresses
 these offers and card capture. Card freshness is checked against current evidence.
 
 The [approved rework](docs/design/design-brief.md) still includes planned native
-discovery adapters. PR47 is collecting real first-task evidence against the
-integrated local pre-alpha build. The first Cursor task saved its deliverable
-but exposed a core path-alias defect; final certification awaits PR48.
+discovery adapters. PR48's path-alias repair and PR49's cache diagnostic repair
+are implemented. The current local release-candidate checkpoint completes a
+basic Cursor task; earlier observations also cover Memory correction and Library
+addition. Cursor is the priority app for remaining acceptance. Full required
+cases, Windows CI and signing remain incomplete; this is not a signed public RC.
 **No reworked app is certified yet**; see the
 [dated support matrix](docs/certification/matrix.md) and [six-step checklist](docs/certification/checklist.md).
 Start with the short [Codex](docs/quickstarts/codex.md),

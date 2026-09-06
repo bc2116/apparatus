@@ -2,8 +2,8 @@
 
 Updated 2026-09-06. **Local RC checkpoint: basic Cursor task works; certification,
 required Windows CI and signing remain incomplete. No signed public RC claim.**
-PR47 documentation is based on PR48 and is being curated to retain both its
-partial app observations and bounded PR49 first-task smokes. Latest observed
+PR47 is integrated onto final PR49 and retains both earlier partial app
+observations and bounded PR49 first-task smokes. Latest observed
 source is `1e50521f1aae41759123cc21f1a9f91c9f89a6a9`; earlier multi-case fragments
 used `7c0c6c4252bf948a0e4dd32decfb35cf308e963d`. These are exact-build evidence,
 not claims about a release. Only documentation and synthetic evidence are
@@ -48,8 +48,9 @@ The two historical metadata records remain unchanged. Current evidence includes
 byte-for-byte synthetic source, plans, guides, Facts and cards, with SHA-256
 checks in each run record. Final curation checks passed: six new run JSON records parse, all 27 copied
 artifact hashes match, relative links resolve, no private absolute paths were
-found, and historical evidence is unchanged. `git diff --check` passes. No full pytest or additional app run is performed by this
-documentation curation task.
+found, and historical evidence is unchanged. `git diff --check` passes. The
+required integrated full suite passed as recorded below; no additional app run
+was performed during documentation integration.
 
 ## Earlier diagnostic evidence
 
@@ -107,8 +108,8 @@ The first Library cache was outside the fixture; later calls used an owned cache
 No full Memory, learned Skill or recovery case is inferred.
 
 Complete all required cases against one final common build
-before recording certification. The three-app gate, independent
-semantic review and required PR47 full pytest remain pending. Native installer
+before recording certification. The complete three-app gate and its independent
+semantic acceptance remain pending. Native installer
 CI/rehearsal, signatures and publication are separate. No raw conversation or
 machine absolute path was copied into the normalized evidence.
 
@@ -143,4 +144,29 @@ The PR49 branch later recorded its verification note at
 `3d940a45af75cbbd190a1fa2279fdf340c6f9918`; the tested artifact source remains
 `1e50521f1aae41759123cc21f1a9f91c9f89a6a9`. PR49's operator-reported full result
 is 1,265 passed and 38 skipped. That source test result does not certify apps;
-PR47's required full suite is still pending integration by the owner.
+PR47's own integrated full-suite result follows.
+
+## Final local integration
+
+The evidence commit was rebased from PR48 onto PR49
+`3d940a45af75cbbd190a1fa2279fdf340c6f9918`. The resulting checkout before final
+documentation reconciliation was `9e7a6df1eeb1298750342540bac9e44e62e82995`.
+Compared with pre-rebase PR47, only exact inherited PR49 files and the intentional
+plan dependency reconciliation changed. PR48 and PR49 remain marked landed;
+PR47 remains in progress with dependency PR49.
+
+- `uv sync --all-packages`: passed.
+- `uv run pytest`: **1,265 passed, 38 skipped in 550.91 seconds**; exit 0.
+  The operator retained the local log as `apparatus-pr47-final-full.log`.
+- Core source, starter and conformance Git trees match smoke artifact source
+  `1e50521f1aae41759123cc21f1a9f91c9f89a6a9` exactly. Core source tree:
+  `f057a93f1fb4a9bfdb8afea0553002642291d4af`; starter tree:
+  `af709c9bc3520ffa27d134b6ada98ffa553be5ac`.
+- The observed wheel and payload identities above remain unchanged; no new
+  package or app run is claimed from the documentation-only reconciliation.
+- Final relative links, evidence hashes, private-path scan and diff whitespace
+  checks pass. No additional platform suite was run.
+
+This is a local RC checkpoint with basic Cursor use demonstrated. Remaining
+full app cases, required Windows CI and signing are incomplete. No push, public
+RC publication or completed app certification is established by this note.

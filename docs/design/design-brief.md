@@ -223,10 +223,12 @@ three AI apps with dated app/OS/version evidence. A green unit suite or a
 detected app is not that certification.
 
 The reworked layout, task controls and installer routing are implemented.
-[PR47](../plan/PR-47-first-task-certification.md) is gathering actual app evidence;
-its six-case, three-app gate remains incomplete and requires the PR48 path-alias
-repair exposed by the first Cursor run. Native discovery adapters,
-platform evidence, signing provisioning and public delivery retain their own
+PR48's path-alias fix and PR49's cache diagnostic fix are implemented.
+[PR47](../plan/PR-47-first-task-certification.md) records a working basic Cursor
+task on the current local build and earlier Memory/Library observations. Cursor
+is the priority app for remaining acceptance. The six-case, three-app gate,
+required Windows CI and signing remain incomplete; no signed public RC is
+established. Native discovery adapters and public delivery retain their own
 acceptance requirements. No further product-choice interview is needed. Resolve
 small reversible implementation choices in their focused prompts; return to the
 owner only if evidence requires a material change to this direction.

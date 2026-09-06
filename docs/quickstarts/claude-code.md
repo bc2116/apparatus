@@ -37,5 +37,7 @@ its existing instruction pointer and the chosen canonical
 body, symlink or successful menu discovery. A listed thin wrapper has not yet
 proved that its body pointer is followed.
 
-Official launch instructions checked 2026-09-06. Local PR46 validation passed;
-[six-step app certification](../certification/checklist.md) remains incomplete.
+Official launch instructions checked 2026-09-06. The current build has a qualified
+CLI first-task observation; its sample timing caveat and earlier semantic failures
+remain in the [dated matrix](../certification/matrix.md). Windows CI, signing and
+full app certification remain incomplete; no IDE result is inferred.
