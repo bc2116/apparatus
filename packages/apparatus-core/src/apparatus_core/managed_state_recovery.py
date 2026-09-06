@@ -43,7 +43,7 @@ OPTIONAL_FILES = frozenset((
     ".github/copilot-instructions.md", "System/profile.yaml", "System/ignore",
     "System/README.md", "System/guidance/model-guidance.md",
     "System/policy/standard.md", "System/policy/private.md",
-)) | frozenset(skills.BUILTIN_PATHS)
+)) | frozenset(skills.BUILTIN_PATHS)  # Current seven bodies; each remains optional in older trees.
 RECORD_ROOTS = {
     "Goals": "goal", "Memory/People": "person", "Memory/Facts": "fact",
     "Memory/Decisions": "decision", "Decisions": "decision",

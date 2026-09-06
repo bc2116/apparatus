@@ -10,7 +10,7 @@ from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.payload import shipped_payload
 from apparatus_core.render import render_workspace
 from apparatus_core.skills import (
-    BUILTIN_PATHS, BUILTIN_SKILLS, SKILL_INDEX, is_shipped_skill_orientation, legacy_pointer,
+    BUILTIN_PATHS, LEGACY_PROCEDURES, SKILL_INDEX, is_shipped_skill_orientation, legacy_pointer,
 )
 from apparatus_core.workspace_layout import new_layout_bytes
 
@@ -39,10 +39,10 @@ def _bytes(root):
 def test_complete_native_set_validates_and_counts_each_body_once(tmp_path):
     root = _area(tmp_path)
     before = _bytes(root)
-    assert _check(root) == ([], 5, 0, 0)
+    assert _check(root) == ([], 7, 0, 0)
     result = check_workspace(root)
     assert result.ok
-    assert result.records_checked == 6  # Five Skills and the profile.
+    assert result.records_checked == 8  # Seven Skills and the profile.
     assert _bytes(root) == before
 
 
@@ -51,7 +51,7 @@ def test_external_ancestor_alias_keeps_canonical_workspace_boundary(tmp_path, mo
     root = _area(tmp_path)
     alias = tmp_path / "external-alias"
     alias.symlink_to(tmp_path, target_is_directory=True)
-    assert _check(alias / root.name) == ([], 5, 0, 0)
+    assert _check(alias / root.name) == ([], 7, 0, 0)
     read_rules = checks.load_ignore_rules
     observed = []
 
@@ -91,7 +91,7 @@ def test_missing_native_bodies_remain_actionable(tmp_path, damage):
     findings, count, _, _ = _check(root)
     assert {finding.path for finding in findings} == set(missing)
     assert all(finding.code == "skill-missing" and "apparatus init WORKSPACE" in finding.hint for finding in findings)
-    assert count == 5 - len(missing)
+    assert count == 7 - len(missing)
     assert _bytes(root) == before
 
 
@@ -101,7 +101,7 @@ def test_exact_installation_evidence_survives_missing_bodies(tmp_path, evidence)
     if evidence == "directory":
         (root / next(iter(BUILTIN_PATHS))).parent.mkdir(parents=True)
     elif evidence == "stub":
-        relative = next(iter(BUILTIN_SKILLS))
+        relative = next(iter(LEGACY_PROCEDURES))
         (root / relative).parent.mkdir(parents=True)
         (root / relative).write_bytes(legacy_pointer(relative).replace(b"\n", b"\r\n"))
     else:
@@ -158,7 +158,7 @@ def test_edited_shipped_orientation_is_not_installation_or_ownership_evidence(tm
 
 def test_legacy_and_unrelated_native_skills_do_not_imply_installation(tmp_path, monkeypatch):
     root = _area(tmp_path, native=False)
-    for relative in BUILTIN_SKILLS:
+    for relative in LEGACY_PROCEDURES:
         path = root / relative
         path.parent.mkdir(exist_ok=True)
         path.write_text("---\nschema: apparatus/procedure@v0\ntitle: Legacy workflow\nintent: Keep this workflow.\n---\nOriginal steps.\n")
@@ -194,23 +194,23 @@ def test_malformed_native_skill_is_reported_without_rewriting(tmp_path, content)
     (root / relative).write_bytes(content)
     findings, count, _, _ = _check(root)
     assert findings and all(finding.code == "skill-invalid" and finding.path == relative for finding in findings)
-    assert count == 5
+    assert count == 7
     assert (root / relative).read_bytes() == content
 
 
 def test_mixed_historical_workflow_is_reported_and_stubs_are_healthy(tmp_path):
     root = _area(tmp_path)
-    relative = next(iter(BUILTIN_SKILLS))
+    relative = next(iter(LEGACY_PROCEDURES))
     old = root / relative
     old.parent.mkdir()
     body = b"---\nschema: apparatus/procedure@v0\ntitle: Original workflow\nintent: Keep it.\n---\nHistorical steps.\n"
     old.write_bytes(body)
     findings, count, _, _ = _check(root)
     assert [(item.code, item.path) for item in findings] == [("skill-mixed-state", relative)]
-    assert "migrate" in findings[0].hint and count == 5
+    assert "migrate" in findings[0].hint and count == 7
     assert old.read_bytes() == body
     old.write_bytes(legacy_pointer(relative))
-    assert _check(root) == ([], 5, 0, 0)
+    assert _check(root) == ([], 7, 0, 0)
 
 
 def test_ignored_native_content_is_not_read_or_mistaken_for_legacy(tmp_path, monkeypatch):
@@ -227,11 +227,11 @@ def test_ignored_native_content_is_not_read_or_mistaken_for_legacy(tmp_path, mon
     monkeypatch.setattr(WorkspaceAnchor, "read_file", no_hidden_body)
     findings, count, built_in, user = _check(root)
     assert [(item.code, item.path) for item in findings if item.code == "skill-missing"] == [("skill-missing", missing)]
-    assert len([item for item in findings if item.code == "skill-check-incomplete"]) == 4
-    assert (count, built_in, user) == (0, 0, 4)
+    assert len([item for item in findings if item.code == "skill-check-incomplete"]) == 6
+    assert (count, built_in, user) == (0, 0, 6)
     result = check_workspace(root)
     assert result.records_checked == 1
-    assert result.ignored_paths == 4
+    assert result.ignored_paths == 6
 
 
 def test_ignored_orientation_reports_unknown_coverage_without_installation_claim(tmp_path, monkeypatch):

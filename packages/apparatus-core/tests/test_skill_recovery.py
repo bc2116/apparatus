@@ -11,7 +11,7 @@ from apparatus_core import managed_state_backup as backup, managed_state_recover
 from apparatus_core.check import check_workspace
 from apparatus_core.commands import init
 from apparatus_core.project_binding import bind_project, resolve_project_context
-from apparatus_core.skills import BUILTIN_PATHS, BUILTIN_SKILLS, is_legacy_pointer
+from apparatus_core.skills import BUILTIN_PATHS, LEGACY_PROCEDURES, is_legacy_pointer
 from apparatus_core.snapshots import SnapshotError
 
 
@@ -86,11 +86,11 @@ def test_native_archive_and_historical_restore_remigrate_without_losing_custom_f
     recovery.restore_snapshot(extracted, old.identifier)
     assert (extracted / first).read_bytes() == custom  # Later additions are retained.
     findings = check_workspace(extracted).findings
-    for old_path in BUILTIN_SKILLS:
+    for old_path in LEGACY_PROCEDURES:
         assert any(item.path == old_path and "init" in item.hint for item in findings)
     setup(extracted)
     assert (extracted / first).read_bytes() == custom
-    assert all(is_legacy_pointer(path, (extracted / path).read_bytes()) for path in BUILTIN_SKILLS)
+    assert all(is_legacy_pointer(path, (extracted / path).read_bytes()) for path in LEGACY_PROCEDURES)
     assert check_workspace(extracted).ok
     assert {relative: (root / relative).read_bytes() for relative in outside} == outside
 

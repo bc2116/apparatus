@@ -119,10 +119,12 @@ def _workflow_path(value: object, payload: Path, entry: str) -> str:
 
 def _validate_native_payload(payload: Path) -> None:
     """A native built-in source is a complete set, with no recursive ownership."""
-    if any((payload / relative).parent.exists() or (payload / relative).parent.is_symlink()
-           for relative in skills.BUILTIN_PATHS):
-        for relative in skills.BUILTIN_PATHS:
-            _workflow_path(relative, payload, relative)
+    from apparatus_core.fs_transactions import WorkspaceAnchor
+    try:
+        with WorkspaceAnchor(payload) as anchor:
+            skills.read_skill_payload(anchor)
+    except (OSError, ValueError) as error:
+        raise ManifestError(str(error)) from error
 
 
 def load_manifest(path: str | Path, payload: str | Path) -> OverlayManifest:

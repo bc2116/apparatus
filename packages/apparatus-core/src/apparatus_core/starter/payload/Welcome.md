@@ -59,3 +59,7 @@ Useful defaults are already available. Your existing preferences stay in place,
 and you can change them later by asking. Checklist and weekly reviews happen
 only when requested. Say “don't remember this task” when you want the requested
 work saved without adding new Memory or automatic captures.
+
+Your assistant can keep larger work economical with small, bounded teams when
+your AI app supports them, and make a light prose pass when it helps. These
+Skills follow your request and preferences; simple work stays simple.

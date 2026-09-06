@@ -15,8 +15,8 @@ from apparatus_core.overlays import OverlayPlan, OverlayWrite
 from apparatus_core.payload import PayloadError, preflight_workspace_paths
 from apparatus_core.render import owns_shim, rendered_shims_from_bytes
 from apparatus_core.skills import (
-    BUILTIN_PATHS, BUILTIN_SKILLS, canonical_path, has_skill_index, is_legacy_pointer,
-    legacy_pointer, validate_skill,
+    BUILTIN_PATHS, LEGACY_PROCEDURES, canonical_path, is_legacy_pointer,
+    legacy_pointer, validate_skill, read_skill_payload,
 )
 
 # Original instruction bytes from the pre-rework payload. CRLF is normalized
@@ -112,6 +112,16 @@ TASK_FIRST_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '22a54935d5caef2cb6a6c08fb18868
  '.agents/skills/apparatus-welcome/SKILL.md': 'fb8cd3190c74780f1d5b5defdd68016fb52d64205d52e0aba6be7c86aebf9ed2'}
 
 
+# Exact PR-39 five-Skill instructions and the original guidance table.
+ECONOMY_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': 'da116d700a2814d9e2d45d9dbfa70c5a1b980862e1c4f382eb036fe2d804fb56',
+ 'Welcome.md': '5bcf362d72d507a8896498d9da83646cc95b8e2b3395cfbbe21b631860048be1',
+ 'System/README.md': '51ee1850ff9653584142b0b5a789040169bed33ce6f42c0a6c6d8ab984ddb5d6',
+ 'System/guidance/model-guidance.md': 'dd395ad3d8489f481994cb0635f7b43f0e22fc63085e7b22672257a2a80d893f',
+ 'CLAUDE.md': '03cfeb0fb3f684b6b280b68b3ecc766c69fa3aed0d5a740750d77ee0da5b9a49',
+ '.cursor/rules/apparatus.mdc': '49377d46b123b214ae548ce2c88610c025aaa6dcdc82dc55c586597f6f677b70',
+ '.github/copilot-instructions.md': '638dbdf586d356130bdc998a074912e5030ecf519e8673092568987b74e0bdc2'}
+
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -120,7 +130,7 @@ def known_instruction(relative: str, content: bytes) -> bool:
     return _digest(content) in {table.get(relative) for table in (
         LEGACY_INSTRUCTIONS, PREVIOUS_INSTRUCTIONS, RETENTION_PREVIOUS_INSTRUCTIONS,
         LAYOUT_PREVIOUS_INSTRUCTIONS, SKILLS_PREVIOUS_INSTRUCTIONS,
-        TASK_FIRST_PREVIOUS_INSTRUCTIONS,
+        TASK_FIRST_PREVIOUS_INSTRUCTIONS, ECONOMY_PREVIOUS_INSTRUCTIONS,
     )}
 
 
@@ -166,7 +176,7 @@ def instruction_updates(
 ) -> tuple[OverlayPlan, dict[str, bytes | None]]:
     """Preflight known instructions and return replacements with exact preimages."""
     replacements: dict[str, OverlayWrite] = {item.relative: item for item in overlay.writes}
-    instruction_paths = (*LEGACY_INSTRUCTIONS, "System/README.md")
+    instruction_paths = (*LEGACY_INSTRUCTIONS, "System/README.md", "System/guidance/model-guidance.md")
     expected: dict[str, bytes | None] = dict.fromkeys(instruction_paths)
     removals = set(overlay.removals)
     with WorkspaceAnchor(payload) as source:
@@ -186,22 +196,18 @@ def instruction_updates(
                     f"payload instruction {relative!r} contains the retired sharing gate; "
                     "use the updated starter payload"
                 )
-        native = {relative: _read_optional(source, relative) for relative in BUILTIN_PATHS}
-        native_migration = (any(content is not None for content in native.values())
-                            or any(source.directory_exists(Path(relative).parent) for relative in BUILTIN_PATHS)
-                            or has_skill_index(proposed.get("AGENTS.md", b"")))
+        try:
+            native = read_skill_payload(source)
+        except ValueError as error:
+            raise PayloadError(str(error)) from error
+        native_migration = bool(native)
         if native_migration:
-            for relative, name in BUILTIN_PATHS.items():
-                if native[relative] is None or validate_skill(native[relative], name):
-                    raise PayloadError(f"payload Skill {relative!r} is missing or invalid; use a complete portable Skill payload")
-            for relative in BUILTIN_SKILLS:
-                if relative in proposed:
-                    raise PayloadError(f"native payload contains legacy workflow {relative!r}; ship only its canonical Skill")
+            for relative in LEGACY_PROCEDURES:
                 expected.pop(relative)
     if workspace.exists():
         with WorkspaceAnchor(workspace) as root:
             for relative in instruction_paths:
-                if native_migration and relative in BUILTIN_SKILLS:
+                if native_migration and relative in LEGACY_PROCEDURES:
                     continue
                 current = _read_optional(root, relative)
                 expected[relative] = current
@@ -232,7 +238,8 @@ def instruction_updates(
                     removals.discard(relative)
     if native_migration:
         with WorkspaceAnchor(workspace) if workspace.exists() else nullcontext(None) as root:
-            for relative, name in BUILTIN_PATHS.items():
+            for relative in native:
+                name = BUILTIN_PATHS[relative]
                 current = _read_optional(root, relative) if root is not None else None
                 expected[relative] = current
                 removals.discard(relative)
@@ -245,7 +252,7 @@ def instruction_updates(
                         replacements.pop(relative, None)
                 else:
                     replacements[relative] = OverlayWrite(relative, native[relative])
-            for relative, name in BUILTIN_SKILLS.items():
+            for relative, name in LEGACY_PROCEDURES.items():
                 current = _read_optional(root, relative) if root is not None else None
                 replacements.pop(relative, None)
                 removals.discard(relative)

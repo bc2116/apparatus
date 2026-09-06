@@ -54,7 +54,7 @@ including `Projects/name`, remain valid without relocation.
 |---|---|
 | `AGENTS.md` | One work-area instruction canon; custom instructions remain user-owned. |
 | `Welcome.md` | Human-facing orientation. |
-| `.agents/skills/` | Five canonical portable Skills; unrelated native Skills remain user-owned. |
+| `.agents/skills/` | Seven canonical portable Skills; unrelated native Skills remain user-owned. |
 | `Goals/` | One goal record with owner, status, verifiable `done-when` and next action. |
 | `Memory/People/`, `Memory/Facts/` | Sourced continuity under the Memory lifecycle and task controls. |
 | `Memory/Decisions/` | New decision records. Legacy `Decisions/` records remain in place and are also checked and read. |

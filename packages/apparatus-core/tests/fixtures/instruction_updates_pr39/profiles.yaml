@@ -1,0 +1,43 @@
+# Declarative profile overlays for the universal starter payload.
+privacy_modes:
+  standard: System/policy/standard.md
+  private: System/policy/private.md
+work_types:
+  analysis:
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
+  quality:
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
+  project-management:
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
+  support:
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
+  writing:
+    - .agents/skills/apparatus-welcome/SKILL.md
+    - .agents/skills/apparatus-produce-deliverable/SKILL.md
+    - .agents/skills/apparatus-research-and-summarize/SKILL.md
+    - .agents/skills/apparatus-review-against-checklist/SKILL.md
+    - .agents/skills/apparatus-weekly-review/SKILL.md
+default:
+  privacy_mode: standard
+  work_types:
+    - analysis
+    - quality
+    - project-management
+    - support
+    - writing

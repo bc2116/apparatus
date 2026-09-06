@@ -161,7 +161,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     _run("init", workspace, env=environment)
     skill_names = {"apparatus-welcome", "apparatus-produce-deliverable",
                    "apparatus-research-and-summarize", "apparatus-review-against-checklist",
-                   "apparatus-weekly-review"}
+                   "apparatus-weekly-review", "apparatus-economizer", "apparatus-humanizer"}
     skill_root = workspace / ".agents/skills"
     assert {path.name for path in skill_root.iterdir()} == skill_names
     for name in skill_names:

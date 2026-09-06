@@ -2,6 +2,8 @@
 # relative to starter/payload/. Normative source: docs/spec/workspace.md.
 # Change deliberately, never to silence a failure. Lines starting with #
 # and blank lines are ignored.
+.agents/skills/apparatus-economizer/SKILL.md
+.agents/skills/apparatus-humanizer/SKILL.md
 .agents/skills/apparatus-produce-deliverable/SKILL.md
 .agents/skills/apparatus-research-and-summarize/SKILL.md
 .agents/skills/apparatus-review-against-checklist/SKILL.md

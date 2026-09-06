@@ -1,5 +1,5 @@
 from apparatus_core.render import rendered_shims
-from apparatus_core.skills import BUILTIN_PATHS, SKILL_INDEX, validate_skill
+from apparatus_core.skills import BUILTIN_PATHS, HISTORICAL_SKILL_PATHS, SKILL_INDEX, validate_skill
 from payload_check import PAYLOAD_DIR, diff
 
 
@@ -77,11 +77,11 @@ def test_workspace_instruction_canon_covers_the_required_contract():
         assert statement in text
 
 
-def test_fresh_payload_has_exactly_five_portable_skills_and_no_legacy_bodies():
+def test_fresh_payload_has_exactly_seven_portable_skills_and_no_legacy_bodies():
     actual = {path.relative_to(PAYLOAD_DIR).as_posix()
               for path in (PAYLOAD_DIR / ".agents").rglob("*") if path.is_file()}
     assert actual == set(BUILTIN_PATHS)
-    assert len(actual) == 5
+    assert len(actual) == 7
     assert not (PAYLOAD_DIR / "System/procedures").exists()
     for relative, name in BUILTIN_PATHS.items():
         path = PAYLOAD_DIR / relative
@@ -218,7 +218,7 @@ def test_task_first_welcome_and_human_orientation_do_not_require_setup():
 
 
 def test_everyday_skills_preserve_authority_evidence_and_requested_only_reviews():
-    for relative in BUILTIN_PATHS:
+    for relative in HISTORICAL_SKILL_PATHS:
         text = normalized(PAYLOAD_DIR / relative)
         assert "no-save" in text
         assert "automatic snapshots" in text or "automatic saves" in text

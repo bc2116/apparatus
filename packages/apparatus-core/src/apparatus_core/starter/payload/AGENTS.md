@@ -91,7 +91,7 @@ when still valid. Forgetting removes the record's content and leaves a marker
 at its existing filename; it does not erase setup answers, snapshots, backups,
 or the AI app's history. Corrections that add content require a saving task.
 
-<!-- Apparatus Skill index: v1 -->
+<!-- Apparatus Skill index: v2 -->
 ## Skills
 
 Read the relevant Skill from this work-area root; keep the other bodies closed.
@@ -101,6 +101,9 @@ Read the relevant Skill from this work-area root; keep the other bodies closed.
 - Research with sources: `.agents/skills/apparatus-research-and-summarize/SKILL.md`.
 - A requested checklist review: `.agents/skills/apparatus-review-against-checklist/SKILL.md`.
 - A requested weekly review: `.agents/skills/apparatus-weekly-review/SKILL.md`.
+
+- Economical native work: `.agents/skills/apparatus-economizer/SKILL.md`.
+- Requested prose editing or a light final pass: `.agents/skills/apparatus-humanizer/SKILL.md`.
 
 Skills provide instructions for the assistant. Apparatus does not execute them
 or call a model. Ordinary file reading is the fallback when native discovery is
