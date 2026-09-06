@@ -1,5 +1,9 @@
 # PR-24: App certification and quickstarts
 
+> **Held by PR-31:** this checklist targets legacy behavior being removed.
+> Do not execute it as current certification. Preserve existing work and
+> recut the checklist after the [rework sequence](rework-sequence.md) lands.
+
 ## Context — required reading
 
 - `AGENTS.md`
