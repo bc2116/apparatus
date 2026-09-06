@@ -15,7 +15,7 @@ with PR-43 depending on PR-41 and PR-42.
 - Integrated full `uv run pytest -o addopts= -q`: **1,149 passed, 38 skipped** in
   **373.90 seconds**.
 - Universal payload ZIP, wheel and source distribution builders passed.
-- All **25 starter files** match canonical source, captured PR-41, embedded
+- All **23 starter files** match canonical source, captured PR-41, embedded
   source, wheel and source distribution. All **23 payload files** also match the
   universal archive. All **seven built-in Skills** and learned-Skill fallback
   remain intact; learned-Skill and Library implementation modules match the wheel.

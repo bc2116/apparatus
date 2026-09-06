@@ -1,5 +1,11 @@
 # PR-44 verification
 
+Independent source, migration and semantic review accepted this implementation.
+The final dependency rebase onto PR-43 `6c185ee` changes only upstream verification
+notes relative to tested source `6c66180`; runtime, payload and test bytes are
+unchanged. A tracked-tree audit also corrects the earlier PR-43 starter count
+from 25 to 23; all seven built-in Skills are present.
+
 Implementation baseline: integrated PR-43 `735d4b2`, including seven built-ins,
 learned Skills and the preceding platform/PDF repairs. Exact changed stock files
 were captured from that committed tree before editing. Later PR-43 `6c185ee`
