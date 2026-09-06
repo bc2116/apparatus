@@ -46,6 +46,8 @@ def _args(workspace: Path, **kwargs) -> argparse.Namespace:
         privacy_mode=kwargs.get("privacy_mode"),
         work_types=kwargs.get("work_types"),
         payload=kwargs.get("payload"),
+        adopt=kwargs.get("adopt", True),
+        task=kwargs.get("task"),
     )
 
 
@@ -150,6 +152,7 @@ def test_repeat_preserves_unmanaged_bytes_repairs_tree_and_updates_profile(tmp_p
     workspace = tmp_path / "workspace"
     assert init.run(_args(workspace)) == 0
     user_file = workspace / "Projects/user.bin"
+    user_file.parent.mkdir()
     user_file.write_bytes(b"keep\x00all\xffbytes")
     welcome = workspace / "Welcome.md"
     welcome.write_bytes(b"my welcome\x00edit")
@@ -277,10 +280,9 @@ def test_unexpected_initial_snapshot_failure_is_not_reported_as_success(tmp_path
         ("Goals", "file"),
         ("System/policy/standard.md", "directory"),
         ("System/receipts", "file"),
-        (".git", "file"),
     ),
 )
-def test_complete_plan_rejects_generic_managed_receipt_and_git_collisions_atomically(
+def test_complete_plan_rejects_generic_managed_and_receipt_collisions_atomically(
     tmp_path, collision, kind
 ):
     workspace = tmp_path / "workspace"
@@ -338,7 +340,7 @@ def test_full_init_rejects_workspace_ancestor_symlink_without_touching_outside(t
     (
         ("System/receipts", False, True),
         ("System/machine-report.md", False, False),
-        (".git", True, True),
+        ("System/workspace.yaml", True, False),
     ),
 )
 def test_full_init_preflights_receipts_report_and_snapshot_store_symlinks(
@@ -1177,7 +1179,7 @@ def test_windows_init_retained_handles_deny_directory_rename(
 @pytest.mark.skipif(os.name != "nt", reason="native Windows reparse regression")
 @pytest.mark.parametrize("boundary", ("workspace", "System", "nested"))
 def test_windows_init_rejects_junction_boundaries_and_preserves_foreign_tree(
-    tmp_path, capsys, boundary
+    tmp_path, capsys, monkeypatch, boundary
 ):
     outside = tmp_path / f"outside-{boundary}"
     outside.mkdir()
@@ -1200,13 +1202,20 @@ def test_windows_init_rejects_junction_boundaries_and_preserves_foreign_tree(
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
+    if boundary == "System":
+        # Enrollment reads System/workspace.yaml through the retained safe root
+        # before deployment; a System junction must stop at that earlier check.
+        monkeypatch.setattr(init, "deploy_init_plan", lambda *_a, **_k: pytest.fail("unsafe enrollment reached deployment"))
     assert init.run(_args(workspace), available=lambda: False) == 2
     output = capsys.readouterr().out
-    assert (
-        "could not deploy workspace" in output
-        or "could not prepare workspace deployment" in output
-        or boundary == "workspace"
-    )
+    if boundary == "System":
+        assert "Work-area enrollment or recovery storage is missing or unsafe" in output
+    else:
+        assert (
+            "could not deploy workspace" in output
+            or "could not prepare workspace deployment" in output
+            or boundary == "workspace"
+        )
     assert foreign.read_bytes() == b"foreign junction\n"
     assert sorted(path.name for path in outside.iterdir()) == ["foreign.bin"]
 

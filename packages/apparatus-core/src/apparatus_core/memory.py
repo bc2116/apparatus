@@ -9,6 +9,11 @@ from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.ignore import IgnoreRulesError, load_ignore_rules
 from apparatus_core.labeler import split_record_exact
 
+RECORD_ROOTS = (
+    ("Memory/Facts", "fact"), ("Memory/People", "person"),
+    ("Memory/Decisions", "decision"), ("Decisions", "decision"),
+)
+
 
 class MemoryReadError(ValueError):
     """Memory coverage cannot be established safely."""
@@ -20,13 +25,15 @@ def record_path(value: str | Path) -> tuple[Path, str]:
     if (
         path.is_absolute() or PureWindowsPath(text).drive or "\\" in text
         or ".." in path.parts or path.as_posix() != text
-        or len(path.parts) < 3 or path.parts[0] != "Memory"
-        or path.parts[1] not in {"Facts", "People"}
         or any(part.startswith(".") for part in path.parts)
         or not records.KEBAB_FILENAME.fullmatch(path.name)
     ):
-        raise MemoryReadError("RECORD must name a kebab-case Markdown file under Memory/Facts or Memory/People")
-    return path, "fact" if path.parts[1] == "Facts" else "person"
+        raise MemoryReadError("RECORD must name a kebab-case Markdown file in a declared Memory folder")
+    for folder, kind in RECORD_ROOTS:
+        prefix = Path(folder).parts
+        if len(path.parts) > len(prefix) and path.parts[:len(prefix)] == prefix:
+            return path, kind
+    raise MemoryReadError("RECORD must be in Memory/Facts, Memory/People, Memory/Decisions or legacy Decisions")
 
 
 def read_record(anchor: WorkspaceAnchor, relative: Path, kind: str):
@@ -53,8 +60,10 @@ def recall(anchor: WorkspaceAnchor, query: str, *, limit: int = 5) -> dict:
         raise MemoryReadError("Memory recall could not load valid ignore rules; repair System/ignore or the profile") from error
     matches = []
     try:
-        for folder, kind in (("Memory/Facts", "fact"), ("Memory/People", "person")):
+        for folder, kind in RECORD_ROOTS:
             if rules.matches(folder, is_directory=True):
+                continue
+            if kind == "decision" and not anchor.directory_exists(folder):
                 continue
             for relative in anchor.list_memory_records(folder):
                 if rules.matches(relative):

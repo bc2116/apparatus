@@ -18,3 +18,9 @@ What lives here:
   assistant never suggests something that can't work here.
 
 Some of these appear only after setup completes.
+
+Work-area enrollment is recorded in `workspace.yaml`. Managed recovery uses its
+own store under `recovery/`; it never uses root or project Git repositories. A
+project's `.apparatus/workspace.yaml` selects this work area explicitly. Its files
+and Library originals are outside managed snapshot and backup coverage. Task
+controls remain in place during restore.

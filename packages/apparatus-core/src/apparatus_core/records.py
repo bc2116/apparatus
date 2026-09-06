@@ -86,7 +86,8 @@ SCHEMAS: dict[str, RecordSchema] = {
     "decision": RecordSchema(
         kind="decision",
         required=("schema", "title", "date"),
-        optional=("labels",),
+        optional=("labels", "status"),
+        enums={"status": MEMORY_STATUSES},
     ),
     "fact": RecordSchema(
         kind="fact",
@@ -177,14 +178,14 @@ def validate(
     if schema is None:
         return [f"unknown record kind: {kind!r} (the seven kinds are {sorted(SCHEMAS)})"]
 
-    forgotten = kind in {"fact", "person"} and data.get("status") == "forgotten"
+    forgotten = kind in {"fact", "person", "decision"} and data.get("status") == "forgotten"
     if forgotten:
         if set(data) != {"schema", "status"}:
             problems.append("forgotten Memory must contain only schema and status")
         if body is not None and body:
             problems.append("forgotten Memory must have no body")
-    elif kind in {"fact", "person"}:
-        field_name = "title" if kind == "fact" else "name"
+    elif kind in {"fact", "person", "decision"}:
+        field_name = "name" if kind == "person" else "title"
         if field_name in data and not isinstance(data[field_name], str):
             problems.append(f"{field_name} must be a string")
 

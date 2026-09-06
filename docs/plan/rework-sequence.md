@@ -16,15 +16,16 @@ Skill format. PR-34 adds task-scoped retention; the profile field remains compat
 
 The original specification also required a sharing gate, seven-question
 interview, separate finished-output folder, and routine receipts. PR-32 removes
-the gate. The other behaviors still await their named migration slices;
+the gate; PR-36 keeps finished files in their projects. The interview and routine
+receipts still await their named migration slices;
 current tests pin the remaining baseline. Packaging code and earlier dogfood do not
 establish public release, signing readiness, or current app certification.
 
 ## Execution rule
 
 PR-31 records this direction. R1 is implemented by PR-32 and R2 by PR-33/34.
-R3a is implemented by PR-35. Later slices are **planned — prompt not cut**,
-not ready to execute. Next cut PR-36 for R3b layout/adoption. Each
+R3 is implemented by PR-35/36. Later slices are **planned — prompt not cut**,
+not ready to execute. Next cut R4 for native Skills and procedure migration. Each
 prompt must state exact owned paths, migration behavior, acceptance tests, and
 dependencies; then add its row to the main plan. Do not implement the entire
 sequence on one branch. Product decisions below need no repeated interview.
@@ -88,20 +89,19 @@ cards, and history must use this same retention contract, not invent another.
 
 ### R3 — Work-area layout and project-local deliverables
 
-**R3a implemented in PR-35; R3b next in PR-36.** Source inspection found that
+**Implemented in PR-35/36.** Source inspection found that
 legacy recovery initializes or uses root Git and restores the whole workspace.
-PR-35 first adds an explicitly routed, isolated managed-state backend. Its marker
-is exercised only in fixtures until PR-36 deploys the new layout. Project files
+PR-35 adds an explicitly routed, isolated managed-state backend. PR-36 deploys
+its marker during fresh setup or explicit existing-folder adoption. Project files
 and Library originals are excluded from these snapshots and backups; CLI scope
 messages and exported notes identify this limit.
 
-R3b specifies the smallest layout supporting sibling projects and one
-Library, identifying where instructions, goals, Memory (including decisions),
-Skills, and operational state live and how a project finds them. Support a
-fresh folder and non-destructive adoption of an existing folder/repository.
-Remove mandatory central Deliverables placement. Keep snapshots scoped to
-managed/project state they can actually recover; never initialize a repository
-over unrelated projects or reset an existing repository as recovery.
+The layout supports sibling projects and one Library, with instructions, goals,
+Memory (including decisions), procedures and operational state at the chosen root.
+Relative UUID-checked project links select that area explicitly. Fresh setup and
+existing-folder adoption preserve custom instructions, repositories and legacy
+record locations. Finished files stay in their projects. Snapshots cover declared
+managed state only; they never initialize or reset root/project repositories.
 
 **Source owners:** `docs/spec/workspace.md`, payload/deployment/render paths,
 `check.py` folder mapping, snapshot/restore scope, starter deliverable guidance,

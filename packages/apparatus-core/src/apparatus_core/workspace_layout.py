@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from apparatus_core import records
 from apparatus_core.fs_transactions import WorkspaceAnchor, WindowsIdentity
@@ -19,6 +19,14 @@ LAYOUT_SCHEMA = "apparatus/workspace@v0"
 
 class LayoutError(ValueError):
     """Work-area routing is missing, invalid, or no longer current."""
+
+
+def new_layout_bytes() -> bytes:
+    """Create canonical enrollment bytes; the caller owns their transaction."""
+    return records.yaml.safe_dump({
+        "schema": LAYOUT_SCHEMA, "id": str(uuid4()),
+        "layout": "sibling-projects", "recovery": "managed-state",
+    }, sort_keys=False).encode("utf-8")
 
 
 def _root_identity(anchor: Any) -> tuple[int, int]:

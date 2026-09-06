@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -30,9 +31,20 @@ def run(
     if not workspace.is_dir():
         print("render: workspace path is not a directory")
         return 2
+    from apparatus_core.project_binding import BindingError, bind_project, read_project_binding, resolve_project_context
     try:
-        result = engine(workspace)
-    except RenderError as error:
+        with ExitStack() as stack:
+            context = getattr(args, "_project_context", None)
+            if (not getattr(args, "_project_context_selected", False)
+                    and read_project_binding(workspace) is not None):
+                context = stack.enter_context(resolve_project_context(workspace))
+            if context is not None:
+                context.validate()
+                bound = bind_project(workspace, context.workspace, context=context)
+                print(f"{'written' if bound.changed else 'unchanged'} AGENTS.md")
+                return 0
+            result = engine(workspace)
+    except (RenderError, BindingError) as error:
         print(f"render: {error}")
         return 2
     actions = result.actions or (

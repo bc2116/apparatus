@@ -12,7 +12,7 @@ from pathlib import Path
 from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.overlays import OverlayPlan, OverlayWrite
 from apparatus_core.payload import PayloadError, preflight_workspace_paths
-from apparatus_core.render import rendered_shims_from_bytes
+from apparatus_core.render import owns_shim, rendered_shims_from_bytes
 
 # Original instruction bytes from the pre-rework payload. CRLF is normalized
 # for recognition only; the exact captured bytes remain the transaction preimage.
@@ -59,8 +59,31 @@ RETENTION_PREVIOUS_INSTRUCTIONS = {
 }
 
 
+# PR-34 shipped instructions before work-area enrollment. Exact bytes only.
+LAYOUT_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '7fb4a3f94806cd7e83d1eb0598dee5b7f6254ee8c73915bdf03a78499ab8a803',
+ 'Welcome.md': 'c4a498b8ac0b0ef89fee6db6d733f30d594cec43886952fdd7540e29c2a58806',
+ 'System/ignore': '464121144931e07323d94f4e3bf3ab844b277c47eb74184d5aacf4995f7f5a35',
+ 'System/policy/standard.md': '41e7804882adb2ad4544634028841fcedd2422394ee6d44071654b64621b4613',
+ 'System/policy/private.md': 'f3472ceaacef9b1dd1091ed56aa56c9aad3b79b2109e79199223e13a84dd2576',
+ 'System/procedures/produce-deliverable.md': '16411ec4dc978884e86f59d0f9725c4487e653c169f876284ebdbf125fdc62b0',
+ 'System/procedures/research-and-summarize.md': 'e088f5b5739602d4be7ed93d1a33779e3cc455c78044f8f8e66403f5c8808b11',
+ 'System/procedures/review-against-checklist.md': '0c8e5d902855b87c125f5fcd85eae6bdbbd5a64e4e7843616a763d52f44d96d3',
+ 'System/procedures/weekly-review.md': '03d807292d4c28b5561717c35856b80fb70dd9a9ba88709c6990a783a22a379e',
+ 'System/procedures/welcome.md': 'c23c8e9427030c4196c699df9597e62c242d80d7e73a32cd6ebe7bb596cd7d5b',
+ 'CLAUDE.md': 'e43e2f2f7fb4d57cedc62205969980bc29445a8f52c0258b708748770f20e5e3',
+ '.cursor/rules/apparatus.mdc': '323ce1afdf9cb7bec38105143a7d44a322c3375b8857d4d92c94abd1b7eaee91',
+ '.github/copilot-instructions.md': 'd387e08d1c847a5242f8fdc75756cd433343920361d2b19375f6dc2f6e269b44'}
+
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
+
+
+def known_instruction(relative: str, content: bytes) -> bool:
+    return _digest(content) in {table.get(relative) for table in (
+        LEGACY_INSTRUCTIONS, PREVIOUS_INSTRUCTIONS, RETENTION_PREVIOUS_INSTRUCTIONS,
+        LAYOUT_PREVIOUS_INSTRUCTIONS,
+    )}
 
 
 def has_retired_gate(content: bytes) -> bool:
@@ -124,38 +147,36 @@ def instruction_updates(
                     f"payload instruction {relative!r} contains the retired sharing gate; "
                     "use the updated starter payload"
                 )
-    if not workspace.exists():
-        return overlay, expected
-    with WorkspaceAnchor(workspace) as root:
-        for relative, digest in LEGACY_INSTRUCTIONS.items():
-            current = _read_optional(root, relative)
-            expected[relative] = current
-            if current is None:
-                continue
-            desired = proposed.get(relative)
-            if current == desired:
-                continue
-            if _digest(current) in {digest, PREVIOUS_INSTRUCTIONS.get(relative),
-                                   RETENTION_PREVIOUS_INSTRUCTIONS.get(relative)} and desired is not None:
-                if relative not in removals:
-                    replacements[relative] = OverlayWrite(relative, desired)
-            elif has_retired_retention(current) and not has_retired_gate(current):
-                raise PayloadError(
-                    f"custom instruction {relative!r} needs migration; preserve your edits, "
-                    "reconcile its Memory rules with the updated task instructions, "
-                    "then rerun apparatus init"
-                )
-            elif has_retired_gate(current):
-                raise PayloadError(
-                    f"custom instruction {relative!r} needs migration; preserve your edits, "
-                    "reconcile it with the updated starter and remove the old sharing gate, "
-                    "then rerun apparatus init"
-                )
-            else:
-                # A reconciled customization remains user-owned, including when
-                # an overlay would normally replace or remove this path.
-                replacements.pop(relative, None)
-                removals.discard(relative)
+    if workspace.exists():
+        with WorkspaceAnchor(workspace) as root:
+            for relative, digest in LEGACY_INSTRUCTIONS.items():
+                current = _read_optional(root, relative)
+                expected[relative] = current
+                if current is None:
+                    continue
+                desired = proposed.get(relative)
+                if current == desired:
+                    continue
+                if known_instruction(relative, current) and desired is not None:
+                    if relative not in removals:
+                        replacements[relative] = OverlayWrite(relative, desired)
+                elif has_retired_retention(current) and not has_retired_gate(current):
+                    raise PayloadError(
+                        f"custom instruction {relative!r} needs migration; preserve your edits, "
+                        "reconcile its Memory rules with the updated task instructions, "
+                        "then rerun apparatus init"
+                    )
+                elif has_retired_gate(current):
+                    raise PayloadError(
+                        f"custom instruction {relative!r} needs migration; preserve your edits, "
+                        "reconcile it with the updated starter and remove the old sharing gate, "
+                        "then rerun apparatus init"
+                    )
+                else:
+                    # A reconciled customization remains user-owned, including when
+                    # an overlay would normally replace or remove this path.
+                    replacements.pop(relative, None)
+                    removals.discard(relative)
     def final_content(relative: str) -> bytes | None:
         if relative in replacements:
             return replacements[relative].content
@@ -163,15 +184,19 @@ def instruction_updates(
         return proposed.get(relative) if current is None else current
 
     canon = final_content("AGENTS.md")
-    if canon is not None and any(
-        final_content(shim.target) != shim.content
-        for shim in rendered_shims_from_bytes(canon)
-    ):
-        raise PayloadError(
-            "AI app pointers disagree with the repaired canon; reconcile custom "
-            "pointer instructions into the updated AGENTS.md, run apparatus render WORKSPACE, "
-            "then rerun apparatus init"
-        )
+    if canon is not None:
+        for shim in rendered_shims_from_bytes(canon):
+            current = expected.get(shim.target)
+            if current == shim.content:
+                replacements.pop(shim.target, None)
+            elif current is None or owns_shim(current, shim.target) or known_instruction(shim.target, current):
+                replacements[shim.target] = OverlayWrite(shim.target, shim.content)
+            else:
+                raise PayloadError(
+                    f"custom pointer {shim.target!r} conflicts with the final canon; "
+                    "preserve and reconcile its instructions before retrying init"
+                )
+            removals.discard(shim.target)
     return OverlayPlan(
         tuple(replacements.values()),
         tuple(relative for relative in overlay.removals if relative in removals),
