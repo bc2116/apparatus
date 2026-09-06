@@ -1,8 +1,13 @@
 # Development Plan
 
-All work is pre-cut into focused PRs. Each planned PR has a self-contained
-prompt file in this directory that any contributor — human or AI agent — can
-execute in a cold session with nothing but this repository checked out.
+Executable work is pre-cut into focused PRs with self-contained prompts.
+The [approved rework sequence](rework-sequence.md) also contains explicitly
+uncut outlines; these are not ready-to-execute prompts.
+
+**Current entry:** PR-31 records the new product direction. Next, cut PR-32
+for R1 (remove the sharing gate), including its source-backed migration and
+acceptance tests. PR-24 is held: its old checklist must not certify the new
+target. Preserve any existing certification work.
 
 ## How to execute a PR
 
@@ -26,7 +31,10 @@ Governing rules: one PR per branch; fixtures are the executable spec and are
 never loosened to pass; dogfooding starts the moment PR-07 lands; DCO sign-off
 on every commit.
 
-## Phases
+## Original implementation phases
+
+These phases describe the legacy baseline, not the approved rework. The new
+sequence is linked above; its implementation has not started.
 
 - **Phase 0 — birth:** repository skeleton, decisions, this plan. *(landed at bootstrap)*
 - **Phase 1 — protocol on files:** the workspace works as pure files in ≥ 2 AI
@@ -66,16 +74,18 @@ on every commit.
 | 21 | [Release pipeline](PR-21-release-pipeline.md) | 5 | ✅ landed | 20 |
 | 22 | [Bootstrapper v1](PR-22-bootstrapper.md) | 5 | ✅ landed | 21, 30 |
 | 23 | [Code-signing and IT one-pager](PR-23-signing-it-onepager.md) | 5 | ✅ landed | 22 |
-| 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | ready | 22 |
+| 24 | [App certification and quickstarts](PR-24-certification.md) | 6 | blocked — recut after rework | Rework R12 |
 | 25 | [Snapshot export (backup) v1](PR-25-snapshot-export.md) | 4 | ✅ landed | 10 |
 | 26 | [Installer wrapper and signed artifacts](PR-26-installer-wrapper.md) | 5 | ✅ landed | 22, 23 |
 | 27 | [Model and spend guidance v1](PR-27-model-spend-guidance.md) | 1 | ✅ landed | 04 |
 | 28 | [Workspace ignore rules v1](PR-28-workspace-ignore-rules.md) | 4 | ✅ landed | 09, 14, 15, 16, 18 |
 | 29 | [First-run feature selection](PR-29-first-run-feature-selection.md) | 4 | ✅ landed | 17, 27, 28 |
 | 30 | [Embed payload in apparatus-core](PR-30-embed-payload-wheel.md) | 5 | ✅ landed | 20 |
+| 31 | [Lean product direction and refactor sequence](PR-31-product-rework-plan.md) | Rework | ✅ landed | Existing baseline |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
-`in progress — <branch>`, `✅ landed`, `blocked — <reason>`.
+`in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
+use `planned — prompt not cut` and cannot be picked up as executable PRs.
 
 ## Execution guidance: model capability and effort
 
@@ -95,9 +105,16 @@ latency-optimized.
   (integration debugging).
 - **Strong tier, writing-focused:** PR-23, 24 — user-facing prose is the
   deliverable; review for tone as well as substance.
-- **Fast tier: never**, for any planned PR. These prompts are cut for
-  one-session execution by a capable model, not for decomposition into
-  micro-tasks.
+- **Fast tier:** bounded read-only extraction or mechanical work with a
+  written spec and checkable output. Never assign product-policy decisions,
+  migrations, or final review to this tier solely to save cost. New rework
+  prompts assign capability and effort per role, not one model for all work.
+- **Rework authoring:** frontier/high for architecture, privacy/retention, and
+  cross-cutting migration contracts; spec-backed implementation can use a
+  strong model at appropriate effort. Keep teams small, retries bounded, and
+  review at least as capable as authorship. Do not spawn recursively without
+  a concrete independent need. Use current available model/effort controls;
+  dated guidance is advisory, not proof of quota enforcement.
 - **Budget-limited pattern:** a strong-tier session implements; a
   frontier-tier session reviews the diff against the prompt's acceptance
   criteria and the ADRs. Verification catches the failure class that matters
@@ -121,17 +138,14 @@ latency-optimized.
   classification after the fourth observed harness-versus-physics instance;
   its frontier author and reviewer remain fixed while the proof is repaired.
 
-## Post-alpha (deliberately not in this plan)
+## Optional modules and updated entry paths
 
-Two commitments from the design brief and ADRs are real but sequenced after
-alpha. They are listed here so no promise is silently unowned:
+The [design brief](../design/design-brief.md#7-later-modules-and-exclusions)
+records the later-module roadmap. No module is a prerequisite for the core
+refactor, and no speculative module catalog is scheduled. Native economical
+subagent guidance and lightweight humanizer Skills are core work now.
 
-- **Pack delivery** — the `apparatus add <pack>` verb and the installer's
-  capability catalog on re-run (ADR-0005 §5; design brief §9). Waiting on the
-  first real pack; the plugin registry (PR-08) is the enabling substrate, so
-  this is additive when it starts.
-- **Developer adopt-into-existing-repo entry path** — the secondary-audience
-  entry from design brief §2: the same protocol delivered with developer
-  vocabulary into a repository the developer already has. Nothing in core may
-  exist only for developers; this path is docs and tooling on top of the
-  certified core.
+Existing-folder adoption is part of the reworked first version, alongside the
+installer. It is no longer a developer-only post-alpha promise. The existing
+extension mechanism remains; modules extend core primitives rather than fork
+Library, Memory, Skills, or recovery.

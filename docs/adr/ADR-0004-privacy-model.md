@@ -1,7 +1,11 @@
 # ADR-0004: Privacy model — label at write, enforce at egress
 
-- **Status:** Accepted
+- **Status:** Accepted, partially superseded by ADR-0006
 - **Date:** 2026-08-08
+
+> Read [ADR-0006](ADR-0006-lean-workspace-and-skills.md) first for the
+> approved rework and its explicit supersession table. The text below records
+> the original decisions; preserved provisions remain binding.
 
 ## Context
 

@@ -1,305 +1,227 @@
 # Apparatus Design Brief
 
-- **Status:** v0.1 — authoritative product requirements
-- **Date:** 2026-08-08
-- **Owner:** Bryan Conn
+- **Status:** v0.2 — approved target, not completed implementation
+- **Date:** 2026-09-05
+- **Authority:** [ADR-0006](../adr/ADR-0006-lean-workspace-and-skills.md),
+  with its preserved provisions of ADR-0001 through ADR-0005
 
-## 0. How to use this document
+## 1. Purpose and audience
 
-This brief is the product requirements narrative for Apparatus. Decision records
-in `docs/adr/` are the binding form of each decision; if the brief and an ADR
-disagree, the ADR wins and the brief must be corrected in the same PR. The
-development sequence lives in `docs/plan/README.md`. Implementation sessions
-should read this brief, the ADRs, and the prompt file for the PR they are
-executing — nothing else is required context.
+Apparatus helps your AI app work across conversations: remember what matters,
+find and cite your sources, reuse useful Skills, and finish work in your
+projects. It is a small, portable layer of files and tools. It does not wrap
+an AI app, call model APIs, or run a separate assistant service.
 
-## 1. Mission and job statement
+Start with information workers who already use an AI app for documents,
+research, planning, and everyday project work. Existing folders are normal.
+Support both a simple installer and assistant-guided adoption of an existing
+folder in the reworked first version. Neither needs a new account beyond the
+AI app; the installer path requires no terminal commands typed by the human.
 
-Apparatus is the governed workspace for agentic knowledge work: a local folder
-plus a small toolchain that lets a person's AI app do real work — produce
-documents, track goals, remember people, research sources — in a way that is
-inspectable, reversible, and safe to share.
+**Job statement:** open a new or existing project, ask for real work, and get
+a checked, saved deliverable in one sitting. Relevant goals and sources stay
+connected, useful context survives the next conversation, and recovery is
+available wherever snapshot coverage has actually been established.
 
-**Job statement** (the acceptance test for every design decision):
+## 2. Principles and vocabulary
 
-> From a fresh install to a real deliverable produced inside a governed
-> workspace — goals updated, sources cited, snapshot taken — in one sitting,
-> with no terminal typed by the human and no accounts beyond their AI app.
+- Files stay readable, editable, and portable without an App-owned service.
+- Start the task; learn preferences when they matter.
+- Keep one source of truth with small optional AI app adapters.
+- Offer useful capabilities at the moment they help, without blocking work.
+- Keep defaults economical and maintenance quiet; explain actionable failures.
+- Admit missing evidence, unavailable capabilities, and recovery limits.
+- Put advanced services in optional **modules**, without tier branding.
 
-## 2. Audience
+User-facing language says **AI app**, **assistant**, **Skill**, **Memory**,
+**Library**, **goal**, **check**, **snapshot**, and **restore**. “Harness” is
+engineering vocabulary. A deliverable is finished work, not a mandatory
+folder or an approval state.
 
-**Primary: information workers.** Analysts, quality and regulatory engineers,
-project managers, support engineers, technical writers. Assume: no GitHub
-account, no local repositories, first-time IDE/AI-app users, corporate laptops
-that may restrict installation, and work products that are documents and
-decisions rather than code. They will paste sensitive content (emails, names,
-customer context) into chat on day one.
+## 3. The work area
 
-**Secondary: developers.** Same protocol, delivered later through an
-adopt-into-existing-repo entry path with developer vocabulary. Nothing in core
-may exist only for developers.
-
-**Forcing rule:** if a feature cannot be explained to an information worker, it
-goes behind the workspace's `System/` folder or into a pack — never into the
-day-1 surface.
-
-## 3. Product principles
-
-1. **Files first, tooling second.** Every piece of workspace state is a
-   human-legible file. The CLI is progressive enhancement, and its primary
-   caller is the AI app, not the human.
-2. **One canon, many renders.** Instructions and procedures are written once in
-   canonical form and rendered to each supported AI app's native format. The
-   same workspace opens in any certified app with no migration.
-3. **Rails, not engine.** Apparatus never calls a model API and never wraps an
-   IDE. It is contracts, state, and gates that any app reads, writes, and
-   operates. This keeps it alive across app churn and out of framework
-   competition.
-4. **Safe by default.** Sensitive content is labeled at write time and enforced
-   at the workspace boundary (egress). Credentials never persist. External
-   actions are drafts until the human approves. Snapshots make everything
-   reversible.
-5. **Progressive disclosure.** Day 1: a welcome conversation and a first
-   deliverable. Week 1: goals, memory, checks. Later: authoring procedures,
-   packs. The folder tree and docs mirror this gradient.
-
-## 4. Naming and brand
-
-- The product is **Apparatus** — bare name in all identifiers and written
-  artifacts. The article ("the Apparatus") is speech and prose only. Machine
-  identifiers are lowercase `apparatus`.
-- Optional capabilities ship as **packs** named `apparatus-<capability>`
-  (capability nouns). Tier adjectives — Pro, Full, Plus, Premium — are banned
-  forever. Nothing sits above core; packs sit beside it.
-- The code is Apache-2.0; the name is protected by `TRADEMARKS.md`. Individual
-  packs may carry different licenses from their own repositories; core stays
-  Apache-2.0.
-- Vocabulary for all user-facing text is fixed in ADR-0001. "Harness" is an
-  internal word; users hear "your AI app" or "your assistant".
-
-## 5. The workspace
-
-The deployed workspace (what a user has on disk) looks like:
+Illustrative organization, not a new normative payload manifest:
 
 ```text
-Apparatus/
-  Welcome.md          ← the only file a human must read
-  Goals/              ← one page per goal: owner, status, done-when, next action
-  Decisions/          ← running record of decisions and why
-  Projects/           ← working folders per effort
-  Library/            ← source documents the user drops in; facts live here
-  Deliverables/       ← finished outputs; nothing "counts" until it lands here
-  Memory/
-    People/           ← one page per person or organization
-    Facts/            ← one page per durable fact
-  System/             ← procedures, policy, receipts, profile, machine report
+work-root/
+  project-a/          # working files and finished deliverables
+  project-b/          # another project, possibly an existing repository
+  Library/            # one catalog; optional documents stored here
 ```
 
-- **State format:** Markdown with YAML frontmatter, one record per file,
-  kebab-case filenames. No JSON state in the workspace in v0 (`System/profile.yaml`
-  is YAML). Machine-written records (receipts) are also Markdown with
-  frontmatter so everything stays human-legible.
-- **Default locations:** Windows `C:\Projects\Apparatus` (or the best data
-  drive); macOS `~/Projects/Apparatus`. Never inside OneDrive-redirected
-  folders (Documents/Desktop under folder redirection): live state inside a
-  sync engine causes conflicts and corruption. Backup is a deliberate one-way
-  **snapshot export** to synced storage, not live sync.
-- The full normative tree and folder semantics live in `docs/spec/workspace.md`;
-  the conformance golden manifest pins the shipped payload to it.
+The user chooses the work area. Do not require an enclosing
+`Apparatus/Projects/` hierarchy, move every project, or initialize one Git
+repository over unrelated projects. Managed instructions, Memory, goals,
+Skills, and operational state have a clear home selected by the layout slice.
+It must identify which managed state each project uses. Exact paths are an
+implementation choice, not another user survey.
 
-## 6. Day-1 capabilities
+Deliverables stay with their projects. Drafts and finished versions can live
+together with clear names/status; completion follows the request and evidence.
+Adoption preserves existing files, instructions, and repositories and reports
+collisions before applying a scoped migration. Never reset a user's repository
+to install or recover Apparatus.
 
-1. **Welcome interview → profile.** On first contact the assistant runs a short
-   professional interview (about seven questions): kind of work; key
-   people/customers to remember; current efforts; where source documents live;
-   privacy needs; operating cadence; spend preference (how much model
-   capability and cost to apply). A short feature-selection step follows (see
-   item 8). Answers deploy a **profile** — a file overlay selecting
-   procedures, policy, and templates — recorded in `System/profile.yaml` and
-   re-runnable at any time ("re-run my setup interview").
-2. **Chief-of-staff, draft-only.** Goals with verification oracles, decision
-   records, open-loop tracking, weekly review, planning support through the
-   five starter procedures and ordinary conversation, and drafting (emails,
-   updates) — with a constitutional rule that the assistant never sends,
-   publishes, or submits anything itself.
-3. **Memory with People.** One page per person/organization (role, context,
-   commitments, history) and one page per durable fact. Remembering names is a
-   feature, not a violation (see §7).
-4. **Library with grounded citations.** Users drop documents into `Library/`;
-   text is extracted and indexed locally; answers grounded in Library sources
-   cite them; a miss is an honest "not in your library", never a guess dressed
-   as recall.
-5. **Snapshots and recovery.** Every procedure ends with a snapshot (local git
-   under the hood when available, degrading gracefully). A recovery procedure
-   restores any prior state. The user promise: "you cannot break this."
-6. **Five starter procedures:** welcome (interview + setup), produce a
-   deliverable (definition of done up front, sources cited, files to
-   `Deliverables/`, goal updated), research and summarize (facts separated from
-   recommendations, uncertainty stated), review against a checklist, weekly
-   review.
-7. **Model and spend guidance.** A user-owned spend dial (frugal, balanced,
-   thorough) plus workspace guidance mapping work roles to model capability
-   tiers and effort — expressed abstractly so it survives model churn, with
-   concrete model names confined to a dated, replaceable roster. The
-   assistant applies the guidance within whatever AI app is running;
-   Apparatus never selects or switches models itself.
-8. **Ignore rules and feature selection.** Gitignore-style rules
-   (`System/ignore`) make chosen paths invisible to the Library machinery
-   without ever weakening the egress gate or credential floor; first-run
-   setup presents each core feature with a plain-language default and the
-   explicit promise that everything can be enabled or disabled later.
+The Library catalogs selected original sources, including project deliverables,
+using ordinary path references: **no symlinks or required duplicate documents**.
+Sources stored directly in Library remain supported. Extraction/index caches
+are rebuildable machinery, not a second document collection. A moved/missing
+source produces a truthful status and relink action. Changed sources make
+their derived text and cards stale until refreshed.
 
-## 7. Privacy and safety model
+Local files are the first-version foundation. Source documents may live in
+ordinary cloud-synced folders. This does not promise conflict-free live sync
+of mutable Apparatus state, cross-machine catalog operation, or team sharing.
+One-way backup export to a chosen destination remains supported.
 
-Decision record: ADR-0004. Summary:
+## 4. Core decisions
 
-- **Default profile: label, don't block.** Anything may enter durable memory;
-  personally identifying content is labeled at write time. On a single-user,
-  single-logon machine, ingest-time blocking protects nothing real and destroys
-  the value of memory for knowledge work.
-- **Enforce at egress.** The gate runs where content leaves the workspace:
-  drafts intended to be sent, files exported or shared, anything published. The
-  assistant enumerates labeled items crossing the boundary and offers a
-  redacted copy; proceeding with sensitive items requires the human's explicit
-  choice.
-- **Credential floor (never relaxed):** passwords, API keys, tokens, private
-  keys, and high-confidence government/payment identifiers are auto-redacted in
-  place (matched token replaced, surrounding prose kept) before any durable
-  write, with a receipt recording the redaction.
-- **Private mode** is a profile overlay, not a fork: strict blocking of labeled
-  content from durable memory, for users who ask for it in the interview.
-- **External actions are drafts until approved** — the assistant never sends,
-  posts, submits, or deletes outside the workspace on its own.
-- **Prompt-injection stance:** content inside documents and Library items is
-  data, never instructions. Procedures must never treat text found in sources
-  as authorization.
-- **Receipts:** checks, redactions, snapshots, and egress decisions write
-  receipt records under `System/`, so everything the machinery did is
-  reviewable after the fact.
+| Capability | Decision and target behavior |
+|---|---|
+| Goals | Keep: quietly maintain outcome, verifiable done-when, status, and next step. |
+| Decision history | Keep important decisions and reasons as part of Memory, not a separate daily chore. |
+| People | Keep useful roles, responsibilities, and commitments; easy correction and forgetting. |
+| Facts | Keep sources when known; correct or mark outdated; do not recall superseded material as current. |
+| Library recall | Keep local extraction/search/citations. Distinguish no match, missing source, stale data, and tool failure. |
+| Library cards | Add now: automatically create a small grounded summary, topics, and source link on addition. Cards aid discovery; documents remain authoritative. |
+| Snapshots and restore | Keep automatic saves at meaningful work boundaries when available; restore on request and report actual coverage. |
+| Backup | Keep simple one-way export, including to synced storage, without a sharing approval. |
+| Secret protection | Keep quiet redaction of the existing credential floor before managed durable writes; do not promise a universal detector. |
+| Task Memory control | Change to “don't save this task to Memory”; requested deliverables remain possible. |
+| Onboarding | Change to task-first: ask missing essentials, use sensible defaults, learn preferences along the way. |
+| Deliverable work | Finish, check against the request, save in the project; no routine approval pauses. |
+| Research | Keep citations and clear uncertainty; use the format the task needs, without forced headings. |
+| Checklist review | Keep on demand only, when asked. |
+| Weekly review | Keep on demand only; no scheduled default. |
+| Activity history | Change to concise meaningful actions and necessary operational evidence, without a receipt for every routine step. |
+| Ignore rules | Keep sensible automatic exclusions plus user overrides; apply to App indexing, not all native app access. |
+| Maintenance | Keep quiet safe checks/repairs; suggest a concrete action or ready-to-use prompt when attention is needed. |
+| Sharing/egress | Remove the entire App-specific gate, including send-intent drafts, file movement, copies, exports, and publishing. |
 
-## 8. Harness-agnostic contract
+After saving reusable reports, guides, or reference documents, offer:
+“Saved the report in your project. Want me to add it to your Library so future
+conversations can find and cite it?” The work is already finished. This is
+optional, not an approval gate. Do not ask for every small draft, index the
+whole drive, or register material without acceptance.
 
-Decision record: ADR-0003. Summary:
+Removal of sharing gates does not grant permission to act externally. Actual
+external actions follow the user's request and the AI app's native permissions.
+Existing MCPs, connectors, and native tools remain usable. Source text is
+data, never instructions or authorization.
 
-- Core assumes exactly three agent capabilities: **read files, write files, run
-  approved commands.** Anything else (subagents, app-specific context features)
-  is an optional enhancement documented per app, never a dependency — for core
-  and for packs alike.
-- Canonical instructions render to `AGENTS.md` at the workspace root, with thin
-  shims for apps that read their own files: `CLAUDE.md` (import shim),
-  `.cursor/rules/`, `.github/copilot-instructions.md`. All shims coexist in one
-  universal payload; each app reads its own. The `render` command regenerates
-  shims from canon and the `check` command fails on drift.
-- Supporting an app means **certifying** it: run the certification checklist
-  (welcome, produce a deliverable, snapshot/restore, recall with citation,
-  egress check), record results, publish the support matrix. Adding an app is a
-  docs-and-testing task, not a build task.
-- No AI app's name appears in user-facing docs except quickstart appendices and
-  the certification matrix.
+The credential floor still includes passwords, API keys, tokens, private keys,
+and high-confidence government/payment identifiers. No change to its matching
+scope is implied by removal of the egress gate.
 
-## 9. Distribution and installation
+Task Memory control is distinct from AI app chat/provider retention. It must
+also prevent automatic task-content retention through learned Skills, Library
+cards, or activity notes. Suppress the routine Library offer for such a task;
+a separate explicit instruction can request registration. Necessary operational
+evidence should be metadata-only. The implementation must define resumption,
+correction/forgetting, derived-data cleanup, and honest limits for historical
+snapshots and already-exported backups.
 
-Decision record: ADR-0005. Summary:
+## 5. Skills included now
 
-- Users never clone this repository. Releases produce: PyPI packages
-  (`apparatus-core`, packs), a universal starter payload, and a signed
-  per-OS **bootstrapper** (exe/pkg). `apparatus-core` embeds the same payload
-  and profiles byte-for-byte; the release archive is their files-only form.
-- The bootstrapper is **user-scope first**: uv → managed Python → portable git →
-  `apparatus-core` → workspace creation — none of which requires admin rights on
-  a typical machine. Elevation is the exception path. It detects installed AI
-  apps (records them; never requires a choice), writes a machine report into
-  `System/` so the assistant knows the environment from its first turn, and is
-  idempotent — re-running it is the repair tool.
-- Code-signing is budgeted from the first public release; the real enterprise
-  friction is unsigned-executable policy, not admin rights. An **IT one-pager**
-  (what gets installed, where data lives, what leaves the machine and via what)
-  ships with the installer.
-- Packs install two ways, same packages underneath: the bootstrapper re-run
-  shows a capability catalog (checkboxes, no tiers), and the assistant can run
-  `apparatus add <pack>` in-session with the user's click-approval (post-alpha;
-  tracked in the development plan's post-alpha section).
+Replace “procedures” in both name and format. A portable Skill is a directory
+containing `SKILL.md` with `name`, `description`, and readable instructions.
+Add supporting files only when needed. Keep one canonical set; use native
+discovery where supported and ordinary file reading as the fallback.
+Apparatus makes Skills available to the assistant; it does not call a model
+to execute them. Native discovery does not guarantee invocation, so the canon
+also provides concise guidance on when relevant Skills should be used.
 
-## 10. Architecture
+- **Everyday work:** task-first welcome, deliverable creation, research,
+  requested checklist review, and requested weekly review.
+- **Economizer:** apply frugal/balanced/thorough guidance to native subagent
+  roles, model capability, effort, team size, and retry bounds. Use small
+  teams only when independent work helps. A capable lead owns judgment and
+  integration; review is not weaker than authorship. Clarify ambiguous specs,
+  fix platform problems, and escalate persistent capability failures. No
+  recursion or retry loop without a defined limit. If native controls or
+  usage data are absent, say so and work within available capabilities.
+  Cross-CLI coordination remains outside core.
+- **Humanizer:** one small Skill for a restrained prose-editing pass. Remove
+  filler and formulaic repetition; preserve facts, technical meaning,
+  citations, numbers, and uncertainty; leave good prose alone. No personal
+  voice model, detector-evasion claim, or large study engine is required.
+- **Learned Skills:** notice a repeated useful workflow and offer an editable
+  draft. After the user reviews and adopts it once, make it available for
+  relevant tasks. Never silently promote drafts or rewrite canonical guidance.
 
-- **Monorepo** (this repository): `packages/` (uv workspace; core plus packs as
-  sibling packages), `starter/` (payload + profiles), `installer/`,
-  `conformance/` (golden fixtures = executable spec), `docs/`.
-- **Plugin CLI:** `apparatus-core` ships lean and owns the `apparatus` command
-  (installed with a convenience alias `ap`; documentation always writes
-  `apparatus`). Packs register subcommands via Python entry points. A verb
-  exists only when its pack is installed — no dormant features in the shipped
-  binary.
-- **Packs extend core primitives** (Library, Memory, procedures, snapshots) and
-  never fork them. A pack ships a package (code/verbs) plus a workspace overlay
-  (procedures, policy additions), and must pass core conformance plus its own.
-- A pack moves to its own repository only if its license diverges from
-  Apache-2.0.
+Memory stores facts/context; Skills describe repeatable work. Reviewed, dated
+model/effort guidance arrives through product updates or optional technical
+pull/clone workflows. End-user installs do not run benchmark campaigns.
+Guidance identifies uncertainty; provisional rankings are not universal proof.
+Apparatus does not claim model switching or hard quota enforcement unless the
+current AI app actually provides those controls.
 
-## 11. Out of scope for core (future packs)
+## 6. Portability and installation
 
-Multi-machine fleets and handoffs; governed/attested shared corpora; voice and
-authorship signatures; automated activity journaling; model benchmarking; and
-multi-agent orchestration; plus any org-system connectors (CRM, mail, calendar).
-Core is one user, one machine, any certified AI app. Multi-agent orchestration
-is the intended flagship first pack because it proves the pack interface.
+Core requires only **read files, write files, and run approved commands**.
+Codex, Claude Code, and Cursor are the initial adapter/testing priorities.
+Other capable apps and CLIs, including future ones, should be able to use the
+plain files from day zero. Optional adapters add convenience without a
+different core build or proprietary runtime. This is a compatibility design
+goal, not advance certification. OpenClaw and future desktop assistants can be
+evaluated when there is a concrete environment to test.
 
-## 12. Development method
+Preserve user-scope installation, signed public artifacts, a readable machine
+report, and repair by rerunning setup. Detect capabilities without forcing an
+AI app choice. Report unavailable dependencies and snapshot coverage honestly.
+Basic compatibility, adapter availability, and tested support are distinct.
 
-- **Spec-first.** Behavior is specified in docs and pinned by conformance
-  fixtures before or alongside implementation. Fixtures are the executable
-  spec; they change only deliberately.
-- **Original implementations only.** No code or prose copied from other
-  repositories; no references to private repositories or internal systems
-  anywhere in this repo or its history.
-- **Dogfood early.** The files-only workspace must be usable in at least two AI
-  apps at the end of Phase 1 — before any CLI exists.
-- **PR-sized pieces.** All work is pre-cut into focused PRs with self-contained
-  prompt files (`docs/plan/`) executable by any competent agent in a cold
-  session. Definition of done is in `AGENTS.md`.
+Current implementation constraints remain until deliberately changed:
 
-## 13. Success metrics
+- Installer wrappers use Inno Setup on Windows and `pkgbuild` plus
+  `productbuild` on macOS. Windows uses its minimal native progress interface
+  rather than claiming a console-only experience. The macOS no-payload package
+  can require administrator authentication and leaves standard system receipt
+  and log metadata, although the toolchain setup itself targets user scope.
+- Reproducible packaging means a repeatable build recipe with verified embedded
+  scripts, not identical outer installer bytes after metadata/signing changes.
+  Signing is gated pending provisioning; only verified signed artifacts can
+  be described as signed.
+- Setup currently detects Git on `PATH`; it does not bundle portable Git.
+  When absent, snapshots are unavailable. Resolve Windows requirements with
+  actual platform evidence rather than an assumed bundled dependency.
+- Keep `System/` visible by default. Existing headless dogfood does not prove
+  editor hiding preserves assistant access; any hiding treatment needs evidence.
 
-- The job statement holds in a timed test with a first-time user.
-- Certification matrix: ≥ 3 AI apps certified on the same payload at alpha.
-  Recorded certification runs may include failures; the metric is met when
-  three apps reach certified status, over multiple runs if needed.
-- Zero terminal commands typed by the human across onboarding and first
-  deliverable.
-- An implementation session (any capable model) can pick up any planned PR cold
-  from its prompt file and land it green.
+## 7. Later modules and exclusions
 
-## 14. Open questions
+| Capability | Decision |
+|---|---|
+| Day Journal | Later optional module for broader activity collection and journaling, separate from core history and requested weekly review. |
+| Personal voice learning | Later module/Skill from approved writing samples; ordinary tone preferences already fit Memory. |
+| Cloud Library | Later module for multi-machine access and shared multiuser/team libraries. |
+| App-owned integrations | Later modules only for unmet needs; do not duplicate existing connectors. |
+| Scheduling/reminders | Later; prefer native scheduling when available. |
+| Knowledge graph | Later Library enhancement only if it improves on search, cards, and links. |
+| Cross-CLI orchestration | Later advanced consideration, outside core and this refactor. |
+| Per-install model benchmarking | Excluded; reviewed guidance comes from centralized development. |
 
-- `System/` visibility: keep it visible by default and ship no editor hiding
-  setting. In the PR-07 files-only dogfood, two headless AI apps found the
-  profile, active policy, and procedures with `System/` visible and showed no
-  confusion. This resolves the payload default. Headless runs could not test
-  editor clutter or whether UI-level hiding preserves assistant access, so a
-  future optional hiding treatment would require separate evidence.
-- Egress residuals: `docs/spec/egress.md` fixes the v1 trigger taxonomy and
-  `[share]` declaration. Chat display is not egress in v1 except when handing
-  off a send-intent draft; whether broader chat display should ever trigger the
-  check remains open. Declared clipboard steps count as exports in v1; how
-  PR-18 tooling can observe other clipboard activity remains open.
-- The word "procedure": validate against real information workers; candidate
-  alternatives ("playbook", "routine") — decide before beta, changing later is
-  costly (ADR-0001 governs today).
-- Portable git strategy on Windows remains open pending locked-down-machine
-  evidence. Bootstrapper v1 takes the smallest reversible default: detect git
-  on `PATH` and use it; when absent, continue and let the machine report mark
-  snapshots unavailable. A later release can add bundled git without changing
-  the script interface (PR-10/PR-22).
-- Signing certificate logistics and timing (PR-23).
-- Installer wrappers use the smallest native release shapes that survived
-  PR-26 implementation: Inno Setup on Windows and `pkgbuild` plus
-  `productbuild` on macOS. The Windows wrapper uses Inno Setup's minimal native
-  progress interface rather than claiming a console-only experience; a future
-  graphical onboarding flow can replace that presentation without changing the
-  bootstrap scripts or signing boundary. The macOS package is no-payload and
-  leaves only the operating system's unavoidable receipt and log metadata.
-  For these native containers, reproducible means a repeatable CI recipe from
-  repository inputs and fixed runner/tool selections with exact embedded-script
-  verification. It does not promise identical outer `.exe` or `.pkg` bytes:
-  native packaging metadata and later signatures or notarization may vary.
-- Pack catalog format and trust model for third-party packs (post-alpha).
+Module interfaces should be reusable by other products. Existing extension
+mechanisms are sufficient for planning. Do not build a catalog, marketplace,
+licensing tiers, or a speculative module platform before a real module.
+
+## 8. Delivery and acceptance
+
+The [rework sequence](../plan/rework-sequence.md) maps this target to the
+implemented baseline and bounded migrations. This brief does not itself
+change schemas, payload, or CLI behavior. Preserve existing records and user
+edits; update specs, fixtures, and migrations in each implementation PR.
+
+Demonstrate a real first-task deliverable without setup interrogation or sharing
+pauses; useful continuity and citations; one catalog referencing project-local
+work; effective task Memory opt-out; useful Skills with a plain-file fallback;
+and recovery within documented coverage. Certify one payload in at least
+three AI apps with dated app/OS/version evidence. A green unit suite or a
+detected app is not that certification.
+
+No further product-choice interview is needed to prepare the refactor.
+Implementation matters remain: migration layout, task-control plumbing,
+current native discovery paths, Windows snapshot availability, signing
+provisioning, and actual certification runs. Resolve small reversible choices
+in each implementation prompt. Return to the owner only if evidence requires
+a material change to this direction.

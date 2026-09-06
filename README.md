@@ -1,64 +1,52 @@
 # Apparatus
 
-**The governed workspace for agentic knowledge work.**
+**Help your AI app remember, find sources, and finish work in your projects.**
 
-Apparatus turns a folder on your computer into a workspace your AI app can operate
-safely: goals, decisions, people, source documents, and deliverables — all plain
-files — with guardrails that make agentic work inspectable, reversible, and safe
-to share.
+Apparatus adds portable files and a small toolchain to your workspace: goals,
+Memory, a source Library, reusable Skills, snapshots, and backup. Your AI app
+does the work. Apparatus does not wrap it or call model APIs.
 
-It is built for information workers first: analysts, quality engineers, project
-managers, support engineers, writers. No GitHub account, no terminal, and no prior
-IDE experience required. Developers get the same protocol through a second entry
-path.
-
-## The job statement
-
-Every design decision is tested against one sentence:
-
-> From a fresh install to a real deliverable produced inside a governed workspace —
-> goals updated, sources cited, snapshot taken — in one sitting, with no terminal
-> typed by the human and no accounts beyond their AI app.
-
-## Principles
-
-1. **Files first, tooling second.** The workspace is useful as plain files; the
-   CLI is progressive enhancement, and its primary caller is the AI app, not the
-   human.
-2. **One canon, many renders.** Instructions and procedures are written once and
-   rendered to every supported AI app. The workspace is portable across apps.
-3. **Rails, not engine.** Apparatus never calls a model and never wraps an IDE.
-   It is contracts, state, and gates that any app reads, writes, and operates.
-4. **Safe by default.** Label sensitive content at write time; enforce at the
-   workspace boundary. Credentials never persist. External actions are drafts
-   until the human approves. Snapshots make everything reversible.
-5. **Progressive disclosure.** Day 1 is a welcome conversation and a deliverable.
-   Everything else reveals itself as it is needed.
-
-Full detail: [docs/design/design-brief.md](docs/design/design-brief.md).
+The approved direction is task-first: finish and save real work in its project,
+retain useful context, and offer reuse when it helps. A simple installer and
+assistant-guided adoption of existing folders are both part of that direction.
+Core needs only file reading, file writing, and approved commands; native AI
+app features are optional enhancements.
 
 ## Status
 
-Pre-alpha. The protocol and development plan are documented; implementation is
-underway. Current state: [docs/plan/README.md](docs/plan/README.md).
+Pre-alpha. The existing implementation includes Memory, local Library
+extraction/search/citations, snapshots, backup, profiles, five procedure files,
+and packaging machinery. It still has the old interview, sharing gate, and
+central Deliverables folder.
+
+The [approved rework](docs/design/design-brief.md) replaces that ceremony and
+adds native Skills, economical subagent guidance, lightweight prose editing,
+and a Library catalog referencing project files. **Those changes are planned,
+not yet implemented.** Existing specs and conformance tests describe the
+baseline until their migration PRs land. Formal app certification is held
+while the target changes; packaging code alone does not establish a signed
+public release or certified support.
+
+Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
+[refactor sequence](docs/plan/rework-sequence.md), and
+[development status](docs/plan/README.md).
 
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `packages/apparatus-core/` | The `apparatus` CLI: validators, gates, render, Library, snapshots |
-| `starter/` | The universal workspace payload and profile overlays |
-| `conformance/` | Golden fixtures — the executable specification |
-| `docs/` | Design brief, ADRs, specs, and the development plan |
-| `installer/` | Per-OS bootstrapper (planned, later phase) |
+| `packages/apparatus-core/` | CLI, file validation, Memory, Library, recovery, and embedded payload |
+| `starter/` | Canonical workspace payload and current profile overlays |
+| `conformance/` | Fixtures and tests pinning implemented behavior |
+| `docs/` | Design, ADRs, implementation specs, and focused PR plans |
+| `installer/` | Platform bootstrap and installer machinery |
 
 ## Contributing
 
-Human contributors: see [CONTRIBUTING.md](CONTRIBUTING.md). AI agents:
-[AGENTS.md](AGENTS.md) is the canonical instruction file — app-specific files
-such as CLAUDE.md are shims that point to it.
+See [CONTRIBUTING.md](CONTRIBUTING.md). [AGENTS.md](AGENTS.md) is canonical
+for AI contributors; app-specific instruction files point to it.
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE). The Apparatus name and marks are not
-licensed with the code; see [TRADEMARKS.md](TRADEMARKS.md).
+Apache-2.0 — see [LICENSE](LICENSE). The name and marks are covered separately
+by [TRADEMARKS.md](TRADEMARKS.md).
