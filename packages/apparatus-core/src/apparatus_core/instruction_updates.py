@@ -97,6 +97,21 @@ SKILLS_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '9182c04aa101e3180004fe0aeac3751b00
  'System/README.md': 'aa8f93085522ef69ae0624fe07260b0794005c06a4f22774814f8f0bdf680885'}
 
 
+# Exact PR-38 stock instructions before task-first welcome.
+TASK_FIRST_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '22a54935d5caef2cb6a6c08fb18868541d5a95776787d141aa61e8913154195c',
+ 'Welcome.md': '9c9612b04aae89667e0f9697d99a9b146dc2ee9f4d143c19dc54534cb1ecad87',
+ 'System/README.md': '32d22c2e88c1cd3aa49a3dc74b6d54d84bc51c5ed3c96b19e59553796fde911d',
+ 'System/ignore': '464121144931e07323d94f4e3bf3ab844b277c47eb74184d5aacf4995f7f5a35',
+ 'CLAUDE.md': '8e7d1fd3cd04eadc419b9efbbce2cb58685bca6a1bbc0341da8d04588400ab2a',
+ '.cursor/rules/apparatus.mdc': '76e2ef03f3f8341e26baa87592247065162e5954c8e4f0b439254383376ac45c',
+ '.github/copilot-instructions.md': '88453b6b8fcc19ef03c11dcd39b561a58827870f0620199af6e486d74f10a47d',
+ '.agents/skills/apparatus-produce-deliverable/SKILL.md': '36a0ec2f178300cbca0a84f0086218940c5ca84a63993897a027e5940e8e349e',
+ '.agents/skills/apparatus-research-and-summarize/SKILL.md': '74c29766933a6c14893900bbc4248d988e67b8f36a26b3dfc87373a3d3c4fdbf',
+ '.agents/skills/apparatus-review-against-checklist/SKILL.md': 'a18f9cdb8e7b8d0ae0f92a5c24b34c8bc5b64434ac0a55980205e910a15ec7ff',
+ '.agents/skills/apparatus-weekly-review/SKILL.md': '84b379d7bbddaed534674740da00ac392032b0c997094818bf3c06a350dc064a',
+ '.agents/skills/apparatus-welcome/SKILL.md': 'fb8cd3190c74780f1d5b5defdd68016fb52d64205d52e0aba6be7c86aebf9ed2'}
+
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -105,6 +120,7 @@ def known_instruction(relative: str, content: bytes) -> bool:
     return _digest(content) in {table.get(relative) for table in (
         LEGACY_INSTRUCTIONS, PREVIOUS_INSTRUCTIONS, RETENTION_PREVIOUS_INSTRUCTIONS,
         LAYOUT_PREVIOUS_INSTRUCTIONS, SKILLS_PREVIOUS_INSTRUCTIONS,
+        TASK_FIRST_PREVIOUS_INSTRUCTIONS,
     )}
 
 
@@ -223,7 +239,10 @@ def instruction_updates(
                 if current is not None:
                     if validate_skill(current, name):
                         raise PayloadError(f"canonical Skill {relative!r} is a collision; preserve and reconcile it before retrying init")
-                    replacements.pop(relative, None)
+                    if known_instruction(relative, current) and current != native[relative]:
+                        replacements[relative] = OverlayWrite(relative, native[relative])
+                    else:
+                        replacements.pop(relative, None)
                 else:
                     replacements[relative] = OverlayWrite(relative, native[relative])
             for relative, name in BUILTIN_SKILLS.items():

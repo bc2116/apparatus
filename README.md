@@ -19,7 +19,8 @@ extraction/search/citations, snapshots, backup, profiles, five portable Skills,
 and packaging machinery. The sharing gate has been removed. Fresh setup creates
 a shared work area; `apparatus init WORKAREA --adopt` enrolls an existing folder
 while preserving project files and custom instructions. Finished work stays in
-its project. The old interview remains until its migration slice.
+its project. Welcome starts the actual request with useful defaults and only missing essential
+questions; checklist and weekly reviews run only when requested.
 
 People, Facts and Decisions support [correction, outdated status, and forgetting](docs/spec/memory.md).
 `apparatus memory recall WORKSPACE QUERY` returns current Memory with sources.
@@ -45,8 +46,7 @@ and preserves valid custom Skills. Checks and managed recovery understand these
 files. Plain file reading works through the work-area link; native discovery
 adapters and app-version probes remain the next compatibility step.
 
-The [approved rework](docs/design/design-brief.md) replaces that ceremony and
-adds native discovery adapters, economical subagent guidance, lightweight prose editing,
+The [approved rework](docs/design/design-brief.md) adds native discovery adapters, economical subagent guidance, lightweight prose editing,
 and a Library catalog referencing project files. **The remaining rework is planned,
 not yet implemented.** Existing specs and conformance tests describe the
 baseline until their migration PRs land. Formal app certification is held

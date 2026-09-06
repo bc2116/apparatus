@@ -1,4 +1,4 @@
-"""Structured setup-interview answers and deterministic starter-record seeds."""
+"""Compatible profile redaction and deterministic absent-only starter-record seeds."""
 
 from __future__ import annotations
 

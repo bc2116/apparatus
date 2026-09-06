@@ -138,7 +138,8 @@ preserves custom content; render/drift checks cover the canonical relationship.
 
 ### R5 — Task-first welcome and everyday Skills
 
-**After R4.** Replace interview and feature-selection ceremony with useful
+**Implemented in PR-39 after R4a; independent of the planned R4b adapters.**
+Replace interview and feature-selection ceremony with useful
 defaults and only missing essential questions. Finish/check/save project work
 without routine approvals. Preserve research citations without forced sections.
 Checklist and weekly reviews remain requested-only. Ship sensible indexing
@@ -262,8 +263,8 @@ distributed through updates. Existing native tools need no App module to work.
 
 ## Resume and validation
 
-The next concrete step is to cut R4b for native discovery from the PR-38 format
-and source evidence. PR-35/36 provide isolated recovery and work-area adoption.
+R4b remains planned for native discovery from the PR-38 format and source
+evidence. PR-39 supplies task-first work independently of those adapters. PR-35/36 provide isolated recovery and work-area adoption.
 PR-33 supplies record lifecycle and current Memory retrieval;
 PR-34 supplies task identity, opt-out, derived capture rules and recovery limits.
 Do not resume the old PR-24 checklist. No product implementation is included

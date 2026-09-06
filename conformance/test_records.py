@@ -93,17 +93,13 @@ def test_shipped_starter_skills_use_native_authority_without_share_markers():
         assert "native permissions" in text
 
 
-def test_welcome_skill_ends_with_snapshot_and_receipt_confirmation():
-    _data, body = records.parse_record(
-        (SHIPPED_SKILLS / "apparatus-welcome/SKILL.md").read_text(encoding="utf-8")
-    )
-    steps = [
-        (int(match.group(1)), line)
-        for line in body.splitlines()
-        if (match := re.match(r"^(\d+)\. ", line))
-    ]
-    assert steps[-2][0] == 8 and "snapshot" in steps[-2][1].lower()
-    assert steps[-1][0] == 9 and "receipt" in steps[-1][1].lower()
+def test_welcome_skill_uses_task_aware_command_owned_snapshot_receipts():
+    text = (SHIPPED_PROFILE.parents[1] / ".agents/skills/apparatus-welcome/SKILL.md").read_text()
+    normalized = " ".join(text.split())
+    assert "skip routine library offers and automatic snapshots" in normalized.lower()
+    assert "apparatus --task ID snapshot WORKSPACE" in normalized
+    assert "The command owns its receipt; do not create a second snapshot receipt" in normalized
+    assert "Managed-state snapshots exclude project files and Library originals" in normalized
 
 
 def test_missing_required_field_is_a_problem():

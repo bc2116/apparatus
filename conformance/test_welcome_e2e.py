@@ -175,53 +175,27 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     fresh_check = _run("check", workspace, env=environment)
     assert "check passed" in fresh_check.stdout
 
-    # Configured interview answers pass through stdin so the retained credential
-    # floor runs before any profile or Memory record reaches durable storage.
-    candidate = yaml.safe_load(
-        (FIXTURES / "profile-configured.yaml").read_text(encoding="utf-8")
-    )
-    candidate["key_people"][0]["role"] = (
-        "Review lead; temporary password=profile-fixture-only for this fake fixture."
-    )
-    apply_before = len(_receipts(workspace, "profile-apply"))
-    redaction_before = _receipt_paths(workspace, "redaction")
-    applied = _run(
-        "profile", "apply", workspace, "--stdin",
-        input_text=yaml.safe_dump(candidate, sort_keys=False),
-        env=environment,
-    )
-    assert "profile-fixture-only" not in applied.stdout + applied.stderr
-    assert len(_receipts(workspace, "profile-apply")) == apply_before + 1
-    redaction_path, redaction_data, _redaction_body = _new_receipt(
-        workspace, "redaction", redaction_before
-    )
-    assert redaction_data["counts"] == {"password": 1}
-    assert "profile-fixture-only" not in redaction_path.read_text(encoding="utf-8")
-    people = {
-        "Memory/People/riley-sample.md",
-        "Memory/People/northstar-quality-council.md",
-    }
-    goal_relative = "Goals/prepare-orion-readiness-brief.md"
-    assert all((workspace / relative).is_file() for relative in people)
-    assert (workspace / goal_relative).is_file()
-    apply_path, apply_data, apply_body = _receipts(workspace, "profile-apply")[-1]
-    assert apply_data["event"] == "profile-apply"
-    for relative in (*sorted(people), goal_relative):
-        assert relative in apply_body
-    applied_check = _run("check", workspace, env=environment)
-    assert "check passed" in applied_check.stdout
+    profile_before_work = (workspace / "System/profile.yaml").read_bytes()
+    assert yaml.safe_load(profile_before_work)["status"] == "unconfigured"
+    task_id = json.loads(_run("task", "start", workspace, env=environment).stdout)["task_id"]
+    def run(*args, **kwargs):
+        return _run("--task", task_id, *args, **kwargs)
 
     # Library ingest and grounded/abstaining recall each bind a valid receipt.
     library_source = workspace / "Library" / "reference-note.md"
     shutil.copyfile(FIXTURES / "library" / "reference-note.md", library_source)
+    for generated in ("node_modules", ".venv", "__pycache__", ".pytest_cache"):
+        excluded = workspace / "Library" / generated / "generated.txt"
+        excluded.parent.mkdir()
+        excluded.write_text("Generated cache content must not enter recall.\n", encoding="utf-8")
     ingest_before = len(_receipts(workspace, "library-ingest"))
-    ingest = _run("library", "ingest", workspace, env=environment)
+    ingest = run("library", "ingest", workspace, env=environment)
     assert "extracted=1" in ingest.stdout
     assert len(_receipts(workspace, "library-ingest")) == ingest_before + 1
 
     grounded_before = _receipt_paths(workspace, "recall")
     grounded = json.loads(
-        _run(
+        run(
             "recall",
             workspace,
             "cobalt readiness marker",
@@ -245,7 +219,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
 
     missed_before = _receipt_paths(workspace, "recall")
     missed = json.loads(
-        _run(
+        run(
             "recall",
             workspace,
             "zephyr quantum orchard",
@@ -278,11 +252,53 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     assert "Library/reference-note.md" in draft_text
     assert not _receipts(workspace, "egress")
 
+    assert (workspace / "System/profile.yaml").read_bytes() == profile_before_work
+    assert not _receipts(workspace, "profile-apply")
+    assert not list((workspace / "Goals").glob("*.md"))
+    assert not list((workspace / "Memory/People").glob("*.md"))
+
     # Completion preserves the file in its project; managed snapshots do not
     # claim recovery of this project original.
     deliverable = draft
-    _run("project", "bind", project, "--workspace", workspace, env=environment)
+    run("project", "bind", project, "--workspace", workspace, env=environment)
     assert (project / ".apparatus/workspace.yaml").is_file()
+    # Only after the requested deliverable is saved, an explicit legacy profile
+    # import passes through stdin so the retained credential
+    # floor runs before any profile or Memory record reaches durable storage.
+    candidate = yaml.safe_load(
+        (FIXTURES / "profile-configured.yaml").read_text(encoding="utf-8")
+    )
+    candidate["key_people"][0]["role"] = (
+        "Review lead; temporary password=profile-fixture-only for this fake fixture."
+    )
+    apply_before = len(_receipts(workspace, "profile-apply"))
+    redaction_before = _receipt_paths(workspace, "redaction")
+    applied = run(
+        "profile", "apply", workspace, "--stdin",
+        input_text=yaml.safe_dump(candidate, sort_keys=False),
+        env=environment,
+    )
+    assert "profile-fixture-only" not in applied.stdout + applied.stderr
+    assert len(_receipts(workspace, "profile-apply")) == apply_before + 1
+    redaction_path, redaction_data, _redaction_body = _new_receipt(
+        workspace, "redaction", redaction_before
+    )
+    assert redaction_data["counts"] == {"password": 1}
+    assert "profile-fixture-only" not in redaction_path.read_text(encoding="utf-8")
+    people = {
+        "Memory/People/riley-sample.md",
+        "Memory/People/northstar-quality-council.md",
+    }
+    goal_relative = "Goals/prepare-orion-readiness-brief.md"
+    assert all((workspace / relative).is_file() for relative in people)
+    assert (workspace / goal_relative).is_file()
+    apply_path, apply_data, apply_body = _receipts(workspace, "profile-apply")[-1]
+    assert apply_data["event"] == "profile-apply"
+    for relative in (*sorted(people), goal_relative):
+        assert relative in apply_body
+    applied_check = run("check", workspace, env=environment)
+    assert "check passed" in applied_check.stdout
+
     goal = workspace / goal_relative
     goal_data, goal_body = _frontmatter(goal)
     goal_data["status"] = "done"
@@ -296,7 +312,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     )
 
     snapshot_before = _receipt_paths(workspace, "snapshot")
-    snapshot = _run(
+    snapshot = run(
         "snapshot",
         workspace,
         "--label",
@@ -317,7 +333,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     assert re.fullmatch(r"[0-9a-f]{40}", actual_head)
     assert not (workspace / ".git").exists()
 
-    final_check = _run("check", workspace, env=environment)
+    final_check = run("check", workspace, env=environment)
     assert "check passed" in final_check.stdout
     assert deliverable.is_file()
     assert deliverable.read_text(encoding="utf-8") == draft_text
@@ -350,3 +366,41 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
         "snapshot",
     }
     assert expected_events <= {data["event"] for _path, data, _body in _receipts(workspace)}
+
+
+def test_no_save_task_finishes_cited_work_without_setup_or_automatic_retention(tmp_path):
+    workspace = tmp_path / "area"
+    environment = {**os.environ, "APPARATUS_HOME": str(tmp_path / "app-home")}
+    _run("init", workspace, env=environment)
+    source = workspace / "Library/reference-note.md"
+    shutil.copyfile(FIXTURES / "library/reference-note.md", source)
+    _run("library", "ingest", workspace, env=environment)
+    task = json.loads(_run("task", "start", workspace, "--no-memory", env=environment).stdout)
+    task_id = task["task_id"]
+    assert task["memory"] == "no-save"
+    project = workspace / "project"
+    project.mkdir()
+    _run("--task", task_id, "project", "bind", project, "--workspace", workspace, env=environment)
+    def managed_files():
+        return {str(p.relative_to(workspace)): p.read_bytes()
+                for folder in ("System", "Memory", "Goals", "Library")
+                for p in (workspace / folder).rglob("*") if p.is_file()}
+    before = managed_files()
+    result = json.loads(_run("--task", task_id, "recall", workspace,
+                             "cobalt readiness marker", "--json", env=environment).stdout)
+    assert result["status"] == "grounded"
+    assert result["evidence"][0]["source"] == "Library/reference-note.md"
+    output = project / "readiness-summary.md"
+    output.write_text("The brief needs a cobalt readiness marker before the Thursday review "
+                      "(Library/reference-note.md).\n", encoding="utf-8")
+    assert "cobalt readiness marker" in output.read_text(encoding="utf-8")
+    assert managed_files() == before
+    candidate = yaml.safe_load((workspace / "System/profile.yaml").read_bytes())
+    assert candidate["status"] == "unconfigured"
+    candidate["spend"] = "frugal"
+    rejected = _run("--task", task_id, "profile", "apply", workspace, "--stdin",
+                    input_text=yaml.safe_dump(candidate), expected=1, env=environment)
+    assert "does not save answers" in rejected.stdout
+    assert managed_files() == before
+    assert output.is_file()
+    assert not _receipts(workspace, "profile-apply")

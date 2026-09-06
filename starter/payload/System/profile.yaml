@@ -1,10 +1,10 @@
-# Apparatus profile — created by the welcome interview.
-# To change anything here, tell your assistant: "re-run my setup interview".
+# Apparatus preferences — usable immediately, with no setup questionnaire.
+# Ask your assistant to change a preference whenever it matters.
 schema: apparatus/profile@v0
-status: unconfigured        # becomes "configured" after the welcome interview
-privacy_mode: standard      # standard = label, don't block · private = strict
+status: unconfigured        # legacy setup metadata; either status is usable
+privacy_mode: standard      # legacy default; the task Memory decision takes precedence
 work_types: []              # e.g. analysis, quality, project-management, writing, support
-review_day: null            # weekly review day, set during the interview
+review_day: null            # optional preference for a requested review; never a schedule
 spend: balanced             # model capability and cost: frugal, balanced, or thorough
 features:                   # optional core features; omitted means all are on
   library_indexing: true    # extract, index, and recall Library sources

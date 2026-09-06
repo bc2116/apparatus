@@ -25,7 +25,7 @@ saving task or use another conversation's ID. If its ID is lost or ambiguous,
 start a no-save continuation. There is no shared active-task setting.
 
 For a no-save task, do not save new Memory, corrections containing new content,
-setup answers, activity notes, learned Skills, Library cards, or automatic
+setup answers, goal updates, activity notes, learned Skills, Library cards, or automatic
 Library extractions/indexes or snapshots. Follow this rule for direct file
 writes too. Reading existing Memory and Library evidence, forgetting/outdated
 maintenance, and saving requested deliverables remain available. Skip routine
@@ -108,8 +108,11 @@ unavailable. In a project, use its explicit work-area link before resolving path
 <!-- /Apparatus Skill index -->
 
 Follow the selected Skill's numbered steps in order, subject to the task's Memory
-choice. Finish with permitted snapshot and receipt steps; if snapshots are
-unavailable, say so plainly and continue as directed. If no Skill fits, tell the
+choice. Start the requested work without a setup questionnaire. Ask only for
+missing essentials and use existing preferences or sensible defaults. Checklist
+and weekly reviews run only when requested. Finish with permitted snapshot
+steps; the command owns its receipt, so do not create a duplicate. If snapshots
+are unavailable, say so plainly and continue. If no Skill fits, tell the
 user, work carefully, and still follow every rule in this file and the active
 policy overlay.
 

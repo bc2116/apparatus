@@ -55,7 +55,7 @@ def test_workspace_instruction_canon_covers_the_required_contract():
         "`System/`",
         "`.agents/skills/NAME/SKILL.md`",
         "Follow the selected Skill's numbered steps in order",
-        "Finish with permitted snapshot and receipt steps",
+        "the command owns its receipt",
         "Never send, post, submit, delete",
         CREDENTIAL_FLOOR,
         "Before any durable write, redact",
@@ -193,7 +193,44 @@ def test_private_profile_is_compatible_without_overriding_task_decisions():
 
 def test_welcome_replaces_global_privacy_choice_with_task_retention():
     text = normalized(PAYLOAD_DIR / ".agents/skills/apparatus-welcome/SKILL.md")
-    assert "If this task is no-save" in text
-    assert "without collecting or saving setup answers" in text
+    assert "For a no-save task" in text
+    assert "without saving profile answers" in text
     assert "Should privacy mode be" not in text
     assert "Privacy mode (default" not in text
+
+
+def test_task_first_welcome_and_human_orientation_do_not_require_setup():
+    welcome = normalized(PAYLOAD_DIR / ".agents/skills/apparatus-welcome/SKILL.md")
+    human = normalized(PAYLOAD_DIR / "Welcome.md")
+    assert "Start from the user's actual request" in welcome
+    assert "Ask only for missing essentials" in welcome
+    assert "Both `unconfigured` and `configured` profiles are usable" in welcome
+    assert "merge only the requested changes" in welcome
+    assert "preserve unrelated fields and its status" in welcome
+    assert "Optional setup must not delay that deliverable" in welcome
+    assert "There is no setup questionnaire to complete first" in human
+    for path in (PAYLOAD_DIR / "Welcome.md", *(PAYLOAD_DIR / p for p in BUILTIN_PATHS)):
+        text = normalized(path).lower()
+        for retired in ("re-run my setup interview", "ask these six", "ask these seven",
+                        "when the user agrees it is finished", "get the user's agreement before drafting",
+                        "on the chosen review day", "with separate sections for facts"):
+            assert retired not in text, (path, retired)
+
+
+def test_everyday_skills_preserve_authority_evidence_and_requested_only_reviews():
+    for relative in BUILTIN_PATHS:
+        text = normalized(PAYLOAD_DIR / relative)
+        assert "no-save" in text
+        assert "automatic snapshots" in text or "automatic saves" in text
+        assert "command owns its receipt" in text
+        assert "project files and Library originals" in text
+        assert "the user's authority and the AI app's native permissions" in text
+    research = normalized(PAYLOAD_DIR / ".agents/skills/apparatus-research-and-summarize/SKILL.md")
+    assert "format the task needs, without mandatory sections" in research
+    assert "Cite each supporting source path near its claim" in research
+    assert "no match, missing or stale sources, and tool failure" in research
+    for name in ("review-against-checklist", "weekly-review"):
+        text = normalized(PAYLOAD_DIR / f".agents/skills/apparatus-{name}/SKILL.md")
+        assert "Use only when the user requests" in text
+    assert "review alone does not authorize changing its subject" in normalized(
+        PAYLOAD_DIR / ".agents/skills/apparatus-review-against-checklist/SKILL.md")

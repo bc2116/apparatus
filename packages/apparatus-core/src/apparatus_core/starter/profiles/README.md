@@ -30,3 +30,8 @@ the shipped `standard` and `private` modes.
 Shipped workflows use `.agents/skills/NAME/SKILL.md` with standard `name` and
 `description` frontmatter. Existing manifests may still reference legacy
 `System/procedures/` records; those retain their procedure schema.
+
+A valid profile is usable with either legacy setup status; no questionnaire or
+feature-selection step is required. Existing choices are preserved. Missing
+optional feature selections use their default-on behavior, and spend defaults
+to balanced. Change only requested preferences through the profile command.
