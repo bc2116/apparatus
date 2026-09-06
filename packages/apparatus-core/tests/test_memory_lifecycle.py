@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import pytest
@@ -158,15 +159,24 @@ def test_correct_receipt_failure_rolls_back_only_owned_write(tmp_path, concurren
     target = record(workspace)
     original = (workspace / target).read_bytes()
     source = replacement(tmp_path, body="password=synthetic-receipt\n")
+    write_attempts = []
     def fail(*args, **kwargs):
         if concurrent:
-            (workspace / target).write_text("Concurrent replacement\n")
+            try:
+                (workspace / target).write_bytes(b"Concurrent replacement\n")
+            except PermissionError as error:
+                write_attempts.append(error.winerror)
+            else:
+                write_attempts.append(None)
         raise OSError("publication failed")
     args = argparse.Namespace(workspace=str(workspace), memory_action="correct",
                               record=target.as_posix(), from_file=source)
     assert memory.run(args, write=fail) == 2
+    # Windows retains a target handle denying FILE_SHARE_WRITE; POSIX permits
+    # the injected writer, whose replacement must then survive rollback.
+    assert write_attempts == ([32 if os.name == "nt" else None] if concurrent else [])
     assert (workspace / target).read_bytes() == (
-        b"Concurrent replacement\n" if concurrent else original)
+        b"Concurrent replacement\n" if concurrent and os.name != "nt" else original)
     assert not list((workspace / "System/receipts").glob("*.md"))
     assert not list((workspace / "Memory/Facts").glob(".apparatus*"))
 
@@ -213,19 +223,44 @@ def test_lifecycle_schema_and_body_validation(kind):
     assert records.validate(kind, {**base, "status": "unknown"})
 
 
-def test_correct_rolls_back_published_redaction_receipt_on_concurrent_change(tmp_path):
+def test_correct_rolls_back_published_receipt_after_concurrent_write_attempt(tmp_path, monkeypatch):
     from apparatus_core.receipts import write_receipt
     workspace = _workspace(tmp_path / "workspace")
     target = record(workspace)
+    original = (workspace / target).read_bytes()
     source = replacement(tmp_path, body="password=synthetic-proof\n")
+    write_attempts = []
+    validation_attempts = []
+    validate_commit = memory._ReplacementTransaction.validate_commit
+
+    def reject_commit(transaction):
+        validation_attempts.append(True)
+        validate_commit(transaction)
+        # On Windows the concurrent writer is blocked, so explicitly fail at
+        # the post-publication validation boundary to exercise receipt rollback.
+        if os.name == "nt":
+            raise OSError("injected final validation failure")
+
+    monkeypatch.setattr(memory._ReplacementTransaction, "validate_commit", reject_commit)
+
     def publish(*args, **kwargs):
         proof = write_receipt(*args, **kwargs)
-        (workspace / target).write_text("Concurrent content\n")
+        try:
+            (workspace / target).write_bytes(b"Concurrent content\n")
+        except PermissionError as error:
+            write_attempts.append(error.winerror)
+        else:
+            write_attempts.append(None)
+        # Return ownership even when Windows refuses the competing writer.
         return proof
+
     args = argparse.Namespace(workspace=str(workspace), memory_action="correct",
                               record=target.as_posix(), from_file=source)
     assert memory.run(args, write=publish) == 2
-    assert (workspace / target).read_text() == "Concurrent content\n"
+    assert write_attempts == [32 if os.name == "nt" else None]
+    assert validation_attempts == [True]
+    assert (workspace / target).read_bytes() == (
+        original if os.name == "nt" else b"Concurrent content\n")
     assert not list((workspace / "System/receipts").glob("*.md"))
     assert not list((workspace / "Memory/Facts").glob(".apparatus*"))
 
