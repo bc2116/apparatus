@@ -281,8 +281,9 @@ def deploy_init_plan(
                     )
 
             def check_preimage(relative: str) -> None:
+                anchor, name = parent_for(Path(relative))
                 try:
-                    actual = root.read_file(relative)[0]
+                    actual = anchor.read_file(name)[0]
                 except FileNotFoundError:
                     actual = None
                 require_preimage(Path(relative), actual)

@@ -30,7 +30,7 @@ def _legacy_workspace(workspace: Path, *, crlf: bool = False) -> None:
     for source in FIXTURES.rglob("*"):
         if not source.is_file():
             continue
-        content = source.read_bytes()
+        content = source.read_bytes().replace(b"\r\n", b"\n")
         relative = source.relative_to(FIXTURES).as_posix()
         assert _digest(content) == LEGACY_INSTRUCTIONS[relative]
         (workspace / relative).write_bytes(
@@ -196,6 +196,26 @@ def test_failed_late_instruction_replacement_rolls_back_earlier_updates(tmp_path
     assert init.run(_args(workspace), available=lambda: False) == 2
     assert "standard.md" in replaced
     assert _files(workspace) == before
+
+
+def test_deployment_reads_preimages_through_retained_immediate_parents(tmp_path, monkeypatch):
+    workspace = tmp_path / "work"
+    original_deploy = init.deploy_init_plan
+    original_read = WorkspaceAnchor.read_file
+
+    def deploy(*args, **kwargs):
+        def read(self, relative):
+            if len(Path(relative).parts) > 1:
+                raise PermissionError("nested reopen conflicts with owned directory handle")
+            return original_read(self, relative)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(WorkspaceAnchor, "read_file", read)
+            return original_deploy(*args, **kwargs)
+
+    monkeypatch.setattr(init, "deploy_init_plan", deploy)
+    assert init.run(_args(workspace), available=lambda: False) == 0
+    assert check_workspace(workspace).ok
 
 
 def test_retired_custom_payload_is_rejected_before_workspace_creation(tmp_path, capsys):

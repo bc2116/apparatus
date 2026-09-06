@@ -1201,7 +1201,12 @@ def test_windows_init_rejects_junction_boundaries_and_preserves_foreign_tree(
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
     assert init.run(_args(workspace), available=lambda: False) == 2
-    assert "could not deploy workspace" in capsys.readouterr().out or boundary == "workspace"
+    output = capsys.readouterr().out
+    assert (
+        "could not deploy workspace" in output
+        or "could not prepare workspace deployment" in output
+        or boundary == "workspace"
+    )
     assert foreign.read_bytes() == b"foreign junction\n"
     assert sorted(path.name for path in outside.iterdir()) == ["foreign.bin"]
 

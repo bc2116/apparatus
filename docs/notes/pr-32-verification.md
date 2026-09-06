@@ -24,6 +24,14 @@ passes added regression coverage and preserved custom content. Final review
 accepted the change and independently reproduced custom-canon rejection before
 mutation, render-and-retry recovery, clean `check`, and preserved custom text.
 
+Initial Windows CI exposed a nested-directory reopen conflict with retained
+owned handles during preimage reads. Reads now use the existing immediate
+parent anchor. Independent review accepted this bounded platform repair;
+the full macOS suite remained green, and a new focused regression simulating
+the incompatible reopen passed. Fixture newline conversion also normalizes
+Windows checkout bytes before constructing CRLF cases. Actual Windows CI must
+pass on the repaired commit before merge.
+
 Migration detects known instruction paths and selected retired phrases; it is
 not a semantic audit of arbitrary user-added instructions. Historical sharing
 receipts remain readable but grant no authority. Private-profile retention
