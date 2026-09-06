@@ -103,6 +103,7 @@ later slices remain planned.
 | 41 | [Capture learned Skills](PR-41-learned-skills.md) | Rework | ✅ landed | 39, 40 |
 | 42 | [Patched PDF dependency](PR-42-pdf-dependency.md) | Repair | ✅ landed | 35 |
 | 43 | [Library references to originals](PR-43-library-references.md) | Rework | ✅ landed | 41, 42 |
+| 44 | [Library cards and completion offers](PR-44-library-cards.md) | Rework | ready | 43 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
