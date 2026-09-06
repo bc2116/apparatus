@@ -2,7 +2,9 @@
 
 Local preparation on macOS, Python 3.12.4, 2026-09-06:
 
-- Full `uv run pytest`: **934 passed, 38 skipped** on the initial PR-38 parent.
+- Full `uv run pytest`: **946 passed, 38 skipped** in 223.53 seconds after integrating recovery,
+  Library locking, adoption and portable Skills. The initial parent run had
+  934 passed and 38 skipped.
 - All 23 source/embedded payload files match. Thirteen exact PR-38 instruction
   fixtures were checked against their historical source; five hidden Skill
   fixtures are explicitly tracked.
@@ -18,7 +20,7 @@ Local preparation on macOS, Python 3.12.4, 2026-09-06:
 - Independent review accepted the final instructions, profile change and
   migration. `git diff --check` passed.
 
-The required Windows lane includes the new task-first regression suite. Final
-dependency integration and actual Windows CI remain delivery gates. These
+The required Windows lane includes the new task-first regression suite. Actual
+Windows CI and dependency merges remain delivery gates. These
 command and instruction checks do not prove live assistant behavior or native
 app certification.
