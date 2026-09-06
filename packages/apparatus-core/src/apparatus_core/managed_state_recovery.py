@@ -465,6 +465,10 @@ def _publish_reference(store: Store, history: History, commit: str) -> Any:
     content = (commit + "\n").encode("ascii")
     if history.ref is None:
         return store.anchor.create_file(REF, content)
+    # CAS reacquires and checks this exact preimage before publication. An
+    # extra planning handle would keep its renamed backup open on Windows,
+    # blocking compensation or leaving a delete-pending store entry behind.
+    history.ref.close()
     transaction = store.anchor.replace_if_unchanged(
         REF, history.ref.identity, history.ref.content, content)
     store.ref_transaction = transaction
@@ -900,6 +904,9 @@ class RestorePlan:
                 if proof is None:
                     self.created_files.append((current, current.create_file(parts[-1], content)))
                 elif proof.content != content:
+                    # Transfer protection to CAS before it creates a backup;
+                    # unchanged destinations keep their planning proofs live.
+                    proof.close()
                     self.changes.append(self.store.root.replace_if_unchanged(relative, proof.identity, proof.content, content))
             self._validate_published()
             self.receipt_transaction = _restore_receipt(self.store, self.identifier, write)

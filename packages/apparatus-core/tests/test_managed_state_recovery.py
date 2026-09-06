@@ -151,7 +151,7 @@ def test_capture_revalidates_with_retained_recovery_receipt_proof(tmp_path):
     assert not receipts(root)
 
 
-def test_saving_task_cli_restore_releases_preflight_before_snapshot_and_replans(tmp_path, monkeypatch):
+def test_saving_task_cli_restore_releases_preflight_before_snapshot_and_replans(tmp_path, monkeypatch, capsys):
     from apparatus_core import snapshots
     from apparatus_core.commands import restore
 
@@ -179,17 +179,21 @@ def test_saving_task_cli_restore_releases_preflight_before_snapshot_and_replans(
         restored.append(plan.identifier)
         return apply(plan, **options)
     saved = []
+    stages = []
     def take(workspace, **options):
         assert not active, "temporary restore preflight still holds destination handles"
+        stages.append("snapshot started")
         result = snapshots.take_snapshot(workspace, **options)
         saved.append(result.snapshot.identifier)
+        stages.append("snapshot completed")
         return result
     monkeypatch.setattr(recovery.RestorePlan, "__init__", tracked_init)
     monkeypatch.setattr(recovery.RestorePlan, "close", tracked_close)
     monkeypatch.setattr(recovery.RestorePlan, "apply", tracked_apply)
     arguments = argparse.Namespace(workspace=str(root), task=task.task_id,
                                    snapshot_id=first.identifier, list=False)
-    assert restore.run(arguments, take=take) == 0
+    status = restore.run(arguments, take=take)
+    assert status == 0, (stages, restored, capsys.readouterr().out)
     assert len(saved) == 1 and restored == [first.identifier] and not active
     assert (root / "Memory/Facts/sample.md").read_bytes() == original
     assert control.read_bytes() == task_bytes
@@ -200,6 +204,62 @@ def test_saving_task_cli_restore_releases_preflight_before_snapshot_and_replans(
         finally:
             history.close()
     assert len(list((root / "System/receipts").glob("*-restore*.md"))) == 1
+
+
+@pytest.mark.parametrize("action", ["snapshot", "restore"])
+@pytest.mark.parametrize("concurrent", [False, True])
+def test_planning_preimage_handoff_keeps_exact_cas_and_preserves_competitors(tmp_path, monkeypatch, action, concurrent):
+    root = workspace(tmp_path / "area")
+    first = recovery.take_snapshot(root).snapshot
+    fact(root, "Current context before handoff.")
+    target = recovery.REF if action == "snapshot" else "Memory/Facts/sample.md"
+    planning = []
+    original_publish = recovery._publish_reference
+    original_apply = recovery.RestorePlan.apply
+    original_replace = WorkspaceAnchor.replace_if_unchanged
+    def publish(store, history, commit):
+        planning.append(history.ref)
+        return original_publish(store, history, commit)
+    def apply(plan, **options):
+        planning.append(plan.preimages[target])
+        assert plan.store.root.matches_owned(plan.preimages["AGENTS.md"])
+        return original_apply(plan, **options)
+    witnessed = []
+    competitor = []
+    def replace(anchor, relative, identity, content, replacement):
+        if Path(relative).as_posix() == target:
+            proof = planning[-1]
+            assert proof.parent < 0, "planning handle still holds the future replacement backup"
+            assert (identity, content) == (proof.identity, proof.content)
+            witnessed.append((identity, content))
+            if concurrent:
+                changed = original_replace(anchor, relative, identity, content, content)
+                try:
+                    changed.commit()
+                    competitor.append(changed.target.identity)
+                finally:
+                    changed.close()
+        return original_replace(anchor, relative, identity, content, replacement)
+    monkeypatch.setattr(recovery, "_publish_reference", publish)
+    monkeypatch.setattr(recovery.RestorePlan, "apply", apply)
+    monkeypatch.setattr(WorkspaceAnchor, "replace_if_unchanged", replace)
+    invoke = (lambda: recovery.take_snapshot(root)) if action == "snapshot" else (
+        lambda: recovery.restore_snapshot(root, first.identifier))
+    if concurrent:
+        with pytest.raises(OSError, match="changed after .*planning"):
+            invoke()
+        anchor_path = root / recovery.STORE if action == "snapshot" else root
+        with WorkspaceAnchor(anchor_path) as anchor:
+            observed = anchor.capture_file(target)
+            try:
+                assert observed.identity == competitor[0]
+                assert observed.content == witnessed[0][1]
+            finally:
+                observed.close()
+    else:
+        invoke()
+        assert not competitor
+    assert len(witnessed) == 1
 
 
 def test_restore_preserves_additions_projects_and_live_task_controls(tmp_path):
@@ -336,7 +396,9 @@ def test_concurrent_reference_is_preserved_after_failed_save(tmp_path, monkeypat
     fact(root, "Next context.")
     before = receipts(root)
     witness = []
+    entered = []
     def fail(transaction):
+        entered.append(True)
         # A competing atomic replacement, using the same cross-platform CAS
         # backend, is possible even while the old inode has retained readers.
         with WorkspaceAnchor(root / recovery.STORE) as anchor:
@@ -355,7 +417,7 @@ def test_concurrent_reference_is_preserved_after_failed_save(tmp_path, monkeypat
     monkeypatch.setattr(recovery.ManagedSnapshotTransaction, "settle", fail)
     with pytest.raises(SnapshotError):
         recovery.take_snapshot(root)
-    assert len(witness) == 1
+    assert len(witness) == 1, {"settle_entered": bool(entered), "published_competitors": witness}
     with WorkspaceAnchor(root / recovery.STORE) as anchor:
         content, identity = anchor.read_file(recovery.REF)
     assert identity == witness[0]

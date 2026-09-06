@@ -21,8 +21,8 @@ Acceptance coverage uses real Git and synthetic data:
   invalid history without a traceback, and describe the actual recovery scope.
 - Canonical/embedded payload content is unchanged; payload building succeeds.
 
-Final macOS suite: **750 passed, 38 skipped**. Focused recovery, backup and
-public-command coverage: **56 passed**. Payload build and diff checks passed.
+Final macOS suite: **754 passed, 38 skipped**. Focused recovery, backup and
+public-command coverage: **60 passed**. Payload build and diff checks passed.
 Independent authoring-tier review accepted the complete implementation after one
 classified repair: partial initialization now compensates owned creations so a
 normal retry succeeds; concurrent additions are preserved. No recursive delegation
@@ -38,6 +38,15 @@ restore path. The source-race fixture asserts the observed replacement outcome:
 unchanged successful export when Windows blocks the competitor, or compensation
 and preserved concurrent bytes when the competitor actually succeeds. Independent
 review accepted this platform repair without lowering any filesystem checks.
+
+The second Windows run reached 551 passing tests and 11 failures. Extra planning
+handles on replaced references and restore destinations obstructed Windows backup
+cleanup/rollback. Those validated planning handles now close immediately before
+the existing CAS operation reacquires and checks the same identity and bytes;
+transaction-owned proofs retain actual replacement and compensation. Unchanged
+file proofs remain live. Four handoff/competing-inode regressions and independent
+review cover this narrow repair; the filesystem backend and inventory allowlist
+are unchanged.
 
 Actual Windows CI is required before merge. The pull request records platform
 results and the exact merged head; unit/platform checks are not AI app certification.
