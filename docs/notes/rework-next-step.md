@@ -4,6 +4,12 @@ PR-32 removes the sharing gate. PR-33 adds current Memory recall and explicit
 correction, outdated status, and forgetting. Their plan rows become effective
 only after each PR merges. Check the remote PR state before continuing.
 
+Budget checkpoint: PR-32 is merged and its Windows CI passed. PR-33 has passed
+independent review, the integrated 572-test macOS suite (38 skips), and payload
+build. It is saved as a draft PR while the session pauses at the requested
+remaining-usage threshold. First inspect PR-33 CI, resolve any failure, mark it
+ready, and merge the verified head before cutting PR-34. No reset was consumed.
+
 Next cut **PR-34 for R2b, task retention**, from the merged source. Do not resume
 the held PR-24 certification or repeat the product-choice interview. The owner
 approved the product direction in ADR-0006; remaining implementation slices are
