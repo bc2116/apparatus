@@ -73,6 +73,12 @@ The following built-in defaults always apply and cannot be disabled:
 Built-in defaults are not user rules. The shipped file comments them for
 orientation only.
 
+Fresh installs also include editable `System/ignore` rules for `node_modules/`,
+`.venv/`, `__pycache__/`, and `.pytest_cache/`. These generated dependencies and
+caches need no onboarding selection. Remove a pattern if it holds useful sources.
+They are user rules, disabled by `ignore_rules: false`; built-ins still apply.
+Init updates exact known stock ignore files while preserving customized bytes.
+
 ## Reporting count
 
 A skipped path is counted at the boundary where an operation declines it. An

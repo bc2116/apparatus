@@ -16,11 +16,11 @@ BUILTIN_PATHS = {f".agents/skills/{name}/SKILL.md": name for name in BUILTIN_SKI
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 _FIELDS = {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
 
-# Complete PR-38 shipped orientation bytes, normalized only for CRLF. Keep
-# these historical witnesses when later payload revisions change the prose.
+# Complete PR-38 and PR-39 shipped orientation bytes, normalized only for CRLF.
+# Keep historical witnesses when later payload revisions change the prose.
 _SKILL_ORIENTATION_DIGESTS = {
-    "Welcome.md": "9c9612b04aae89667e0f9697d99a9b146dc2ee9f4d143c19dc54534cb1ecad87",
-    "System/README.md": "32d22c2e88c1cd3aa49a3dc74b6d54d84bc51c5ed3c96b19e59553796fde911d",
+    "Welcome.md": {"9c9612b04aae89667e0f9697d99a9b146dc2ee9f4d143c19dc54534cb1ecad87", "5bcf362d72d507a8896498d9da83646cc95b8e2b3395cfbbe21b631860048be1"},
+    "System/README.md": {"32d22c2e88c1cd3aa49a3dc74b6d54d84bc51c5ed3c96b19e59553796fde911d", "51ee1850ff9653584142b0b5a789040169bed33ce6f42c0a6c6d8ab984ddb5d6"},
 }
 
 SKILL_INDEX = """<!-- Apparatus Skill index: v1 -->
@@ -141,4 +141,4 @@ def has_skill_index(content: bytes) -> bool:
 def is_shipped_skill_orientation(relative: str, content: bytes) -> bool:
     """Recognize a whole known orientation file, never its header or links."""
     expected = _SKILL_ORIENTATION_DIGESTS.get(relative)
-    return expected is not None and hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() == expected
+    return expected is not None and hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() in expected

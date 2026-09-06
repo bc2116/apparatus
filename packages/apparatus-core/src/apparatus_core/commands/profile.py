@@ -1,4 +1,4 @@
-"""Credential-safe, auditable application of configured setup profiles."""
+"""Credential-safe, auditable application of workspace preferences."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ class _SeedPlan:
 
 def register(subparsers: Any) -> None:
     """Register the profile verb through the shared entry-point path."""
-    parser = subparsers.add_parser("profile", help="apply a configured setup profile")
+    parser = subparsers.add_parser("profile", help="apply workspace preferences")
     actions = parser.add_subparsers(dest="profile_action")
     apply = actions.add_parser("apply", help="apply profile selections and starter records")
     apply.add_argument("workspace", metavar="WORKSPACE", nargs="?", default=".")
@@ -71,7 +71,7 @@ def register(subparsers: Any) -> None:
         "--stdin",
         action="store_true",
         dest="candidate_stdin",
-        help="read the configured profile YAML from standard input",
+        help="read the complete profile YAML from standard input",
     )
     apply.set_defaults(func=run, profile_action="apply")
 
@@ -106,10 +106,6 @@ def _profile_data(
     problems = records.validate("profile", cleaned, filename="profile.yaml")
     if problems:
         raise ProfileCommandError("System/profile.yaml is invalid: " + "; ".join(problems))
-    if cleaned["status"] != "configured":
-        raise ProfileCommandError(
-            "System/profile.yaml status must be configured before apply"
-        )
     rendered = records.yaml.safe_dump(
         cleaned, sort_keys=False, allow_unicode=True
     ).encode("utf-8")
@@ -134,7 +130,7 @@ def _goal_content(seed: GoalSeed) -> bytes:
     )
     if problems:
         raise ProfileCommandError("generated goal does not match the goal schema")
-    return render_record(frontmatter, "Seeded from the setup interview.").encode("utf-8")
+    return render_record(frontmatter, "Seeded from workspace preferences.").encode("utf-8")
 
 
 def _exists(anchor: Any, relative: Path) -> bool:

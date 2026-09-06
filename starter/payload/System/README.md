@@ -6,8 +6,8 @@ attention day to day.
 
 What lives here:
 
-- `profile.yaml` — your setup choices from the welcome interview. Change them
-  any time by telling your assistant to re-run the setup interview.
+- `profile.yaml` — your preferences and useful defaults. Change a preference
+  any time by asking your assistant; setup never blocks the requested work.
 - `policy/` — the privacy and safety rules currently in force.
 - `receipts/` — a record of what the machinery did on your behalf: checks,
   snapshots, and anything sensitive that was flagged or cleaned. If you ever

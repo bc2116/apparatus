@@ -45,6 +45,10 @@ retained-root publication and compensation. A native source payload must contain
 all five built-ins and no mapped legacy built-in files. Entirely legacy custom
 payloads and legacy procedure manifests retain compatibility.
 
+Exact known PR-38 native Skill bodies upgrade to the task-first workflows.
+Known stock Welcome and System orientation files and ignore defaults upgrade
+with the same preimage-bound transaction. Customized versions remain untouched.
+
 Exact known shipped legacy procedure bytes, including supported CRLF variants,
 become tiny procedure-schema pointers to the canonical body. A pointer is created
 only where an old file already exists; fresh setup has no stubs. Existing custom
@@ -78,3 +82,20 @@ symlinks, global user files, native wrappers or app-specific options. Documented
 discovery paths are evidence for the next adapter cut, not proof that a particular
 app version discovers shared Skills outside its project boundary. Actual native
 discovery, duplicate-name behavior and adapter acceptance remain separate checks.
+
+## Task-first everyday work
+
+Welcome starts the actual request with useful defaults and only missing essential
+questions. Neither profile status requires a questionnaire or feature menu.
+Requested work is checked and saved in its project before optional setup; native
+external-action authority and explicit user review constraints still apply.
+Research preserves source support and uncertainty without fixed section headings.
+Checklist and weekly reviews run only on request; a stored review day is not a
+schedule. Snapshot commands own their receipts and report managed-state coverage.
+
+A valid unconfigured or configured profile may receive an explicitly requested
+preference change through `profile apply --stdin`. Merge only that change into
+the full existing profile, preserving status and unrelated fields. Do not collect
+extra answers or seed over existing records, including forgotten markers. Task
+Memory controls and credential handling continue to apply; no-save suppresses
+profile answers and automatic continuity while requested project files can save.

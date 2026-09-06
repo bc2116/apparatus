@@ -50,12 +50,12 @@ its selected work area, so a nearby folder is never guessed.
 
 ## Getting started
 
-Just say hello. Your assistant reads `.agents/skills/apparatus-welcome/SKILL.md`
-from the selected work-area root. If this workspace is new, your assistant will ask you a few
-questions about your work — what you do, who you work with, what you're working
-on now — and set the workspace up around your answers. The features you choose
-are never permanent: re-run my setup interview or just ask your assistant to
-change them any time.
+Ask for something real: “Summarize the document in my Library” or “Help me
+write a project update.” Your assistant uses the relevant Skill, asks only for
+missing essentials, checks the work and saves the requested file in its project.
+There is no setup questionnaire to complete first.
 
-Then try it: ask for something real. *"Summarize the document I just put in the
-Library"* or *"help me plan this week"* are good first requests.
+Useful defaults are already available. Your existing preferences stay in place,
+and you can change them later by asking. Checklist and weekly reviews happen
+only when requested. Say “don't remember this task” when you want the requested
+work saved without adding new Memory or automatic captures.

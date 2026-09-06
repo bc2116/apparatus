@@ -13,3 +13,10 @@
 # Thumbs.db
 # desktop.ini
 # .git/
+
+# Editable defaults for generated dependencies and caches. Remove a pattern
+# if these files are useful sources; built-in OS/Git rules remain active.
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
