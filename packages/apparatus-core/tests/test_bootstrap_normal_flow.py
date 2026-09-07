@@ -111,6 +111,20 @@ raise SystemExit(code)
 ''', encoding="utf-8")
         for kind in ("uv", "apparatus"):
             self.launcher(self.bin / (kind + (".cmd" if self.windows else "")), kind)
+        self.uv_version = "uv 0.0.0-test"
+        if self.windows:
+            # PowerShell invokes our explicit uv.cmd install collaborator, but
+            # doctor's bare subprocess uses CreateProcess executable lookup,
+            # which does not expand PATHEXT to find that batch file. Supply the
+            # real, already-required build tool for this read-only probe only.
+            uv_executable = shutil.which("uv")
+            assert uv_executable and Path(uv_executable).suffix.lower() == ".exe"
+            isolated_uv = self.bin / "uv.exe"
+            shutil.copy2(uv_executable, isolated_uv)
+            self.uv_version = subprocess.run(
+                [str(isolated_uv), "--version"], check=True, capture_output=True,
+                text=True).stdout.strip()
+            assert self.uv_version.startswith("uv ")
         shutil.copy2(self.bin / ("apparatus.cmd" if self.windows else "apparatus"), self.bin / "apparatus-template")
         # Start with the tool absent so the normal install collaborator is used.
         (self.bin / ("apparatus.cmd" if self.windows else "apparatus")).unlink()
@@ -126,6 +140,12 @@ raise SystemExit(code)
                 'function Invoke-RestMethod { throw "network is forbidden in this isolated test" }\n$UvInstallUrl =')
             if missing_git or initial_git_absent:
                 source = replace_once(source, '$GitPath = Find-Git', '$GitPath = $null')
+            if initial_git_absent:
+                git_executable = shutil.which("git")
+                assert git_executable and Path(git_executable).is_file() and Path(git_executable).suffix.lower() == ".exe"
+                git_dir = str(Path(git_executable).parent).replace("'", "''")
+                source = replace_once(source, '$ControlledPath.Add($UvToolBin)',
+                    f"$ControlledPath.Add($UvToolBin)\n$ControlledPath.Add('{git_dir}')")
             self.script.write_text(source, encoding="utf-8")
             self.interpreter = shutil.which("powershell") or shutil.which("pwsh")
             assert self.interpreter, "normal-flow Windows coverage requires PowerShell"
@@ -214,6 +234,10 @@ def test_fresh_and_empty_setup_use_direct_root_and_real_wheel(tmp_path, wheel_si
     assert (setup.target / ".agents/skills/apparatus-economizer/SKILL.md").is_file()
     assert len(setup.calls("wheel")) >= 2
     assert any(call[:2] == ["tool", "install"] for call in setup.calls("uv"))
+    # The real wheel must publish a version, not merely find a PATH entry.
+    import yaml
+    report = (setup.target / "System/machine-report.md").read_text(encoding="utf-8")
+    assert yaml.safe_load(report.split("---", 2)[1])["uv"] == setup.uv_version
 
 
 @pytest.mark.parametrize("kind", ["ordinary", "partial_legacy", "complete_legacy"])
