@@ -147,6 +147,11 @@ QUIET_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': 'ceef205157d9408ae7ed7f318567be3eff9
  '.cursor/rules/apparatus.mdc': '5347491efd8e5f6bc9130d0f9070c9d79eda6252a336a4f086111df9fc14fb16',
  '.github/copilot-instructions.md': '1f2a7027c045a319c75cde4dd50b018b17faaaeecb04b7d82c8584d43206d50c'}
 
+# Exact PR-49 stock before explicit fact-capture guidance.
+EXPLICIT_MEMORY_PREVIOUS_INSTRUCTIONS = {
+    'AGENTS.md': '96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8',
+}
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -157,6 +162,7 @@ def known_instruction(relative: str, content: bytes) -> bool:
         LAYOUT_PREVIOUS_INSTRUCTIONS, SKILLS_PREVIOUS_INSTRUCTIONS,
         TASK_FIRST_PREVIOUS_INSTRUCTIONS, ECONOMY_PREVIOUS_INSTRUCTIONS,
         LEARNED_PREVIOUS_INSTRUCTIONS, CARDS_PREVIOUS_INSTRUCTIONS, QUIET_PREVIOUS_INSTRUCTIONS,
+        EXPLICIT_MEMORY_PREVIOUS_INSTRUCTIONS,
     )}
 
 
