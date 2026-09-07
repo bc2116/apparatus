@@ -1,0 +1,93 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "dependency_versions": {
+    "pypdf": "6.17.0",
+    "python-docx": "1.2.0",
+    "lxml": "6.1.3",
+    "pyyaml": "6.0.3",
+    "typing-extensions": "4.16.0"
+  },
+  "fast": true,
+  "status": "Shared-root deliverable and independent Library decline passed; canonical Humanizer use observed; not certified",
+  "cache_override": "<fixture>/operator-evidence/shared-cache",
+  "task_id": "0d81fc22-bb11-4831-a739-c5481f284958",
+  "files": {
+    "project-a/source.md": "315f38491669e43032977298e3d5b831be4d823b248e33c953a1e8c2e28bcff1",
+    "project-a/facilitator-guide.md": "48c64d3123a19a3566407c436f78979d0f81fdfa4fea12ce135b64093a247034",
+    "project-a/local-note.md": "847cd6f4e357cd394804862a42e434b4bfc5b741a6553957d2a478696ee8cbc2",
+    "project-a/instructions-before.txt": "df8b36db76d71c27fe5fb81f6699859e54ff5ae5aa848ea27eca66ae06b96534"
+  },
+  "cases": [
+    {
+      "case": "Shared-root deliverable with selective Humanizer pass",
+      "status": "pass",
+      "ui_time": "06:00 AM",
+      "seconds": 48,
+      "setup": "Fresh adopted area-shared with two synthetic project Git repositories, existing source/notes/custom instructions and explicitly bound sibling project-b. Opened area-shared through Cursor IDE File > Open Folder. Saving task created before the 127-file baseline.",
+      "prompt": "From project-a/source.md, finish and save a concise reusable facilitator guide as project-a/facilitator-guide.md. Cite the source, preserve its numbers and timing, and identify missing details without inventing them. Apply the Apparatus Humanizer for a light final prose edit. Preserve existing notes, instructions, and project Git state. Work yourself; do not delegate. This is an isolated synthetic acceptance case using saving task 0d81fc22-bb11-4831-a739-c5481f284958. For Apparatus commands use <fixture>/runtime/bin/apparatus with APPARATUS_HOME=<fixture>/operator-evidence/shared-cache. Stay within <fixture>/area-shared and that runtime/cache. No sending or publication.",
+      "expected_result": "Finish and save a concise sourced guide in project-a; preserve existing files and unknowns, apply a selective prose pass, offer optional Library addition after completion.",
+      "filesystem_verification": {
+        "before_file_count": 127,
+        "after_file_count": 128,
+        "changed": [],
+        "deleted": [],
+        "added": [
+          "project-a/facilitator-guide.md"
+        ]
+      },
+      "native_observation": "Cursor used welcome/produce/Humanizer labels, saved the guide, made two visible line edits, checked source/notes/instructions and Git state, and reported a no-change managed snapshot with project files outside coverage. No setup questionnaire, native approval dialog or additional Apparatus approval was observed.",
+      "canonical_humanizer": {
+        "path": "<fixture>/area-shared/.agents/skills/apparatus-humanizer/SKILL.md",
+        "sha256": "547dd19f651e591d03100da942db48d101368cae3166510e133b606ed60aa74a",
+        "evidence": "Clicked Used apparatus-humanizer in the actual assistant trace; the linked canonical file opened with its complete 37-line body. Two selective edits were visible in the trace, and saved facts/numbers/citations were checked against source."
+      },
+      "visible_edits": [
+        {
+          "before": "Details that source does not give are listed as open, not filled in.",
+          "after": "Details the source does not give are listed as open, not filled in."
+        },
+        {
+          "before": "Treat the two sessions as separate offerings with the same known constraints.",
+          "after": "Apply the same known constraints to both sessions."
+        }
+      ],
+      "library_offer": "This is a reusable finished guide. If you want it in the Library, say so and I will register project-a/facilitator-guide.md only. Declining or ignoring that offer does not change the saved file.",
+      "result": "All 127 existing files unchanged, only project-a/facilitator-guide.md added. Saved guide preserves two sessions, 12 places each, water break after 45 minutes and undecided venue; missing details stay open. No Library registration/card appeared before acceptance."
+    },
+    {
+      "case": "Library decline after completed reusable guide",
+      "status": "pass",
+      "ui_time": "06:03 AM",
+      "seconds": 1,
+      "prompt": "No, leave the finished facilitator guide in its project and do not add it to the Library. Keep all files unchanged.",
+      "expected_result": "Guide remains saved; no Library registration/card or other file changes.",
+      "native_reply": "Understood. The guide stays in project-a/facilitator-guide.md and will not be added to the Library. No files were changed.",
+      "filesystem_verification": {
+        "before_file_count": 128,
+        "after_file_count": 128,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      },
+      "result": "All 128 files remained byte-identical; nothing added or deleted."
+    }
+  ],
+  "limits": [
+    "Explicit runtime and cache in a fresh adopted work area; default installation/cache not tested.",
+    "No learned Skill adoption/use or saving Library acceptance was run in this case.",
+    "No full recovery or quiet-operation negative cases were run.",
+    "No full six-step or three-app certification."
+  ]
+}

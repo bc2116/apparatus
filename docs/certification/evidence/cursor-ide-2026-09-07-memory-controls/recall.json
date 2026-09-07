@@ -1,0 +1,10 @@
+{
+  "status": "matched",
+  "results": [
+    {
+      "source": "Memory/Facts/practice-workshop-has-two-sessions.md",
+      "text": "---\nschema: apparatus/fact@v0\ntitle: Practice workshop has three sessions\nsource: project-b/source.md\nstatus: current\n---\nThe practice workshop currently has three sessions, as stated in this project's source.md.\n"
+    }
+  ],
+  "truncated": false
+}

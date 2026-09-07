@@ -1,14 +1,16 @@
 # Certification matrix — DRAFT
 
-Updated 2026-09-06. **No reworked core app certification is complete.** These are
+Updated 2026-09-07. **No reworked core app certification is complete.** These are
 partial observations of named local builds, not a signed public release or a
 support promise. Held PR24 results cover their original payload.
 
-Release-candidate status: a local checkpoint with a working basic Cursor task,
-not a signed public RC or completed app certification. Required Windows CI and
-signing remain pending. Cursor is the priority app for remaining acceptance.
+Release-candidate status: a local checkpoint with bounded Cursor task and
+Memory-control fragments, not a signed public RC or completed app certification.
+Current required native bootstrap checks are green; Windows safety remains
+pending and signing is unconfigured. Cursor is the priority app for remaining
+acceptance.
 
-## Repaired build — bounded first-task smokes
+## September 6 repaired build — historical first-task smokes
 
 - Core commit: `1e50521f1aae41759123cc21f1a9f91c9f89a6a9`; version `0.0.1`.
 - Wheel SHA-256: `84dea9eb17fcaea356013bb673dfbcc90677962eb2011c00815094327c71b956`.
@@ -43,7 +45,40 @@ return no changes and a final optional Library offer; no acceptance followed.
 Direct comparison verified all 67 preexisting work-area files and 28 project Git
 files unchanged. Nine reads were observed, but the exact canonical Skill body
 was not verified in this case. See [Cursor run record and artifact hashes](evidence/cursor-ide-2026-09-06-pr49/run.json).
-All app runs have stopped at this partial checkpoint. **No app is certified.**
+Those September 6 runs stopped at this partial checkpoint. **No app is certified.**
+
+## Sep 7 build — bounded Cursor fragments
+
+- Core commit: `b1290082707322b1e1ab7ba77dda2ddff67f6224`; version `0.0.1`.
+- Wheel SHA-256: `9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054`.
+- Payload SHA-256: `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`.
+
+A fresh [shared-root case](evidence/cursor-ide-2026-09-07-shared-root/run.json)
+saved a reusable facilitator guide, preserved all 127 existing files and
+demonstrated the canonical Humanizer body plus two selective edits. It offered
+Library addition after completion. Declining the offer left all 128 files
+unchanged. This used a facilitator-guide variant of the checklist's shared-root
+task; retain it as a passing first-task fragment alongside the separately opened
+bound-project case below. Full Skill and Library steps still need their
+remaining independent cases.
+
+Cursor IDE 3.19.13 on macOS 27.0 used Grok 4.6 High for these observations.
+The separately opened bound-project and saving Memory cases used Fast mode;
+the fresh no-save case had Fast off. Retention, sourced correction and current
+recall passed. The bound case saved a sourced plan and a managed
+snapshot; the no-save case added only its requested project-local note, with 140
+preexisting files unchanged. See [bound evidence](evidence/cursor-ide-2026-09-07-bound-project/run.json)
+and [no-save evidence](evidence/cursor-ide-2026-09-07-memory-controls/run.json).
+Independent fresh no-save chats also passed the separately requested
+[Library and snapshot exceptions](evidence/cursor-ide-2026-09-07-no-save-exceptions/run.json).
+Library registration/extraction added no card or other automatic retention.
+The requested snapshot preserved the live no-save flag and project files,
+captured existing managed state only, and emitted one metadata-only receipt.
+These observations cover the Memory step's listed cases on this Cursor build;
+they do not supply the distinct full Library or recovery cases.
+These are fragments: no complete six-step Cursor row or three-app certification
+is claimed. Older common three-app observations at core `1e50521…` remain
+historical evidence and are not relabeled as this build.
 
 ## Earlier PR48 build — dated partial observations
 

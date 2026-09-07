@@ -1,0 +1,86 @@
+{
+  "status": "Bound-project first-task pass; not certified",
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "ui_time": "05:30 AM",
+  "seconds": 70,
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "speed": "Fast",
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "dependency_versions": {
+    "pypdf": "6.17.0",
+    "python-docx": "1.2.0",
+    "lxml": "6.1.3",
+    "pyyaml": "6.0.3",
+    "typing-extensions": "4.16.0"
+  },
+  "case": "project-b opened separately in Cursor through File > Open Folder; explicit bound project",
+  "task": {
+    "task_id": "f64a77ba-5d05-4bb3-a0f6-7d512ae8f229",
+    "memory": "save",
+    "setup": [
+      "init <fixture>/area --adopt",
+      "project bind <fixture>/area/project-b --workspace <fixture>/area",
+      "task start <fixture>/area --save-memory"
+    ]
+  },
+  "action": "Asked for a short plan from project-b/source.md and saved it in project-b.",
+  "observed_result": "Plan cites the local source, preserves two sessions with 12 places each, schedules a water break after 45 minutes, keeps venue undecided, and lists unsupported details as unknowns.",
+  "snapshot": {
+    "command": "APPARATUS_HOME=<fixture>/operator-evidence/cache <fixture>/runtime/bin/apparatus --task f64a77ba-5d05-4bb3-a0f6-7d512ae8f229 snapshot <fixture>/area/project-b",
+    "output": "Snapshot saved. Snapshot id: 6acc91d20af3",
+    "snapshot_id": "6acc91d20af3e07f46e7c844bb48ae05113dc279",
+    "coverage": "Managed state only; project files and Library originals are outside recovery coverage.",
+    "receipt_sha256": "28718dfe177aefc18eb2f204b629b250083b18e08a62e1bad0a2683e3997903e"
+  },
+  "skill": {
+    "path": "<fixture>/area/.agents/skills/apparatus-produce-deliverable/SKILL.md",
+    "sha256": "bbf09304eb6b015869017fbd0a495de6f3cf357970227e621fe06921092183be",
+    "native_link": "Cursor UI linked Used apparatus-produce-deliverable to this exact canonical body; the body was opened and verified."
+  },
+  "files": {
+    "project-b/source.md": "315f38491669e43032977298e3d5b831be4d823b248e33c953a1e8c2e28bcff1",
+    "project-b/workshop-plan.md": "7c9dc6b4a4d4e3039e2d0b3bfa7dc39ce6033e252a1f976ac78493eee52247c9",
+    "Goals/practice-workshop-plan.md": "61b0aa937f6ad1e988cc635e57b0e548bac1bc9fdaa197c910736f9cf217764b",
+    "project-b/instructions-before.txt": "13bd70d51d5d2bf49fa5ab2078adb3d7b4475ce1b470ecef47c38ee900d90575",
+    "snapshot/receipt.md": "28718dfe177aefc18eb2f204b629b250083b18e08a62e1bad0a2683e3997903e",
+    "snapshot/snapshot-paths.txt": "419905f04e0ce20333bbbc23eaf5a1263575b5a9732feab4c79e2fae743ccd66",
+    "snapshot/recovery-manifest.json": "d56e797433c1f0d5b256a7ca2046fd3d435580cee6904e8f21ac89641970caaa"
+  },
+  "preservation": {
+    "existing_project_notes_instructions_and_git_files": "unchanged by before-vs-after scan",
+    "preexisting_changed_path": "area/System/recovery/store/refs/heads/managed (managed recovery reference)",
+    "additions": [
+      "Goals/practice-workshop-plan.md",
+      "System/receipts/2026-09-07-123023-snapshot.md",
+      "5 new System/recovery/store/objects files",
+      "project-b/workshop-plan.md",
+      "3 project-b/.git/cursor/crepe native Cursor indexing files"
+    ],
+    "note": "Native Cursor indexing files are additions and are not copied into this evidence folder. Their contents are intentionally omitted.",
+    "project_instruction_artifact": "project-b/instructions-before.txt preserves original project-b/AGENTS.md bytes without installing active instructions in the evidence folder.",
+    "preexisting_file_count": 127,
+    "preexisting_project_git_file_count": 56
+  },
+  "limits": [
+    "Shared-root case was not rerun on this build.",
+    "Full six-step app acceptance and three-app certification remain incomplete.",
+    "No Library acceptance or decline case was run.",
+    "No Humanizer or learned-Skill adoption case was run.",
+    "Permission settings were not inspected; no sandbox claim is made.",
+    "Explicit fixture runtime and cache were supplied; the default installed command/cache environment was not tested."
+  ],
+  "prompt": "Use this project's linked work area and its Apparatus instructions. From source.md, finish and save a short workshop plan as workshop-plan.md in this project. Cite the local source and identify missing details. Preserve existing notes, instructions and project Git state. Work yourself; do not delegate. This is an isolated synthetic acceptance case. For Apparatus commands use <fixture>/runtime/bin/apparatus with APPARATUS_HOME=<fixture>/operator-evidence/cache and task ID f64a77ba-5d05-4bb3-a0f6-7d512ae8f229. Stay within <fixture>. No sending or publication.",
+  "expected_result": "Save a sourced plan in the separately opened bound project, keep unknowns explicit, preserve existing files and follow linked work-area instructions without a setup interview or extra Apparatus approval.",
+  "native_approval_dialogs_observed": false,
+  "cache_override": "<fixture>/operator-evidence/cache; outside work area, within synthetic fixture"
+}

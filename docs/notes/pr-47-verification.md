@@ -1,10 +1,11 @@
 # PR47 preparation and evidence status
 
-Updated 2026-09-06. **Local RC checkpoint: basic Cursor task works; certification,
-required Windows CI and signing remain incomplete. No signed public RC claim.**
+Updated 2026-09-07. **Local RC checkpoint: bounded Cursor task and Memory-control
+fragments pass; certification, Windows safety and signing remain incomplete. No
+signed public RC claim.**
 PR47 is integrated onto final PR49 and retains both earlier partial app
 observations and bounded PR49 first-task smokes. Latest observed
-source is `1e50521f1aae41759123cc21f1a9f91c9f89a6a9`; earlier multi-case fragments
+source is `b1290082707322b1e1ab7ba77dda2ddff67f6224`; earlier multi-case fragments
 used `7c0c6c4252bf948a0e4dd32decfb35cf308e963d`. These are exact-build evidence,
 not claims about a release. Only documentation and synthetic evidence are
 curated here; held PR24 evidence remains untouched.
@@ -115,7 +116,7 @@ machine absolute path was copied into the normalized evidence.
 
 ## PR49 checkpoint smokes
 
-Latest observed version `0.0.1` uses wheel SHA-256
+The September 6 smoke version `0.0.1` uses wheel SHA-256
 `84dea9eb17fcaea356013bb673dfbcc90677962eb2011c00815094327c71b956`
 and the same payload hash above. Each app uses an explicit per-app fixture cache;
 default-cache behavior is outside these smokes. No broader matrix was started.
@@ -138,7 +139,7 @@ unknown break duration/total length, no-change snapshot and an optional Library
 offer. Direct comparison verified all 67 preexisting work-area files and 28
 project Git files unchanged. Exact canonical Skill body reading was not verified.
 No acceptance or further app cases followed. All app runs stopped at this partial
-checkpoint; no app is certified.
+checkpoint on September 6; no app is certified.
 
 The PR49 branch later recorded its verification note at
 `3d940a45af75cbbd190a1fa2279fdf340c6f9918`; the tested artifact source remains
@@ -146,7 +147,42 @@ The PR49 branch later recorded its verification note at
 is 1,265 passed and 38 skipped. That source test result does not certify apps;
 PR47's own integrated full-suite result follows.
 
-## Final local integration
+## September 7 bounded native evidence
+
+The current integrated build observed in Cursor is `b1290082707322b1e1ab7ba77dda2ddff67f6224`, with
+wheel SHA-256 `9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054`
+and payload SHA-256 `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`.
+Cursor IDE 3.19.13 on macOS 27.0 completed a separately opened bound-project
+first-task fragment, a Memory correction/retention follow-up fragment, and a
+fresh no-save fragment using Grok 4.6 High. Fast was on for the bound/saving
+cases and off for no-save. The bound and no-save records
+are [curated separately](../certification/matrix.md#sep-7-build--bounded-cursor-fragments);
+they are not a complete six-step or three-app certification. Existing historical
+PR49 three-app observations at core `1e50521…` remain unchanged and historical.
+The [independent no-save exceptions](../certification/evidence/cursor-ide-2026-09-07-no-save-exceptions/run.json)
+also passed: Library registration/extraction without a card or other capture,
+and a separately requested managed snapshot with unchanged project files and
+live task controls. Only the expected recovery reference, ten object files and
+one metadata-only receipt changed or appeared during the snapshot case.
+The later [shared-root guide and Library decline](../certification/evidence/cursor-ide-2026-09-07-shared-root/run.json)
+completed in 48 seconds and one second respectively. The canonical Humanizer
+body and two selective edits were observed. The guide was the only addition
+to a fresh 127-file work area; declining Library addition left all 128 files
+unchanged. Bound-project snapshot evidence now includes its actual receipt,
+manifest and path inventory as requested by independent evidence review.
+Four new run records and all 24 copied artifact hashes, relative links and
+private-path checks pass. The exact copied no-save snapshot receipt retains
+its generated trailing blank line; the staged whitespace check passes with
+only the blank-at-EOF check excluded. Artifact bytes were not trimmed to make
+that check pass. Production source remains identical to the tested build.
+
+The integrated full suite passed **1,266 tests, 38 skipped in 527.58 seconds**;
+the retained log and XML are `apparatus-integrated-full-sep7.log` and its
+corresponding XML artifact. Current required native bootstrap checks are green;
+Windows safety remains pending. Signing is still unconfigured. No release or
+certification claim follows from these results.
+
+## September 6 local integration — historical
 
 The evidence commit was rebased from PR48 onto PR49
 `3d940a45af75cbbd190a1fa2279fdf340c6f9918`. The resulting checkout before final

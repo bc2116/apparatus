@@ -1,0 +1,1 @@
+According to `source.md`, the practice workshop has three sessions with 12 places each. That same source says to allow a water break after 45 minutes. The venue is undecided; `source.md` does not name a location.

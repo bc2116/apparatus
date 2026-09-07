@@ -1,0 +1,11 @@
+{
+  "character_count": 213,
+  "error": null,
+  "extractor": "utf-8",
+  "extractor_version": "1",
+  "size_bytes": 213,
+  "source_path": "project-b/private-workshop-note.md",
+  "source_sha256": "3bebe9a7b910e69a97560f0b87f307b31f619be5e9c65437885ed98711ed4051",
+  "status": "extracted",
+  "timestamp": "2026-09-07T12:50:13Z"
+}
