@@ -132,3 +132,30 @@ The six-line fixture patch passed lead scope and executable-lookup review. Local
 normal-flow tests passed. Full-suite results and exact-head native Windows
 checks are tracked on the pull request; Windows must still verify the corrected
 case.
+
+## September 7 complete-legacy timeout diagnostics
+
+The Windows adoption timeout recurred on multiple heads. Test-only wrappers now
+timestamp the real CLI and managed Git calls and attach the final 32 events to
+the original timeout. The timeout remains 90 seconds. Because Windows child
+processes can retain output pipes after PowerShell is killed, the note records
+both an approximate wall-clock deadline and the later observation time; an
+untimed tail alone cannot establish completion before the deadline.
+
+At `6f8aa27`, native run `34156265749` failed only complete-legacy adoption:
+22 other cases passed and one skipped. Fifteen complete Git calls in its retained
+tail totalled 0.582 seconds, with larger gaps between them. The CLI returned at
+approximately 90.335 seconds and the parent observed the timeout at 90.371 seconds.
+This narrows the cost to surrounding work in that sample, without establishing
+which validation function is responsible. The full local suite at that head
+passed 1,248 tests with 38 skips in 493.23 seconds.
+
+Only the complete-legacy `init --adopt` fixture now profiles the real CLI and
+reports its top 20 cumulative-time functions on timeout. Profiling adds overhead;
+its timings are diagnostic rather than baseline performance. A local sample
+showed repeated store inventories and directory-chain validation, but does not
+establish Windows costs. Profile publication and read failures preserve the real
+CLI outcome and original timeout streams. The targeted local case and focused
+failure-path oracle passed; the current full suite and native result are tracked
+on the pull request. Production behavior, ownership checks and preservation
+assertions remain unchanged. No timeout fix or signed installer is established.
