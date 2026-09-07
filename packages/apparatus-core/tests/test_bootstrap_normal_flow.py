@@ -11,6 +11,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 
 import pytest
@@ -38,21 +39,24 @@ def replace_once(text, before, after):
 
 
 class Setup:
-    def __init__(self, root, site, *, missing_git=False, failure=None, initial_git_absent=False, report_fault=None):
+    def __init__(self, root, site, *, missing_git=False, failure=None, initial_git_absent=False,
+                 report_fault=None, profile_complete_legacy=False):
         self.root = root.resolve()
         self.home = self.root / "home"
         self.home.mkdir()
         self.log = self.root / "calls.jsonl"
         self.target = self.home / "Projects"
         self.site = site
+        self.profile_path = (self.root / "complete-legacy-profile.txt") if profile_complete_legacy else None
         self.windows = sys.platform == "win32"
         self.bin = self.home / ".local/bin"
         self.bin.mkdir(parents=True)
         (self.home / ".local/share/uv/python/cpython-3.12-test").mkdir(parents=True)
         self.helper = self.root / "collaborator.py"
-        # The only core override is optional dependency detection. No enrollment,
-        # write, restore or ownership behavior is replaced.
-        self.helper.write_text(f'''import json, os, pathlib, shutil, sys
+        # The only core override is optional dependency detection. Observational
+        # wrappers record cli.main and managed_state_recovery._git phases without
+        # replacing enrollment, write, restore or ownership behavior.
+        self.helper.write_text(f'''import json, os, pathlib, shutil, sys, time
 site = pathlib.Path({str(site)!r})
 sys.path.insert(0, str(site))
 log = pathlib.Path({str(self.log)!r})
@@ -88,7 +92,51 @@ if args and args[0] == {failure!r}:
     print("synthetic required step failed")
     raise SystemExit(2)
 from apparatus_core.cli import main
-code = main(args)
+import apparatus_core.managed_state_recovery as managed_state_recovery
+_real_git = managed_state_recovery._git
+def _observed_git(*args, **kwargs):
+    with log.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(["phase", "managed_state_recovery._git:before", repr(args), repr(kwargs), time.time_ns()]) + "\\n")
+        stream.flush()
+    try:
+        result = _real_git(*args, **kwargs)
+    except BaseException as error:
+        with log.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(["phase", "managed_state_recovery._git:error", type(error).__name__, repr(args), repr(kwargs), time.time_ns()]) + "\\n")
+            stream.flush()
+        raise
+    with log.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(["phase", "managed_state_recovery._git:after", repr(args), repr(kwargs), time.time_ns()]) + "\\n")
+        stream.flush()
+    return result
+managed_state_recovery._git = _observed_git
+with log.open("a", encoding="utf-8") as stream:
+    stream.write(json.dumps(["phase", "cli.main:before", *args, time.time_ns()]) + "\\n")
+    stream.flush()
+profile = None
+if {bool(profile_complete_legacy)!r} and args and args[0] == "init" and "--adopt" in args:
+    import cProfile
+    import pstats
+    profile = cProfile.Profile()
+    profile.enable()
+try:
+    code = main(args)
+except BaseException as error:
+    with log.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(["phase", "cli.main:error", type(error).__name__, *args, time.time_ns()]) + "\\n")
+        stream.flush()
+    raise
+finally:
+    if profile is not None:
+        try:
+            profile.disable()
+            with pathlib.Path({str(self.profile_path)!r}).open("w", encoding="utf-8") as stream:
+                pstats.Stats(profile, stream=stream).strip_dirs().sort_stats("cumulative").print_stats(20)
+        except BaseException:
+            pass  # Best-effort diagnostics must preserve the actual main outcome.
+with log.open("a", encoding="utf-8") as stream:
+    stream.write(json.dumps(["phase", "cli.main:after", code, *args, time.time_ns()]) + "\\n")
+    stream.flush()
 if args and args[0] == "doctor" and {report_fault!r}:
     report = pathlib.Path(args[1]) / "System/machine-report.md"
     text = report.read_text()
@@ -199,8 +247,42 @@ raise SystemExit(code)
             environment["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin"
         for name in ("BASH_ENV", "ENV", "PYTHONPATH"):
             environment.pop(name, None)
-        return subprocess.run(command, cwd=self.root, env=environment, capture_output=True,
-                              text=True, timeout=90)
+        started_ns = time.time_ns()
+        try:
+            return subprocess.run(command, cwd=self.root, env=environment, capture_output=True,
+                                  text=True, timeout=90)
+        except subprocess.TimeoutExpired as error:
+            observed_ns = time.time_ns()
+            deadline_ns = started_ns + 90 * 1_000_000_000
+            timing = (
+                f"parent run start_ns={started_ns} observed_ns={observed_ns} "
+                f"elapsed_ns={observed_ns - started_ns} timeout_s=90 deadline_ns={deadline_ns} "
+                "(phase last field uses time.time_ns; deadline is an approximate wall-clock "
+                "correlation, not the subprocess monotonic deadline. Observed elapsed includes "
+                "Windows kill/communicate cleanup; later child traces may be post-deadline.)"
+            )
+            try:
+                raw = self.log.read_text(encoding="utf-8").splitlines() if self.log.exists() else []
+                traces = raw[-32:]
+                error.add_note(
+                    f"{timing}\n"
+                    f"last fixture trace lines ({len(traces)} of {len(raw)}):\n"
+                    + "\n".join(traces)
+                )
+            except (OSError, UnicodeError) as trace_error:
+                error.add_note(f"{timing}; fixture trace unavailable: {type(trace_error).__name__}")
+            if self.profile_path is not None:
+                try:
+                    profile = self.profile_path.read_text(encoding="utf-8")
+                    error.add_note(
+                        "complete-legacy cProfile (top 20 cumulative; diagnostic overhead "
+                        f"included, not baseline timing):\n{profile}"
+                    )
+                except (OSError, UnicodeError) as profile_error:
+                    error.add_note(
+                        f"complete-legacy cProfile unavailable: {type(profile_error).__name__}"
+                    )
+            raise
 
     def calls(self, kind="apparatus"):
         if not self.log.exists():
@@ -242,7 +324,7 @@ def test_fresh_and_empty_setup_use_direct_root_and_real_wheel(tmp_path, wheel_si
 
 @pytest.mark.parametrize("kind", ["ordinary", "partial_legacy", "complete_legacy"])
 def test_existing_unmarked_requires_explicit_adoption_then_preserves_files(tmp_path, wheel_site, kind):
-    setup = Setup(tmp_path, wheel_site)
+    setup = Setup(tmp_path, wheel_site, profile_complete_legacy=(kind == "complete_legacy"))
     root = setup.target
     root.mkdir()
     if kind == "complete_legacy":

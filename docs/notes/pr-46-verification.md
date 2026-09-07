@@ -132,3 +132,52 @@ The six-line fixture patch passed lead scope and executable-lookup review. Local
 normal-flow tests passed. Full-suite results and exact-head native Windows
 checks are tracked on the pull request; Windows must still verify the corrected
 case.
+
+## September 7 complete-legacy timeout diagnostics
+
+The Windows adoption timeout recurred on multiple heads. Test-only wrappers now
+timestamp the real CLI and managed Git calls and attach the final 32 events to
+the original timeout. The timeout remains 90 seconds. Because Windows child
+processes can retain output pipes after PowerShell is killed, the note records
+both an approximate wall-clock deadline and the later observation time; an
+untimed tail alone cannot establish completion before the deadline.
+
+At `6f8aa27`, native run `34156265749` failed only complete-legacy adoption:
+22 other cases passed and one skipped. Fifteen complete Git calls in its retained
+tail totalled 0.582 seconds, with larger gaps between them. The CLI returned at
+approximately 90.335 seconds and the parent observed the timeout at 90.371 seconds.
+This narrows the cost to surrounding work in that sample, without establishing
+which validation function is responsible. The full local suite at that head
+passed 1,248 tests with 38 skips in 493.23 seconds.
+
+Only the complete-legacy `init --adopt` fixture now profiles the real CLI and
+reports its top 20 cumulative-time functions on timeout. Profiling adds overhead;
+its timings are diagnostic rather than baseline performance. A local sample
+showed repeated store inventories and directory-chain validation, but does not
+establish Windows costs. Profile publication and read failures preserve the real
+CLI outcome and original timeout streams. The targeted local case and focused
+failure-path oracle passed; the current full suite and native result are tracked
+on the pull request. Production behavior, ownership checks and preservation
+assertions remain unchanged. No timeout fix or signed installer is established.
+
+## Windows binding setup cost and focused repair
+
+The native profile at `4de59af`, run `34157824826`, completed the adopted init
+in 120.439 profiled seconds. `_win_kernel` ran 1,004,542 times and accounted for
+73.096 cumulative seconds configuring the same system-library bindings. These
+are profiled durations, not uninstrumented performance measurements.
+
+The repair caches only the configured `kernel32` library and function signatures.
+The platform guard still runs on every access. Filesystem handles, paths, object
+identities, error values and validation results remain uncached. An AST comparison
+confirms the binding-configuration body is unchanged and every other existing
+function/class is unchanged. Concurrent first access may harmlessly configure
+more than one library object before the shared cache is populated.
+
+Portable tests verify binding reuse, platform rejection after cache warm-up, and
+retry after initialization failure. The focused filesystem suite passed 10 tests
+with one platform skip. Full-suite and native Windows results are tracked on the
+PR; a performance improvement is not established until the native run passes.
+The test profiler and 90-second limit are retained for that first verification.
+Existing Cursor evidence names its earlier wheel and is not relabeled as this
+new core build.
