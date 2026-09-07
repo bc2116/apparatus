@@ -42,7 +42,7 @@ def prepare(area, source='project/report.txt', text=TEXT):
     root, task = area
     path = root / source
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+    path.write_bytes(text.encode())
     sources.register_source(root, source, task_id=task)
     ingest.ingest_source(root, source, task_id=task)
     return source
