@@ -121,12 +121,6 @@ as current knowledge, including during direct file reads or weekly reviews.
 Do not recreate forgotten content automatically from setup answers or history.
 Memory reads need no routine receipt.
 
-When a saving task explicitly asks to remember, save, or keep a durable fact,
-write it with `apparatus --task ID memory add-fact WORKSPACE --title TEXT --body
-TEXT` (or `--from-file`), include its source when known, verify the record exists,
-and report its path. If the task does not save Memory, do not persist the fact;
-report that it was not persisted without seeking extra approval.
-
 When asked, mark a record with `apparatus memory outdated WORKSPACE RECORD`
 or forget it with `apparatus memory forget WORKSPACE RECORD`. For correction,
 prepare the complete replacement record and use `apparatus memory correct
