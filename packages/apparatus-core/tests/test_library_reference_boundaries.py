@@ -289,7 +289,8 @@ def test_restore_catalog_validation_coexists_with_retained_transaction_proofs(wo
         catalog.validate()
 
 
-def test_restored_registration_receipt_failure_rolls_back_only_owned_state(workspace):
+@pytest.mark.parametrize("concurrent_addition", [False, True])
+def test_restored_registration_receipt_failure_rolls_back_only_owned_state(workspace, concurrent_addition):
     register_source(workspace, "project/report.txt")
     snapshot = recovery.take_snapshot(workspace).snapshot
     assert snapshot is not None
@@ -303,9 +304,17 @@ def test_restored_registration_receipt_failure_rolls_back_only_owned_state(works
     def fail_receipt(*_args, **_kwargs):
         assert record_path.is_file(), "The actual registration must have been restored before receipt failure."
         witnessed.append("published-registration")
+        if concurrent_addition:
+            (record_path.parent / "concurrent.txt").write_bytes(b"preserve concurrent content")
         raise OSError("synthetic late receipt failure")
 
     with pytest.raises(SnapshotError, match="receipt"):
         recovery.restore_snapshot(workspace, snapshot.identifier, write=fail_receipt)
     assert witnessed == ["published-registration"]
+    if concurrent_addition:
+        before.update({
+            "System/library": None,
+            "System/library/sources": None,
+            "System/library/sources/concurrent.txt": b"preserve concurrent content",
+        })
     assert _tree(workspace) == before
