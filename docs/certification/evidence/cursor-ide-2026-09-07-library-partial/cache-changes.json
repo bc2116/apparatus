@@ -1,0 +1,12 @@
+{
+  "before_file_count": 3,
+  "after_file_count": 5,
+  "changed": [
+    "library/f493983911c1/index.sqlite3"
+  ],
+  "deleted": [],
+  "added": [
+    "library/f493983911c1/references/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.json",
+    "library/f493983911c1/references/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.txt"
+  ]
+}

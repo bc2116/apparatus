@@ -1,0 +1,3 @@
+restore <work-area> ed845c45c3f44704bcc95b1f20491911ea36e2ee
+Apparatus state restored from 2026-09-07T19:03:30Z. Snapshot id: ed845c45c3f4
+Memory now reflects that saved state. Files added since that snapshot, project files and Library originals remain untouched.

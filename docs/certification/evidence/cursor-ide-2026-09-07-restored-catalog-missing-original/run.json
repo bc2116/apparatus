@@ -1,0 +1,69 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Managed catalog restore with missing original passed; bounded case only, not certified",
+  "fixture_root": "<fixture>",
+  "files": {
+    "catalog-card.yaml": "623799982b92452d52970a38bfdc7b0ae124912148b9d071a0833f5949e903e0",
+    "catalog-source-registration.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031",
+    "native-recall.json": "1fba4898316bfc36581257183373a8fad0677286d4b7f77e8d45c7f1341b9179",
+    "observation.md": "48537ea3574a4e3675de966b4161bc7ccc85916e6f09bebae0264256db032f4d",
+    "prompt.txt": "f9e6d1ab85cd344a68921fd1d979cc920af57cd197f5daf03f815b31a230425a",
+    "receipt-completion-191513.md": "486b7b52c11c820f430db6c0425af0c64a81111ad0f8d4d6ccf7c882d1343a98",
+    "receipt-pre-restore-191352.md": "9bd7b0a3b7c4f7ce3785b080a5d24310a1eee421bcd30a13284f6653987be342",
+    "receipt-restore-191403.md": "2a1603ad6a0d7de87c6ec325e487d364dde083c020b9f00e1f7b6ae9256b6fb4"
+  },
+  "actual_file_set": [
+    "catalog-card.yaml",
+    "catalog-source-registration.yaml",
+    "native-recall.json",
+    "observation.md",
+    "prompt.txt",
+    "receipt-completion-191513.md",
+    "receipt-pre-restore-191352.md",
+    "receipt-restore-191403.md",
+    "run.json"
+  ],
+  "actual_file_set_assertion": "actual_file_set == keys(files) | {'run.json'}",
+  "cases": [
+    {
+      "case": "Restored Library registration does not recreate a missing original",
+      "status": "pass",
+      "task_id": "fd8630e9-4eaa-448a-a2e2-7de067221236",
+      "ui_time": null,
+      "seconds": null,
+      "ui_timing_note": "not captured; final observed around 12:15 PM Pacific",
+      "prompt": "prompt.txt",
+      "native_output": "native-recall.json",
+      "setup": "The isolated fixture removed project-a/workshop-plan.md and its Library source registration. The task had memory save enabled.",
+      "expected": "Restore the managed snapshot, return the source registration without recreating the original, and have Library recall abstain with actual evidence and coverage.",
+      "result": "The restored registration matches the operator-held pre-removal bytes. project-a/workshop-plan.md remained missing until the operator restored its held, byte-exact original after freezing for later tests. Native recall generated at 2026-09-07T19:14:38Z abstained with empty evidence and partial coverage: workshop-plan.md missing and preexisting unsupported.bin unsupported. The final did not invent a venue and distinguished missing usable evidence from proof that no venue exists.",
+      "area_delta": {
+        "before_file_count": 194,
+        "after_file_count": 205,
+        "changed": ["System/recovery/store/refs/heads/managed"],
+        "added_summary": "restored Library source registration, three recovery receipts, and seven managed recovery objects",
+        "deleted": []
+      },
+      "cache_delta": {"before_file_count": 6, "after_file_count": 6, "changed": ["library/f493983911c1/index.sqlite3"], "added": [], "deleted": []},
+      "selected_artifacts": ["catalog-card.yaml", "catalog-source-registration.yaml", "receipt-pre-restore-191352.md", "receipt-restore-191403.md", "receipt-completion-191513.md", "native-recall.json"]
+    }
+  ],
+  "limits": [
+    "The original was deliberately missing throughout the frozen case; its post-freeze byte-exact restoration is operator cleanup for later tests.",
+    "Full area/cache and recovery-object inventories remain operator-local.",
+    "No final build, three-app, installer, default-runtime/cache, permission-settings, or provider-retention certification."
+  ]
+}

@@ -1,0 +1,4 @@
+Registration: added project-a/unsupported.bin
+Extraction: scanned=1, ignored=0, extracted=0, unchanged=0, no_text=0, unsupported=1, error=0
+flagged project-a/unsupported.bin: unsupported: unsupported file type: .bin
+Card: unavailable; card generation requires the current assistant.

@@ -1,0 +1,2 @@
+PATH=<fixture>/operator-evidence/empty-git-path APPARATUS_HOME=<fixture>/operator-evidence/library-cache <fixture>/runtime/bin/apparatus --task c08cb4ca-9b79-4d35-81a8-3910b648a390 snapshot <fixture>/area-library --requested
+Snapshots are unavailable on this machine. Run apparatus doctor for details.

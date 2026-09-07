@@ -1,0 +1,67 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Partial extraction registered and card written; bounded case only, not certified",
+  "cache_override": "<fixture>/operator-evidence/library-cache",
+  "permission_settings": "not inspected",
+  "task_id": "af39416a-c5f9-48f1-86c1-417c1e9e4b4e",
+  "files": {
+    "observation.md": "772b119378c2171e147e04f13076b8d144337ac8011d94f95774d185cbdf65aa",
+    "prompt.txt": "a88a1508a0e27a7d32be3c978ecac0df40b5dbb478c69550e670a276839a26de",
+    "native-recall.json": "7eee5e283eb602497f91a1b6ac32540df7205bb44820e5d8647cf0fe52819c40",
+    "extraction.json": "2e591114df0e33a053b8a5e983f57ac172ca30f8dd9ca30c780d6cd3d19a8e8a",
+    "extraction.txt": "fc989a5402ff8a10730844115edc0eafc6631bcfab69a9b2ebb9161fc261e42d",
+    "changes.json": "8309d1c2cc60ee4aeab481682e2ed873b3c7f9b7b223c188fdc0c78b8876b0cc",
+    "cache-changes.json": "3a3e60984eb6ae367da1aad52767a2c467d2339bcf68318151c852780c916b36",
+    "frozen/project-a/appendix.pdf": "388cbe03623f1eda8080ed42a3125326ae49db1e2b3c902608a7d2233ba82a95",
+    "frozen/System/library/cards/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.yaml": "20d5e0a829f76fbdc3745501c9d825ee76821530e2d86acff193ad10048c1572",
+    "frozen/System/library/sources/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.yaml": "12320b8384376009806fd0c49ec69fe3b5d093e7d7d3ae946a89a7eef0662541",
+    "frozen/System/receipts/2026-09-07-183950-snapshot.md": "8aad1c0c1b8f18c7779dc39627d493edcbadc674cd39c569bf693de24490de9b"
+  },
+  "cases": [
+    {
+      "case": "Image-only PDF page yields bounded extraction and abstention",
+      "status": "partial",
+      "ui_time": "11:39 AM",
+      "seconds": 93,
+      "prompt_artifact": "prompt.txt",
+      "prompt_summary": "Operator summary of the exact normalized prompt in prompt.txt; it requested registration/card creation from available extraction, a venue question using Library recall only, explicit extraction limits, the assigned task, and no delegation.",
+      "native_output": "native-recall.json",
+      "native_reply_summary": "Operator summary of the observed final reply: it reported only available extraction, preserved the incomplete-page/image/table caveat, abstained on the venue question, and did not name the raster-only venue. It also inspected another existing card and broader Library searches; this is not selected-source-only assistant browsing.",
+      "extraction": "extraction.json; extraction.txt",
+      "source_sha256": "388cbe03623f1eda8080ed42a3125326ae49db1e2b3c902608a7d2233ba82a95",
+      "filesystem_verification": {
+        "before_file_count": 130,
+        "after_file_count": 142,
+        "changed": ["System/recovery/store/refs/heads/managed"],
+        "deleted": [],
+        "added_scope": "One card, one registration, one snapshot receipt and 9 Git objects."
+      },
+      "cache_verification": {
+        "before_file_count": 3,
+        "after_file_count": 5,
+        "changed": ["library/f493983911c1/index.sqlite3"],
+        "deleted": [],
+        "added": ["library/f493983911c1/references/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.json", "library/f493983911c1/references/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.txt"]
+      },
+      "result": "Registration and card grounding are supported by the extracted text hash. Native recall abstained with an empty evidence list and coverage status complete for indexed sources. Complete coverage does not prove whole-PDF page, image or table capture; the venue answer remains unsupported."
+    }
+  ],
+  "limits": [
+    "Coverage-complete recall envelope is limited to indexed extraction and does not establish full PDF page/image capture.",
+    "The assistant inspected another card and broader searches, so selected-source-only browsing was not demonstrated.",
+    "Explicit isolated runtime/cache; default installation/cache, permissions and provider retention were not tested.",
+    "No full six-step or three-app certification."
+  ]
+}

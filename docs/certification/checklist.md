@@ -4,8 +4,9 @@ Prepared 2026-09-07 for PR47. The latest integrated build observed in Cursor is 
 `b1290082707322b1e1ab7ba77dda2ddff67f6224`, version `0.0.1`, payload SHA-256
 `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`, and
 wheel SHA-256 `9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054`.
-The shared-root, bound-project, Memory-correction/retention and no-save Cursor observations
-are passing fragments on this build; they do not complete certification. Earlier
+Cursor has now exercised the eleven remaining scenario groups on this build:
+ten passed and the partial-PDF case retains a browsing qualification. Earlier
+plan/refresh observations retain their qualifications; certification is incomplete. Earlier
 PR46 and PR48 failures, fragments and cache workarounds remain dated observations;
 they do not complete this checklist. No signed release or app certification is
 established. Preserve held PR24 separately. The [matrix](matrix.md) records
@@ -55,8 +56,11 @@ returned no evidence and reported stale partial coverage without changing any
 work-area files. Separate [missing-original](evidence/cursor-ide-2026-09-07-library-missing/run.json)
 and [ignored-original](evidence/cursor-ide-2026-09-07-library-ignored/run.json)
 cases also abstained with the correct partial-coverage reason and preserved
-every work-area and isolated-cache file. Partial/unsupported extraction,
-learned Skills and remaining recovery/quiet cases are still required.
+every work-area and isolated-cache file. The later [completed scenario inventory](matrix.md#remaining-cursor-scenario-inventory--completed-on-september-7)
+records partial/unsupported extraction, learned Skill review/adoption/use, managed
+recovery and backup, missing-original restoration, unavailable Git, and all four
+quiet-action cases. It preserves the PDF browsing qualification and the limits
+of each observation; these are not unrun cases.
 
 The [plan correction and card refresh](evidence/cursor-ide-2026-09-07-library-refresh/run.json)
 separates source facts from proposed timing, but also created two Memory records

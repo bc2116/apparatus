@@ -1,0 +1,17 @@
+schema: apparatus/library-card@v0
+source: project-a/appendix.pdf
+summary: The selected extracted text of project-a/appendix.pdf describes a workshop
+  appendix with two sessions of 12 places each. It states that venue details are on
+  an image-only second page and does not name a venue. Available extracted text; extraction
+  success does not establish complete page, image or table coverage, so that image-only
+  page is outside the extract used for this card.
+topics:
+- workshop appendix
+- two sessions
+- 12 places
+- venue
+- image-only page
+- extraction limits
+source_sha256: 388cbe03623f1eda8080ed42a3125326ae49db1e2b3c902608a7d2233ba82a95
+text_sha256: fc989a5402ff8a10730844115edc0eafc6631bcfab69a9b2ebb9161fc261e42d
+extractor_version: '1'

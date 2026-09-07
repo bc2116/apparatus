@@ -1,0 +1,5 @@
+Selected expanded command/output evidence; incidental ls ownership metadata omitted. Paths normalized.
+mkdir -p <fixture>/operator-evidence/ordinary-copy/deliverables && cp <fixture>/area-library/project-b/skill-plan.md <fixture>/operator-evidence/ordinary-copy/deliverables/workshop-plan.md && cmp <fixture>/area-library/project-b/skill-plan.md <fixture>/operator-evidence/ordinary-copy/deliverables/workshop-plan.md
+cmp: files identical
+SHA-256 for both files: 405aaf66068679f810d13400e5ad51ccf71d660292b2113deee9c861b00ed241
+Size of both files: 880 bytes

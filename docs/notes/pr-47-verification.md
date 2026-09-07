@@ -1,8 +1,8 @@
 # PR47 preparation and evidence status
 
-Updated 2026-09-07. **Local RC checkpoint: bounded Cursor task and Memory-control
-fragments pass; certification, required platform CI and signing remain incomplete. No
-signed public RC claim.**
+Updated 2026-09-07. **Cursor-tested local preview: eleven remaining scenario groups
+executed, ten passed and one qualified. Certification, Windows adoption CI and
+signing remain incomplete. No signed public RC claim.**
 PR47 is integrated onto final PR49 and retains both earlier partial app
 observations and bounded PR49 first-task smokes. Latest observed
 source is `b1290082707322b1e1ab7ba77dda2ddff67f6224`; earlier multi-case fragments
@@ -45,13 +45,15 @@ inventory. Cursor CLI metadata does not certify Cursor IDE 3.18.25.
 
 ## Local documentation checks
 
-The two historical metadata records remain unchanged. Current evidence includes
-byte-for-byte synthetic source, plans, guides, Facts and cards, with SHA-256
-checks in each run record. Final curation checks passed: six new run JSON records parse, all 27 copied
-artifact hashes match, relative links resolve, no private absolute paths were
-found, and historical evidence is unchanged. `git diff --check` passes. The
-required integrated full suite passed as recorded below; no additional app run
-was performed during documentation integration.
+The two historical metadata records remain unchanged. The latest curation adds
+eight run records and 76 verified artifact hashes (84 files total), with
+exact normalized prompts, source/record bytes and explicit observation limits.
+All run JSON parses, each artifact set matches its manifest, hashes match, relative
+links resolve, and private machine paths/raw credential fixtures are absent.
+The runtime, starter, conformance, installer and workflow trees match tested
+`833eb398`; its full-suite result is reused for this documentation-only batch.
+Generated evidence bytes retain their original trailing blank lines; the staged
+whitespace check excludes only that category. Earlier evidence is unchanged.
 
 ## Earlier diagnostic evidence
 
@@ -178,8 +180,8 @@ that check pass. Production source remains identical to the tested build.
 
 The integrated full suite passed **1,266 tests, 38 skipped in 527.58 seconds**;
 the retained log and XML are `apparatus-integrated-full-sep7.log` and its
-corresponding XML artifact. Current required native bootstrap checks are green;
-Windows safety remains pending. Signing is still unconfigured. No release or
+corresponding XML artifact. Those results are historical. Later Windows bootstrap attempts timed out in
+complete-legacy adoption; current exact-head CI must be checked separately. Signing is still unconfigured. No release or
 certification claim follows from these results.
 
 ## September 7 Library acceptance and stale-source follow-up
@@ -243,6 +245,33 @@ exceeded its 90-second limit; 22 other cases passed and one skipped. The same
 fixture/bootstrap/workflow bytes passed on another integrated branch, which
 does not establish the cause or satisfy this head's failed check. No timeout
 or assertion was relaxed. Required platform CI and signing remain gates.
+
+## September 7 finite Cursor acceptance block
+
+The [remaining scenario inventory](../certification/matrix.md#remaining-cursor-scenario-inventory--completed-on-september-7)
+now records all eleven planned groups. Ten passed; the PDF case retained honest
+extraction limits and abstention but also broader Library browsing. The learned
+Skill draft stayed inactive until exact-digest review, then the adopted canonical
+body was used in a fresh no-save chat. Recovery restored exact managed bytes,
+backup matched its closed scope, and catalog recovery did not recreate an original.
+Routine operations stayed quiet; meaningful repair/redaction retained receipts;
+an ordinary byte-identical local copy had no Apparatus sharing review.
+
+Eight new run records retain selected synthetic artifacts and compact verified
+deltas. Full inventories, raw recovery objects, the backup ZIP, raw provider logs
+and the fake redaction input value remain outside public evidence. Exact prompts
+use a consistent fixture placeholder, preserving the sibling work-area/runtime/cache
+layout. Command outputs that were not expanded are explicitly distinguished from
+observed final replies and persisted artifact checks. Missing exact UI timing is
+marked unavailable. Earlier evidence and qualifications remain unchanged.
+
+This batch changes documentation/evidence only. It reuses the full integrated
+`833eb398` result above after checking the unchanged runtime, starter, conformance,
+installer and workflow trees. Independent PR46 test diagnostics do not certify a
+new installer: the timed-out Windows process can leave children writing during
+output cleanup, so untimed late traces cannot establish pre-deadline completion.
+No timeout or safety assertion has been relaxed. Current platform CI, final-build
+three-app acceptance, signing and publication remain separate gates.
 
 ## September 6 local integration — historical
 

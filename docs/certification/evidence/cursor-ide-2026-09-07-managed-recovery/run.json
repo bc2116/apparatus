@@ -1,0 +1,95 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Managed-state snapshot and restore passed; bounded cases only, not certified",
+  "fixture_root": "<fixture>",
+  "files": {
+    "native-restore.txt": "220d978757ba45f61e093b20f5589b983dc48caffa6e1766e6bfd60f7b353fd2",
+    "native-snapshot.txt": "69f9688bdeb077cbbb71ec8e25ade8292e8eea2120c9674296df7c356328d0ad",
+    "observation-restore.md": "afd67fac708402124348c5a7231b7617640102f5af5a3a0724113983f7b131e1",
+    "observation-snapshot.md": "9fdebfbba4f1e9453a723d4b7cc2fb474c3cd9c0944693340e411f56777952bd",
+    "prompt-restore.txt": "2b66d576a6df0bc844a15ae29d7a702102d7f17ca85b36a708f3132a3dae2a66",
+    "prompt-snapshot.txt": "4233ef99ab91ea8212344a6992ce633e5aa0683351358b09577b4b84729a2961",
+    "receipt-restore-190614.md": "4677ef44f7bbc5aaf34fc9c0860e7b8f57e91f7db9cc8be134371a38d65c20a9",
+    "receipt-restore-completion-190648.md": "da2abf6829ef19dadb9fbd178e1a7fb1bbf72b13815940f93e2db3cf41a3f886",
+    "receipt-restore-pre-190603.md": "fdff1ae2d9423ae5295b22ab0cb221ac59fe8f35b168ec4385ec793f4a627c65",
+    "receipt-snapshot-190330.md": "3f52bbc7d4394c545b029f1c1a1352bf9bb060345e1d70fcf0f5b3b778a79834",
+    "recovery-probe-v1.md": "17fc6c04ffc5b71e229af8b1c8102d56084511038d0c1f1c4ae9297e01982cdd"
+  },
+  "actual_file_set": [
+    "native-restore.txt",
+    "native-snapshot.txt",
+    "observation-restore.md",
+    "observation-snapshot.md",
+    "prompt-restore.txt",
+    "prompt-snapshot.txt",
+    "receipt-restore-190614.md",
+    "receipt-restore-completion-190648.md",
+    "receipt-restore-pre-190603.md",
+    "receipt-snapshot-190330.md",
+    "recovery-probe-v1.md",
+    "run.json"
+  ],
+  "actual_file_set_assertion": "actual_file_set == keys(files) | {'run.json'}",
+  "cases": [
+    {
+      "case": "Managed-state snapshot saves the declared version-one record",
+      "status": "pass",
+      "task_id": "efd02235-2b42-47d5-b259-c533028f8fc6",
+      "ui_time": "12:03 PM",
+      "seconds": 51,
+      "prompt": "prompt-snapshot.txt",
+      "native_output": "native-snapshot.txt",
+      "setup": "The current work area included the synthetic Memory/Decisions/recovery-probe.md at version one; the task had memory save enabled.",
+      "expected": "A real managed-state snapshot is saved without editing content; its reported scope excludes project deliverables and Library originals.",
+      "result": "Snapshot ed845c45c3f44704bcc95b1f20491911ea36e2ee was saved. The native output reports Memory, goals and settings, and excludes project files and Library originals.",
+      "area_delta": {
+        "before_file_count": 175,
+        "after_file_count": 182,
+        "changed": ["System/recovery/store/refs/heads/managed"],
+        "added_summary": "snapshot receipt plus six managed recovery objects",
+        "deleted": []
+      },
+      "cache_delta": {"before_file_count": 6, "after_file_count": 6, "changed": [], "added": [], "deleted": []},
+      "selected_artifacts": ["recovery-probe-v1.md", "receipt-snapshot-190330.md", "observation-snapshot.md"]
+    },
+    {
+      "case": "Managed-state restore returns the saved version-one record",
+      "status": "pass",
+      "task_id": "82ba91e8-b984-4a02-864a-7d36d161f30b",
+      "ui_time": "12:06 PM",
+      "seconds": 132,
+      "prompt": "prompt-restore.txt",
+      "native_output": "native-restore.txt",
+      "setup": "After the target snapshot, the isolated fixture changed only Memory/Decisions/recovery-probe.md to version two; the task had memory save enabled.",
+      "expected": "Restore ed845c45c3f44704bcc95b1f20491911ea36e2ee through Apparatus, return the record to version one, and preserve project files, Library originals, later additions, and task controls.",
+      "result": "The native output identifies the target timestamp and says later additions, project files and Library originals remain untouched. The frozen version-one record equals the snapshot baseline. Completion snapshot 2def33a56c525ace856726f8808a3488e1e24a7c has a manifest exactly equal to the target; the pre-restore version-two safety snapshot accounts for the completion history.",
+      "area_delta": {
+        "before_file_count": 183,
+        "after_file_count": 193,
+        "changed": ["Memory/Decisions/recovery-probe.md", "System/recovery/store/refs/heads/managed"],
+        "added_summary": "three recovery receipts plus seven managed recovery objects",
+        "deleted": []
+      },
+      "cache_delta": {"before_file_count": 6, "after_file_count": 6, "changed": [], "added": [], "deleted": []},
+      "selected_artifacts": ["recovery-probe-v1.md", "receipt-restore-pre-190603.md", "receipt-restore-190614.md", "receipt-restore-completion-190648.md", "observation-restore.md"]
+    }
+  ],
+  "limits": [
+    "Only the synthetic managed-state snapshot and exact-record restore were exercised.",
+    "Full managed manifest and recovery-object inventories remain operator-local.",
+    "No final build, three-app, installer, default-runtime/cache, permission-settings, or provider-retention certification."
+  ]
+}

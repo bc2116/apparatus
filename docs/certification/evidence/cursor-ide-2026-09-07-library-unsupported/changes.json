@@ -1,0 +1,19 @@
+{
+  "before_file_count": 144,
+  "after_file_count": 153,
+  "changed": [
+    "System/recovery/store/refs/heads/managed"
+  ],
+  "deleted": [],
+  "added": [
+    "System/library/sources/b276144dd351c9daf28c2cda503f4d5c323992e506b8b7160fcfa46dd2d181ac.yaml",
+    "System/receipts/2026-09-07-184355-snapshot.md",
+    "System/recovery/store/objects/1f/2a2329bac0e914906025acf067da91f1f4e315",
+    "System/recovery/store/objects/2b/b714f8d38b0af2b442b1ac0a0bd2fb35c48f04",
+    "System/recovery/store/objects/5a/a58ec75b7b7c42b85ef2b4b578c5f6dd2b35e2",
+    "System/recovery/store/objects/7e/305e14fcf353a4a22ca87beb68ec07449678ff",
+    "System/recovery/store/objects/ca/3f0c6f63bd59bada16a7468f2c10778816b8dd",
+    "System/recovery/store/objects/f4/6d75e03f157e16edfda0708de7f80e62d54469",
+    "System/recovery/store/objects/f6/d655b17c11b79f5b3694eac1415e432a07d79d"
+  ]
+}

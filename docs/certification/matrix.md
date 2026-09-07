@@ -4,11 +4,12 @@ Updated 2026-09-07. **No reworked core app certification is complete.** These ar
 partial observations of named local builds, not a signed public release or a
 support promise. Held PR24 results cover their original payload.
 
-Release-candidate status: a local checkpoint with bounded Cursor task and
-Memory-control fragments, not a signed public RC or completed app certification.
-At head `833eb398`, Windows safety passed, but Windows bootstrap timed out in
-the legacy-folder adoption case. Required CI remains incomplete and signing is
-unconfigured. Cursor is the priority app for remaining acceptance.
+Release status: **Cursor-tested local preview; no signed public RC.** The eleven
+remaining Cursor scenario groups have now been exercised on the September 7
+build: ten passed and one retains a browsing qualification. Earlier qualified
+plan/refresh observations remain qualified. Windows legacy-folder adoption still
+times out in required CI; diagnostic changes are being checked separately in
+PR46. Signing is unconfigured and final-build three-app certification is incomplete.
 
 ## September 6 repaired build — historical first-task smokes
 
@@ -59,8 +60,8 @@ demonstrated the canonical Humanizer body plus two selective edits. It offered
 Library addition after completion. Declining the offer left all 128 files
 unchanged. This used a facilitator-guide variant of the checklist's shared-root
 task; retain it as a passing first-task fragment alongside the separately opened
-bound-project case below. Full Skill and Library steps still need their
-remaining independent cases.
+bound-project case below. Later independent Skill and Library cases are recorded below; the original
+fragment retains its stated scope.
 
 Cursor IDE 3.19.13 on macOS 27.0 used Grok 4.6 High for these observations.
 The separately opened bound-project and saving Memory cases used Fast mode;
@@ -108,8 +109,35 @@ empty evidence and the corresponding partial-coverage reason. All 126 and 128
 work-area files respectively, plus all three isolated-cache files in each case,
 remained unchanged. These took 29 and 23 seconds with Grok High and Fast off.
 The operator restored the original and ignore rules only after freezing each
-case. Partial/unsupported extraction and remaining Skill/recovery/quiet cases
-are still required.
+case. The remaining independent cases were subsequently exercised as follows.
+
+### Remaining Cursor scenario inventory — completed on September 7
+
+All cases below used the same explicit runtime and isolated cache above, Cursor
+3.19.13, Grok 4.6 High, Fast off, and no delegation. Each command used an explicit
+global `--task ID`. Full work-area/cache inventories were checked locally; public
+records retain selected synthetic artifacts, hashes and compact change summaries.
+
+| Scenario group | Result | Observed outcome |
+| --- | --- | --- |
+| [Partial PDF extraction](evidence/cursor-ide-2026-09-07-library-partial/run.json) | Qualified | Extracted text supported the card; recall abstained on the image-only venue. Cursor also inspected another Library card and broader searches, so selected-source-only browsing did not pass. |
+| [Unsupported original](evidence/cursor-ide-2026-09-07-library-unsupported/run.json) | Pass | Registration succeeded; no usable extraction or card was invented. No recall was requested in this case. |
+| [Learned Skill](evidence/cursor-ide-2026-09-07-learned-skill/run.json) | Pass | Inactive draft, exact-byte review/adoption, then native use of the canonical body in a fresh no-save chat. Only the requested project plan was added during use. |
+| [Snapshot and restore](evidence/cursor-ide-2026-09-07-managed-recovery/run.json) | Pass | A deliberate managed change returned to exact saved bytes; project files and originals stayed unchanged. |
+| [One-way backup](evidence/cursor-ide-2026-09-07-managed-backup/run.json) | Pass | The 149-entry archive matched its declared scope; project files, originals, caches and project Git were excluded. |
+| [Restored catalog, missing original](evidence/cursor-ide-2026-09-07-restored-catalog-missing-original/run.json) | Pass | Registration returned, original stayed missing, and recall abstained with explicit coverage gaps. |
+| [Unavailable Git](evidence/cursor-ide-2026-09-07-git-unavailable/run.json) | Pass | The command reported snapshots unavailable and suggested doctor; all 207 work-area and six cache files stayed unchanged. |
+| [Routine maintenance](evidence/cursor-ide-2026-09-07-quiet-actions/run.json) | Pass | Check, requested ingest and recall added no receipts; all 208 work-area and six cache files stayed unchanged. The existing unsupported source remained visible. |
+| [Meaningful repair](evidence/cursor-ide-2026-09-07-quiet-actions/run.json) | Pass | Init restored the exact missing stock Skill and wrote its repair receipt; custom work was preserved. |
+| [Synthetic redaction](evidence/cursor-ide-2026-09-07-quiet-actions/run.json) | Pass | The stored fact replaced the fake password value; its receipt retained only class/count. The input value is excluded from public evidence. |
+| [Ordinary local copy](evidence/cursor-ide-2026-09-07-quiet-actions/run.json) | Pass | The 880-byte copy matched its original outside the work area, with no Apparatus sharing review; all 231 work-area and six cache files stayed unchanged. |
+
+The PDF recall envelope's `coverage: complete` describes its indexed extraction;
+it does not establish complete page/image capture. Some native command outputs
+were not expanded before leaving the viewport. Their records explicitly separate
+observed final replies from independently verified persisted files and inventories.
+Native permission settings, default-cache installation and provider retention were
+not assessed. The earlier plan/refresh qualifications are preserved.
 
 These are fragments: no complete six-step Cursor row or three-app certification
 is claimed. Older common three-app observations at core `1e50521…` remain

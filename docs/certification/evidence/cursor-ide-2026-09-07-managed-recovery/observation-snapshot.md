@@ -1,0 +1,1 @@
+Native Cursor Sep7 2026 12:03 PM Pacific,51seconds; actual requested snapshot command expanded. Saved snapshot ed845c45c3f44704bcc95b1f20491911ea36e2ee. Root validated every manifest hash against captured live managed files; no project or Library-original path in manifest. All area/cache hashes captured.
