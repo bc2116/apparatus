@@ -61,8 +61,12 @@ The user reviews it once before adoption; no-save tasks do not capture drafts.
 Adopted bodies stay editable and are covered by managed recovery through their
 explicit ownership records. Drafts remain inactive and outside that coverage.
 
-The [approved rework](docs/design/design-brief.md) adds native discovery adapters
-and lightweight Library cards and completion offers. **The remaining rework is planned,
+After an explicit Library addition, the assistant can write a small grounded
+[card](docs/spec/library-cards.md) from that original’s available extraction.
+Finished work may receive one brief optional addition offer; no-save suppresses
+these offers and card capture. Card freshness is checked against current evidence.
+
+The [approved rework](docs/design/design-brief.md) still includes native discovery adapters. **The remaining rework is planned,
 not yet implemented.** Existing specs and conformance tests describe the
 baseline until their migration PRs land. Formal app certification is held
 while the target changes; packaging code alone does not establish a signed

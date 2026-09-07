@@ -20,9 +20,7 @@ description: Use when the user wants a source-grounded answer or summary from th
    save the requested file in its project without routine acceptance pauses.
 5. Report the saved file or requested answer and its evidence limits. Run
    checklist or weekly review only when requested. Update related goals only
-   when retention permits and completion has verifiable evidence. If a reusable
-   project file was saved, follow the canon’s “Library cards and completion offers”
-   section; an answer alone does not require an offer.
+   when retention permits and completion has verifiable evidence.
 6. For a no-save task, retain only the requested deliverable, not new Memory,
    goal updates, activity notes, learned Skills or Library cards. Skip routine
    Library offers and automatic snapshots. Current evidence remains readable.

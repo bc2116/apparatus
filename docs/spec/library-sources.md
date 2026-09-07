@@ -10,13 +10,13 @@ the existing Library tree are read. Other project content is not discovered.
 `apparatus --task ID library add WORKAREA project/report.md` registers and
 extracts that file only. The path is relative to the selected work area, including
 when `WORKAREA` is a bound project. Add reports registration and extraction
-separately: a failed extraction leaves the selection intact and reports why the
+separately, along with the [card status](library-cards.md): a failed extraction leaves the selection intact and reports why the
 file is not searchable. Repeating add refreshes that source without duplicating
 its registration or ingesting unselected siblings.
 
 `library remove WORKAREA project/report.md` removes only the registration.
-It leaves the original and any existing derived cache intact; retrieval excludes
-that cache immediately. Full `library ingest WORKAREA` refreshes selected sources
+It leaves the original, derived cache and any old card intact; retrieval and
+current-card use exclude that source immediately. Full `library ingest WORKAREA` refreshes selected sources
 and prunes obsolete derived entries after validating the complete inventory.
 Use an ignore rule to exclude an implicit source inside `Library/`.
 
@@ -81,5 +81,5 @@ Managed snapshots and backups include valid catalog records, excluding originals
 and derived caches. Restore preserves later additions and rejects a historical
 record that would collide with a surviving current registration. A restored
 selection does not recover a deleted original. Ordinary project backup remains
-the way to preserve project files. Cards, completion offers and shared/cloud
-libraries are separate future work.
+the way to preserve project files. [Cards and completion offers](library-cards.md)
+use separate derived records; shared/cloud libraries remain outside this scope.

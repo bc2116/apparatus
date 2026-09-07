@@ -51,6 +51,33 @@ def register(subparsers: Any) -> None:
     listing.add_argument("--json", action="store_true", dest="as_json")
     listing.set_defaults(func=run_list)
 
+    card = actions.add_parser("card", help="read selected evidence or save an assistant-written card")
+    card.add_argument("workspace", metavar="WORKSPACE")
+    card.add_argument("source", metavar="RELATIVE_PATH", help="path relative to the shared work area")
+    card.add_argument("--stdin", action="store_true", help="save supplied summary/topics and exact evidence provenance")
+    card.set_defaults(func=run_card)
+
+
+def run_card(args, *, input_stream=None, write=write_receipt):
+    from apparatus_core.library import cards
+    try:
+        if getattr(args, "stdin", False):
+            result = cards.write_card(args.workspace, args.source, sys.stdin if input_stream is None else input_stream,
+                                      task_id=getattr(args, "task", None), write=write)
+        else:
+            result = cards.read_card(args.workspace, args.source)
+        print(json.dumps(result, ensure_ascii=False))
+        return 0 if result["card_status"] in {"current", "absent"} else 1
+    except RetentionSuppressed:
+        print("library card: this task does not save cards; explicit Library registration does not enable card capture.")
+        return 1
+    except (cards.CardError, TaskRetentionError) as error:
+        print(f"library card: {_safe(str(error))}")
+        return 2
+    except (ValueError, OSError, index.IndexError):
+        print("library card: source evidence, card input or publication is unavailable or invalid; preserve existing files and repair before retrying.")
+        return 2
+
 
 def run_registration(args: argparse.Namespace) -> int:
     options = {"task_id": getattr(args, "task", None), "requested": getattr(args, "requested", False)}
@@ -75,10 +102,17 @@ def run_registration(args: argparse.Namespace) -> int:
         result = ingest_source(args.workspace, path, **options)
     except (OSError, ValueError) as error:
         print(f"Registration remains selected; extraction unavailable: {_safe(str(error))}")
+        print("Card: unavailable; no card was generated.")
         return 1
     print("Extraction: " + ", ".join(f"{name}={value}" for name, value in result.counts.items()))
     for source, status, reason in result.flagged:
         print(f"flagged {_safe(source)}: {_safe(status)}: {_safe(reason)}")
+    from apparatus_core.library.cards import read_card
+    try:
+        card = read_card(args.workspace, path, include_text=False)
+        print(f"Card: {card['card_status']}; card generation requires the current assistant.")
+    except (ValueError, OSError, index.IndexError):
+        print("Card: unavailable; no card was generated.")
     return 0 if result.ok else 1
 
 

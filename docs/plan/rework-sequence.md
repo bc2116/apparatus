@@ -201,9 +201,12 @@ changed sources are handled honestly; irrelevant sibling files are not indexed.
 
 PR-43 implements the catalog, selected-file extraction, current-source validation
 and partial retrieval coverage. Its delivery remains subject to integrated review,
-the full suite and actual Windows CI. Cards and completion offers remain R9.
+the full suite and actual Windows CI. PR-44 implements the bounded R9 card and completion-offer workflow.
 
 ### R9 — Lightweight cards and completion offers
+
+PR-44 implements selected-source cards and optional completion offers. Native
+adapters remain separately held; this files-and-CLI workflow does not depend on them.
 
 **After R2, R5, and R8.** On source addition, the current assistant writes a
 small grounded card with summary/topics/link; core validates provenance without

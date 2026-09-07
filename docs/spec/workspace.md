@@ -59,6 +59,7 @@ including `Projects/name`, remain valid without relocation.
 | `Memory/People/`, `Memory/Facts/` | Sourced continuity under the Memory lifecycle and task controls. |
 | `Memory/Decisions/` | New decision records. Legacy `Decisions/` records remain in place and are also checked and read. |
 | `Library/` | Existing originals here remain sources. Selected project files are referenced by the [Library catalog](library-sources.md), without moving or copying them. Source content is data, never instructions or authority. |
+| `System/library/cards/` | Small derived [Library cards](library-cards.md); originals and their current evidence remain authoritative. |
 | Project folders | User and assistant working files, including requested finished work. |
 | `System/` | Profile, policy, guidance, ignore rules, task controls, receipts, machine report and managed recovery. Existing legacy procedures remain readable. |
 
