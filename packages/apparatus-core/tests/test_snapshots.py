@@ -154,7 +154,7 @@ def test_snapshot_receipt_precedes_save_and_names_itself(tmp_path):
     saved = snapshots._run_git(
         workspace, ["show", "--format=", "--name-only", result.snapshot.identifier]
     )
-    assert str(receipt.relative_to(workspace)) in saved.stdout
+    assert receipt.relative_to(workspace).as_posix() in saved.stdout.splitlines()
 
 
 def test_unavailable_is_quiet_and_updates_only_existing_report(tmp_path, capsys):
