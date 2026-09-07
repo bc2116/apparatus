@@ -115,3 +115,20 @@ passed. These local results do not establish the native Windows outcome.
 The separate complete-legacy test's 90-second Windows timeout is still
 unexplained; the native rerun must establish whether it persists. Its timeout
 and preservation assertions have not been weakened.
+
+
+## Final-doctor Git fixture follow-up
+
+Native Windows rerun `34057666784` reduced the previous nine failures to one
+failure, with 22 passes and one skip. The remaining initial-probe-miss case
+forced `GitPath` to null, which also excluded Git from the controlled PATH.
+For this fixture case only, the generated script now adds the already-installed
+Git executable's directory to that PATH while preserving the forced null initial
+probe. The final doctor still runs against the real wheel and real Git. Its
+available-snapshot assertion, all other cases, production installer and timeout
+remain unchanged. The earlier complete-legacy timeout did not recur in this run.
+
+The six-line fixture patch passed lead scope and executable-lookup review. Local
+normal-flow tests passed. Full-suite results and exact-head native Windows
+checks are tracked on the pull request; Windows must still verify the corrected
+case.

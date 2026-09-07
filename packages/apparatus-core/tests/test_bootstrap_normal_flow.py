@@ -140,6 +140,12 @@ raise SystemExit(code)
                 'function Invoke-RestMethod { throw "network is forbidden in this isolated test" }\n$UvInstallUrl =')
             if missing_git or initial_git_absent:
                 source = replace_once(source, '$GitPath = Find-Git', '$GitPath = $null')
+            if initial_git_absent:
+                git_executable = shutil.which("git")
+                assert git_executable and Path(git_executable).is_file() and Path(git_executable).suffix.lower() == ".exe"
+                git_dir = str(Path(git_executable).parent).replace("'", "''")
+                source = replace_once(source, '$ControlledPath.Add($UvToolBin)',
+                    f"$ControlledPath.Add($UvToolBin)\n$ControlledPath.Add('{git_dir}')")
             self.script.write_text(source, encoding="utf-8")
             self.interpreter = shutil.which("powershell") or shutil.which("pwsh")
             assert self.interpreter, "normal-flow Windows coverage requires PowerShell"
