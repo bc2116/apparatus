@@ -1,5 +1,17 @@
 # PR-44 verification
 
+## September 7 Windows fixture repair
+
+Windows CI found four test failures caused by fixture newline translation:
+`prepare()` wrote native CRLF bytes while the existing hash and native-denial
+postconditions expected the fixture's UTF-8 LF bytes. It now writes those bytes
+explicitly. Source hashes, exact rollback checks and the observed native EACCES
+branch remain intact; no production code or concurrency checks changed.
+The seven focused card/race cases passed locally. Independent review accepted
+the fixture repair. Full `uv run pytest` passed **1,198 tests, 38 skipped in
+471.73 seconds** against `771b24b`; its retained log is
+`apparatus-pr44-fixture-full-sep7.log`. A native Windows rerun is still required.
+
 Independent source, migration and semantic review accepted this implementation.
 The final dependency rebase onto PR-43 `6c185ee` changes only upstream verification
 notes relative to tested source `6c66180`; runtime, payload and test bytes are
