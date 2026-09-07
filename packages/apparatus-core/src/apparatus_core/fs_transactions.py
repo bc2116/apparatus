@@ -8,6 +8,7 @@ descriptors or handles.
 from __future__ import annotations
 
 import ctypes
+import functools
 import os
 import secrets
 import stat
@@ -956,9 +957,9 @@ class WindowsIdentity:
     modified: int
 
 
-def _win_kernel() -> Any:
-    if os.name != "nt":
-        raise OSError("Win32 filesystem operations are unavailable")
+@functools.lru_cache(maxsize=1)
+def _configured_win_kernel() -> Any:
+    """Build the process-local Win32 bindings used by filesystem operations."""
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel.CreateFileW.argtypes = [
         wintypes.LPCWSTR,
@@ -1020,6 +1021,12 @@ def _win_kernel() -> Any:
     kernel.CreateDirectoryW.argtypes = [wintypes.LPCWSTR, wintypes.LPVOID]
     kernel.CreateDirectoryW.restype = wintypes.BOOL
     return kernel
+
+
+def _win_kernel() -> Any:
+    if os.name != "nt":
+        raise OSError("Win32 filesystem operations are unavailable")
+    return _configured_win_kernel()
 
 
 def _win_error(message: str) -> OSError:
