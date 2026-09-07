@@ -125,7 +125,7 @@ def test_fresh_apply_seeds_records_and_writes_a_valid_receipt(tmp_path):
     assert check_workspace(workspace).ok
 
 
-def test_reapply_is_byte_identical_outside_receipts(tmp_path):
+def test_reapply_is_byte_identical_including_receipts(tmp_path):
     workspace = _init_workspace(tmp_path / "workspace")
     _write_profile(
         workspace,
@@ -134,10 +134,10 @@ def test_reapply_is_byte_identical_outside_receipts(tmp_path):
         source_locations=[],
     )
     assert profile.run(_args(workspace)) == 0
-    before = _tree_without_receipts(workspace)
+    before = _whole_tree(workspace)
     assert profile.run(_args(workspace)) == 0
-    assert _tree_without_receipts(workspace) == before
-    assert len(list((workspace / "System/receipts").glob("*-profile-apply*.md"))) == 2
+    assert _whole_tree(workspace) == before
+    assert len(list((workspace / "System/receipts").glob("*-profile-apply*.md"))) == 1
 
 
 def test_reinterview_seeds_only_new_records_and_preserves_existing_edits(tmp_path):
@@ -328,7 +328,7 @@ def test_preexisting_receipt_path_is_never_treated_as_publication_ownership(tmp_
 
 def test_outside_receipt_path_is_never_treated_as_publication_ownership(tmp_path):
     workspace = _init_workspace(tmp_path / "workspace")
-    _write_profile(workspace)
+    _write_profile(workspace, current_efforts=[{"title": "Required receipt mutation"}])
     outside = tmp_path / "outside-user-owned.md"
     outside.write_bytes(b"outside user-owned sentinel\n")
     before_workspace = _whole_tree(workspace)
@@ -344,7 +344,7 @@ def test_outside_receipt_path_is_never_treated_as_publication_ownership(tmp_path
 
 def test_stale_publication_proof_is_never_reclaimed(tmp_path):
     workspace = _init_workspace(tmp_path / "workspace")
-    _write_profile(workspace)
+    _write_profile(workspace, current_efforts=[{"title": "Required receipt mutation"}])
     stale = write_receipt(
         workspace,
         "profile-apply",
@@ -363,7 +363,7 @@ def test_live_same_workspace_event_and_content_substitution_is_not_reclaimed(
     tmp_path,
 ):
     workspace = _init_workspace(tmp_path / "workspace")
-    _write_profile(workspace)
+    _write_profile(workspace, current_efforts=[{"title": "Required receipt mutation"}])
     observed: dict[str, object] = {}
 
     def unrelated_live_writer(target, event, fields, *, invocation):
@@ -406,7 +406,7 @@ def test_live_foreign_capabilities_are_rejected_without_modification(
     substitution,
 ):
     workspace = _init_workspace(tmp_path / "workspace")
-    _write_profile(workspace)
+    _write_profile(workspace, current_efforts=[{"title": "Required receipt mutation"}])
     other = _init_workspace(tmp_path / "other-workspace")
     target = other if substitution == "other-workspace" else workspace
     event = "redaction" if substitution == "wrong-event" else "profile-apply"
@@ -448,7 +448,7 @@ def test_live_foreign_capabilities_are_rejected_without_modification(
 
 def test_reused_current_invocation_is_rejected_and_rolled_back(tmp_path):
     workspace = _init_workspace(tmp_path / "workspace")
-    _write_profile(workspace)
+    _write_profile(workspace, current_efforts=[{"title": "Required receipt mutation"}])
     before = _whole_tree(workspace)
 
     def reused_writer(target, event, fields, *, invocation):
@@ -468,7 +468,7 @@ def test_reused_current_invocation_is_rejected_and_rolled_back(tmp_path):
 @pytest.mark.skipif(os.name != "posix", reason="POSIX name-substitution probe")
 def test_receipt_substitution_after_return_restores_exact_prior_tree(tmp_path):
     workspace = _init_workspace(tmp_path / "workspace")
-    _write_profile(workspace)
+    _write_profile(workspace, current_efforts=[{"title": "Required receipt mutation"}])
     sentinel = workspace / "System/receipts/user-owned.md"
     sentinel.write_bytes(b"user-owned receipt sentinel\n")
     before = _whole_tree(workspace)
@@ -686,3 +686,181 @@ def test_installed_profile_entry_point_exposes_stdin_without_value_arguments():
     assert parsed.workspace == "."
     assert parsed.candidate_stdin is True
     assert not hasattr(parsed, "candidate")
+
+
+@pytest.mark.parametrize("target", ["System/profile.yaml", "System/policy/standard.md"])
+@pytest.mark.parametrize("same_bytes", [False, True])
+@pytest.mark.parametrize("real_change", [False, True])
+def test_frozen_noop_preimages_reject_competitors_before_apply(
+    tmp_path, monkeypatch, target, same_bytes, real_change
+):
+    workspace = _init_workspace(tmp_path / "workspace")
+    _write_profile(workspace)
+    assert profile.run(_args(workspace)) == 0
+    current = (workspace / "System/profile.yaml").read_bytes()
+    candidate = records.yaml.safe_load(current)
+    candidate["spend"] = "thorough"
+    candidate_text = records.yaml.safe_dump(candidate, sort_keys=False)
+    path = workspace / target
+    original = path.read_bytes()
+    competitor = original if same_bytes else original + b"\n# competing edit\n"
+    before_receipts = {p.name: p.read_bytes() for p in (workspace / "System/receipts").glob("*.md")}
+    original_receipts = profile._write_required_receipts
+    attempted = []
+
+    def interfere(*args, **kwargs):
+        publications = original_receipts(*args, **kwargs)
+        replacement = workspace / "competitor.tmp"
+        replacement.write_bytes(competitor)
+        try:
+            os.replace(replacement, path)
+            attempted.append("replaced")
+        except PermissionError as error:
+            assert os.name == "nt" and getattr(error, "winerror", None) in {5, 32}
+            replacement.unlink()
+            attempted.append("native-denial")
+        return publications
+
+    monkeypatch.setattr(profile, "_write_required_receipts", interfere)
+    result = profile.run(_args(workspace, candidate_stdin=real_change),
+                         input_stream=StringIO(candidate_text))
+    assert attempted in (["replaced"], ["native-denial"])
+    if attempted == ["replaced"]:
+        assert result == 2
+        assert path.read_bytes() == competitor
+        if target != "System/profile.yaml":
+            assert (workspace / "System/profile.yaml").read_bytes() == current
+        assert {p.name: p.read_bytes() for p in (workspace / "System/receipts").glob("*.md")} == before_receipts
+    else:
+        assert result == 0
+        if not real_change or target != "System/profile.yaml":
+            assert path.read_bytes() == original
+
+
+def test_equal_sanitized_candidate_keeps_only_required_redaction(tmp_path):
+    workspace = _init_workspace(tmp_path / "workspace")
+    _write_profile(workspace, source_locations=["password=synthetic-quiet-secret"])
+    assert profile.run(_args(workspace)) == 0
+    before = _tree_without_receipts(workspace)
+    before_apply = len(list((workspace / "System/receipts").glob("*-profile-apply*.md")))
+    before_redaction = len(list((workspace / "System/receipts").glob("*-redaction*.md")))
+    candidate = (workspace / "System/profile.yaml").read_text().replace(
+        "[redacted-password]", "synthetic-quiet-secret")
+    assert profile.run(_args(workspace, candidate_stdin=True), input_stream=StringIO(candidate)) == 0
+    assert _tree_without_receipts(workspace) == before
+    assert len(list((workspace / "System/receipts").glob("*-profile-apply*.md"))) == before_apply
+    assert len(list((workspace / "System/receipts").glob("*-redaction*.md"))) == before_redaction + 1
+
+
+def _select_fixture_subset(workspace, monkeypatch):
+    # The universal manifest currently selects all seven Skills for every work
+    # type. Exercise its supported declarative subset/removal path explicitly.
+    from dataclasses import replace
+    original = profile.load_manifest
+    def subset(*args, **kwargs):
+        manifest = original(*args, **kwargs)
+        paths = manifest.managed_workflow_paths
+        return replace(manifest, work_types={"analysis": paths[1:], "writing": paths[:1]})
+    monkeypatch.setattr(profile, "load_manifest", subset)
+    _write_profile(workspace, work_types=["analysis"])
+
+
+def test_overlay_removal_reopens_read_only_proof_and_requires_presence(tmp_path, monkeypatch):
+    workspace = _init_workspace(tmp_path / "workspace")
+    _select_fixture_subset(workspace, monkeypatch)
+    original_unlink = memory._WorkspaceAnchor.unlink_owned
+    original_if_present = memory._WorkspaceAnchor.unlink_owned_if_present
+    reopening = []
+    witnessed = []
+
+    def read_only_handle(self, owned):
+        if not reopening and Path(owned.relative).as_posix().startswith(".agents/"):
+            raise OSError("simulated Windows read-only publication proof lacks DELETE access")
+        return original_unlink(self, owned)
+
+    def exact_reopen(self, owned):
+        reopening.append(True)
+        try:
+            result = original_if_present(self, owned)
+            witnessed.append(Path(owned.relative).as_posix())
+            return result
+        finally:
+            reopening.pop()
+
+    monkeypatch.setattr(memory._WorkspaceAnchor, "unlink_owned", read_only_handle)
+    monkeypatch.setattr(memory._WorkspaceAnchor, "unlink_owned_if_present", exact_reopen)
+    assert profile.run(_args(workspace)) == 0
+    assert any(name.startswith(".agents/") for name in witnessed)
+    assert not (workspace / ".agents/skills/apparatus-welcome/SKILL.md").exists()
+    assert len(list((workspace / ".agents/skills").glob("*/SKILL.md"))) == 6
+    assert len(list((workspace / "System/receipts").glob("*-profile-apply*.md"))) == 1
+
+
+def test_overlay_removal_does_not_adopt_custom_body_after_planning(tmp_path, monkeypatch):
+    workspace = _init_workspace(tmp_path / "workspace")
+    _select_fixture_subset(workspace, monkeypatch)
+    original_plan = profile.plan_overlay
+    observed = []
+    target = workspace / ".agents/skills/apparatus-welcome/SKILL.md"
+    original = target.read_bytes()
+    custom = original + b"\nPreserve this independently edited instruction.\n"
+
+    def plan_then_compete(*args, **kwargs):
+        plan = original_plan(*args, **kwargs)
+        assert target.relative_to(workspace).as_posix() in plan.removals
+        replacement = workspace / "competitor.tmp"
+        replacement.write_bytes(custom)
+        try:
+            os.replace(replacement, target)
+            observed.append("replaced")
+        except PermissionError as error:
+            assert os.name == "nt" and getattr(error, "winerror", None) in {5, 32}
+            replacement.unlink()
+            observed.append("native-denial")
+        return plan
+
+    monkeypatch.setattr(profile, "plan_overlay", plan_then_compete)
+    result = profile.run(_args(workspace))
+    assert observed in (["replaced"], ["native-denial"])
+    if observed == ["replaced"]:
+        assert result == 2
+        assert target.read_bytes() == custom
+        assert not list((workspace / "System/receipts").glob("*-profile-apply*.md"))
+    else:
+        assert result == 0
+        assert not target.exists()
+
+
+def test_unchanged_overlay_competing_after_receipt_commit_rolls_back_real_profile_change(tmp_path, monkeypatch):
+    workspace = _init_workspace(tmp_path / "workspace")
+    current = (workspace / "System/profile.yaml").read_bytes()
+    candidate = records.yaml.safe_load(current)
+    candidate["spend"] = "thorough"
+    target = workspace / "System/policy/standard.md"
+    original = target.read_bytes()
+    original_commit = profile.ReceiptPublication.commit
+    observed = []
+
+    def commit_then_compete(self):
+        original_commit(self)
+        replacement = workspace / "competitor.tmp"
+        replacement.write_bytes(original)
+        try:
+            os.replace(replacement, target)
+            observed.append("replaced")
+        except PermissionError as error:
+            assert os.name == "nt" and getattr(error, "winerror", None) in {5, 32}
+            replacement.unlink()
+            observed.append("native-denial")
+
+    monkeypatch.setattr(profile.ReceiptPublication, "commit", commit_then_compete)
+    result = profile.run(_args(workspace, candidate_stdin=True), input_stream=StringIO(
+        records.yaml.safe_dump(candidate, sort_keys=False)))
+    assert observed in (["replaced"], ["native-denial"])
+    assert target.read_bytes() == original
+    if observed == ["replaced"]:
+        assert result == 2
+        assert (workspace / "System/profile.yaml").read_bytes() == current
+        assert not list((workspace / "System/receipts").glob("*-profile-apply*.md"))
+    else:
+        assert result == 0

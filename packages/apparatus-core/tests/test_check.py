@@ -162,7 +162,7 @@ def test_machine_report_requires_parseable_frontmatter_but_no_record_schema(tmp_
     ]
 
 
-def test_command_exit_codes_and_receipt_writing(tmp_path, capsys):
+def test_command_exit_codes_without_receipt_writing(tmp_path, capsys):
     workspace = _workspace(tmp_path)
     writes = []
     assert check.run(
@@ -170,11 +170,7 @@ def test_command_exit_codes_and_receipt_writing(tmp_path, capsys):
         write=lambda *args: writes.append(args) or Path("receipt.md"),
     ) == 0
     assert "check passed" in capsys.readouterr().out
-    assert writes[0][1] == "check"
-    assert writes[0][2]["body"] == (
-        "Finding codes: none. Ignore rules: built-in defaults; "
-        "System/ignore is missing; skipped 0 path(s) (built-in=0, user=0)."
-    )
+    assert writes == []
 
     missing = tmp_path / "missing"
     assert check.run(argparse.Namespace(workspace=str(missing), no_receipt=True)) == 2
@@ -186,13 +182,13 @@ def test_command_exit_codes_and_receipt_writing(tmp_path, capsys):
     assert "workspace path is not a directory" in capsys.readouterr().out
 
 
-def test_command_returns_two_when_receipt_write_fails(tmp_path, capsys):
+def test_command_does_not_call_unwritable_receipt_backend(tmp_path, capsys):
     workspace = _workspace(tmp_path)
     assert check.run(
         argparse.Namespace(workspace=str(workspace), no_receipt=False),
         write=lambda *args: (_ for _ in ()).throw(OSError("read-only")),
-    ) == 2
-    assert "could not write receipt" in capsys.readouterr().out
+    ) == 0
+    assert "check passed" in capsys.readouterr().out
 
 
 def test_command_returns_one_for_findings_without_a_receipt(tmp_path, capsys):
@@ -202,7 +198,7 @@ def test_command_returns_one_for_findings_without_a_receipt(tmp_path, capsys):
     assert "record-schema-error" in capsys.readouterr().out
 
 
-def test_command_receipt_summary_includes_outcome_count_and_codes(tmp_path):
+def test_command_prints_outcome_count_and_codes_without_receipt(tmp_path, capsys):
     result = CheckResult(
         (Finding("missing-required-field", "Goals/sample.md", "Fix it."),),
         records_checked=1,
@@ -213,12 +209,10 @@ def test_command_receipt_summary_includes_outcome_count_and_codes(tmp_path):
         engine=lambda workspace: result,
         write=lambda *args: writes.append(args) or Path("receipt.md"),
     ) == 1
-    fields = writes[0][2]
-    assert "1 finding(s)" in fields["summary"]
-    assert fields["body"] == (
-        "Finding codes: missing-required-field. Ignore rules: built-in defaults; "
-        "System/ignore is missing; skipped 0 path(s) (built-in=0, user=0)."
-    )
+    assert writes == []
+    output = capsys.readouterr().out
+    assert "1 finding(s)" in output
+    assert "missing-required-field" in output
 
 
 def test_check_fails_closed_on_unsupported_patterns(tmp_path):
@@ -355,3 +349,25 @@ def test_project_check_reports_pointer_conflict_and_never_scans_project_files(tm
     assert "Project instruction link is customized; preserve and reconcile it before binding." in capsys.readouterr().out
     assert {p.relative_to(project): p.read_bytes() for p in project.rglob("*") if p.is_file()} == conflict_before
     assert (project / "Memory/bad.md").read_bytes() == before[Path("Memory/bad.md")]
+
+
+def test_record_repair_hints_name_safe_fields_without_rejected_values(tmp_path):
+    workspace = _workspace(tmp_path)
+    goal = _goal(workspace)
+    goal.write_text(goal.read_text().replace("owner: Taylor Example\n", "").replace(
+        "status: active", "status: password=synthetic-diagnostic-secret"))
+    result = check_workspace(workspace)
+    hints = "\n".join(finding.hint for finding in result.findings)
+    assert "nonempty owner field" in hints
+    assert "Set status to one of:" in hints
+    assert "synthetic-diagnostic-secret" not in hints
+    assert "password=" not in hints
+
+
+def test_missing_shipped_content_hint_repairs_without_empty_placeholder(tmp_path):
+    workspace = _workspace(tmp_path)
+    (workspace / "Welcome.md").unlink()
+    finding = next(f for f in check_workspace(workspace).findings if f.path == "Welcome.md")
+    assert "apparatus init WORKSPACE" in finding.hint
+    assert "custom" in finding.hint
+    assert not (workspace / "Welcome.md").exists()

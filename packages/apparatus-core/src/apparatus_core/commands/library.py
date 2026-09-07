@@ -12,14 +12,13 @@ import unicodedata
 from apparatus_core.features import (
     FeatureProfileError,
     enabled as feature_enabled,
-    off_receipt_fields,
 )
 from apparatus_core.ignore import load_ignore_rules
 from apparatus_core.library.ingest import ingest_library, ingest_source
 from apparatus_core.library.sources import register_source, unregister_source, list_sources
 from apparatus_core.library import index
 from apparatus_core.receipts import write_receipt
-from apparatus_core.retention import RetentionSuppressed, TaskRetentionError, context_for
+from apparatus_core.retention import RetentionSuppressed, TaskRetentionError
 
 
 def register(subparsers: Any) -> None:
@@ -146,15 +145,6 @@ def run(args: argparse.Namespace) -> int:
         print(f"library ingest: {_safe(str(error))}")
         return 2
     if not feature_is_enabled:
-        try:
-            write_receipt(
-                workspace,
-                "library-ingest",
-                off_receipt_fields("library indexing", operation="Library ingest"),
-            )
-        except (OSError, ValueError):
-            print("library ingest: could not record that this feature is off")
-            return 2
         print("This feature is off; say the word and I'll enable it.")
         return 1
     try:
@@ -196,16 +186,6 @@ def run_search(args: argparse.Namespace) -> int:
         print(f"library search: {_safe(str(error))}")
         return 2
     if not feature_is_enabled:
-        try:
-            if context_for(workspace, task_id=getattr(args, "task", None)).save_memory:
-                write_receipt(
-                    workspace,
-                    "library-ingest",
-                    off_receipt_fields("library indexing", operation="Library search"),
-                )
-        except (OSError, ValueError):
-            print("library search: could not record that this feature is off")
-            return 2
         print("This feature is off; say the word and I'll enable it.")
         return 1
     try:

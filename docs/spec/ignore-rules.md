@@ -28,18 +28,12 @@ redaction still applies. There is no App-specific sharing gate; ignore rules
 do not supply authority for external actions or permission to retain a
 credential. Instruction-migration checks are independent of Library exclusions.
 
-Every existing receipt-producing command records accurate skip counts and rule
-provenance in its receipt; receipts do not list ignored paths or file contents.
-Library search has no receipt event in the closed v1 receipt schema, so it
-reports the same count and provenance in command output instead. JSON search
-keeps stdout machine-readable and writes this report to stderr.
-
-**Feature-off control outcome.** When the profile safely and validly selects
-`library_indexing: false`, a requested `apparatus library search` is not normal
-search. It exits with the feature-off outcome and writes one `library-ingest`
-receipt because that existing event governs the Library indexing feature. The
-receipt body explicitly records `Operation: Library search.` No receipt event
-is added; normal search continues to have no receipt.
+Checks, Library ingest/search and recall report skip counts and rule provenance
+in their results or command output without routine receipts. JSON retrieval keeps
+stdout machine-readable and writes its ignore report to stderr. Feature-off
+operations print the disabled outcome and leave history unchanged. Meaningful
+mutation and redaction receipts retain their existing bounded metadata; historical
+routine receipts remain readable and are never deleted by this policy.
 
 ## File and supported syntax
 

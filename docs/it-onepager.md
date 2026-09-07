@@ -49,9 +49,12 @@ exports preserve workspace/history bytes and do not sanitize historical files.
 
 ## Receipts
 
-`System/receipts/` holds reviewable records of every check, redaction,
-snapshot, restore, and backup. Historical sharing decisions remain readable
-but are not new authorization.
+`System/receipts/` holds meaningful init/profile changes, credential redaction,
+snapshots, restores and exports. Routine checks, retrieval, ingest and disabled
+or unavailable operations write no activity receipts. Existing history remains
+readable. Check reports concrete repair actions; doctor distinguishes tool
+detection from a usable recovery store. Historical sharing decisions are not new
+authorization.
 
 ## Clean uninstall
 

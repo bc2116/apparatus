@@ -136,3 +136,10 @@ pairs. Drafts under `System/skill-drafts/` and unregistered native Skills are
 excluded. Restore keeps later individual adoption records as later additions;
 restoring an older adopted body may revive an older workflow. No live task
 control or native action authority is restored by adoption metadata.
+
+Disabled features and unavailable Git produce a truthful command outcome rather
+than a snapshot/restore receipt. The existing explicit machine-report update is
+retained. A report that detects Git proves tool capability only; use
+`apparatus restore WORKSPACE --list` to inspect known saved points. Actual
+snapshot, restore and backup transactions retain their ownership proofs and
+compensation. Routine checks, recall and ingest do not manufacture history.

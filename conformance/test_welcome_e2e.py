@@ -181,7 +181,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     def run(*args, **kwargs):
         return _run("--task", task_id, *args, **kwargs)
 
-    # Library ingest and grounded/abstaining recall each bind a valid receipt.
+    # Library ingest and grounded/abstaining recall return evidence without activity logs.
     library_source = workspace / "Library" / "reference-note.md"
     shutil.copyfile(FIXTURES / "library" / "reference-note.md", library_source)
     for generated in ("node_modules", ".venv", "__pycache__", ".pytest_cache"):
@@ -191,7 +191,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     ingest_before = len(_receipts(workspace, "library-ingest"))
     ingest = run("library", "ingest", workspace, env=environment)
     assert "extracted=1" in ingest.stdout
-    assert len(_receipts(workspace, "library-ingest")) == ingest_before + 1
+    assert len(_receipts(workspace, "library-ingest")) == ingest_before
 
     grounded_before = _receipt_paths(workspace, "recall")
     grounded = json.loads(
@@ -210,12 +210,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     assert citation["source"] == "Library/reference-note.md"
     assert (workspace / citation["source"]).is_file()
     assert "cobalt" in citation["snippet"].casefold()
-    _grounded_path, grounded_receipt, _grounded_body = _new_receipt(
-        workspace, "recall", grounded_before
-    )
-    assert grounded_receipt["status"] == "grounded"
-    assert grounded_receipt["question"] == "cobalt readiness marker"
-    assert grounded_receipt["evidence_sources"] == ["Library/reference-note.md"]
+    assert _receipt_paths(workspace, "recall") == grounded_before
 
     missed_before = _receipt_paths(workspace, "recall")
     missed = json.loads(
@@ -229,11 +224,7 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
     )
     assert missed["status"] == "abstained"
     assert missed["evidence"] == []
-    _missed_path, missed_receipt, _missed_body = _new_receipt(
-        workspace, "recall", missed_before
-    )
-    assert missed_receipt["status"] == "abstained"
-    assert missed_receipt["evidence_sources"] == []
+    assert _receipt_paths(workspace, "recall") == missed_before
 
     # The assistant saves an ordinary cited draft containing useful People
     # context. There is no sharing-gate inspection or decision to request.
@@ -358,14 +349,14 @@ def test_welcome_to_deliverable_story_uses_only_files_and_subprocesses(tmp_path)
 
     expected_events = {
         "init",
-        "check",
         "profile-apply",
-        "library-ingest",
-        "recall",
         "redaction",
         "snapshot",
     }
     assert expected_events <= {data["event"] for _path, data, _body in _receipts(workspace)}
+
+    assert not {"check", "library-ingest", "recall"}.intersection(
+        data["event"] for _path, data, _body in _receipts(workspace))
 
 
 def test_no_save_task_finishes_cited_work_without_setup_or_automatic_retention(tmp_path):

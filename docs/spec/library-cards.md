@@ -104,3 +104,9 @@ already-selected files, or retain acceptance/decline logs. No-save suppresses
 routine offers and cards. Explicit requested Library registration/extraction
 remains available without enabling cards. Generation failure is explained in the
 current response without a persistent failure log or fabricated summary.
+
+Maintenance remains read-only. An unselected source or intentionally ignored
+source/card keeps the card inactive; the check hint does not request a refresh or
+re-registration of something deliberately removed. Missing or stale originals
+need source/evidence repair before a new grounded card is useful. Card diagnostics
+show status and repair guidance, never summary text or a routine activity receipt.

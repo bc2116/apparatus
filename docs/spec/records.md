@@ -169,3 +169,11 @@ A machine-written, human-legible record of one machinery event.
 PR-32 retains `event: egress` solely for historical receipt compatibility.
 There is no current egress command or new gate decision; old receipts never
 authorize a new action.
+
+PR-45 stops new routine `check`, `recall` and `library-ingest` events, including
+empty, flagged and disabled outcomes. Disabled or unavailable recovery operations
+also create no event. The enum above remains unchanged for historical readers.
+Actual init/profile changes, credential redaction, snapshots, restores and exports
+retain their existing evidence and transaction protections. A true profile apply
+no-op preserves the whole tree, including receipts; equal sanitized bytes still
+require redaction evidence when credential findings exist.

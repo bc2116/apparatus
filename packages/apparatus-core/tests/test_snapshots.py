@@ -154,10 +154,10 @@ def test_snapshot_receipt_precedes_save_and_names_itself(tmp_path):
     saved = snapshots._run_git(
         workspace, ["show", "--format=", "--name-only", result.snapshot.identifier]
     )
-    assert str(receipt.relative_to(workspace)) in saved.stdout
+    assert receipt.relative_to(workspace).as_posix() in saved.stdout.splitlines()
 
 
-def test_unavailable_writes_invoking_receipt_and_updates_only_existing_report(tmp_path, capsys):
+def test_unavailable_is_quiet_and_updates_only_existing_report(tmp_path, capsys):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     report = workspace / "System" / "machine-report.md"
@@ -171,7 +171,7 @@ def test_unavailable_writes_invoking_receipt_and_updates_only_existing_report(tm
         available=lambda: snapshots.git_available(which=lambda command: None),
     ) == 1
     assert "Snapshots are unavailable on this machine" in capsys.readouterr().out
-    assert _receipt_events(workspace) == ["snapshot"]
+    assert _receipt_events(workspace) == []
     text = report.read_text(encoding="utf-8")
     assert 'snapshots: "unavailable"' in text
     assert "Snapshots: unavailable." in text
@@ -184,7 +184,7 @@ def test_unavailable_writes_invoking_receipt_and_updates_only_existing_report(tm
         available=lambda: False,
     ) == 1
     assert not (without_report / "System" / "machine-report.md").exists()
-    assert _receipt_events(without_report) == ["restore"]
+    assert _receipt_events(without_report) == []
 
 
 @pytest.mark.skipif(not HAS_GIT, reason="git is unavailable")
@@ -262,7 +262,7 @@ def test_list_uses_head_history_only_and_never_mutates(tmp_path, capsys):
     assert [entry.identifier for entry in snapshots.list_snapshots(workspace)] == before_ids
 
 
-def test_internal_receipt_and_report_failures_return_two_and_do_not_leak_details(tmp_path, capsys, monkeypatch):
+def test_unavailable_ignores_receipt_backend_and_reports_update_failures_safely(tmp_path, capsys, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     events: list[str] = []
@@ -280,8 +280,8 @@ def test_internal_receipt_and_report_failures_return_two_and_do_not_leak_details
         available=lambda: False,
         write=bad_write,
         update_report=report,
-    ) == 2
-    assert events == ["receipt", "report"]
+    ) == 1
+    assert events == ["report"]
     output = capsys.readouterr().out.casefold()
     assert "raw tool output" not in output
     for banned in ("commit", "revert", "reset", "repository", "checkout"):
@@ -294,8 +294,8 @@ def test_internal_receipt_and_report_failures_return_two_and_do_not_leak_details
         write=lambda *args: calls.append("receipt") or Path("receipt.md"),
         update_report=lambda *args: calls.append("report") or False,
     ) == 2
-    assert calls == ["receipt", "report"]
-    assert "could not record" in capsys.readouterr().out
+    assert calls == ["report"]
+    assert "could not update the machine report" in capsys.readouterr().out
 
     restore_events: list[str] = []
     assert restore.run(
@@ -304,8 +304,8 @@ def test_internal_receipt_and_report_failures_return_two_and_do_not_leak_details
         write=lambda *args: restore_events.append("receipt")
         or (_ for _ in ()).throw(OSError("raw receipt failure")),
         update_report=lambda *args: restore_events.append("report") or True,
-    ) == 2
-    assert restore_events == ["receipt", "report"]
+    ) == 1
+    assert restore_events == ["report"]
     assert "raw receipt failure" not in capsys.readouterr().out
 
     assert snapshot.run(

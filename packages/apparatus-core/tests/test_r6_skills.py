@@ -197,8 +197,8 @@ def test_generic_upgrade_preserves_task_profile_without_extra_capture(tmp_path, 
     assert (root / "System/profile.yaml").read_bytes() == profile
     receipt_events = [records.parse_record(p.read_text())[0]["event"]
                       for p in (root / "System/receipts").glob("*.md")]
-    # Keep the existing init and unavailable-snapshot evidence; R6 adds none.
-    assert sorted(receipt_events) == (["init", "snapshot"] if save else ["init"])
+    # Keep actual init evidence; quiet unavailable outcomes add no event.
+    assert receipt_events == ["init"]
     assert not (root / "System/recovery").exists()
     for directory in ("Memory", "Goals", "Library"):
         assert not list((root / directory).rglob("*.md"))

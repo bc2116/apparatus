@@ -537,3 +537,29 @@ def test_invalid_card_is_actionable_in_check_and_blocks_recovery(area):
     with pytest.raises(recovery.SnapshotError):
         with recovery.capture_state(root):
             pytest.fail('invalid card was omitted from recovery')
+
+
+@pytest.mark.parametrize('change', ['unselected', 'ignored', 'missing', 'stale'])
+def test_check_card_hints_distinguish_intentional_inactivity_from_repair(area, change):
+    root, task = area
+    source = prepare(area)
+    save(area, source)
+    if change == 'unselected':
+        sources.unregister_source(root, source, task_id=task)
+    elif change == 'ignored':
+        (root / 'System/ignore').write_text(source + '\n')
+    elif change == 'missing':
+        (root / source).unlink()
+    else:
+        (root / source).write_text(TEXT.replace('Four', 'Five'))
+    before = files(root)
+    findings = [f for f in check_workspace(root).findings if f.code.startswith('library-card-')]
+    assert len(findings) == 1
+    hint = findings[0].hint
+    if change in {'unselected', 'ignored'}:
+        assert 'inactive' in hint and 'intentional' in hint
+        assert 'refresh' not in hint and 'add WORKSPACE' not in hint
+    else:
+        assert 'original' in hint and ('repair' in hint.lower() or 'restore' in hint.lower())
+    assert SUMMARY not in hint
+    assert files(root) == before

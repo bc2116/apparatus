@@ -9,11 +9,11 @@ What lives here:
 - `profile.yaml` — your preferences and useful defaults. Change a preference
   any time by asking your assistant; setup never blocks the requested work.
 - `policy/` — the privacy and safety rules currently in force.
-- `receipts/` — meaningful init/profile changes, credential redaction,
-  snapshots, restores and exports. Routine checks, retrieval, ingest and
-  unchanged operations leave no activity log. Existing history stays readable.
-- `machine-report.md` — detected tools and suggested next steps. Git detection
-  alone does not prove a usable recovery store or an existing saved point.
+- `receipts/` — a record of what the machinery did on your behalf: checks,
+  snapshots, and anything sensitive that was flagged or cleaned. If you ever
+  wonder "what did it actually do?", the answer is here.
+- `machine-report.md` — what tools are available on this computer, so your
+  assistant never suggests something that can't work here.
 
 Some of these appear only after setup completes.
 
@@ -37,7 +37,5 @@ records pointing to the canonical adopted `.agents/skills/NAME/SKILL.md` bodies.
 
 `library/sources/` selects project originals without copying them. `library/cards/`
 holds small assistant-written summaries with exact source/extraction provenance.
-Cards aid discovery; originals remain authoritative. Removed or ignored sources
-keep their cards inactive; leave them inactive when that choice is intentional.
-For a missing or changed original, repair the source first and request refreshed
-evidence and a grounded summary if the card is still useful.
+Cards aid discovery; originals remain authoritative. Missing, changed or ignored
+sources make cards unusable until their evidence and summary are refreshed.

@@ -193,8 +193,10 @@ content. Enrolled areas require `Memory/Decisions`, but not Projects, central
 Deliverables or root Decisions. Both decision roots are checked when present;
 same-named records at different paths remain distinct. Project and instruction
 preflight failures are reported before ordinary record checks when necessary.
-Check does not repair state; its existing optional check receipt is written to the
-selected work area and can be suppressed with `--no-receipt`.
+Check is read-only and writes no routine receipt. `--no-receipt` remains accepted
+as a compatibility no-op. Findings name safe repair actions; init can repair
+shipped files while preserving custom conflicts, but cannot reconstruct lost user
+records. Doctor distinguishes tool detection from a verified recovery store.
 
 ## Legacy compatibility and recovery limits
 

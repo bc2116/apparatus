@@ -184,7 +184,7 @@ def test_redirected_path_warns_and_records_sync_note_with_unavailable_snapshots(
     assert "Snapshots are unavailable" in output
     receipt = next((workspace / "System/receipts").glob("*-init.md"))
     assert "OneDrive" in receipt.read_text(encoding="utf-8")
-    assert _receipt_events(workspace).count("snapshot") == 1
+    assert _receipt_events(workspace).count("snapshot") == 0
     assert check_workspace(workspace).ok
 
 
@@ -240,7 +240,7 @@ def test_custom_payload_prefers_its_sibling_profiles_manifest(tmp_path):
     assert _profile(workspace)["work_types"] == ["analysis"]
 
 
-def test_availability_is_probed_before_target_mutation_and_unavailable_failures_remain_errors(tmp_path):
+def test_availability_is_probed_before_target_mutation_and_unavailable_is_quiet(tmp_path):
     workspace = tmp_path / "workspace"
 
     def unavailable():
@@ -255,8 +255,8 @@ def test_availability_is_probed_before_target_mutation_and_unavailable_failures_
             raise RuntimeError("receipt backend failed")
         return Path("receipt.md")
 
-    assert init.run(_args(workspace), available=unavailable, write=write) == 2
-    assert calls == ["init", "snapshot"]
+    assert init.run(_args(workspace), available=unavailable, write=write) == 0
+    assert calls == ["init"]
 
 
 def test_only_explicit_unavailable_result_enters_degraded_path(tmp_path, capsys):
@@ -429,7 +429,7 @@ def test_payload_workspace_overlap_is_rejected_before_mutation(tmp_path, relatio
     assert _tree_state(tmp_path) == before
 
 
-def test_unavailable_snapshot_attempts_receipt_and_report_independently(tmp_path):
+def test_unavailable_snapshot_updates_report_without_snapshot_receipt(tmp_path):
     workspace = tmp_path / "workspace"
     report = workspace / "System/machine-report.md"
     report.parent.mkdir(parents=True)
@@ -449,12 +449,12 @@ def test_unavailable_snapshot_attempts_receipt_and_report_independently(tmp_path
 
     assert init.run(
         _args(workspace), available=lambda: False, write=write, update_report=update
-    ) == 2
-    assert calls == ["write:init", "write:snapshot", "update:report"]
+    ) == 0
+    assert calls == ["write:init", "update:report"]
     assert report.read_text(encoding="utf-8") == "report update attempted\n"
 
 
-def test_unavailable_snapshot_attempts_receipt_when_report_update_fails(tmp_path):
+def test_unavailable_snapshot_report_failure_preserves_init_history(tmp_path):
     workspace = tmp_path / "workspace"
     calls: list[str] = []
 
@@ -469,8 +469,8 @@ def test_unavailable_snapshot_attempts_receipt_when_report_update_fails(tmp_path
     assert init.run(
         _args(workspace), available=lambda: False, write=write, update_report=update
     ) == 2
-    assert calls == ["write:init", "write:snapshot", "update:report"]
-    assert _receipt_events(workspace) == ["init", "snapshot"]
+    assert calls == ["write:init", "update:report"]
+    assert _receipt_events(workspace) == ["init"]
 
 
 @pytest.mark.parametrize("backend", ("detect", "write", "snapshot"))

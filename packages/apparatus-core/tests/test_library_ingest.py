@@ -110,11 +110,8 @@ def test_ignore_skips_source_before_open_and_evicts_index_and_recall(monkeypatch
     index.refresh(result.cache, workspace)
     assert index.search(result.cache, "cobalt") == []
     assert recall.recall(workspace, "cobalt sentinel")["status"] == "abstained"
-    receipts = (workspace / "System/receipts").glob("*-library-ingest*.md")
-    assert any(
-        "skipped 1 path(s) (built-in=0, user=1)" in receipt.read_text(encoding="utf-8")
-        for receipt in receipts
-    )
+    assert result.ignore_report.skipped_paths == 1
+    assert not list((workspace / "System/receipts").glob("*-library-ingest*.md"))
 
 
 @pytest.mark.parametrize(
@@ -170,16 +167,7 @@ def test_matching_directory_is_pruned_and_stale_cache_is_removed(
     assert not second_record.exists() and not second_text.exists()
     assert visible_record.exists() is not visible_ignored
     assert visible_text.exists() is not visible_ignored
-    report = (
-        f"skipped {expected_ignored} path(s) "
-        f"(built-in=0, user={expected_ignored})"
-    )
-    assert any(
-        report in receipt.read_text(encoding="utf-8")
-        for receipt in (workspace / "System/receipts").glob(
-            "*-library-ingest*.md"
-        )
-    )
+    assert not list((workspace / "System/receipts").glob("*-library-ingest*.md"))
 
 
 def test_builtin_skip_count_and_provenance_are_reported(monkeypatch, tmp_path):
@@ -192,10 +180,8 @@ def test_builtin_skip_count_and_provenance_are_reported(monkeypatch, tmp_path):
     assert result.counts["ignored"] == 1
     assert result.ignore_report.built_in_paths == 1
     assert result.ignore_report.user_paths == 0
-    receipt = next((workspace / "System/receipts").glob("*-library-ingest.md"))
-    content = receipt.read_text(encoding="utf-8")
-    assert "System/ignore is missing" in content
-    assert "built-in=1, user=0" in content
+    assert "System/ignore is missing" in result.ignore_report.provenance
+    assert not list((workspace / "System/receipts").glob("*-library-ingest*.md"))
 
 
 def test_invalid_ignore_stops_before_library_open(monkeypatch, tmp_path):
@@ -218,8 +204,8 @@ def test_ingest_flags_unsupported_and_corrupt_sources_and_command_exits_one(monk
     (workspace / "Library" / "broken.docx").write_bytes(b"not a docx")
     result = ingest_library(workspace)
     assert {status for _path, status, _reason in result.flagged} == {"unsupported", "error"}
-    receipt = next((workspace / "System/receipts").glob("*-library-ingest.md"))
-    assert "image.png: unsupported" in receipt.read_text(encoding="utf-8")
+    assert any(path == "image.png" and status == "unsupported" for path, status, _reason in result.flagged)
+    assert not list((workspace / "System/receipts").glob("*-library-ingest*.md"))
     assert library.run(argparse.Namespace(workspace=str(workspace))) == 1
     assert "flagged" in capsys.readouterr().out
 

@@ -65,7 +65,9 @@ PREVIOUS_CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a69d8616b
 CARDS_PREVIOUS_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'cd52bfa9c714b9d2b3b9aa835732d7c414c346f0157a44f7f5c3e2a47eb0036b',
  'System/README.md': '9d77710dd6a053040603207a286544e61f7a5e07c0e5add6b9b93361ae73d004'}
 
-CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a2d4b26fddd5bc23a709f5e6c756476f0b5d6d86772774757dbaab09dda3eee8', 'System/README.md': 'c28ad9968b6aef9f3a504eaaee077ee99d287189ec67a605e86cda3284633633'}
+QUIET_PREVIOUS_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a2d4b26fddd5bc23a709f5e6c756476f0b5d6d86772774757dbaab09dda3eee8', 'System/README.md': 'c28ad9968b6aef9f3a504eaaee077ee99d287189ec67a605e86cda3284633633'}
+
+CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a2d4b26fddd5bc23a709f5e6c756476f0b5d6d86772774757dbaab09dda3eee8', 'System/README.md': 'd44926de0f7557cc5d27af9060813195dd0ffb5677172ac35f7965f577e693e7'}
 
 def valid_name(value: object) -> bool:
     return isinstance(value, str) and 1 <= len(value) <= 64 and bool(_NAME.fullmatch(value))
@@ -168,7 +170,7 @@ def is_shipped_skill_orientation(relative: str, content: bytes) -> bool:
     """Recognize a whole known orientation file, never its header or links."""
     expected = _SKILL_ORIENTATION_DIGESTS.get(relative)
     digest = hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
-    return digest in {CURRENT_ORIENTATION_DIGESTS.get(relative), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(relative), CARDS_PREVIOUS_ORIENTATION_DIGESTS.get(relative)} or (expected is not None and digest in expected)
+    return digest in {CURRENT_ORIENTATION_DIGESTS.get(relative), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(relative), CARDS_PREVIOUS_ORIENTATION_DIGESTS.get(relative), QUIET_PREVIOUS_ORIENTATION_DIGESTS.get(relative)} or (expected is not None and digest in expected)
 
 
 def read_skill_payload(anchor: WorkspaceAnchor) -> dict[str, bytes]:
@@ -192,7 +194,7 @@ def read_skill_payload(anchor: WorkspaceAnchor) -> dict[str, bytes]:
     orientation = {path: optional(path) or b"" for path in ("AGENTS.md", "Welcome.md", "System/README.md")}
     current = any(directories[path] for path in NEW_SKILL_PATHS) or any(
         SKILL_INDEX.encode() in content.replace(b"\r\n", b"\n")
-        or hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() in {CURRENT_ORIENTATION_DIGESTS.get(path), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(path), CARDS_PREVIOUS_ORIENTATION_DIGESTS.get(path)}
+        or hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() in {CURRENT_ORIENTATION_DIGESTS.get(path), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(path), CARDS_PREVIOUS_ORIENTATION_DIGESTS.get(path), QUIET_PREVIOUS_ORIENTATION_DIGESTS.get(path)}
         for path, content in orientation.items()
     )
     native = current or any(directories.values()) or any(

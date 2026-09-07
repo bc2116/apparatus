@@ -134,6 +134,25 @@ def _problem_code(problem: str) -> str:
     return "record-schema-error"
 
 
+def _record_repair_hint(kind: str, problem: str) -> str:
+    """Describe trusted schema rules without echoing rejected record values."""
+    schema = records.SCHEMAS[kind]
+    for field in schema.required:
+        if problem == f"required field missing or empty: {field}":
+            return f"Add a nonempty {field} field to this {kind} record."
+    for field, choices in schema.enums.items():
+        if problem.startswith(f"{field} must be one of "):
+            return f"Set {field} to one of: {', '.join(sorted(choices))}."
+    if problem.startswith("schema must be "):
+        return f"Set schema to {schema.schema_id}."
+    if problem.startswith("labels "):
+        return "Set labels to a flat list of text labels."
+    if problem.startswith("filename "):
+        return (f"Use the {kind} filename rule: {schema.filename_rule}."
+                + (" Keep the receipt event consistent with its filename." if kind == "receipt" else ""))
+    return f"Ask the assistant to repair this {schema.schema_id} record using its required fields and value types."
+
+
 def _record_findings(path: Path, workspace: Path, expected_kind: str) -> list[Finding]:
     relative = _relative(path, workspace)
     try:
@@ -176,7 +195,7 @@ def _record_findings(path: Path, workspace: Path, expected_kind: str) -> list[Fi
         ]
 
     return [
-        Finding(_problem_code(problem), relative, "Correct this record to match its v0 schema.")
+        Finding(_problem_code(problem), relative, _record_repair_hint(expected_kind, problem))
         for problem in records.validate(expected_kind, data, filename=path.name, body=_body)
     ]
 
@@ -302,7 +321,10 @@ def _learned_skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[F
             return [], len(files)
     except (OSError, ValueError) as error:
         message = str(error) if isinstance(error, learned_skills.LearnedSkillError) else (
-            "Adopted Skill ownership or its body is missing or unsafe; preserve the files and repair the pair.")
+            "Adopted Skill ownership or its body is missing or unsafe.")
+        message += (" Inspect the registered ownership record and `.agents/skills/learned-NAME/SKILL.md`; "
+                    "use `apparatus restore WORKSPACE --list` to look for a known valid pair. "
+                    "Preserve custom files and do not silently adopt replacements.")
         return [Finding("learned-skill-check-incomplete", learned_skills.ADOPTED, message)], 0
 
 
@@ -424,11 +446,15 @@ def _library_card_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Fi
             result = cards.read_card(workspace, data["source"], include_text=False)
             if result["card_status"] != "current":
                 findings.append(Finding("library-card-" + result["card_status"], relative,
-                                        "This card is not current. Check its source and extraction, then ask for a grounded card refresh."))
+                                        ({"unselected": "This source is no longer selected. Leave the card inactive if that was intentional.",
+                                          "ignored": "This source or card is intentionally ignored. Leave it inactive unless you want to change that rule.",
+                                          "feature_off": "Library indexing is off. Leave the card inactive unless you want to enable the feature.",
+                                          "missing": "Restore the missing original first; then request fresh extraction and a grounded card if still useful."}.get(result.get("reason"),
+                                         "Preserve this card and check its selected original and extraction. Repair stale or invalid evidence, then request a grounded card refresh if still useful."))))
         return findings, len(files)
     except (OSError, ValueError):
         return [Finding("library-card-check-incomplete", cards.ROOT,
-                        "Repair invalid, unsafe or ignored card records before relying on card coverage.")], 0
+                        "Card coverage is incomplete. Inspect invalid or unsafe card records; leave intentionally ignored cards inactive. Do not rely on unchecked cards.")], 0
 
 
 def _library_source_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int]:
@@ -439,7 +465,10 @@ def _library_source_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[
         return [Finding("library-catalog-invalid", REGISTRATION_ROOT,
                         "Repair the Library source records, then run `apparatus library list WORKSPACE`.")], 0
     findings = [Finding("library-source-" + item.status, item.source_path,
-                        "Check this original and its ignore rules. If it moved, add its new path and remove the old registration.")
+                        {"ignored": "This original is intentionally excluded. Review its ignore rule only if you want it included.",
+                         "missing": "Restore the original, or use `apparatus library add WORKSPACE PATH` for its new location and remove the old registration.",
+                         "unsafe": "Make the original a regular file within its selected project without links; preserve the registration while checking the path.",
+                         "unavailable": "Make the selected original readable, then run `apparatus library list WORKSPACE`."}.get(item.status, "Inspect this registration with `apparatus library list WORKSPACE`; preserve the original."))
                 for item in statuses if item.status != "available"]
     return findings, len(statuses)
 
@@ -486,7 +515,9 @@ def check_workspace(
                 Finding(
                     "tree-missing-entry",
                     relative,
-                    "Create the required workspace entry at this path.",
+                    ("Run `apparatus init WORKSPACE` to repair shipped content; preserve any custom-file conflict."
+                     if relative == "System" or relative.startswith("System/") or relative in {"AGENTS.md", "CLAUDE.md", "Welcome.md"}
+                     else "Restore or create this required directory. Restore lost user records from their original or a known saved point."),
                 )
             )
 
