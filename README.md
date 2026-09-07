@@ -1,5 +1,7 @@
 # Apparatus
 
+**Pre-alpha. Development is ongoing.**
+
 **Help your AI app remember, find sources, and finish work in your projects.**
 
 Apparatus adds portable files and a small toolchain to your workspace: goals,
@@ -14,7 +16,7 @@ app features are optional enhancements.
 
 ## Status
 
-Pre-alpha. The existing implementation includes Memory, local Library
+The existing implementation includes Memory, local Library
 extraction/search/citations, snapshots, backup, profiles, seven portable Skills,
 and packaging machinery. The sharing gate has been removed. Fresh setup creates
 a shared work area; `apparatus init WORKAREA --adopt` enrolls an existing folder
