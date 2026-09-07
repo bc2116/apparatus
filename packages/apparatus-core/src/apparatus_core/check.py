@@ -409,6 +409,19 @@ def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding],
     return findings, checked, sum(value == "built-in" for value in skipped.values()), sum(value == "user" for value in skipped.values())
 
 
+def _library_source_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding], int]:
+    from apparatus_core.library.sources import REGISTRATION_ROOT, list_sources
+    try:
+        statuses = list_sources(workspace, rules=rules)
+    except (OSError, ValueError):
+        return [Finding("library-catalog-invalid", REGISTRATION_ROOT,
+                        "Repair the Library source records, then run `apparatus library list WORKSPACE`.")], 0
+    findings = [Finding("library-source-" + item.status, item.source_path,
+                        "Check this original and its ignore rules. If it moved, add its new path and remove the old registration.")
+                for item in statuses if item.status != "available"]
+    return findings, len(statuses)
+
+
 def check_workspace(
     workspace: str | Path,
     *,
@@ -456,6 +469,9 @@ def check_workspace(
             )
 
     records_checked = 0
+    library_findings, library_count = _library_source_findings(root, rules)
+    findings.extend(library_findings)
+    records_checked += library_count
     built_in_ignored = 0
     user_ignored = 0
     skill_findings, skill_count, skill_built_in, skill_user = _skill_findings(root, rules)

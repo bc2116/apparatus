@@ -1,4 +1,4 @@
-"""The ``apparatus library ingest`` command."""
+"""Select, extract and search local Library sources."""
 
 from __future__ import annotations
 
@@ -15,7 +15,8 @@ from apparatus_core.features import (
     off_receipt_fields,
 )
 from apparatus_core.ignore import load_ignore_rules
-from apparatus_core.library.ingest import ingest_library
+from apparatus_core.library.ingest import ingest_library, ingest_source
+from apparatus_core.library.sources import register_source, unregister_source, list_sources
 from apparatus_core.library import index
 from apparatus_core.receipts import write_receipt
 from apparatus_core.retention import RetentionSuppressed, TaskRetentionError, context_for
@@ -36,6 +37,65 @@ def register(subparsers: Any) -> None:
     search.add_argument("--rebuild", action="store_true")
     search.add_argument("--requested", action="store_true", help="apply a separately requested index rebuild")
     search.set_defaults(func=run_search)
+    for action, help_text in (
+        ("add", "register one project original and extract its text"),
+        ("remove", "remove a registration while preserving its original"),
+    ):
+        command = actions.add_parser(action, help=help_text)
+        command.add_argument("workspace", metavar="WORKSPACE")
+        command.add_argument("source", metavar="RELATIVE_PATH", help="path relative to the shared work area, including when called from a bound project")
+        command.add_argument("--requested", action="store_true", help="apply this separately requested Library operation")
+        command.set_defaults(func=run_registration)
+    listing = actions.add_parser("list", help="list registered project sources and current availability")
+    listing.add_argument("workspace", metavar="WORKSPACE")
+    listing.add_argument("--json", action="store_true", dest="as_json")
+    listing.set_defaults(func=run_list)
+
+
+def run_registration(args: argparse.Namespace) -> int:
+    options = {"task_id": getattr(args, "task", None), "requested": getattr(args, "requested", False)}
+    try:
+        engine = register_source if args.library_action == "add" else unregister_source
+        registration = engine(args.workspace, args.source, **options)
+    except RetentionSuppressed:
+        print("Library registration skipped: this task does not save Memory. A separate explicit Library request is needed.")
+        return 1
+    except (OSError, ValueError) as error:
+        print(f"library {args.library_action}: {_safe(str(error))}")
+        return 2
+    path = registration.source.source_path
+    if args.library_action == "remove":
+        if registration.implicit:
+            print("This source is selected by its Library location. Use an ignore rule to exclude it.")
+            return 1
+        print(f"Registration {'removed' if registration.changed else 'already absent'}: {_safe(path)}")
+        return 0
+    print(f"Registration: {'already selected' if not registration.changed else 'added'} {_safe(path)}")
+    try:
+        result = ingest_source(args.workspace, path, **options)
+    except (OSError, ValueError) as error:
+        print(f"Registration remains selected; extraction unavailable: {_safe(str(error))}")
+        return 1
+    print("Extraction: " + ", ".join(f"{name}={value}" for name, value in result.counts.items()))
+    for source, status, reason in result.flagged:
+        print(f"flagged {_safe(source)}: {_safe(status)}: {_safe(reason)}")
+    return 0 if result.ok else 1
+
+
+def run_list(args: argparse.Namespace) -> int:
+    try:
+        statuses = list_sources(args.workspace)
+    except (OSError, ValueError) as error:
+        print(f"library list: {_safe(str(error))}")
+        return 2
+    if getattr(args, "as_json", False):
+        print(json.dumps([{"source_path": item.source_path, "availability": item.status}
+                          for item in statuses], ensure_ascii=False))
+    else:
+        for item in statuses:
+            print(f"{_safe(item.source_path)}: {_safe(item.status)}")
+        print("Availability does not establish extraction or search coverage.")
+    return 0
 
 
 def run(args: argparse.Namespace) -> int:
@@ -115,12 +175,13 @@ def run_search(args: argparse.Namespace) -> int:
         print("This feature is off; say the word and I'll enable it.")
         return 1
     try:
-        hits, ignore_report = index.retrieve(
+        result = index.retrieve(
             workspace, args.query, args.limit,
             task_id=getattr(args, "task", None),
             rebuild_index=getattr(args, "rebuild", False),
             requested=getattr(args, "requested", False),
         )
+        hits, ignore_report = result
     except RetentionSuppressed:
         print("Library index write skipped: this task does not save Memory.")
         return 1
@@ -128,7 +189,9 @@ def run_search(args: argparse.Namespace) -> int:
         print(f"library search: {_safe(str(error))}")
         return 2
     except index.NoExtractionsError as error:
-        if error.readonly:
+        if error.reason == "invalid":
+            print("Existing Library extraction evidence is invalid. Run apparatus library ingest to repair it; a no-save task needs a separate explicit Library request.")
+        elif error.readonly:
             print("Existing Library extractions are unavailable. A separate Library ingest is needed.")
         else:
             print("Nothing from your Library has been ingested yet. Run apparatus library ingest first.")
@@ -144,10 +207,14 @@ def run_search(args: argparse.Namespace) -> int:
         print(f"library search: {_safe(str(error))}")
         return 1
     if args.as_json:
-        print(json.dumps([{"source_path": hit.source_path, "snippet": hit.snippet, "score": hit.score} for hit in hits], ensure_ascii=False))
+        print(json.dumps({"hits": [{"source_path": hit.source_path, "snippet": hit.snippet, "score": hit.score} for hit in hits],
+                          "coverage": result.coverage.as_dict()}, ensure_ascii=False))
     else:
         for hit in hits:
             print(f"{_safe(hit.source_path)} ({hit.score:.6f}): {_safe(hit.snippet)}")
+        print(result.coverage.sentence())
+        for path, reason in result.coverage.issues:
+            print(f"{_safe(path)}: {_safe(reason)}")
     _print_ignore_report(ignore_report, args.as_json)
     return 0
 

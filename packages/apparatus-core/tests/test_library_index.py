@@ -48,7 +48,8 @@ def test_search_builds_ranked_deterministic_json_parity(monkeypatch, tmp_path, c
     assert library.run_search(argparse.Namespace(workspace=str(workspace), query="needle", limit=5, as_json=True, rebuild=False)) == 0
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
-    assert payload == [{"source_path": hit.source_path, "snippet": hit.snippet, "score": hit.score} for hit in first]
+    assert payload["hits"] == [{"source_path": hit.source_path, "snippet": hit.snippet, "score": hit.score} for hit in first]
+    assert payload["coverage"] == {"status": "complete", "sources": []}
     assert "System/ignore is missing" in captured.err
     assert "skipped 0 path(s)" in captured.err
     assert not (workspace / "index.sqlite3").exists()
@@ -226,7 +227,7 @@ def test_rebuild_recovers_corrupt_index_without_reading_old_image(monkeypatch, t
             workspace=str(workspace), query="needle", limit=5, as_json=True, rebuild=True
         )
     ) == 0
-    assert json.loads(capsys.readouterr().out)[0]["source_path"] == "Library/beta.txt"
+    assert json.loads(capsys.readouterr().out)["hits"][0]["source_path"] == "Library/beta.txt"
 
 
 def test_cli_rebuild_keeps_ignored_extractions_out_of_search(monkeypatch, tmp_path, capsys):
@@ -242,7 +243,8 @@ def test_cli_rebuild_keeps_ignored_extractions_out_of_search(monkeypatch, tmp_pa
     ) == 0
 
     captured = capsys.readouterr()
-    assert json.loads(captured.out) == []
+    assert json.loads(captured.out)["hits"] == []
+    assert json.loads(captured.out)["coverage"]["status"] == "partial"
     assert "skipped 1 path(s)" in captured.err
     assert "built-in=0, user=1" in captured.err
     assert index.search(cache, "beta") == []
@@ -283,7 +285,7 @@ def test_directory_patterns_prune_cache_for_refresh_and_cli_rebuild(
     original_read = index._read_private_file
 
     def reject_private_directory(path):
-        if Path(path) == private_cache:
+        if not isinstance(path, int) and Path(path) == private_cache:
             raise AssertionError("ignored extraction directory was traversed")
         return original_scandir(path)
 
@@ -306,7 +308,8 @@ def test_directory_patterns_prune_cache_for_refresh_and_cli_rebuild(
     ) == 0
 
     captured = capsys.readouterr()
-    assert json.loads(captured.out) == []
+    assert json.loads(captured.out)["hits"] == []
+    assert json.loads(captured.out)["coverage"]["status"] == "partial"
     assert f"skipped {expected_skipped} path(s)" in captured.err
     assert f"built-in=0, user={expected_skipped}" in captured.err
     assert "System/ignore (1 user pattern(s))" in captured.err
@@ -470,15 +473,25 @@ def test_legacy_quarantine_stat_failure_restores_corrupt_index(monkeypatch, tmp_
 
     baseline_fds = dict(index._DATABASE_FDS)
     baseline_handles = dict(index._DATABASE_HANDLES)
+    rebuild_legacy = index._rebuild_legacy
+
+    def inject_at_quarantine(*args, **kwargs):
+        # Retained source preflight must run with the native stat capability.
+        # Keep this injection on the original quarantine/rollback boundary.
+        with monkeypatch.context() as patch:
+            patch.setattr(index.os, "stat", fail_first_quarantine_stat)
+            return rebuild_legacy(*args, **kwargs)
+
+    monkeypatch.setattr(index, "_rebuild_legacy", inject_at_quarantine)
     with operation(workspace):
-        monkeypatch.setattr(index.os, "stat", fail_first_quarantine_stat)
         with pytest.raises(index.IndexError):
             index.rebuild(cache, workspace)
+        assert failures == [1]
         assert database.read_bytes() == corrupt
         assert not list(cache.glob(".apparatus-index-quarantine-*"))
         assert index._DATABASE_FDS == baseline_fds
         assert index._DATABASE_HANDLES == baseline_handles
-        monkeypatch.setattr(index.os, "stat", original_stat)
+        monkeypatch.setattr(index, "_rebuild_legacy", rebuild_legacy)
         index.rebuild(cache, workspace)
         assert index.search(cache, "needle")[0].source_path == "Library/a.txt"
 
@@ -588,27 +601,58 @@ def test_writer_lock_serializes_stale_snapshots_and_cleans_up(monkeypatch, tmp_p
     monkeypatch.setenv("APPARATUS_HOME", str(tmp_path / "home"))
     source = tmp_path / "workspace/Library/a.txt"; source.write_text("old needle", encoding="utf-8")
     cache = ingest_library(tmp_path / "workspace").cache
-    entered = threading.Event(); release = threading.Event(); original_sources = index._extracted_sources
+    from contextlib import contextmanager
+    import errno
+    from apparatus_core.library.sources import SourceUnavailable
+
+    entered = threading.Event(); release = threading.Event()
+    original_evidence = index._current_evidence
     calls = [0]
-    def pause_first(path, rules):
-        value = original_sources(path, rules)
-        calls[0] += 1
-        if calls[0] == 1:
-            entered.set(); assert release.wait(5)
-        return value
-    monkeypatch.setattr(index, "_extracted_sources", pause_first)
+    outcomes = []
+
+    @contextmanager
+    def pause_first(*args, **kwargs):
+        with original_evidence(*args, **kwargs) as value:
+            calls[0] += 1
+            if calls[0] == 1:
+                entered.set(); assert release.wait(5)
+            yield value
+
+    monkeypatch.setattr(index, "_current_evidence", pause_first)
     with ThreadPoolExecutor(max_workers=2) as workers:
         first = workers.submit(index.refresh, cache, workspace)
+        second = None
         try:
             assert entered.wait(5)
-            source.write_text("current needle", encoding="utf-8"); ingest_library(tmp_path / "workspace")
-            second = workers.submit(index.refresh, cache, workspace)
+            try:
+                count = source.write_bytes(b"current needle")
+            except PermissionError as error:
+                assert os.name == "nt" and error.errno == errno.EACCES
+                outcomes.append("blocked")
+            else:
+                assert count == len(b"current needle")
+                outcomes.append("written")
+                ingest_library(workspace)
+                second = workers.submit(index.refresh, cache, workspace)
         finally:
             release.set()
-        first.result(timeout=5)
+        if outcomes == ["written"]:
+            # The first writer retained old source bytes; it must not accept
+            # them after the witnessed edit, even though its index lock held.
+            with pytest.raises(SourceUnavailable):
+                first.result(timeout=5)
+        else:
+            assert outcomes == ["blocked"]
+            first.result(timeout=5)
+            # Native read protection denied the competing edit. Retry only
+            # after those proofs close, then run the current-source writer.
+            source.write_bytes(b"current needle")
+            ingest_library(workspace)
+            second = workers.submit(index.refresh, cache, workspace)
         second.result(timeout=5)
     assert "current" in index.search(cache, "current")[0].snippet
     assert not (cache / ".apparatus-index.lock").exists()
+    assert not list(cache.glob(".apparatus-index-*"))
     outside = tmp_path / "outside-lock"; lock = cache / ".apparatus-index.lock"; lock.symlink_to(outside)
     with pytest.raises(index.IndexError): index.refresh(cache, workspace)
     assert not outside.exists()

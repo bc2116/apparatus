@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import json
 import math
 import os
@@ -21,6 +21,7 @@ from apparatus_core.retention import operation
 from apparatus_core.ignore import IgnoreReport, IgnoreRules, load_ignore_rules
 from apparatus_core.library.extractors import EXTRACTOR_VERSION
 from apparatus_core.library.ingest import _valid_record
+from apparatus_core.library.sources import Catalog, Source, SourceUnavailable
 from apparatus_core.render import is_reparse_path
 
 
@@ -31,9 +32,10 @@ class IndexError(RuntimeError):
 class NoExtractionsError(IndexError):
     """Existing Library extraction evidence is unavailable."""
 
-    def __init__(self, message: str, *, readonly: bool = False):
+    def __init__(self, message: str, *, readonly: bool = False, reason: str = "missing"):
         super().__init__(message)
         self.readonly = readonly
+        self.reason = reason
 
 
 class FtsUnavailable(IndexError):
@@ -60,27 +62,70 @@ class SearchHit:
     score: float
 
 
+@dataclass(frozen=True)
+class SourceCoverage:
+    issues: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def status(self) -> str:
+        return "partial" if self.issues else "complete"
+
+    def as_dict(self) -> dict:
+        return {"status": self.status, "sources": [
+            {"source_path": path, "reason": reason} for path, reason in self.issues
+        ]}
+
+    def sentence(self) -> str:
+        if not self.issues:
+            return "Library coverage is complete for the checked sources."
+        return "Library coverage is partial; check the listed sources and run Library ingest after repair."
+
+
+@dataclass(frozen=True)
+class RetrievalResult:
+    hits: list[SearchHit]
+    ignore_report: IgnoreReport
+    coverage: SourceCoverage
+
+    def __iter__(self):
+        # Preserve the existing two-value Python unpacking contract.
+        yield self.hits
+        yield self.ignore_report
+
+
 def refresh(
     cache: Path, workspace: str | Path, *, task_id: str | None = None,
-    requested: bool = False,
+    requested: bool = False, _evidence=None,
 ) -> IgnoreReport:
     """Update derived state only with this invocation's Library permission."""
     with operation(workspace, task_id=task_id, requested=("library",) if requested else ()) as context:
         context.require_library_write()
-        return _refresh_authorized(cache, workspace)
+        return _refresh_authorized(cache, workspace, evidence=_evidence)
 
 
-def _refresh_authorized(cache: Path, workspace: str | Path) -> IgnoreReport:
+@contextmanager
+def _writer_evidence(cache: Path, workspace: str | Path, rules: IgnoreRules, evidence):
+    if evidence is not None:
+        # retrieve owns these exact proofs across the writer and its query.
+        yield evidence[0], evidence[1], lambda: None
+        return
+    with _current_evidence(cache, Path(workspace), rules, readonly=False, allow_empty=True) as (
+        desired, report, _coverage, validate,
+    ):
+        yield desired, report, validate
+
+
+def _refresh_authorized(cache: Path, workspace: str | Path, *, evidence=None) -> IgnoreReport:
     """Synchronize changed extracted cache pairs into the local FTS index."""
     rules = load_ignore_rules(workspace).require_valid()
-    with _writer_lock(cache):
-        desired, report = _extracted_sources(cache, rules)
+    with _writer_lock(cache), _writer_evidence(cache, workspace, rules, evidence) as (desired, report, validate):
         connection = _database_for_operation(cache)
         try:
             with connection:
                 _create_schema(connection)
                 _refresh_connection(connection, desired)
             _publish_database(cache, connection)
+            validate()
         except sqlite3.Error as error:
             raise IndexError("Library index could not be opened") from error
         finally:
@@ -116,30 +161,31 @@ def _refresh_connection(connection: sqlite3.Connection, desired: dict[str, tuple
 
 def rebuild(
     cache: Path, workspace: str | Path, *, task_id: str | None = None,
-    requested: bool = False,
+    requested: bool = False, _evidence=None,
 ) -> IgnoreReport:
     """Update derived state only with this invocation's Library permission."""
     with operation(workspace, task_id=task_id, requested=("library",) if requested else ()) as context:
         context.require_library_write()
-        return _rebuild_authorized(cache, workspace)
+        return _rebuild_authorized(cache, workspace, evidence=_evidence)
 
 
-def _rebuild_authorized(cache: Path, workspace: str | Path) -> IgnoreReport:
+def _rebuild_authorized(cache: Path, workspace: str | Path, *, evidence=None) -> IgnoreReport:
     """Discard and deterministically recreate this cache's derived index."""
     rules = load_ignore_rules(workspace).require_valid()
-    with _writer_lock(cache):
-        desired, report = _extracted_sources(cache, rules)
+    with _writer_lock(cache), _writer_evidence(cache, workspace, rules, evidence) as (desired, report, validate):
         if hasattr(sqlite3.Connection, "deserialize"):
             connection = _fresh_database()
             try:
                 _build_replacement(connection, desired)
                 _publish_database(cache, connection)
+                validate()
             except sqlite3.Error as error:
                 raise IndexError("Library index could not be rebuilt") from error
             finally:
                 _close_database(connection)
             return report
         _rebuild_legacy(cache, desired)
+        validate()
         return report
 
 
@@ -391,7 +437,7 @@ def _readonly_database(cache: Path) -> sqlite3.Connection:
 def retrieve(
     workspace: str | Path, query: str, limit: int = 5, *,
     task_id: str | None = None, rebuild_index: bool = False, requested: bool = False,
-) -> tuple[list[SearchHit], IgnoreReport]:
+) -> RetrievalResult:
     """Share retrieval and retention behavior between Library search and recall."""
     if limit < 1:
         raise ValueError("search limit must be positive")
@@ -403,27 +449,176 @@ def retrieve(
         cache = library_cache_root(workspace, create=persistent)
         if not has_extractions(cache, rules):
             raise NoExtractionsError("Existing Library extractions are unavailable.", readonly=not persistent)
-        if persistent:
-            report = rebuild(cache, workspace) if rebuild_index else refresh(cache, workspace)
-            return search(cache, query, limit), report
-        desired, report = _extracted_sources(cache, rules, strict=True)
-        connection = _fresh_database()
-        try:
-            _build_replacement(connection, desired)
-            return _search_connection(connection, query, limit), report
-        except sqlite3.Error as error:
-            raise IndexError("Library index could not be opened") from error
-        finally:
-            connection.close()
+        with _current_evidence(cache, Path(workspace), rules, readonly=not persistent) as (desired, report, coverage, validate):
+            if persistent:
+                update = rebuild if rebuild_index else refresh
+                update(cache, workspace, _evidence=(desired, report))
+            # Another writer can publish after refresh releases its lock.
+            # Query only the source map whose proofs this invocation retained.
+            connection = _fresh_database()
+            try:
+                _build_replacement(connection, desired)
+                hits = _search_connection(connection, query, limit)
+            except sqlite3.Error as error:
+                raise IndexError("Library index could not be opened") from error
+            finally:
+                connection.close()
+            validate()
+            return RetrievalResult(hits, report, coverage)
 
 
 def has_extractions(cache: Path, rules: IgnoreRules) -> bool:
     """Whether the cache has a visible or ignored extraction boundary."""
     extractions = cache / "extractions"
-    if not extractions.is_dir() or is_reparse_path(extractions):
-        return False
-    records, built_in_ignored, user_ignored = _record_paths(extractions, rules)
-    return bool(records or built_in_ignored or user_ignored)
+    if extractions.is_dir() and not is_reparse_path(extractions):
+        records, built_in_ignored, user_ignored = _record_paths(extractions, rules)
+        if records or built_in_ignored or user_ignored:
+            return True
+    references = cache / "references"
+    if references.is_dir() and not is_reparse_path(references):
+        return any(path.suffix == ".json" for path in references.iterdir())
+    return False
+
+
+@contextmanager
+def _current_evidence(cache: Path, workspace: Path, rules: IgnoreRules, *, readonly: bool, allow_empty: bool = False):
+    """Keep source, catalog and derived-file proofs until a query is accepted."""
+    from apparatus_core.library.ingest import (
+        _library_entries, _open_library_directory, _TraversalFailure, _NOISE,
+    )
+    _assert_private_cache(cache)
+    if not allow_empty and not any(path.is_dir() and not is_reparse_path(path)
+                                  for path in (cache / "extractions", cache / "references")):
+        raise NoExtractionsError("Existing Library extractions are unavailable.", readonly=readonly)
+    with ExitStack() as stack:
+        catalog = stack.enter_context(Catalog(workspace))
+        cache_anchor = stack.enter_context(fs_transactions.WorkspaceAnchor(cache))
+        proofs = []
+        readers = []
+        absent_text = set()
+        issues: set[tuple[str, str]] = set()
+        selected = {source.source_path: source for source in catalog.sources}
+        extractions = cache / "extractions"
+        built_in = user = 0
+        if extractions.is_dir() and not is_reparse_path(extractions):
+            records, built_in, user = _record_paths(extractions, rules)
+            if built_in or user:
+                issues.add(("Library", "ignored"))
+            for path in records:
+                name = "Library/" + path.relative_to(extractions).as_posix()[:-5]
+                selected[name] = catalog.source(name)
+        library = workspace / "Library"
+        try:
+            descriptor = _open_library_directory(library)
+            try:
+                entries = _library_entries(library, descriptor, rules)
+            finally:
+                if descriptor >= 0:
+                    os.close(descriptor)
+        except (OSError, ValueError):
+            entries = []
+            issues.add(("Library", "unavailable"))
+        for entry in entries:
+            if isinstance(entry, _TraversalFailure):
+                issues.add(("Library/" + entry.relative, "unavailable"))
+                continue
+            name = entry.relative_to(workspace).as_posix()
+            try:
+                status = os.lstat(entry)
+            except OSError:
+                issues.add((name, "unavailable"))
+                continue
+            if rules.classification(name, is_directory=stat.S_ISDIR(status.st_mode)):
+                issues.add((name, "ignored"))
+                continue
+            if entry.name in _NOISE or any(part.startswith(".") for part in entry.relative_to(library).parts):
+                continue
+            if stat.S_ISDIR(status.st_mode) and not is_reparse_path(entry):
+                continue
+            if not stat.S_ISREG(status.st_mode) or is_reparse_path(entry):
+                issues.add((name, "unsafe"))
+                continue
+            selected[name] = catalog.source(name)
+
+        def cached(relative: str):
+            try:
+                status = os.lstat(cache / relative)
+            except FileNotFoundError:
+                return None
+            if not _private_regular(status) or is_reparse_path(cache / relative):
+                raise IndexError("Library extraction cache is not a private regular file")
+            try:
+                proof = cache_anchor.capture_file(relative, publication_compatible=True)
+            except FileNotFoundError:
+                return None
+            stack.callback(proof.close)
+            if not _private_path(cache / relative):
+                raise IndexError("Library extraction cache is not a private regular file")
+            proofs.append(proof)
+            return proof.content
+
+        desired: dict[str, tuple[str, str, str]] = {}
+        for name, source in sorted(selected.items()):
+            classification = rules.classification(name)
+            if classification:
+                issues.add((name, "ignored"))
+                if source.kind == "registered":
+                    if classification == "built-in":
+                        built_in += 1
+                    else:
+                        user += 1
+                continue
+            try:
+                current = stack.enter_context(catalog.read(source, rules=rules))
+                readers.append(current)
+            except SourceUnavailable as error:
+                issues.add((name, error.reason))
+                continue
+            record_relative = source.cache_relative + ".json"
+            text_relative = source.cache_relative + ".txt"
+            try:
+                raw = cached(record_relative)
+                if raw is None:
+                    issues.add((name, "not_ingested"))
+                    continue
+                record = json.loads(raw.decode("utf-8"))
+                text = cached(text_relative)
+                if text is None:
+                    absent_text.add(text_relative)
+                if not _valid_record(record, name, record.get("source_sha256"), record.get("size_bytes"),
+                                     cache / text_relative, text_bytes=text):
+                    issues.add((name, "invalid_cache"))
+                    continue
+                if record["source_sha256"] != current.sha256 or record["size_bytes"] != current.size_bytes:
+                    issues.add((name, "stale"))
+                    continue
+                if record["status"] != "extracted":
+                    issues.add((name, record["status"]))
+                    continue
+                desired[name] = (current.sha256, record["extractor_version"], text.decode("utf-8"))
+            except (IndexError, OSError, ValueError, AttributeError, TypeError, UnicodeError):
+                issues.add((name, "invalid_cache"))
+
+        def validate():
+            catalog.validate()
+            for current in readers:
+                current.validate()
+            if not cache_anchor.root_is_current() or any(
+                not cache_anchor.matches_owned(proof) for proof in proofs
+            ):
+                raise IndexError("Library extraction evidence changed during retrieval")
+            for relative in absent_text:
+                try:
+                    unexpected = cache_anchor.capture_file(relative, publication_compatible=True)
+                except FileNotFoundError:
+                    continue
+                unexpected.close()
+                raise IndexError("Library extraction evidence changed during retrieval")
+
+        validate()
+        if not desired and any(reason == "invalid_cache" for _, reason in issues):
+            raise NoExtractionsError("Existing Library extraction evidence is invalid.", readonly=readonly, reason="invalid")
+        yield desired, rules.report(built_in_paths=built_in, user_paths=user), SourceCoverage(tuple(sorted(issues))), validate
 
 
 def _database(cache: Path) -> sqlite3.Connection:
@@ -815,6 +1010,9 @@ def _assert_private_cache(cache: Path) -> None:
     extractions = cache / "extractions"
     if extractions.exists() and is_reparse_path(extractions):
         raise IndexError("Library extraction cache must not contain symbolic links")
+    references = cache / "references"
+    if references.exists() and is_reparse_path(references):
+        raise IndexError("Library reference cache must not contain symbolic links")
 
 
 @contextmanager

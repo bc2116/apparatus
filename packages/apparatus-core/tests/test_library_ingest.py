@@ -466,6 +466,7 @@ def test_atomic_identity_and_descriptor_stale_cleanup_resist_substitution(monkey
         return original_stat(name, *args, **kwargs)
     with operation(workspace):
         monkeypatch.setattr(ingest_module.os, "stat", swap_parent)
+        monkeypatch.setattr(ingest_module.os, "supports_dir_fd", set(ingest_module.os.supports_dir_fd) | {swap_parent})
         with pytest.raises(OSError):
             ingest_library(workspace)
         assert (outside / "gone.txt.json").read_text() == "sentinel"
@@ -477,16 +478,17 @@ def test_windows_publication_mode_and_anchor_close_are_platform_safe(monkeypatch
     workspace = _workspace(tmp_path / "workspace")
     (workspace / "System/ignore").write_text("# valid\n", encoding="utf-8")
     status = target.stat()
-    monkeypatch.setattr(ingest_module.os, "lstat", lambda _path: SimpleNamespace(st_mode=stat.S_IFREG | 0o666, st_nlink=1, st_dev=status.st_dev, st_ino=status.st_ino))
-    monkeypatch.setattr(ingest_module, "_requires_private_mode", lambda: False)
-    assert ingest_module._published_matches(target, (status.st_dev, status.st_ino), b"same")
+    with monkeypatch.context() as publication:
+        publication.setattr(ingest_module.os, "lstat", lambda _path: SimpleNamespace(st_mode=stat.S_IFREG | 0o666, st_nlink=1, st_dev=status.st_dev, st_ino=status.st_ino))
+        publication.setattr(ingest_module, "_requires_private_mode", lambda: False)
+        assert ingest_module._published_matches(target, (status.st_dev, status.st_ino), b"same")
     closed = []
     class FakeAnchor:
         def __init__(self, _root): pass
         def close(self): closed.append(True)
     monkeypatch.setattr(ingest_module, "_windows_source_anchor", lambda _root: FakeAnchor(_root))
     monkeypatch.setattr(ingest_module, "library_cache_root", lambda _root: (_ for _ in ()).throw(ValueError("injected")))
-    with pytest.raises(ValueError): ingest_library(workspace)
+    with pytest.raises(ValueError, match="injected"): ingest_library(workspace)
     assert closed == [True]
 
 

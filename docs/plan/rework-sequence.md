@@ -199,6 +199,10 @@ record/workspace/ignore specs, and extraction/search/recall safety tests.
 or moved; cache rebuild preserves registration; moved, missing, ignored, and
 changed sources are handled honestly; irrelevant sibling files are not indexed.
 
+PR-43 implements the catalog, selected-file extraction, current-source validation
+and partial retrieval coverage. Its delivery remains subject to integrated review,
+the full suite and actual Windows CI. Cards and completion offers remain R9.
+
 ### R9 — Lightweight cards and completion offers
 
 **After R2, R5, and R8.** On source addition, the current assistant writes a
