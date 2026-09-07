@@ -110,6 +110,7 @@ later slices remain planned.
 | 46 | [Install into a chosen work area](PR-46-installer-adoption.md) | Rework | ✅ landed | 45 |
 | 48 | [Feature reads through external path aliases](PR-48-feature-path-aliases.md) | Repair | ✅ landed | 46 |
 | 49 | [Accurate Library cache diagnostics](PR-49-cache-diagnostics.md) | Repair | ✅ landed | 48 |
+| 50 | [Explicit Memory fact capture](PR-50-explicit-memory-capture.md) | Repair | ✅ landed | 49 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
