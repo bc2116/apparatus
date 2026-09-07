@@ -87,3 +87,28 @@ CI remains a delivery gate.
 These tests demonstrate local persistence, filesystem, SQLite and real-Git
 behavior. They do not certify model answers, native AI-app invocation, semantic
 search, cards, cloud/shared catalogs, project-source recovery or live sync.
+
+
+## Windows compensation follow-up
+
+Native Windows run `34054032427` reached the real restored-registration receipt
+failure boundary but left an empty `System/library` directory. Restore now closes
+settled file proofs and each created child anchor during reverse-order rollback,
+then closes that child's independent ownership proof before attempting its
+ancestor. Exact-object checks and nonrecursive directory removal remain intact.
+This follows the existing deployment compensation lifetime ordering.
+
+The real-filesystem regression now also creates a concurrent file during receipt
+failure and requires the complete remaining tree to preserve that addition while
+removing only the restored registration. The original no-addition case still
+requires exact equality with the pre-restore tree.
+
+The separate publication-mode fixture now limits its global `os.lstat` override
+to the publication assertion. Real ingest boundary checks run after restoration
+of normal stat behavior, and the expected cache-error message is asserted before
+checking anchor closure.
+
+The focused Library-boundary, managed-recovery and ingest suites passed locally.
+Independent review found no actionable defects in the repair. Full-suite results
+and exact-head native Windows checks are tracked on the pull request; a local
+pass does not establish the Windows outcome.
