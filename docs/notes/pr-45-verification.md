@@ -7,7 +7,10 @@ test used the native backslash spelling and failed despite the expected receipt
 being present. It now compares the relative POSIX spelling against a complete
 output line, preserving the real-Git receipt/order assertion. No production code
 changed. The focused case passed locally in 3.61 seconds; independent review
-accepted the change. Full local validation and a native Windows rerun are pending.
+accepted the change. After integrating the Library-card fixture repair, full
+`uv run pytest` passed **1,228 tests, 38 skipped in 500.70 seconds** against
+`2631c20`; the retained log is `apparatus-pr45-fixture-full-sep7.log`.
+A native Windows rerun is still required.
 
 Runtime work was authored on integrated PR-43, then rebased onto final PR-44
 `de7c8bee` at `a497c260`. Final PR-44 stock instruction migration is implemented.
