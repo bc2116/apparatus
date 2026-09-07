@@ -90,3 +90,45 @@ by PyPI. A successful build or setup is not native AI-app certification, which
 remains the separate R12 acceptance effort. Managed recovery does not include
 ordinary project files or registered originals, and a restored selection cannot
 recreate a missing source.
+
+
+## Windows bootstrap fixture repair
+
+The native bootstrap run `34054072972` reported nine failures, fourteen passes
+and one skip. Successful enrollment reached doctor, but eight failing paths
+reported `uv: null` despite finding uv. The fixture provided only `uv.cmd`;
+`shutil.which` recognizes that via PATHEXT, while the doctor's bare subprocess
+uses Windows executable lookup. The detector has no version-probe timeout, so
+its null-version fallback must not be called evidence of a detection timeout.
+
+The fixture now copies the already-required CI build tool's `uv.exe` into its
+isolated bin for the real wheel's read-only version probe. PowerShell's explicit
+`uv.cmd` installer collaborator remains selected by `Find-Uv`. Fresh-flow tests
+assert that report frontmatter exactly matches the isolated executable's version.
+Production installer, detection and report guards are unchanged. No downloads,
+live user installations, timeout increases or descendant changes were added.
+
+Independent lead review accepted the fixture correction and lookup precedence.
+Local bootstrap/wrapper checks passed **24 tests in 78.65 seconds**; the required
+full suite passed **1247 tests, 38 skipped in 528.24 seconds**. `git diff --check`
+passed. These local results do not establish the native Windows outcome.
+The separate complete-legacy test's 90-second Windows timeout is still
+unexplained; the native rerun must establish whether it persists. Its timeout
+and preservation assertions have not been weakened.
+
+
+## Final-doctor Git fixture follow-up
+
+Native Windows rerun `34057666784` reduced the previous nine failures to one
+failure, with 22 passes and one skip. The remaining initial-probe-miss case
+forced `GitPath` to null, which also excluded Git from the controlled PATH.
+For this fixture case only, the generated script now adds the already-installed
+Git executable's directory to that PATH while preserving the forced null initial
+probe. The final doctor still runs against the real wheel and real Git. Its
+available-snapshot assertion, all other cases, production installer and timeout
+remain unchanged. The earlier complete-legacy timeout did not recur in this run.
+
+The six-line fixture patch passed lead scope and executable-lookup review. Local
+normal-flow tests passed. Full-suite results and exact-head native Windows
+checks are tracked on the pull request; Windows must still verify the corrected
+case.

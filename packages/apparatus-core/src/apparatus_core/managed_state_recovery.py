@@ -932,7 +932,7 @@ class RestorePlan:
         self.history = None
         self.preimages: dict[str, Any | None] = {}
         self.parents: dict[str, Any] = {}
-        self.created_directories: list[tuple[Any, Any]] = []
+        self.created_directories: list[tuple[Any, Any, Any]] = []
         self.changes: list[Any] = []
         self.created_files: list[tuple[Any, Any]] = []
         self.receipt_transaction: SnapshotTransaction | None = None
@@ -983,7 +983,7 @@ class RestorePlan:
                         child, owned, _ = _anchor_child(current, parent_path, name)
                         self.parents[key] = child
                         if owned:
-                            self.created_directories.append((current, owned))
+                            self.created_directories.append((current, child, owned))
                     current, parent_path = self.parents[key], parent_path / name
                 proof, content = self.preimages[relative], self.files[relative]
                 if proof is None:
@@ -1020,16 +1020,26 @@ class RestorePlan:
                         change.rollback()
                 except Exception as error:
                     errors.append(error)
+                finally:
+                    change.close()
             for anchor, owned in reversed(self.created_files):
                 try:
                     anchor.unlink_owned_if_present(owned)
                 except Exception as error:
                     errors.append(error)
-            for parent, owned in reversed(self.created_directories):
+                finally:
+                    owned.close()
+            for parent, child, owned in reversed(self.created_directories):
+                # Windows defers deletion until all child and parent proofs
+                # close. Keep the exact owned-directory proof for removal,
+                # then release it before attempting the next ancestor.
+                child.close()
                 try:
                     parent.remove_owned_directory(owned)
                 except OSError:
                     pass  # preserve additions inside an invocation-created directory
+                finally:
+                    owned.close()
             if errors:
                 raise SnapshotError("Restore failed; concurrent changes were preserved and compensation was incomplete.") from errors[0]
             raise
@@ -1064,7 +1074,9 @@ class RestorePlan:
     def close(self) -> None:
         for change in self.changes:
             _close_nonraising(change)
-        for _, owned in self.created_files + self.created_directories:
+        for _, owned in self.created_files:
+            _close_nonraising(owned)
+        for _, _, owned in self.created_directories:
             _close_nonraising(owned)
         for proof in self.preimages.values():
             _close_nonraising(proof)
