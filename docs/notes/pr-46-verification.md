@@ -159,3 +159,25 @@ CLI outcome and original timeout streams. The targeted local case and focused
 failure-path oracle passed; the current full suite and native result are tracked
 on the pull request. Production behavior, ownership checks and preservation
 assertions remain unchanged. No timeout fix or signed installer is established.
+
+## Windows binding setup cost and focused repair
+
+The native profile at `4de59af`, run `34157824826`, completed the adopted init
+in 120.439 profiled seconds. `_win_kernel` ran 1,004,542 times and accounted for
+73.096 cumulative seconds configuring the same system-library bindings. These
+are profiled durations, not uninstrumented performance measurements.
+
+The repair caches only the configured `kernel32` library and function signatures.
+The platform guard still runs on every access. Filesystem handles, paths, object
+identities, error values and validation results remain uncached. An AST comparison
+confirms the binding-configuration body is unchanged and every other existing
+function/class is unchanged. Concurrent first access may harmlessly configure
+more than one library object before the shared cache is populated.
+
+Portable tests verify binding reuse, platform rejection after cache warm-up, and
+retry after initialization failure. The focused filesystem suite passed 10 tests
+with one platform skip. Full-suite and native Windows results are tracked on the
+PR; a performance improvement is not established until the native run passes.
+The test profiler and 90-second limit are retained for that first verification.
+Existing Cursor evidence names its earlier wheel and is not relabeled as this
+new core build.

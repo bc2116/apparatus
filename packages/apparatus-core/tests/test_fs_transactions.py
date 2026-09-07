@@ -1,4 +1,6 @@
+import ctypes
 import os
+from types import SimpleNamespace
 
 import pytest
 from apparatus_core import fs_transactions
@@ -9,6 +11,107 @@ from apparatus_core.fs_transactions import (
     _same_windows_object,
     _win_share_mode,
 )
+
+
+class _FakeWin32Function:
+    argtypes = None
+    restype = None
+
+
+class _FakeKernel32:
+    def __init__(self):
+        for name in (
+            "CreateFileW",
+            "GetFileInformationByHandle",
+            "CloseHandle",
+            "ReadFile",
+            "WriteFile",
+            "FlushFileBuffers",
+            "SetFileInformationByHandle",
+            "ReplaceFileW",
+            "CreateHardLinkW",
+            "CreateDirectoryW",
+        ):
+            setattr(self, name, _FakeWin32Function())
+
+
+def _install_fake_win32_bindings(monkeypatch, factory):
+    from ctypes import wintypes
+
+    monkeypatch.setattr(fs_transactions, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(fs_transactions, "wintypes", wintypes, raising=False)
+    class ByHandleInformation(ctypes.Structure):
+        _fields_ = []
+
+    monkeypatch.setattr(
+        fs_transactions, "_ByHandleInformation", ByHandleInformation, raising=False
+    )
+    monkeypatch.setattr(fs_transactions.ctypes, "WinDLL", factory, raising=False)
+
+
+def test_windows_kernel_reuses_configured_process_bindings(monkeypatch):
+    calls = []
+    kernel = _FakeKernel32()
+
+    def fake_windll(name, *, use_last_error):
+        calls.append((name, use_last_error))
+        return kernel
+
+    fs_transactions._configured_win_kernel.cache_clear()
+    try:
+        _install_fake_win32_bindings(monkeypatch, fake_windll)
+
+        assert fs_transactions._win_kernel() is kernel
+        assert fs_transactions._win_kernel() is kernel
+        assert calls == [("kernel32", True)]
+        assert kernel.CreateFileW.argtypes is not None
+        assert kernel.CreateDirectoryW.restype is not None
+    finally:
+        fs_transactions._configured_win_kernel.cache_clear()
+
+
+def test_windows_kernel_checks_platform_after_cache_is_warm(monkeypatch):
+    calls = []
+    kernel = _FakeKernel32()
+
+    def fake_windll(name, *, use_last_error):
+        calls.append((name, use_last_error))
+        return kernel
+
+    fs_transactions._configured_win_kernel.cache_clear()
+    try:
+        _install_fake_win32_bindings(monkeypatch, fake_windll)
+        assert fs_transactions._win_kernel() is kernel
+        monkeypatch.setattr(fs_transactions, "os", SimpleNamespace(name="posix"))
+
+        with pytest.raises(OSError, match="Win32 filesystem operations"):
+            fs_transactions._win_kernel()
+
+        assert calls == [("kernel32", True)]
+    finally:
+        fs_transactions._configured_win_kernel.cache_clear()
+
+
+def test_windows_kernel_retries_failed_initialization(monkeypatch):
+    calls = []
+    kernel = _FakeKernel32()
+
+    def fake_windll(_name, *, use_last_error):
+        calls.append(use_last_error)
+        if len(calls) == 1:
+            raise OSError("kernel32 unavailable")
+        return kernel
+
+    fs_transactions._configured_win_kernel.cache_clear()
+    try:
+        _install_fake_win32_bindings(monkeypatch, fake_windll)
+
+        with pytest.raises(OSError, match="kernel32 unavailable"):
+            fs_transactions._win_kernel()
+        assert fs_transactions._win_kernel() is kernel
+        assert calls == [True, True]
+    finally:
+        fs_transactions._configured_win_kernel.cache_clear()
 
 
 def test_workspace_anchors_compare_containment_by_object_identity(tmp_path):
