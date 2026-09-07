@@ -154,7 +154,8 @@ or unrequested review occurs; existing preferences survive rerunning setup.
 
 ### R6 — Economizer and lightweight humanizer Skills
 
-**After R4; may be authored independently of R5.** Add small portable guidance
+**Implemented by PR-40 after R4a/PR-38 and R5/PR-39; native adapter evidence
+remains separate.** Add small portable guidance
 Skills. Economizer selects bounded native roles, capability/effort, team and
 retry limits within the spend preference. Check actual available controls and
 dated roster data. Keep judgment/review capable and a single-assistant fallback.

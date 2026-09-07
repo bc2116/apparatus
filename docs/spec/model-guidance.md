@@ -1,118 +1,70 @@
-# Model and Spend Guidance (v1)
+# Model and spend guidance
 
-- **Status:** Normative for workspace model-capability and effort guidance.
-- Governing decisions: ADR-0001 (vocabulary) and ADR-0003
-  (AI-app-independent contract).
+Normative under ADR-0006. Apparatus supplies portable instructions and dated
+starting data. It does not call, select or switch models, enforce quotas, or
+supply a separate executor.
 
-## Purpose and boundary
+## One operational body
 
-This guidance tells an assistant how much model capability and effort to apply
-to a piece of work. Apparatus supplies the guidance as data. It does not call,
-select, or switch models. The assistant applies the guidance using the controls
-its AI app provides.
+`.agents/skills/apparatus-economizer/SKILL.md` owns the operational instructions.
+`System/guidance/model-guidance.md` contains only the dated starting table and
+availability caveats. Neither a roster nor delegation is required. Simple work
+stays direct; one assistant can perform several roles.
 
-The stable rules below use roles, capability tiers, and effort settings rather
-than model names. Concrete names belong only in the dated roster described at
-the end of this specification.
+The existing profile values `frugal`, `balanced` and `thorough` are unchanged;
+absence defaults to `balanced`. Applying guidance does not rewrite a preference.
+Capability (`frontier`, `strong`, `fast`), effort (`low`, `medium`, `high`) and
+team size are separate choices. Capability labels describe relative options,
+not certified equivalents across providers. Unsupported effort controls remain
+unapplied; prose cannot emulate them. Use the AI app's exposed controls and
+report material limitations truthfully.
 
-## Stable terms
+The retained starting table is:
 
-### Roles
+| Spend | Lead | Optional worker | Reviewer |
+|---|---|---|---|
+| frugal | strong, medium | fast, low; fully checked mechanical work | strong, high |
+| balanced | strong, high | strong, medium | strong, high |
+| thorough | frontier, high | strong, high | frontier, high |
 
-- **lead:** orchestrates the work, synthesizes results, and verifies the final
-  deliverable.
-- **worker:** completes a bounded, delegated subtask.
-- **reviewer:** checks finished work against its stated requirements.
+A capable lead owns judgment and acceptance. It can evaluate every delegated
+result; review is at least as capable as authorship. Capability restrictions for
+policy, authority, migrations, recovery and active instructions apply regardless
+of spend and create no new approval gate. Small-team ceilings are one delegated
+assistant for frugal/balanced and two for thorough, excluding the lead; user and
+native limits take precedence. Workers do not start further teams.
 
-One assistant may perform more than one role. Roles describe responsibilities,
-not a requirement to delegate.
+## Bounded repair and truthful limits
 
-### Spend levels
+A delegated deliverable has a named completion check and, by default, an initial
+authoring attempt plus at most two delegated repair passes. A different explicit
+user budget or stricter task limit takes precedence. Reassignment and escalation
+consume the existing repair allowance. Deterministic verification commands do
+not consume delegated repair passes. Exhaustion stops new delegation; a capable
+lead may finish authorized work within the remaining user budget without a new
+approval question.
 
-- **frugal:** minimize cost by doing more work directly and delegating less.
-- **balanced:** use capable defaults for ordinary work. This is the default.
-- **thorough:** strengthen verification first, then authorship where warranted.
+Classify failures as ambiguity, platform/tool constraints, implementation defects
+or demonstrated capability shortfalls. Address the cause. Repeated capability
+failure may justify stronger authorship and matched review, without resetting
+the allowance. Time alone does not establish inadequate capability. Known explicit
+limits govern stopping; unknown usage is not zero or enforced. No background
+monitoring, automatic benchmark or claim of savings follows from this guidance.
+Routine routing produces no extra receipt or task-content log.
 
-The spend level chooses starting settings. Evidence from the current piece of
-work may justify a temporary escalation under the policy below.
+## Dated data and migration
 
-### Capability tiers
+The replaceable guidance carries a review date and a 90-day staleness window.
+Warn when data is stale; freshness proves neither availability nor execution.
+A concrete roster may be absent. Any future roster identifies applicable AI app,
+version evidence and its own review date; fictional selectable models are not
+shipped. Reviewed releases and optional pull/clone updates distribute changes;
+installs do not benchmark or self-calibrate.
 
-- **frontier:** the provider's most capable reasoning model.
-- **strong:** the provider's main workhorse.
-- **fast:** a small or latency-optimized model.
-
-The `fast` tier is permitted only for mechanical transformations whose complete
-output the lead checks. It is not suitable for interpretation, judgment, or
-independent verification.
-
-### Effort
-
-Effort is `low`, `medium`, or `high`. Apply it when the AI app exposes an effort
-control; otherwise treat it as advice about the care and checking the role
-requires.
-
-## Stable starting mapping
-
-The lead is never weaker than a worker whose work it verifies. A reviewer is at
-least as capable as the author it checks. In `frugal`, the lead handles
-substantive work directly; any worker assignment at the mapped `fast` tier is
-therefore limited to a fully checked mechanical transformation. In `thorough`,
-the reviewer and lead move to `frontier` before the drafting worker does.
-
-```yaml
-frugal:
-  lead: {tier: strong, effort: medium}
-  worker: {tier: fast, effort: low}
-  reviewer: {tier: strong, effort: high}
-balanced:
-  lead: {tier: strong, effort: high}
-  worker: {tier: strong, effort: medium}
-  reviewer: {tier: strong, effort: high}
-thorough:
-  lead: {tier: frontier, effort: high}
-  worker: {tier: strong, effort: high}
-  reviewer: {tier: frontier, effort: high}
-```
-
-## Reactive escalation
-
-The primary signal is a second blocking review cycle on the same deliverable.
-Run time beyond roughly twice the stated expectation is secondary,
-corroborating evidence only; elapsed time never triggers escalation by itself.
-These triggers are identical at every spend level: the spend level sets the
-starting point, while evidence adjusts it.
-
-Before escalating, classify the blocking findings:
-
-1. **Ambiguity:** if the task contract is unclear, fix the contract before
-   continuing. A stronger model cannot repair an unclear ask, and using one
-   hides the actual defect.
-2. **Capability:** if the contract is clear and the author cannot satisfy it,
-   raise the worker by one capability tier, one effort step, or both.
-
-When the author rises, the reviewer rises with it so the reviewer is never
-weaker than the author, and the re-review uses high effort. The escalation is
-sticky for the remainder of that piece of work and is noted in its receipt.
-Reset to the workspace spend level for the next piece of work; escalation never
-permanently ratchets the user's setting.
-
-Escalation is an economizing response. A lower-capability authorship pass
-followed by two rework cycles and repeated reviews costs more than one stronger
-authorship pass.
-
-## Roster contract
-
-A workspace guidance file may include a roster that maps the three capability
-tiers to models available in the user's AI app. Concrete model names may appear
-only in that roster. The roster must:
-
-- carry a last-reviewed date;
-- be marked advisory and replaceable;
-- list one current app choice for each tier where available; and
-- use a 90-day staleness window.
-
-Once the last-reviewed date is more than 90 days old, every roster entry is a
-hint rather than an instruction. The assistant then prefers the AI app's
-current equivalent for each tier. Editing or replacing the roster never changes
-the stable mapping or escalation policy.
+Init upgrades only exact recognized shipped guidance and instruction bytes,
+including deliberate LF/CRLF variants, through retained preimage checks. Custom
+guidance and profile choices remain unchanged. Generic shipped guidance may be
+installed during no-save; routing transcripts, task-derived Skills, Memory,
+cards, style profiles and automatic snapshots remain suppressed. Requested
+project output is still possible. Existing necessary operational evidence and
+native authority are unchanged.

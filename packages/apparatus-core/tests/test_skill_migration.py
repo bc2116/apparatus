@@ -15,12 +15,12 @@ from apparatus_core.overlays import OverlayPlan
 from apparatus_core.payload import PayloadError, shipped_payload
 from apparatus_core.retention import start_task
 from apparatus_core.skills import (
-    BUILTIN_PATHS, BUILTIN_SKILLS, SKILL_INDEX, canonical_path, legacy_pointer, validate_skill,
+    BUILTIN_PATHS, LEGACY_PROCEDURES, SKILL_INDEX, canonical_path, legacy_pointer, validate_skill,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures/instruction_updates_pr36"
 LEGACY = "System/procedures/welcome.md"
-CANONICAL = canonical_path(BUILTIN_SKILLS[LEGACY])
+CANONICAL = canonical_path(LEGACY_PROCEDURES[LEGACY])
 
 
 def arguments(root, *, task=None):
@@ -81,7 +81,7 @@ def test_pr36_upgrade_has_one_body_exact_pointers_and_repeat_is_unchanged(tmp_pa
     for relative, name in BUILTIN_PATHS.items():
         assert (root / relative).read_bytes() == (shipped_payload() / relative).read_bytes()
         assert not validate_skill((root / relative).read_bytes(), name)
-    for relative in BUILTIN_SKILLS:
+    for relative in LEGACY_PROCEDURES:
         assert (root / relative).read_bytes() == legacy_pointer(relative)
     assert (root / "System/README.md").read_bytes() == (shipped_payload() / "System/README.md").read_bytes()
     before = files(root)

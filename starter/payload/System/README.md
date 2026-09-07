@@ -26,3 +26,7 @@ controls remain in place during restore.
 Reusable workflows live in `.agents/skills/` at the work-area root. The Skill
 index in `AGENTS.md` tells your assistant which canonical `SKILL.md` to read.
 Legacy `procedures/` files may remain after an upgrade as compatibility pointers.
+
+`guidance/model-guidance.md` holds dated starting choices. The economizer Skill
+owns the delegation and repair guidance; the humanizer Skill provides one
+selective prose pass. Both live in the canonical Skill directory above.

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from apparatus_core.skills import (
-    BUILTIN_SKILLS, canonical_path, has_skill_index, is_legacy_pointer,
+    LEGACY_PROCEDURES, canonical_path, has_skill_index, is_legacy_pointer,
     legacy_pointer, SKILL_INDEX, valid_name, validate_skill,
 )
 
@@ -49,7 +49,7 @@ def test_invalid_directory_names_cannot_construct_canonical_paths(name):
 
 
 def test_legacy_pointer_recognition_requires_complete_exact_bytes():
-    for old, name in BUILTIN_SKILLS.items():
+    for old, name in LEGACY_PROCEDURES.items():
         pointer = legacy_pointer(old)
         assert canonical_path(name).encode() in pointer
         assert is_legacy_pointer(old, pointer)

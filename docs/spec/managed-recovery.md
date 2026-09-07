@@ -36,10 +36,14 @@ The following named UTF-8 files are included when present:
   `System/README.md`, and `System/guidance/model-guidance.md`.
 - `System/policy/standard.md` and `System/policy/private.md`.
 
-The five exact built-in `.agents/skills/NAME/SKILL.md` paths listed in the
+The seven exact built-in `.agents/skills/NAME/SKILL.md` paths listed in the
 [Skill specification](skills.md) are also included when present. They use
 portable Skill validation, not the legacy procedure schema. Capture, manifest
 membership and every reachable historical tree apply the same validation.
+Historical five-Skill and procedure snapshots remain valid without requiring
+later additions. Restore retains files absent from an older snapshot, including
+new or customized Skills. Init can then upgrade exact old stock guidance again;
+it preserves valid custom bodies. Missing new bodies remain actionable in check.
 Third-party Skills, optional resources beside a built-in body and project native
 adapters are outside coverage; `.agents/skills` is never recursively captured.
 

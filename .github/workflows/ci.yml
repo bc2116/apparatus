@@ -61,6 +61,8 @@ jobs:
           packages/apparatus-core/tests/test_skill_overlays.py
           packages/apparatus-core/tests/test_skill_recovery.py
           packages/apparatus-core/tests/test_task_first_welcome.py
+          packages/apparatus-core/tests/test_r6_skills.py
+          conformance/test_r6_guidance.py
           packages/apparatus-core/tests/test_memory_lifecycle.py
           packages/apparatus-core/tests/test_task_retention.py
           packages/apparatus-core/tests/test_memory_profile_retention.py

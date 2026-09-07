@@ -302,7 +302,7 @@ def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding],
     from apparatus_core.fs_transactions import WorkspaceAnchor
     from apparatus_core.payload import PayloadError, preflight_workspace_paths
     from apparatus_core.skills import (
-        BUILTIN_PATHS, BUILTIN_SKILLS, has_skill_index, is_legacy_pointer,
+        BUILTIN_PATHS, NEW_SKILL_PATHS, LEGACY_PROCEDURES, has_skill_index, is_legacy_pointer,
         is_shipped_skill_orientation, validate_skill,
     )
 
@@ -332,7 +332,7 @@ def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding],
                     findings.append(Finding("skill-path-unsafe", relative,
                                             "Keep the built-in Skill in regular work-area directories. " + repair))
 
-            for relative in ("AGENTS.md", "Welcome.md", "System/README.md", *BUILTIN_SKILLS):
+            for relative in ("AGENTS.md", "Welcome.md", "System/README.md", *LEGACY_PROCEDURES):
                 if rules.matches(relative):
                     # Absence and hidden installation evidence are different.
                     try:
@@ -354,7 +354,7 @@ def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding],
                     findings.append(Finding("skill-evidence-unreadable", relative,
                                             "Make this workflow evidence a readable regular file. " + repair))
                     continue
-                if relative in BUILTIN_SKILLS:
+                if relative in LEGACY_PROCEDURES:
                     legacy[relative] = content
                     installed |= is_legacy_pointer(relative, content)
                 else:
@@ -366,7 +366,8 @@ def _skill_findings(workspace: Path, rules: IgnoreRules) -> tuple[list[Finding],
                         continue
                     try:
                         if not directories[relative] or not anchor.entry_exists(relative):
-                            findings.append(Finding("skill-missing", relative, repair))
+                            findings.append(Finding("skill-missing", relative,
+                                                    ("Upgrade the built-in Skill set. " if relative in NEW_SKILL_PATHS else "") + repair))
                             continue
                         if not _safe_shim_file(anchor.workspace, relative):
                             raise OSError("unsafe Skill endpoint")

@@ -9,30 +9,40 @@ work_types:
     - .agents/skills/apparatus-research-and-summarize/SKILL.md
     - .agents/skills/apparatus-review-against-checklist/SKILL.md
     - .agents/skills/apparatus-weekly-review/SKILL.md
+    - .agents/skills/apparatus-economizer/SKILL.md
+    - .agents/skills/apparatus-humanizer/SKILL.md
   quality:
     - .agents/skills/apparatus-welcome/SKILL.md
     - .agents/skills/apparatus-produce-deliverable/SKILL.md
     - .agents/skills/apparatus-research-and-summarize/SKILL.md
     - .agents/skills/apparatus-review-against-checklist/SKILL.md
     - .agents/skills/apparatus-weekly-review/SKILL.md
+    - .agents/skills/apparatus-economizer/SKILL.md
+    - .agents/skills/apparatus-humanizer/SKILL.md
   project-management:
     - .agents/skills/apparatus-welcome/SKILL.md
     - .agents/skills/apparatus-produce-deliverable/SKILL.md
     - .agents/skills/apparatus-research-and-summarize/SKILL.md
     - .agents/skills/apparatus-review-against-checklist/SKILL.md
     - .agents/skills/apparatus-weekly-review/SKILL.md
+    - .agents/skills/apparatus-economizer/SKILL.md
+    - .agents/skills/apparatus-humanizer/SKILL.md
   support:
     - .agents/skills/apparatus-welcome/SKILL.md
     - .agents/skills/apparatus-produce-deliverable/SKILL.md
     - .agents/skills/apparatus-research-and-summarize/SKILL.md
     - .agents/skills/apparatus-review-against-checklist/SKILL.md
     - .agents/skills/apparatus-weekly-review/SKILL.md
+    - .agents/skills/apparatus-economizer/SKILL.md
+    - .agents/skills/apparatus-humanizer/SKILL.md
   writing:
     - .agents/skills/apparatus-welcome/SKILL.md
     - .agents/skills/apparatus-produce-deliverable/SKILL.md
     - .agents/skills/apparatus-research-and-summarize/SKILL.md
     - .agents/skills/apparatus-review-against-checklist/SKILL.md
     - .agents/skills/apparatus-weekly-review/SKILL.md
+    - .agents/skills/apparatus-economizer/SKILL.md
+    - .agents/skills/apparatus-humanizer/SKILL.md
 default:
   privacy_mode: standard
   work_types:

@@ -10,7 +10,7 @@ from apparatus_core.overlays import (
     load_manifest, plan_overlay,
 )
 from apparatus_core.payload import shipped_payload
-from apparatus_core.skills import BUILTIN_PATHS
+from apparatus_core.skills import BUILTIN_PATHS, NEW_SKILL_PATHS
 
 
 def source(tmp_path):
@@ -43,10 +43,11 @@ def test_native_overlay_preserves_custom_body_and_unrelated_resources(tmp_path):
 
 
 @pytest.mark.parametrize("valid", [False, True])
-def test_deselection_preserves_valid_custom_skill_and_rejects_invalid_occupant(tmp_path, valid):
+@pytest.mark.parametrize("first", [next(iter(BUILTIN_PATHS)), *NEW_SKILL_PATHS])
+def test_deselection_preserves_valid_custom_skill_and_rejects_invalid_occupant(tmp_path, valid, first):
     payload, path = source(tmp_path)
     stock = load_manifest(path, payload)
-    first, *others = BUILTIN_PATHS
+    others = [path for path in BUILTIN_PATHS if path != first]
     manifest = OverlayManifest(stock.privacy_modes, {"one": (first,), "others": tuple(others)},
                                "standard", ("one",))
     area = tmp_path / "area"

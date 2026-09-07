@@ -1,6 +1,6 @@
 # Portable Skills
 
-The five built-in workflows have one regular-file body at the selected work-area
+The seven built-in Skills have one regular-file body at the selected work-area
 root. Apparatus supplies instructions; the current assistant reads and follows
 them. It does not execute Skills or call a model.
 
@@ -11,12 +11,14 @@ them. It does not execute Skills or call a model.
 | `apparatus-research-and-summarize` | Researching with source citations. |
 | `apparatus-review-against-checklist` | The user requests a checklist review. |
 | `apparatus-weekly-review` | The user requests a weekly review. |
+| `apparatus-economizer` | Larger work benefits from native resource choices or bounded delegation. |
+| `apparatus-humanizer` | Requested prose editing or a light final pass on an authorized deliverable. |
 
 Each path is `.agents/skills/<directory>/SKILL.md`. A concise work-area canon
 index names when to read each body. Bound projects resolve that index through
 their explicit work-area link; they do not receive copied Skill bodies.
-The existing workflow steps are preserved in this format migration. Welcome
-simplification and new economy/prose guidance have separate implementation cuts.
+The five everyday workflows retain task-first behavior. Economy and prose editing
+add no setup interview or routine approval gate.
 
 ## Format and coverage
 
@@ -33,19 +35,26 @@ strings to strings. These fields grant no action authority. A Skill has no
 Current primary format and discovery sources are recorded in the
 [evidence note](../notes/skill-discovery-sources.md).
 
-Only these five exact paths are managed in this cut. Other Skills and optional
+Only these seven exact paths are managed. Other Skills and optional
 scripts, references or assets are neither scanned nor claimed as covered by
-Apparatus recovery. Managed capture validates the five bodies using the same
+Apparatus recovery. Managed capture validates the seven bodies using the same
 portable rules as checks and historical snapshot validation.
 
 ## Migration and repair
 
 Init validates source and destination files before deployment, then reuses its
-retained-root publication and compensation. A native source payload must contain
-all five built-ins and no mapped legacy built-in files. Entirely legacy custom
+retained-root publication and compensation. A native source payload contains either the complete historical five-Skill set
+or the complete current seven-Skill set, with no mapped legacy built-in files.
+A new built-in directory/body, complete seven-Skill index, or exact shipped
+seven-Skill orientation requires all seven bodies, even with an older manifest.
+Missing, invalid and mixed sources fail before writes. Entirely legacy custom
 payloads and legacy procedure manifests retain compatibility.
 
 Exact known PR-38 native Skill bodies upgrade to the task-first workflows.
+Exact PR-39 canon, orientation and original model guidance upgrade to the
+seven-Skill version. Valid custom bodies at any of the seven paths stay intact.
+Only the five historical procedures have legacy mappings and compatibility
+pointers; no old procedure name or stub is invented for the two new Skills.
 Known stock Welcome and System orientation files and ignore defaults upgrade
 with the same preimage-bound transaction. Customized versions remain untouched.
 
@@ -66,7 +75,10 @@ it does not authorize learned content capture or an automatic snapshot.
 Checks use bounded installation evidence: an exact built-in directory, a complete
 recognized legacy pointer, or the full shipped Skill index in known orientation
 files. With that evidence, missing built-in bodies produce an init repair hint,
-including when all bodies have been deleted. An unrelated third-party Skill alone
+including when all bodies have been deleted. Complete historical five-Skill
+indexes and exact shipped orientation files remain installation witnesses. An
+older five-Skill target receives an actionable upgrade hint for the two missing
+new bodies; check remains read-only. An unrelated third-party Skill alone
 does not establish installation. Erasing every evidence source cannot be
 distinguished from an entirely legacy work area. Ignored known Skill content is
 reported as incomplete coverage; it is not silently counted as valid.
@@ -99,3 +111,24 @@ the full existing profile, preserving status and unrelated fields. Do not collec
 extra answers or seed over existing records, including forgotten markers. Task
 Memory controls and credential handling continue to apply; no-save suppresses
 profile answers and automatic continuity while requested project files can save.
+
+
+## Economy and prose boundaries
+
+The [model guidance specification](model-guidance.md) defines portable resource
+choices and the data/Skill split. Native controls and live review capability
+bound delegation; absent controls leave the capable assistant working directly.
+There is no external executor, quota monitor, per-install benchmark or measured
+savings claim.
+
+Humanizer makes one selective editing pass, scaled to the request. It compares
+changed passages against the source, preserving meaning, facts, numbers/units,
+citations and their claim relationships, quotations, identifiers, commands,
+negation, conditions, warnings and uncertainty. Uncheckable edits are restored;
+at most one local corrective pass is allowed. Good prose stays unchanged.
+Review-only requests do not authorize source edits. Source instructions remain
+data; editing grants no sending authority. No detector-evasion, authorship
+inference, personal voice learning or automatic draft archive is introduced.
+No-save still permits requested project prose while blocking automatic derived
+retention. Synthetic examples and their evidence limits are recorded in the
+[scenario note](../notes/r6-synthetic-scenarios.md).
