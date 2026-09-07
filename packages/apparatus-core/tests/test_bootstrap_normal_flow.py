@@ -11,6 +11,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 
 import pytest
@@ -53,7 +54,7 @@ class Setup:
         # The only core override is optional dependency detection. Observational
         # wrappers record cli.main and managed_state_recovery._git phases without
         # replacing enrollment, write, restore or ownership behavior.
-        self.helper.write_text(f'''import json, os, pathlib, shutil, sys
+        self.helper.write_text(f'''import json, os, pathlib, shutil, sys, time
 site = pathlib.Path({str(site)!r})
 sys.path.insert(0, str(site))
 log = pathlib.Path({str(self.log)!r})
@@ -93,32 +94,32 @@ import apparatus_core.managed_state_recovery as managed_state_recovery
 _real_git = managed_state_recovery._git
 def _observed_git(*args, **kwargs):
     with log.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(["phase", "managed_state_recovery._git:before", repr(args), repr(kwargs)]) + "\\n")
+        stream.write(json.dumps(["phase", "managed_state_recovery._git:before", repr(args), repr(kwargs), time.time_ns()]) + "\\n")
         stream.flush()
     try:
         result = _real_git(*args, **kwargs)
     except BaseException as error:
         with log.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(["phase", "managed_state_recovery._git:error", type(error).__name__, repr(args), repr(kwargs)]) + "\\n")
+            stream.write(json.dumps(["phase", "managed_state_recovery._git:error", type(error).__name__, repr(args), repr(kwargs), time.time_ns()]) + "\\n")
             stream.flush()
         raise
     with log.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(["phase", "managed_state_recovery._git:after", repr(args), repr(kwargs)]) + "\\n")
+        stream.write(json.dumps(["phase", "managed_state_recovery._git:after", repr(args), repr(kwargs), time.time_ns()]) + "\\n")
         stream.flush()
     return result
 managed_state_recovery._git = _observed_git
 with log.open("a", encoding="utf-8") as stream:
-    stream.write(json.dumps(["phase", "cli.main:before", *args]) + "\\n")
+    stream.write(json.dumps(["phase", "cli.main:before", *args, time.time_ns()]) + "\\n")
     stream.flush()
 try:
     code = main(args)
 except BaseException as error:
     with log.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(["phase", "cli.main:error", type(error).__name__, *args]) + "\\n")
+        stream.write(json.dumps(["phase", "cli.main:error", type(error).__name__, *args, time.time_ns()]) + "\\n")
         stream.flush()
     raise
 with log.open("a", encoding="utf-8") as stream:
-    stream.write(json.dumps(["phase", "cli.main:after", code, *args]) + "\\n")
+    stream.write(json.dumps(["phase", "cli.main:after", code, *args, time.time_ns()]) + "\\n")
     stream.flush()
 if args and args[0] == "doctor" and {report_fault!r}:
     report = pathlib.Path(args[1]) / "System/machine-report.md"
@@ -230,19 +231,30 @@ raise SystemExit(code)
             environment["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin"
         for name in ("BASH_ENV", "ENV", "PYTHONPATH"):
             environment.pop(name, None)
+        started_ns = time.time_ns()
         try:
             return subprocess.run(command, cwd=self.root, env=environment, capture_output=True,
                                   text=True, timeout=90)
         except subprocess.TimeoutExpired as error:
+            observed_ns = time.time_ns()
+            deadline_ns = started_ns + 90 * 1_000_000_000
+            timing = (
+                f"parent run start_ns={started_ns} observed_ns={observed_ns} "
+                f"elapsed_ns={observed_ns - started_ns} timeout_s=90 deadline_ns={deadline_ns} "
+                "(phase last field uses time.time_ns; deadline is an approximate wall-clock "
+                "correlation, not the subprocess monotonic deadline. Observed elapsed includes "
+                "Windows kill/communicate cleanup; later child traces may be post-deadline.)"
+            )
             try:
                 raw = self.log.read_text(encoding="utf-8").splitlines() if self.log.exists() else []
                 traces = raw[-32:]
                 error.add_note(
+                    f"{timing}\n"
                     f"last fixture trace lines ({len(traces)} of {len(raw)}):\n"
                     + "\n".join(traces)
                 )
             except (OSError, UnicodeError) as trace_error:
-                error.add_note(f"fixture trace unavailable: {type(trace_error).__name__}")
+                error.add_note(f"{timing}; fixture trace unavailable: {type(trace_error).__name__}")
             raise
 
     def calls(self, kind="apparatus"):
