@@ -109,6 +109,7 @@ later slices remain planned.
 | 45 | [Quiet operations and concrete repair guidance](PR-45-quiet-operations.md) | Rework | ✅ landed | 44 |
 | 46 | [Install into a chosen work area](PR-46-installer-adoption.md) | Rework | ✅ landed | 45 |
 | 48 | [Feature reads through external path aliases](PR-48-feature-path-aliases.md) | Repair | ✅ landed | 46 |
+| 49 | [Accurate Library cache diagnostics](PR-49-cache-diagnostics.md) | Repair | ✅ landed | 48 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

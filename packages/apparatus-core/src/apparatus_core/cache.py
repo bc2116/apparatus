@@ -26,13 +26,22 @@ def library_cache_root(workspace: str | Path, *, create: bool = True) -> Path:
     # This guards a component created between the first lstat and mkdir.
     if is_reparse_path(library) or cache.resolve(strict=False).parent != library.resolve(strict=False):
         raise ValueError("Library cache path must not contain symbolic links")
-    if create and os.name == "posix":
+    if create:
         try:
-            _mkdir_private_cache(home, workspace_id)
+            if os.name == "posix":
+                _mkdir_private_cache(home, workspace_id)
+            else:  # pragma: no cover - exercised by native Windows tests
+                cache.mkdir(parents=True, exist_ok=True)
+        except PermissionError as error:
+            raise ValueError(
+                "Library cache access was denied. Set APPARATUS_HOME to a writable "
+                "directory outside the work area that your AI app can access, then retry."
+            ) from error
         except OSError as error:
-            raise ValueError("Library cache path must not contain symbolic links") from error
-    elif create:  # pragma: no cover - protected by the Windows reparse checks above
-        cache.mkdir(parents=True, exist_ok=True)
+            raise ValueError(
+                "Library cache could not be created safely. Check available storage "
+                "and the configured APPARATUS_HOME directory, then retry."
+            ) from error
     if is_reparse_path(cache) or cache.resolve(strict=False).parent != library.resolve(strict=False):
         raise ValueError("Library cache path must not contain symbolic links")
     return cache.resolve(strict=False)

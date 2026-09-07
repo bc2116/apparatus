@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 from pathlib import Path
 import shutil
@@ -494,3 +495,40 @@ def test_invalid_record_character_count_reextracts(monkeypatch, tmp_path):
     result = ingest_library(workspace); record = result.cache / "extractions/a.txt.json"
     data = json.loads(record.read_text()); data["character_count"] = 99; record.write_text(json.dumps(data))
     assert ingest_library(workspace).counts["extracted"] == 1
+
+
+@pytest.mark.parametrize("code", [errno.EACCES, errno.EPERM, errno.ENOSPC])
+@pytest.mark.parametrize("stage", ["home", "retained-child"])
+def test_cache_creation_faults_report_action_without_os_details(monkeypatch, tmp_path, code, stage):
+    if stage == "retained-child" and os.name != "posix":
+        pytest.skip("POSIX retained dir-fd creation boundary")
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    home = (tmp_path / "cache-home").resolve()
+    monkeypatch.setenv("APPARATUS_HOME", str(home))
+    original_mkdir = os.mkdir
+    observed = []
+
+    def fail_creation(path, *args, **kwargs):
+        selected = (path == "library" and kwargs.get("dir_fd") is not None
+                    if stage == "retained-child" else Path(path) == home)
+        if selected:
+            observed.append(path)
+            raise OSError(code, "synthetic-private-error", "synthetic-private-path")
+        return original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(cache_module.os, "mkdir", fail_creation)
+    with pytest.raises(ValueError) as caught:
+        library_cache_root(workspace)
+    message = str(caught.value)
+    assert len(observed) == 1, "creation must not retry or relocate the cache"
+    assert caught.value.__cause__.errno == code
+    assert "APPARATUS_HOME" in message and "then retry" in message
+    assert "symbolic link" not in message
+    assert "synthetic-private" not in message and str(home) not in message
+    if code in (errno.EACCES, errno.EPERM):
+        assert "access was denied" in message and "outside the work area" in message
+    else:
+        assert "could not be created safely" in message and "storage" in message
+    assert not (home / "library").exists()
+    assert list(workspace.iterdir()) == []
