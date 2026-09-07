@@ -1,15 +1,18 @@
 # Certification matrix — DRAFT
 
-Updated 2026-09-07. **No reworked core app certification is complete.** These are
+Updated 2026-09-07. **No reworked core app certification or lean RC compatibility
+gate is complete.** These are
 partial observations of named local builds, not a signed public release or a
 support promise. Held PR24 results cover their original payload.
 
-Release status: **Cursor-tested local preview; no signed public RC.** The eleven
-remaining Cursor scenario groups have now been exercised on the September 7
-build: ten passed and one retains a browsing qualification. Earlier qualified
+Release status: **Cursor-tested local preview; no signed public RC.** Fourteen
+Cursor runs exercised eleven remaining scenario groups on the September 7 build:
+ten passed and one retains its browsing qualification. Earlier qualified
 plan/refresh observations remain qualified. Windows legacy-folder adoption still
-times out in required CI; diagnostic changes are being checked separately in
-PR46. Signing is unconfigured and final-build three-app certification is incomplete.
+has a dated historical timeout record, but PR46 merged as `5ae3a8c6ea07fc3e768a51a594a6097b6285f0ee`
+after all four required CI checks passed in run `34159231921`, including the
+unchanged 90-second Windows bootstrap and Windows safety checks. Signing is
+unconfigured and the final-build named-app RC gate is incomplete.
 
 ## September 6 repaired build — historical first-task smokes
 
@@ -18,7 +21,7 @@ PR46. Signing is unconfigured and final-build three-app certification is incompl
 - Payload ZIP SHA-256: `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`.
 
 This PR49 build was the September 6 checkpoint baseline. Only bounded shared-root
-first-task smokes were completed before the checkpoint; no six-step result
+first-task smokes were completed before the checkpoint; no lean-RC result
 is carried forward from earlier builds. Each app uses an explicit fixture cache,
 so these smokes do not verify the default-cache environment.
 
@@ -46,7 +49,8 @@ return no changes and a final optional Library offer; no acceptance followed.
 Direct comparison verified all 67 preexisting work-area files and 28 project Git
 files unchanged. Nine reads were observed, but the exact canonical Skill body
 was not verified in this case. See [Cursor run record and artifact hashes](evidence/cursor-ide-2026-09-06-pr49/run.json).
-Those September 6 runs stopped at this partial checkpoint. **No app is certified.**
+Those September 6 runs stopped at this partial checkpoint. **No app is certified
+or lean-RC compatible.**
 
 ## Sep 7 build — bounded Cursor fragments
 
@@ -139,7 +143,7 @@ observed final replies from independently verified persisted files and inventori
 Native permission settings, default-cache installation and provider retention were
 not assessed. The earlier plan/refresh qualifications are preserved.
 
-These are fragments: no complete six-step Cursor row or three-app certification
+These are fragments: no complete two-chat Cursor row or named-app lean RC gate
 is claimed. Older common three-app observations at core `1e50521…` remain
 historical evidence and are not relabeled as this build.
 
@@ -153,11 +157,11 @@ This build includes PR48. A default-cache diagnostic defect observed during a
 Codex run led to PR49. These observations remain attached to the exact earlier
 build; successful fragments and workarounds are not relabeled as repaired runs.
 
-## Earlier-build six-step coverage
+## Earlier-build historical coverage
 
 | AI app / exact variant | Inventory on macOS 27.0 | Observed fragments | Overall | Missing evidence |
 | --- | --- | --- | --- | --- |
-| Codex desktop, local folder | Version not recorded | Not run | Not certified | Actual session, version and all six cases |
+| Codex desktop, local folder | Version not recorded | Not run | Not certified | Actual session, version, and two RC chats on the final payload |
 | Codex CLI | 0.153.4 | Shared-root and bound outputs; Fact/guide; Library card after cache workaround | Not certified | Correct final reporting, clean configuration, complete cases on final build |
 | Claude Code terminal CLI | 2.1.263 | Root/bound outputs; no-save and requested exceptions; Library offer/decline/card/missing original | Not certified | Correct final reporting, Memory/Skills and complete final-build cases |
 | Cursor IDE Agent | 3.18.25 | Shared-root plan; Fact/guide and accepted Library card | Not certified | Bound opening, negatives and complete cases on final build |
@@ -239,10 +243,14 @@ See [normalized run evidence](evidence/cursor-ide-2026-09-06-pr46/run.json),
 [actual saved plan](evidence/cursor-ide-2026-09-06-pr46/project-a/workshop-plan.md).
 This earlier baseline remains diagnostic after repair; no app is certified.
 
-No certified row may omit dated version/OS, shared build identifiers or a
-passing required case. Testing a variant does not certify its siblings. Optional
-native discovery/delegation, package composition, publisher signatures and live
-release publication remain separate evidence.
+No RC-compatible row may omit dated app/variant, version, model, OS/version,
+shared build identifiers, persisted artifacts, hashes, or a passing required
+chat. Testing a variant does not cover its siblings. Scripts, metadata, menus,
+and automated core/conformance results cannot establish assistant behavior.
+Optional native discovery/delegation, installer install-and-repair evidence per
+supported OS, package composition, publisher signatures, and live release
+publication remain separate evidence. Windows ARM64 VM evidence must be labelled
+and cannot replace required x64 evidence.
 
 ## Existing metadata-only observations
 

@@ -15,8 +15,10 @@ PR-40 implements R6: economical native work and selective prose editing.
 PR-41 implements R7: draft and review-bound adoption of learned Skills.
 PR-46 implements R11 installer routing and explicit adoption on the integrated
 PR-45 core, with separate native setup/release evidence.
-PR-47 is in progress: [actual app certification](../certification/matrix.md) is
-incomplete and depends on PR-49, including the PR-48 external path-alias repair. Native discovery adapters remain planned.
+PR-47 is in progress: the lean [actual-app RC compatibility gate](../certification/matrix.md)
+is incomplete and depends on PR-49, including the PR-48 external path-alias
+repair. It requires two actual chats for each named app/variant, not inferred
+behavior from scripts; native discovery adapters remain planned.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
 

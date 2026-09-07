@@ -4,8 +4,8 @@ Prepared 2026-09-07 for PR47. The latest integrated build observed in Cursor is 
 `b1290082707322b1e1ab7ba77dda2ddff67f6224`, version `0.0.1`, payload SHA-256
 `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`, and
 wheel SHA-256 `9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054`.
-Cursor has now exercised the eleven remaining scenario groups on this build:
-ten passed and the partial-PDF case retains a browsing qualification. Earlier
+Fourteen Cursor runs exercised eleven remaining scenario groups on this build:
+ten passed and the partial-PDF case retains its browsing qualification. Earlier
 plan/refresh observations retain their qualifications; certification is incomplete. Earlier
 PR46 and PR48 failures, fragments and cache workarounds remain dated observations;
 they do not complete this checklist. No signed release or app certification is
@@ -26,14 +26,10 @@ Prepare enrollment/adoption and explicit project binding with current core;
 retain relative paths only in shared evidence. Cases below are instructions
 for future authorized execution, not recorded results.
 
-| Step | Future action and observable pass condition | Evidence to retain |
+| Chat | Future action and observable pass condition | Evidence to retain |
 | --- | --- | --- |
-| 1. Finish useful work | Open the shared root, then an explicitly bound sibling project in a separate case. Ask for `project-a/workshop-plan.md` from the supplied source, with source references and unknowns. It lands in that project, respects the two-session/12-place/break constraints, identifies the undecided venue, and preserves sentinels. No setup interview, forced central folder or added Apparatus approval interrupts completion; native permission prompts remain valid. | Source/output bytes and hashes, selected root/binding, actual command results, minimal assistant text needed to show questions or completion. |
-| 2. Control Memory | In a saving task, retain the sourced session count, then explicitly correct it to three using an updated synthetic source. Recall must not present two as current. In a fresh don't-save task, request another project deliverable and prove Memory, learned Skills, cards and activity notes unchanged. Test explicit Library and snapshot exceptions in separate cases; permission for one does not authorize other automatic retention. | Record before/after and recall citations; separate task controls; before/after file inventory for no-save; actual exception results. No provider-retention or historical-erasure claim. |
-| 3. Keep one Library | Complete reusable work and observe one brief optional addition offer. Independent decline case: completion stands and nothing is added. Acceptance case: register original and have the current assistant supply a grounded card through current commands; no copied original or symlink. Independently change, remove and ignore an original, plus test partial/unsupported extraction. Stale/missing/ignored content supplies no current snippets or unsupported answer. Card prose never becomes its own evidence. | Original/registration/card paths and hashes; minimal offer/reply; extraction/status/coverage results; grounded claims checked against original bytes. |
-| 4. Use portable Skills | Ask for real research/deliverable work and a small prose edit. Identify the sole canonical Skill body actually read. Offer one learned draft, review its exact bytes once, adopt them and demonstrate later file-reading use; draft alone stays inactive. If native delegation exists, observe bounded roles, capability/effort and stopping; otherwise use one assistant successfully. No cross-CLI executor. | Body identifier/hash, concrete output satisfying instructions, reviewed/adopted digest and ownership, optional native controls actually used. Menu visibility alone proves none of this. |
-| 5. Recover covered state | Save a real managed snapshot, alter a managed synthetic record, restore it and verify the exact record plus unchanged ordinary project files/originals. Export one-way backup and inspect declared coverage. In a separate case remove an original and restore its catalog: original stays missing and retrieval reports the gap. Exercise unavailable Git separately with an actionable outcome. | Actual snapshot/restore/export IDs, commands, hashes and archive inventory; surviving live task flags; recovery receipts; unavailable-case result. Git presence alone is not a saved point. |
-| 6. Stay quiet | Run ordinary check, recall and extraction; no new routine receipts. Perform a real repair and synthetic credential-redacting managed write; retain required redaction/repair/recovery evidence without the credential value. Make an authorized local copy/move/export of the synthetic deliverable with no extra Apparatus sharing review. No sending, upload or publication is needed. | Before/after receipt inventory, existing history hashes, safe diagnostic/action, changed files and minimal interaction evidence. |
+| 1. Task-first | In an explicitly bound project, ask for `project-a/workshop-plan.md` from the supplied source, with source references and unknowns. It must preserve sentinels, record one sourced Memory fact, and use the canonical Skill body. A Library-registration offer is optional; if accepted, the original stays project-local and its card is grounded. No setup interview, forced central folder, or added Apparatus approval interrupts completion. | Exact app/variant, version, model, OS/version, root/binding, actual prompt, source/output/Skill bytes and hashes, Memory citation, optional registration/card hashes, and minimal assistant text. |
+| 2. Fresh recall | In a fresh conversation for the same bound project, ask for a requested deliverable that recalls the first chat's context with citations. Set no-save and prove no automatic Memory, learned-Skill, Library-card, or activity-note capture. Deliberately omit one fact and require abstention rather than invention. | Exact environment identity; fresh-chat proof; cited recall and saved output; before/after retention inventory; missing-evidence prompt and abstention; persisted-artifact and hash oracles. |
 
 The Sep 7 Cursor no-save fragment is recorded in
 [`cursor-ide-2026-09-07-memory-controls`](evidence/cursor-ide-2026-09-07-memory-controls/run.json):
@@ -41,11 +37,12 @@ the requested `project-b/private-workshop-note.md` was the only added file and
 all 140 preexisting files were unchanged. The separately opened bound-project
 fragment is recorded in
 [`cursor-ide-2026-09-07-bound-project`](evidence/cursor-ide-2026-09-07-bound-project/run.json).
-Neither record supplies the remaining Library, Skill, recovery, quiet-action or
-negative cases required for a six-step pass.
+Neither record supplies the two complete lean-RC chats required for a compatible
+app/variant row.
 The separately requested [no-save Library and snapshot exceptions](evidence/cursor-ide-2026-09-07-no-save-exceptions/run.json)
 also passed in independent fresh chats; their scope does not complete the
-distinct full Library or recovery steps.
+older full Library or recovery checklist. Those older steps are historical
+coverage categories, not additional chats required by the lean RC gate.
 The [shared-root guide and Library decline](evidence/cursor-ide-2026-09-07-shared-root/run.json)
 also passed, including observed canonical Humanizer use. A later independent
 [Library acceptance](evidence/cursor-ide-2026-09-07-library-acceptance/run.json)
@@ -69,13 +66,17 @@ mentioned unsupported `APPARATUS_TASK_ID`; task binding requires the global
 `--task ID` option. An environment annotation alone proves no binding. Later
 missing/ignored commands explicitly used the assigned task option.
 
-For every step and independent case, record setup, exact action/prompt, expected
+For every chat and independent case, record setup, exact action/prompt, expected
 result, actual result, relative evidence paths, and **pass / fail / partial /
 unavailable / not run**. Use only the minimal synthetic assistant excerpts needed
 to establish behavior; do not export raw conversations or private app state.
-A step passes only when all its required cases have evidence. A partial or
-unavailable required case cannot silently become a pass. Full certification
-requires six passing steps for the same final payload in at least three actual
-AI apps. Separate desktop, CLI and IDE variants; optional discovery/delegation
-observations do not substitute for these steps. Defects get concrete reports
-and separate repairs; this checklist does not change core or payload behavior.
+A chat passes only when its required outcomes have evidence. A partial or
+unavailable requirement cannot silently become a pass. The lean RC gate requires
+two passing chats on the same final payload for each named app/variant: Cursor
+IDE, Codex desktop, and the actually available Claude Code variant. Separate
+desktop, CLI, and IDE variants; optional discovery/delegation observations do
+not substitute for actual chats. Automated core/conformance mechanics run once;
+each supported OS also needs one installer install-and-repair pass. Label Windows
+ARM64 VM evidence explicitly; it cannot replace required x64 evidence. Actual assistant
+behavior cannot be inferred from scripts. Defects get concrete reports and
+separate repairs; this checklist does not change core or payload behavior.

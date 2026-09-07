@@ -23,12 +23,14 @@ behavior. Unit tests and native metadata discovery do not satisfy app acceptance
 - README support link, current design/rework/status reconciliation, and a
   verification note that distinguishes implemented source from tested runtime.
 
-Prioritize Codex, Claude Code and Cursor. Certify the same final payload across
-at least three actually available AI apps, recording variants separately (a CLI
-observation is not IDE evidence). An unavailable app gets a gap, not a fabricated
-run or an assumption inferred from another app. The basic read/write/approved
+Prioritize Cursor IDE, Codex desktop, and the actually available Claude Code
+variant. The lean RC compatibility gate is two actual chats for each named
+app/variant on the same final payload. Record variants separately: a CLI
+observation is not IDE or desktop evidence. An unavailable app gets a gap, not
+a fabricated run or an inference from another app. The basic read/write/approved
 commands contract remains available to new capable apps immediately; tested
-support is a dated empirical claim.
+support is a dated empirical claim. Broader certification may be scheduled
+later; it is not silently implied by this RC gate.
 
 ## Portable checklist
 
@@ -39,45 +41,23 @@ or explicit authorized agent-driven session can provide evidence, but a fake
 assistant, scripted core-only run or model-free inventory cannot certify an
 app's behavior. Never bypass native permissions or create new provider accounts.
 
-1. **Start useful work.** Open the shared root and then an explicitly bound
-   sibling project. Ask for a short concrete deliverable from a supplied local
-   source. It is saved in that project with relevant evidence, no preliminary
-   questionnaire, forced central folder or routine approval pause. Existing
-   files/custom instructions survive. Native app permissions remain authoritative.
-2. **Control Memory.** In a saving task, record a useful sourced fact/decision,
-   correct it and prove recall no longer presents the obsolete version as
-   current. In a separate don't-save task, produce the requested deliverable
-   while preserving Memory/learned Skills/cards/activity notes. Verify the
-   current explicit Library/snapshot exceptions separately; do not claim
-   control over provider retention or deletion from historical backups.
-3. **Keep one Library.** Finish a reusable deliverable, observe one brief
-   optional addition offer, and test decline and acceptance in independent
-   cases. Decline does not block completion. Acceptance registers the original
-   and produces a supported card through the current assistant. No required
-   copy or symlink is created. Inspect hashes, source-grounded wording, partial
-   extraction and missing/stale/ignored-original outcomes. Unsupported answers
-   abstain; cards never turn their own prose into original-source authority.
-4. **Use Skills portably.** Invoke built-in research/deliverable guidance and
-   the small humanizer with an actual task. Capture and review one learned
-   Skill, adopt the reviewed bytes and demonstrate file-reading use. Drafts
-   remain inactive. Record canonical source selection; do not infer body
-   execution from a native menu entry. Native economizer guidance is advisory:
-   if delegation tools exist, verify bounded roles/capability/effort with no
-   cross-CLI executor. If absent, the single-assistant fallback is a core pass.
-5. **Recover exactly what is covered.** Create a real managed snapshot, make
-   a deliberate managed change, restore it, and show unaffected project
-   deliverables/originals. Export a one-way backup and inspect its closed scope.
-   Restoring catalog metadata cannot restore a deleted original. Exercise
-   unavailable Git separately and show the concrete action, without claiming
-   a recovery point from Git detection alone.
-6. **Stay quiet and respect ordinary actions.** Ordinary check, recall and
-   extraction create no routine receipts. Meaningful repair/redaction/recovery
-   retains its required evidence. Make an authorized local move/copy/export of
-   a synthetic deliverable and observe no added Apparatus sharing review.
-   Do not send messages, upload or publish merely to test this condition.
+1. **Task-first chat.** In an explicitly bound synthetic project, ask for a
+   sourced deliverable. It must be saved in that project, preserve sentinels,
+   name uncertainty, record one sourced Memory fact, and use the canonical
+   Skill body. A brief optional Library-registration offer is acceptable;
+   accepted registration must keep the original in its project and produce a
+   grounded card. Record
+   the persisted artifact and hashes. Native permissions remain authoritative.
+2. **Fresh recall chat.** Start a fresh conversation in the same bound project.
+   Ask it to recall the prior context with citations and create the requested
+   deliverable. Request no Memory saving and verify no automatic task-content
+   capture in Memory, learned Skills, Library cards, or activity notes. Include
+   deliberately missing evidence and require a truthful abstention. Record the
+   persisted artifact, citations, inventories, and hashes. Do not claim control
+   over provider retention or deletion from historical backups.
 
-For each step record setup, prompt/action, expected result, evidence paths and
-pass/fail/partial/unavailable. No blank result means pass. Keep independent
+For each chat record setup, prompt/action, expected result, evidence paths and
+pass/fail/partial/unavailable. A blank result is not a pass. Keep independent
 negative cases rather than corrupting a passed baseline to imply wider coverage.
 
 ## Native observations and quickstarts
@@ -85,11 +65,12 @@ negative cases rather than corrupting a passed baseline to imply wider coverage.
 Separate native discovery, following the sole canonical body, precedence,
 duplicate discovery, shared-root versus independent-project behavior and
 delegation controls. Existing metadata-only probes may be retained as labeled
-diagnostic evidence for their exact versions; they do not count as any of the
-six core steps. Windows link privileges and IDE versus CLI remain distinct.
+diagnostic evidence for their exact versions; they do not count as either
+required chat. Windows link privileges and IDE versus CLI remain distinct.
 Optional adapter decisions follow evidence and cannot fork canonical bodies or
 make an app-specific path necessary for core use. Do not add an adapter based
-only on menu visibility.
+only on menu visibility. Actual assistant behavior cannot be inferred from
+scripts, metadata, menus, or automated core/conformance results.
 
 Quickstarts fit one page each and lead with opening the selected folder and
 asking for actual work. Use the tested installer/adoption paths from PR-46;
@@ -99,21 +80,32 @@ documentation before publishing them; label any untested path honestly.
 
 ## Acceptance and stop conditions
 
-Every certified row identifies the same final core/payload and supplies six
-real passing cases. Partial or unavailable rows may ship as diagnostic evidence
-but cannot satisfy the three-app release gate. Preserve signed first public
-release requirements separately: native certification, package composition,
-publisher signatures and live release publication are different evidence.
+Every RC-compatible row identifies the same final core/payload and supplies two
+real passing chats. Each record includes exact app/variant, app version, model,
+OS/version, persisted-artifact and hash oracles. Partial or unavailable rows
+remain diagnostic evidence and cannot satisfy the named-app RC gate. Preserve
+signed first public release requirements separately: native compatibility,
+package composition, publisher signatures, and live release publication are
+different evidence.
 
 Review evidence semantically against actual synthetic source files, not just
 table structure. A lightweight consistency check may validate links and prevent
-"certified" rows with missing/nonpassing cases; it cannot assess or manufacture
-the underlying behavior. Run required full pytest before delivering this PR,
-without repeating platform safety suites for documentation-only edits unless a
-new failure justifies them. No core or payload changes in this slice; defects
-get concrete reports and separate focused repairs.
+an RC-compatible row with missing or nonpassing chats; it cannot assess or
+manufacture assistant behavior. Keep deep deterministic mechanics in automated
+core/conformance CI once. Run one installer install-and-repair pass per supported
+OS; Windows ARM64 VM evidence must be labelled as such and cannot replace required
+x64 evidence. Retest the changed layer after a change. `uv run pytest` must be
+green before this PR is declared done; an unchanged, exactly identified validated
+tree may reuse that evidence when appropriate. Documentation-only edits need
+focused document validation, not a rerun of the app matrix or GUI/platform suite.
+No core or payload changes in this slice; defects get concrete reports and separate
+focused repairs.
 
 If an app, permission, signed artifact or operator action is unavailable,
 complete all independent preparation and record the exact remaining evidence.
-Do not mark this PR or the overall release complete merely because the test
-plan and quickstarts exist. Do not overwrite the held PR-24 branch.
+Do not claim support certification, a full pass, or an RC merely because the
+test plan and quickstarts exist. Keep this branch draft/incomplete until its
+two-chat-per-app and installer acceptance evidence exists. Signing and
+publication remain separate, accurately incomplete public-release gates; the
+signed-first-public-release requirement is unchanged. Do not overwrite the held
+PR-24 branch.
