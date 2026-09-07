@@ -6,9 +6,9 @@ support promise. Held PR24 results cover their original payload.
 
 Release-candidate status: a local checkpoint with bounded Cursor task and
 Memory-control fragments, not a signed public RC or completed app certification.
-Current required native bootstrap checks are green; Windows safety remains
-pending and signing is unconfigured. Cursor is the priority app for remaining
-acceptance.
+At head `833eb398`, Windows safety passed, but Windows bootstrap timed out in
+the legacy-folder adoption case. Required CI remains incomplete and signing is
+unconfigured. Cursor is the priority app for remaining acceptance.
 
 ## September 6 repaired build — historical first-task smokes
 
@@ -16,7 +16,7 @@ acceptance.
 - Wheel SHA-256: `84dea9eb17fcaea356013bb673dfbcc90677962eb2011c00815094327c71b956`.
 - Payload ZIP SHA-256: `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`.
 
-This PR49 build is the latest observed baseline. Only bounded shared-root
+This PR49 build was the September 6 checkpoint baseline. Only bounded shared-root
 first-task smokes were completed before the checkpoint; no six-step result
 is carried forward from earlier builds. Each app uses an explicit fixture cache,
 so these smokes do not verify the default-cache environment.
@@ -76,6 +76,41 @@ The requested snapshot preserved the live no-save flag and project files,
 captured existing managed state only, and emitted one metadata-only receipt.
 These observations cover the Memory step's listed cases on this Cursor build;
 they do not supply the distinct full Library or recovery cases.
+
+A later fresh [Library-acceptance case](evidence/cursor-ide-2026-09-07-library-acceptance/run.json)
+saved the literal `project-a/workshop-plan.md` in 77 seconds, preserving all 95
+existing files, and offered optional addition. Acceptance took 31 seconds and
+created a reference and a current assistant-written card with hashes matching
+the original. Project files and Git remained unchanged; the managed snapshot's
+manifest and actual path inventory exclude originals. Semantic review qualified
+the plan's unlabeled assumption that the break/resume template repeats in each
+session. The card faithfully summarizes that plan and inherits this limitation;
+this is not an unqualified source-only first-task pass.
+
+In a separate [changed-original no-save case](evidence/cursor-ide-2026-09-07-library-stale/run.json),
+the operator revised only the registered original before starting a fresh chat.
+Actual recall returned `abstained`, no evidence and partial coverage with reason
+`stale`. Cursor declined to name a venue, and all 109 work-area files remained
+unchanged. Acceptance used Grok High with Fast on; the 32-second stale case used
+Grok High with Fast off.
+
+A [correction and card refresh](evidence/cursor-ide-2026-09-07-library-refresh/run.json)
+explicitly labels the per-session schedule as a proposal and retains the operator
+revision. The card matches the corrected plan. This saving task also created two
+Memory records and an additional task record; it is not a plan-only edit or a
+passing supplied-task continuity case. Earlier prompt annotations used unsupported
+`APPARATUS_TASK_ID`; only an observed global `--task ID` establishes CLI selection.
+
+Independent [missing-original](evidence/cursor-ide-2026-09-07-library-missing/run.json)
+and [ignored-original](evidence/cursor-ide-2026-09-07-library-ignored/run.json)
+no-save cases explicitly used their assigned task IDs. Both returned abstention,
+empty evidence and the corresponding partial-coverage reason. All 126 and 128
+work-area files respectively, plus all three isolated-cache files in each case,
+remained unchanged. These took 29 and 23 seconds with Grok High and Fast off.
+The operator restored the original and ignore rules only after freezing each
+case. Partial/unsupported extraction and remaining Skill/recovery/quiet cases
+are still required.
+
 These are fragments: no complete six-step Cursor row or three-app certification
 is claimed. Older common three-app observations at core `1e50521…` remain
 historical evidence and are not relabeled as this build.

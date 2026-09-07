@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "dependency_versions": {
+    "pypdf": "6.17.0",
+    "python-docx": "1.2.0",
+    "lxml": "6.1.3",
+    "pyyaml": "6.0.3",
+    "typing-extensions": "4.16.0"
+  },
+  "fast": false,
+  "status": "Changed-original no-save Library abstention passed; not certified",
+  "cache_override": "<fixture>/operator-evidence/library-cache",
+  "task_id": "a6917ac4-8f45-4b79-ac73-192c084a5674",
+  "files": {
+    "native-recall.json": "9d8ce6c4a05aa39d7a0fa039696b27a495dde0c0e62a365ffb4fa3e2202d6ff1",
+    "original-after.md": "7320ef169b54254e9795205772dd8b40009b2cb489b8c0c93596ab235d0ae2d6",
+    "original-before.md": "fd2ca03bf70b363839c17b7de2d9ed544ebbea711f1f22cc525657d3bd6bea3c",
+    "unchanged-card.yaml": "8f5a11d3ba9925f3ed78ac490c5bcfa2bb87f9f5ae3037f1c11a83cc8a27f0bd",
+    "unchanged-registration.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031"
+  },
+  "cases": [
+    {
+      "case": "Changed original cannot supply stale current evidence",
+      "status": "pass",
+      "ui_time": "08:24 AM",
+      "seconds": 32,
+      "setup": "After freezing the separate acceptance baseline, the operator appended one line to the registered original and left the card/extraction unrefreshed. A fresh no-save task and independent Cursor chat were started before the 109-file baseline. This tests change only; deletion, ignore and unsupported extraction remain separate cases.",
+      "prompt": "Use current Library evidence to answer: what venue is chosen for the practice workshop? Run Library recall; do not refresh extraction or the card, and do not browse other source files for an answer. If current evidence is unavailable or does not support an answer, state that and the reason. Work yourself; do not delegate. This is a fresh no-save task a6917ac4-8f45-4b79-ac73-192c084a5674. Use <fixture>/runtime/bin/apparatus with APPARATUS_TASK_ID=a6917ac4-8f45-4b79-ac73-192c084a5674 and APPARATUS_HOME=<fixture>/operator-evidence/library-cache for this work area.",
+      "native_command": "APPARATUS_TASK_ID=a6917ac4-8f45-4b79-ac73-192c084a5674 APPARATUS_HOME=<fixture>/operator-evidence/library-cache <fixture>/runtime/bin/apparatus --task a6917ac4-8f45-4b79-ac73-192c084a5674 recall <fixture>/area-library \"what venue is chosen for the practice workshop?\" --json",
+      "native_output": "native-recall.json",
+      "native_reply": "Current Library evidence does not support an answer for the practice workshop venue. Library recall returned abstained, with no evidence and partial coverage because project-a/workshop-plan.md is stale. A stale source is not a current-evidence answer, and an abstention is not proof that the venue is unnamed elsewhere. I cannot name a venue from this recall result.",
+      "reply_note": "Minimal normalized excerpt. Full command and JSON envelope were expanded and observed in the actual native UI.",
+      "filesystem_verification": {
+        "before_file_count": 109,
+        "after_file_count": 109,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      },
+      "result": "All 109 work-area files, including the stale card, registration, project Git and existing receipts, remain byte-identical after native recall. No source snippet or venue answer was emitted."
+    }
+  ],
+  "limits": [
+    "Only changed-original coverage; missing/ignored/partial/unsupported cases remain.",
+    "Work-area preservation was inventoried; a complete before/after cache inventory was not captured. No claim that every external cache byte was unchanged.",
+    "Explicit runtime/cache; provider retention and default installation/cache were not tested.",
+    "Source-only plan semantics retain the qualification in the separate acceptance record.",
+    "No full six-step or three-app certification."
+  ]
+}

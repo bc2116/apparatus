@@ -1,7 +1,7 @@
 # PR47 preparation and evidence status
 
 Updated 2026-09-07. **Local RC checkpoint: bounded Cursor task and Memory-control
-fragments pass; certification, Windows safety and signing remain incomplete. No
+fragments pass; certification, required platform CI and signing remain incomplete. No
 signed public RC claim.**
 PR47 is integrated onto final PR49 and retains both earlier partial app
 observations and bounded PR49 first-task smokes. Latest observed
@@ -181,6 +181,68 @@ the retained log and XML are `apparatus-integrated-full-sep7.log` and its
 corresponding XML artifact. Current required native bootstrap checks are green;
 Windows safety remains pending. Signing is still unconfigured. No release or
 certification claim follows from these results.
+
+## September 7 Library acceptance and stale-source follow-up
+
+Two additional Cursor run records retain 15 exact artifact hashes. The fresh
+shared-root workshop plan was the only addition to a 95-file baseline. Library
+acceptance registered the original, wrote a current card matching its exact
+source/extracted text hash, and saved managed snapshot
+`2ab2645233793fdca7eed92ed0dec21ddf3845ad`. Project files and project Git remained
+unchanged. The record includes actual snapshot receipt, manifest and path list.
+Independent packet-based semantic review qualified the plan's unlabeled
+per-session break/resume assumption; the card accurately inherits the saved
+plan. That qualification remains visible rather than becoming a clean pass.
+
+After an operator-only original revision, a fresh no-save chat ran actual recall
+and returned `abstained`, empty evidence and partial coverage with reason `stale`.
+Cursor declined to name a venue. All 109 work-area files remained unchanged;
+the operator did not capture a full before/after external-cache inventory.
+See the [matrix](../certification/matrix.md#sep-7-build--bounded-cursor-fragments)
+for the separate records and remaining cases. No app is certified.
+
+After integration of the two reviewed Windows test-fixture repairs, full
+`uv run pytest` at `833eb39893f96f074324ef007ef90efacaaac2b5` passed **1,266 tests,
+38 skipped in 533.82 seconds**, exit 0. Production source and payload remain
+identical to the observed `b129008` build. The new evidence changes documentation
+only; no additional full suite was run for this curation. Required exact-head
+platform CI and signing remain separate gates.
+
+## September 7 correction, missing and ignored originals
+
+The [qualified plan correction](../certification/evidence/cursor-ide-2026-09-07-library-refresh/run.json)
+took 227 seconds. The saved plan separates the per-session schedule proposal
+from source facts and unknowns; its refreshed card matches the revised bytes.
+Two Memory records, a snapshot receipt, an additional saving task and managed
+Git objects also appeared. Existing source, note, instructions and project Git
+remained unchanged. Saving-task guidance permits automatic Memory, but the
+extra task is not a supplied-task continuity pass. The operator's earlier
+`APPARATUS_TASK_ID` annotation is unsupported; only global `--task ID` selects
+a task. The exact native command creating the extra record was not correlated,
+so this observation does not establish a core defect.
+
+The independently observed [missing-original](../certification/evidence/cursor-ide-2026-09-07-library-missing/run.json)
+and [ignored-original](../certification/evidence/cursor-ide-2026-09-07-library-ignored/run.json)
+cases explicitly used assigned no-save task IDs. Actual native recall commands
+and JSON were expanded and observed. Both abstained with no evidence and their
+correct partial-coverage reason. All 126 and 128 work-area files respectively,
+plus all three isolated-cache files in each case, remained unchanged. The
+operator restored fixture state only after freezing each outcome. These cases
+took 29 and 23 seconds; full Library and app certification remain incomplete.
+
+This curation batch contains five run records and 33 artifact hashes, including
+the earlier acceptance/stale records. Hashes, exact copied native outputs,
+relative links and private-path checks passed. Assistant reply summaries are
+labeled paraphrases. Generated artifacts retain their exact trailing blank
+lines; only that whitespace category is excluded for the artifact diff check.
+No runtime, payload, test or workflow changes are included.
+
+At head `833eb398`, native Windows safety passed on September 7 at 16:44:40 UTC.
+Windows bootstrap failed because the complete-legacy adoption subprocess
+exceeded its 90-second limit; 22 other cases passed and one skipped. The same
+fixture/bootstrap/workflow bytes passed on another integrated branch, which
+does not establish the cause or satisfy this head's failed check. No timeout
+or assertion was relaxed. Required platform CI and signing remain gates.
 
 ## September 6 local integration — historical
 

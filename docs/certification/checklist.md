@@ -46,9 +46,24 @@ The separately requested [no-save Library and snapshot exceptions](evidence/curs
 also passed in independent fresh chats; their scope does not complete the
 distinct full Library or recovery steps.
 The [shared-root guide and Library decline](evidence/cursor-ide-2026-09-07-shared-root/run.json)
-also passed, including observed canonical Humanizer use. Saving Library
-acceptance, learned Skills and the remaining recovery/quiet-operation cases
-are still required.
+also passed, including observed canonical Humanizer use. A later independent
+[Library acceptance](evidence/cursor-ide-2026-09-07-library-acceptance/run.json)
+kept the original in its project and created a current card with matching hashes;
+semantic review preserves a qualification in the generated plan's session
+template. A fresh [changed-original case](evidence/cursor-ide-2026-09-07-library-stale/run.json)
+returned no evidence and reported stale partial coverage without changing any
+work-area files. Separate [missing-original](evidence/cursor-ide-2026-09-07-library-missing/run.json)
+and [ignored-original](evidence/cursor-ide-2026-09-07-library-ignored/run.json)
+cases also abstained with the correct partial-coverage reason and preserved
+every work-area and isolated-cache file. Partial/unsupported extraction,
+learned Skills and remaining recovery/quiet cases are still required.
+
+The [plan correction and card refresh](evidence/cursor-ide-2026-09-07-library-refresh/run.json)
+separates source facts from proposed timing, but also created two Memory records
+and an additional saving task. Preserve that qualified result. Earlier prompts
+mentioned unsupported `APPARATUS_TASK_ID`; task binding requires the global
+`--task ID` option. An environment annotation alone proves no binding. Later
+missing/ignored commands explicitly used the assigned task option.
 
 For every step and independent case, record setup, exact action/prompt, expected
 result, actual result, relative evidence paths, and **pass / fail / partial /

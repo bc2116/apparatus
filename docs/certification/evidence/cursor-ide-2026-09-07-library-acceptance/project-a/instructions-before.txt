@@ -1,0 +1,3 @@
+# Synthetic project instructions
+
+Preserve existing project notes. Use supplied source facts and identify unknown details.

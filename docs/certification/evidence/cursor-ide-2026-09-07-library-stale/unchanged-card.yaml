@@ -1,0 +1,20 @@
+schema: apparatus/library-card@v0
+source: project-a/workshop-plan.md
+summary: 'Reusable practice-workshop run-of-show grounded in project-a/source.md:
+  two sessions with 12 places each, a water break after 45 minutes, and an undecided
+  venue. The same template applies to both sessions, and fields the source does not
+  give (date, total length after the break, facilitators, agenda, materials, and registration)
+  stay blank. Extraction succeeded for the available text; that does not establish
+  complete page, image, or table coverage.'
+topics:
+- practice workshop
+- two sessions
+- 12 places
+- water break
+- 45 minutes
+- undecided venue
+- missing details
+- reuse checklist
+source_sha256: fd2ca03bf70b363839c17b7de2d9ed544ebbea711f1f22cc525657d3bd6bea3c
+text_sha256: fd2ca03bf70b363839c17b7de2d9ed544ebbea711f1f22cc525657d3bd6bea3c
+extractor_version: '1'
