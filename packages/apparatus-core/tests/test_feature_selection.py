@@ -441,3 +441,117 @@ def test_symlinked_profile_fails_closed_without_following_outside_control(tmp_pa
     assert library.run(argparse.Namespace(workspace=str(workspace))) == 2
     assert "read safely" in capsys.readouterr().out
     assert sorted((workspace / "System/receipts").glob("*.md")) == receipts_before
+
+
+def _external_alias(tmp_path):
+    actual = tmp_path / "actual-parent"
+    actual.mkdir()
+    alias = tmp_path / "alias-parent"
+    try:
+        alias.symlink_to(actual, target_is_directory=True)
+    except OSError as error:
+        pytest.fail(f"External-alias safety coverage requires a directory link: {error}")
+    return actual, alias
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_external_ancestor_alias_matches_direct_canonical_feature_reads(tmp_path, enabled):
+    actual, alias = _external_alias(tmp_path)
+    workspace = _workspace(actual, library_indexing=enabled, snapshots=enabled, ignore_rules=enabled)
+    expected = {name: enabled for name in features.DEFAULTS}
+    assert features.selections(workspace) == expected
+    assert features.selections(alias / workspace.name) == expected
+    assert features.enabled(alias / workspace.name, "snapshots") is enabled
+    assert features._profile_bytes(alias / workspace.name) == (workspace / "System/profile.yaml").read_bytes()
+
+
+@pytest.mark.parametrize("present", ["none", "workspace", "system"])
+def test_external_alias_keeps_missing_profile_defaults_without_writes(tmp_path, present):
+    actual, alias = _external_alias(tmp_path)
+    workspace = actual / "workspace"
+    if present != "none":
+        workspace.mkdir()
+    if present == "system":
+        (workspace / "System").mkdir()
+    before = sorted(p.relative_to(actual).as_posix() for p in actual.rglob("*"))
+    assert features.selections(alias / "workspace") == features.DEFAULTS
+    assert sorted(p.relative_to(actual).as_posix() for p in actual.rglob("*")) == before
+
+
+@pytest.mark.parametrize("boundary", ["workspace", "System", "profile"])
+def test_external_alias_does_not_normalize_away_linked_managed_boundary(tmp_path, monkeypatch, boundary):
+    actual, alias = _external_alias(tmp_path)
+    workspace = _workspace(actual)
+    target = workspace if boundary == "workspace" else workspace / ("System/profile.yaml" if boundary == "profile" else "System")
+    outside = tmp_path / "outside"
+    target.rename(outside)
+    try:
+        target.symlink_to(outside, target_is_directory=boundary != "profile")
+    except OSError as error:
+        pytest.fail(f"Managed-boundary safety coverage requires a link: {error}")
+    before = outside.read_bytes() if boundary == "profile" else _workspace_bytes(outside)
+    monkeypatch.setattr(features.records.yaml, "safe_load", lambda *args, **kwargs: pytest.fail("linked profile reached parsing"))
+    with pytest.raises(features.FeatureProfileError, match="read safely"):
+        features.selections(alias / "workspace")
+    assert (outside.read_bytes() if boundary == "profile" else _workspace_bytes(outside)) == before
+
+
+def test_external_alias_preflight_failure_uses_feature_error(tmp_path, monkeypatch):
+    from apparatus_core import payload
+    def fail(*args, **kwargs):
+        raise payload.PayloadError("synthetic unsafe workspace boundary")
+    monkeypatch.setattr(features, "preflight_workspace_paths", fail)
+    with pytest.raises(features.FeatureProfileError, match="read safely"):
+        features.selections(tmp_path)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="descriptor-currentness probe is POSIX-specific")
+def test_alias_read_rechecks_canonical_root_after_profile_parse(tmp_path, monkeypatch):
+    actual, alias = _external_alias(tmp_path)
+    workspace = _workspace(actual)
+    original = features.records.validate
+    replaced = []
+    def replace_after_parse(*args, **kwargs):
+        problems = original(*args, **kwargs)
+        candidate = actual / "replacement"
+        shutil.copytree(workspace, candidate)
+        workspace.rename(actual / "prior")
+        candidate.rename(workspace)
+        replaced.append(True)
+        return problems
+    monkeypatch.setattr(features.records, "validate", replace_after_parse)
+    with pytest.raises(features.FeatureProfileError, match="read safely"):
+        features.selections(alias / "workspace")
+    assert replaced == [True]
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="real managed snapshot requires Git")
+def test_cli_real_managed_snapshot_through_alias_preserves_project_originals_and_git(tmp_path):
+    import subprocess
+    from apparatus_core import cli, snapshots
+    from apparatus_core.retention import start_task
+    actual, alias = _external_alias(tmp_path)
+    workspace = _workspace(actual)
+    project = workspace / "project-a"
+    project.mkdir()
+    def git(*args):
+        return subprocess.run(["git", "-C", str(project), *args], check=True,
+                              capture_output=True, env=snapshots._git_environment()).stdout
+    git("init", "-q")
+    report = project / "workshop-plan.md"
+    report.write_text("Synthetic first task deliverable.\n")
+    git("add", "workshop-plan.md")
+    git("-c", "user.name=Synthetic Test", "-c", "user.email=test@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-qm", "Synthetic baseline")
+    report.write_text("Staged synthetic revision.\n")
+    git("add", "workshop-plan.md")
+    report.write_text("Unstaged synthetic revision.\n")
+    (project / "untracked.txt").write_text("Untracked synthetic original.\n")
+    before = _workspace_bytes(project)
+    task = start_task(workspace).task_id
+    assert cli.main(["--task", task, "snapshot", str(alias / "workspace")]) == 0
+    saved = snapshots.list_snapshots(workspace)
+    assert len(saved) == 1 and saved[0].scope == "managed-state"
+    assert (workspace / "System/recovery").is_dir()
+    assert not (workspace / ".git").exists()
+    assert _workspace_bytes(project) == before
