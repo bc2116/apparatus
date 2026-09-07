@@ -234,3 +234,14 @@ def test_everyday_skills_preserve_authority_evidence_and_requested_only_reviews(
         assert "Use only when the user requests" in text
     assert "review alone does not authorize changing its subject" in normalized(
         PAYLOAD_DIR / ".agents/skills/apparatus-review-against-checklist/SKILL.md")
+
+
+def test_learned_capture_has_one_review_and_no_automatic_promotion():
+    text = normalized(CANON)
+    for rule in ("Do not offer capture during a no-save task",
+                 "System/skill-drafts/NAME.md", "System/skills/adopted/",
+                 "one-time review", "Only after the user adopts that concrete draft",
+                 "--digest SHA256", "These drafts are inactive and excluded from managed recovery",
+                 "There is no automatic promotion", "No-save has no learned-content exception",
+                 "no per-use approval is required"):
+        assert rule in text

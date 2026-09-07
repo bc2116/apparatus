@@ -30,7 +30,3 @@ Legacy `procedures/` files may remain after an upgrade as compatibility pointers
 `guidance/model-guidance.md` holds dated starting choices. The economizer Skill
 owns the delegation and repair guidance; the humanizer Skill provides one
 selective prose pass. Both live in the canonical Skill directory above.
-
-Learned workflow drafts live in `skill-drafts/` for review, outside native
-discovery and managed recovery coverage. `skills/adopted/` holds small ownership
-records pointing to the canonical adopted `.agents/skills/NAME/SKILL.md` bodies.

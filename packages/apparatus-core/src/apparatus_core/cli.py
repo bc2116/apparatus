@@ -15,7 +15,7 @@ from apparatus_core.project_binding import BindingError
 
 ENTRY_POINT_GROUP = "apparatus.commands"
 WORKSPACE_VERBS = {"backup", "check", "doctor", "library", "memory", "profile",
-                   "recall", "render", "restore", "snapshot", "task"}
+                   "recall", "render", "restore", "snapshot", "task", "skill"}
 
 
 def _dispatch(parsed, handler) -> int:

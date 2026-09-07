@@ -122,6 +122,14 @@ ECONOMY_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': 'da116d700a2814d9e2d45d9dbfa70c5a1
  '.github/copilot-instructions.md': '638dbdf586d356130bdc998a074912e5030ecf519e8673092568987b74e0bdc2'}
 
 
+# Exact PR-40 seven-Skill stock orientation before learned capture.
+LEARNED_PREVIOUS_INSTRUCTIONS = {'AGENTS.md': '9206a676f72452b133efa03e61eccb54644fcbf8365132faa93b955ccffc6a01',
+ 'Welcome.md': 'a69d8616bcb28bfeda08b0ca15d908945626d4bebc71531631dc1f439b7fe508',
+ 'System/README.md': '9e0ea94ba15433754a4fde40121293bb1bc4a17efe3ce297d5ddcb3991cfbdb3',
+ 'CLAUDE.md': 'a50db49ac9a3d301e48bd98fe298e4448a40ca26c097eed2060008b80bf7072d',
+ '.cursor/rules/apparatus.mdc': '5739c3f16b221586fb32642113ebf4169c218bbde907ff21d61a094a05daf883',
+ '.github/copilot-instructions.md': '1b19dcd5573b5e20116ffbecf823ac7fd5a925374baa2cd2ca480279605e5025'}
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -131,6 +139,7 @@ def known_instruction(relative: str, content: bytes) -> bool:
         LEGACY_INSTRUCTIONS, PREVIOUS_INSTRUCTIONS, RETENTION_PREVIOUS_INSTRUCTIONS,
         LAYOUT_PREVIOUS_INSTRUCTIONS, SKILLS_PREVIOUS_INSTRUCTIONS,
         TASK_FIRST_PREVIOUS_INSTRUCTIONS, ECONOMY_PREVIOUS_INSTRUCTIONS,
+        LEARNED_PREVIOUS_INSTRUCTIONS,
     )}
 
 

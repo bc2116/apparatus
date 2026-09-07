@@ -58,9 +58,12 @@ SKILL_INDEX = HISTORICAL_SKILL_INDEX.replace("index: v1", "index: v2").replace(
 )
 
 # Exact orientation for the seven-Skill payload; older witnesses remain above.
-CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a69d8616bcb28bfeda08b0ca15d908945626d4bebc71531631dc1f439b7fe508',
+PREVIOUS_CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'a69d8616bcb28bfeda08b0ca15d908945626d4bebc71531631dc1f439b7fe508',
  'System/README.md': '9e0ea94ba15433754a4fde40121293bb1bc4a17efe3ce297d5ddcb3991cfbdb3'}
 
+
+CURRENT_ORIENTATION_DIGESTS: dict[str, str] = {'Welcome.md': 'cd52bfa9c714b9d2b3b9aa835732d7c414c346f0157a44f7f5c3e2a47eb0036b',
+ 'System/README.md': '9d77710dd6a053040603207a286544e61f7a5e07c0e5add6b9b93361ae73d004'}
 
 def valid_name(value: object) -> bool:
     return isinstance(value, str) and 1 <= len(value) <= 64 and bool(_NAME.fullmatch(value))
@@ -163,7 +166,7 @@ def is_shipped_skill_orientation(relative: str, content: bytes) -> bool:
     """Recognize a whole known orientation file, never its header or links."""
     expected = _SKILL_ORIENTATION_DIGESTS.get(relative)
     digest = hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
-    return digest == CURRENT_ORIENTATION_DIGESTS.get(relative) or (expected is not None and digest in expected)
+    return digest in {CURRENT_ORIENTATION_DIGESTS.get(relative), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(relative)} or (expected is not None and digest in expected)
 
 
 def read_skill_payload(anchor: WorkspaceAnchor) -> dict[str, bytes]:
@@ -187,7 +190,7 @@ def read_skill_payload(anchor: WorkspaceAnchor) -> dict[str, bytes]:
     orientation = {path: optional(path) or b"" for path in ("AGENTS.md", "Welcome.md", "System/README.md")}
     current = any(directories[path] for path in NEW_SKILL_PATHS) or any(
         SKILL_INDEX.encode() in content.replace(b"\r\n", b"\n")
-        or hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() == CURRENT_ORIENTATION_DIGESTS.get(path)
+        or hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() in {CURRENT_ORIENTATION_DIGESTS.get(path), PREVIOUS_CURRENT_ORIENTATION_DIGESTS.get(path)}
         for path, content in orientation.items()
     )
     native = current or any(directories.values()) or any(

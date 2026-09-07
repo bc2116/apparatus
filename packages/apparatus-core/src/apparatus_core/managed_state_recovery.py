@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
-from apparatus_core import records, skills
+from apparatus_core import records, skills, learned_skills
 from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.init_deploy import _anchor_child
 from apparatus_core.receipts import ReceiptPublication, prepare_receipt_invocation, write_receipt
@@ -100,6 +100,9 @@ def _kind(relative: str) -> str | None:
     path = _path(relative)
     if relative in skills.BUILTIN_PATHS:
         return "skill"
+    learned = learned_skills.path_kind(relative)
+    if learned is not None:
+        return learned[0]
     if relative in OPTIONAL_FILES:
         return "profile" if relative == "System/profile.yaml" else "text"
     for root, kind in RECORD_ROOTS.items():
@@ -118,6 +121,13 @@ def _validate_file(relative: str, content: bytes) -> bool:
         raise SnapshotError("Recovery coverage includes an undeclared path.")
     try:
         text = content.decode("utf-8", errors="strict")
+        if kind == "learned-marker":
+            learned_skills.parse_marker(relative, content)
+            return True
+        if kind == "learned-body":
+            if skills.validate_skill(content, learned_skills.path_kind(relative)[1]):
+                raise ValueError("invalid learned Skill")
+            return True
         if kind == "text":
             return True
         if kind == "skill":
@@ -145,7 +155,11 @@ def _read_compatible(anchor: Any, relative: str) -> tuple[bytes, Any]:
 
 
 def _collect(anchor: Any) -> dict[str, bytes]:
-    candidates = set(OPTIONAL_FILES)
+    try:
+        registered = learned_skills.registered_files(anchor)
+    except (OSError, learned_skills.LearnedSkillError) as error:
+        raise SnapshotError("Adopted Skill coverage is missing or invalid; repair the registered pair before recovery.") from error
+    candidates = set(OPTIONAL_FILES) | set(registered)
     for root in RECORD_ROOTS:
         if anchor.directory_exists(root):
             candidates.update(p.as_posix() for p in anchor.list_files(root, suffix=".md", include_hidden=False))
@@ -163,6 +177,7 @@ def _collect(anchor: Any) -> dict[str, bytes]:
                 raise SnapshotError("Managed recovery paths have a case collision.")
             folded.add(relative.casefold())
             result[relative] = content
+    learned_skills.validate_pairs(result)
     return result
 
 
@@ -574,6 +589,7 @@ def _validated_manifest(identifier: str, files: dict[str, bytes]) -> dict[str, b
             included[relative] = content
         if set(files) != set(included) | {MANIFEST}:
             raise ValueError("extra tree path")
+        learned_skills.validate_pairs(included)
         return included
     except (KeyError, ValueError, TypeError, UnicodeError) as error:
         raise SnapshotError("Managed snapshot manifest or coverage is invalid.") from error

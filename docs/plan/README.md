@@ -12,6 +12,7 @@ PR-36 implements R3b: layout, project bindings and existing-folder adoption.
 PR-38 implements R4a: portable Skill files, migration, checks and recovery.
 PR-39 implements R5: task-first welcome and everyday work, independently of R4b.
 PR-40 implements R6: economical native work and selective prose editing.
+PR-41 implements R7: draft and review-bound adoption of learned Skills.
 Native discovery adapters and runtime evidence remain planned.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
@@ -99,6 +100,7 @@ later slices remain planned.
 | 38 | [Portable built-in Skills](PR-38-portable-skills.md) | Rework | ✅ landed | 36, 37 |
 | 39 | [Task-first welcome and everyday work](PR-39-task-first-welcome.md) | Rework | ✅ landed | 38 |
 | 40 | [Economizer and humanizer Skills](PR-40-economizer-humanizer.md) | Rework | ✅ landed | 39 |
+| 41 | [Capture learned Skills](PR-41-learned-skills.md) | Rework | ✅ landed | 39, 40 |
 | 42 | [Patched PDF dependency](PR-42-pdf-dependency.md) | Repair | ✅ landed | 35 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
