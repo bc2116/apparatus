@@ -180,8 +180,8 @@ Current implementation constraints remain until deliberately changed:
   and log metadata, although the toolchain setup itself targets user scope.
 - Reproducible packaging means a repeatable build recipe with verified embedded
   scripts, not identical outer installer bytes after metadata/signing changes.
-  Signing is gated pending provisioning; only verified signed artifacts can
-  be described as signed.
+  Signing uses explicit release gates; provisioning and signature status require
+  release-specific evidence. Only verified signed artifacts can be described as signed.
 - Setup currently detects Git on `PATH`; it does not bundle portable Git.
   When absent, snapshots are unavailable. Resolve Windows requirements with
   actual platform evidence rather than an assumed bundled dependency.

@@ -258,7 +258,8 @@ def _run_macos_sandbox(
     )
 
 
-def test_native_bootstrap_dry_run_is_complete_and_has_zero_effects(tmp_path):
+@pytest.mark.parametrize("adopt", [False, True])
+def test_native_bootstrap_dry_run_is_complete_and_has_zero_effects(tmp_path, adopt):
     home = tmp_path / "profile"
     work = tmp_path / "working"
     home.mkdir()
@@ -270,6 +271,8 @@ def test_native_bootstrap_dry_run_is_complete_and_has_zero_effects(tmp_path):
         (home / "AppData/Roaming").mkdir(parents=True)
     target = home / "Projects/Apparatus"
     command = _native_command(home, target)
+    if adopt:
+        command.append("-Adopt" if sys.platform == "win32" else "--adopt")
     environment = os.environ.copy()
     environment.update(
         {

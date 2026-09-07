@@ -14,7 +14,7 @@ in this order:
 2. install a uv-managed Python when it is missing;
 3. detect git without installing or changing it;
 4. install or update `apparatus-core` from PyPI;
-5. create or non-destructively repair the workspace; and
+5. validate, create or repair the chosen work area through core init; and
 6. run `apparatus doctor` and verify the machine report.
 
 The installed `apparatus-core` package contains the universal workspace payload.
@@ -29,12 +29,12 @@ embedded PowerShell script.
 
 For a wrapper dry-run or a different workspace location, pass the wrapper's
 strictly checked options from PowerShell or Command Prompt. `/DRYRUN` maps to
-the script's `-DryRun`; `/WORKSPACEPATH=` maps to `-Path`:
+the script's `-DryRun`; `/WORKSPACEPATH=` maps to `-Path`; `/ADOPT` maps to `-Adopt`:
 
 ```powershell
 .\apparatus-installer.exe /DRYRUN
-.\apparatus-installer.exe /WORKSPACEPATH="D:\Work\Apparatus"
-.\apparatus-installer.exe /DRYRUN /WORKSPACEPATH="D:\Work\Apparatus"
+.\apparatus-installer.exe /WORKSPACEPATH="D:\Work"
+.\apparatus-installer.exe /DRYRUN /WORKSPACEPATH="D:\Work" /ADOPT
 ```
 
 Duplicate or unknown options are rejected, and the wrapper returns the setup
@@ -49,11 +49,11 @@ Open PowerShell in the folder containing it, then run:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-apparatus.ps1
 ```
 
-The default workspace location is `C:\Projects\Apparatus`. Use a different
-location with `-Path`:
+The default workspace location is `C:\Projects`. Use a different
+location with `-Path`; `/ADOPT` maps to `-Adopt`:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-apparatus.ps1 -Path "D:\Work\Apparatus"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-apparatus.ps1 -Path "D:\Work"
 ```
 
 See the complete detected plan without downloading or changing anything:
@@ -78,7 +78,9 @@ metadata, but the wrapper installs no application, service, daemon, or other
 system payload.
 
 The native package interface has no safe custom-option channel. Use the flat
-shell-script fallback when you need `--dry-run` or `--path`.
+shell-script fallback when you need `--dry-run`, `--path`, or explicit
+`--adopt`. The package cannot forward these options. If its default already contains work, core requests
+explicit adoption; use the released script instead of assuming consent.
 
 ### Shell script fallback
 
@@ -89,11 +91,11 @@ Open Terminal in the folder containing it, then run:
 /usr/bin/env -u BASH_ENV -u ENV /bin/bash bootstrap-apparatus.sh
 ```
 
-The default workspace location is `~/Projects/Apparatus`. Use a different
+The default workspace location is `~/Projects`. Use a different
 location with `--path`:
 
 ```bash
-/usr/bin/env -u BASH_ENV -u ENV /bin/bash bootstrap-apparatus.sh --path "$HOME/Work/Apparatus"
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash bootstrap-apparatus.sh --path "$HOME/Work"
 ```
 
 See the complete detected plan without downloading or changing anything:
@@ -113,16 +115,41 @@ for backup.
 
 ## Re-running and repair
 
-Re-running either script is safe. Satisfied steps are skipped, a missing
-managed Python or tool is repaired, existing workspace files are never
-overwritten by setup, and a fresh doctor check always finishes the run. A
-complete existing workspace skips `init`; a partial workspace is passed to
-the existing non-destructive repair behavior.
+Choose the actual work area, containing your projects beside one Library; setup
+never adds a required Apparatus enclosure. The default is a convenience only.
+A fresh path or empty folder needs no adoption flag. For any existing nonempty
+unmarked folder, including a legacy workspace, explicitly request enrollment:
 
-If git is present on `PATH`, doctor checks snapshot availability. If git is
-absent, setup continues and records snapshots as unavailable. Ask your IT team
-for a user-scope git installation, then re-run the script to repair snapshot
-availability.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-apparatus.ps1 -Path "D:\Work" -Adopt
+.\apparatus-installer.exe /WORKSPACEPATH="D:\Work" /ADOPT
+```
+
+```bash
+/usr/bin/env -u BASH_ENV -u ENV /bin/bash bootstrap-apparatus.sh --path "$HOME/Work" --adopt
+```
+
+No installer infers adoption from existing files or retries with consent added.
+Every normal run calls core init, including complete older workspaces. Core
+updates recognized shipped instructions, preserves custom files and ordinary
+projects, and reports conflicts. It preserves the work-area ID and task/profile
+choices on repair. A bound project is not a setup target; use its chosen work
+area. Permissions or missing-drive failures require choosing a writable target,
+not elevation or automatic relocation.
+
+A failed later snapshot or doctor step does not erase successful enrollment.
+Follow the reported action and rerun; setup reports ready only after its required
+steps finish. Open the work area in your AI app and ask for your actual task.
+Welcome.md is reference material, not a questionnaire prerequisite.
+
+Git detection describes capability, not a proven recovery store. If Git is
+absent, setup continues with snapshots unavailable. Make Git available in the
+AI app's command environment, then rerun setup. Managed snapshots and one-way
+backups cover declared Apparatus records, instructions and catalog metadata;
+they exclude ordinary projects, Library originals, derived caches and live task
+controls. Restoring a catalog cannot recreate a deleted original. Follow the
+[current recovery specification](../docs/spec/managed-recovery.md) for exact
+coverage, including learned Skills and any supported Library cards.
 
 ## Network sources and privacy
 
@@ -147,12 +174,14 @@ credentials, or personal data to those sources.
 
 ## Current limitations
 
-Wrapper signing is implemented but gated off while Apparatus acquires
-certificates. With a gate unset, releases still build and checksum both
+Wrapper signing is implemented behind explicit release gates. A first public
+release requires verified signed artifacts. With a gate unset, rehearsals can
+still build and checksum both
 unsigned wrappers and both fallback scripts. When enabled, Authenticode signs
 the outer Windows `.exe`; Developer ID signs the outer macOS `.pkg`, which is
-then notarized and stapled. No release should be described as signed unless its
-gate ran successfully and its signature was verified. The PowerShell fallback
+then notarized and stapled. Do not infer current gate or certificate availability from this documentation.
+No release should be described as signed unless its gate ran successfully and
+its signature was verified. Packaging checks do not certify a native AI app. The PowerShell fallback
 command above uses a process-only execution-policy bypass; it does not change
 machine policy. See the [IT reviewer one-pager](../docs/it-onepager.md) and
 [signing runbook](../docs/signing-runbook.md).
@@ -165,3 +194,10 @@ toolchain honestly; this fallback is not the normal setup path.
 
 The scripts support Windows and macOS only. They do not bundle git, select an
 AI app, install optional packs, or change device policy.
+
+## Remove the tool without removing your projects
+
+Uninstall `apparatus-core` with `uv tool uninstall apparatus-core`; remove uv
+separately only if you no longer need it. Keep the chosen work area and sibling
+projects. Tool removal does not require deleting data. Any later archival or
+deletion is a separate user choice; setup provides no automatic cleanup.

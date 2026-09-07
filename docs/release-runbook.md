@@ -29,8 +29,13 @@ secrets, or its variables.
    **Run workflow**. A manually dispatched run is always dry-run, even if the
    repository variable says `publish`.
 3. Download the `apparatus-release-<version>` workflow artifact. Confirm it
-   includes the payload ZIP, `apparatus-core` source distribution, wheel, and
-   release notes.
+   includes all seven distributables: payload ZIP, `apparatus-core` source
+   distribution, wheel, both flat bootstrap scripts, Windows `.exe` and macOS
+   `.pkg`, plus release notes and `SHA256SUMS`. Verify the checksums and record
+   each wrapper's observed signing status; a skipped signing job is not a signature.
+   Record the tested commit/version, native build tools and remaining coverage
+   gaps. The bootstrap resolves PyPI independently; a rehearsal wheel is not
+   evidence of the currently published package.
 4. Confirm that no GitHub Release was created and that PyPI was not changed.
 5. If practical in an operator-approved setting, use a dedicated rehearsal
    version and matching tag while `APPARATUS_RELEASE_MODE` is unset. Confirm the

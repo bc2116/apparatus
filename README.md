@@ -18,7 +18,11 @@ Pre-alpha. The existing implementation includes Memory, local Library
 extraction/search/citations, snapshots, backup, profiles, seven portable Skills,
 and packaging machinery. The sharing gate has been removed. Fresh setup creates
 a shared work area; `apparatus init WORKAREA --adopt` enrolls an existing folder
-while preserving project files and custom instructions. Finished work stays in
+while preserving project files and custom instructions. The [setup scripts](installer/README.md)
+use the selected work area directly, defaulting to `~/Projects` or `C:\Projects`.
+Existing nonempty roots need explicit adoption; every rerun delegates repair to
+core init. macOS package users use the flat script for custom roots/adoption.
+Finished work stays in
 its project. Welcome starts the actual request with useful defaults and only missing essential
 questions; checklist and weekly reviews run only when requested.
 

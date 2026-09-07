@@ -47,7 +47,7 @@ jobs:
         run: uv sync --all-packages
       - name: Run Windows safety coverage
         run: >-
-          uv run pytest
+          uv run pytest --durations=20
           packages/apparatus-core/tests/test_credentials.py
           packages/apparatus-core/tests/test_fs_transactions.py
           packages/apparatus-core/tests/test_labeler.py
@@ -110,6 +110,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Sync workspace
         run: uv sync --all-packages
+      - name: Run Windows bootstrap normal-flow checks
+        run: uv run pytest packages/apparatus-core/tests/test_bootstrap_normal_flow.py packages/apparatus-core/tests/test_installer_wrappers.py
       - name: Run Windows bootstrap dry-run checks
         shell: pwsh
         run: |
@@ -126,6 +128,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Sync workspace
         run: uv sync --all-packages
+      - name: Run macOS bootstrap normal-flow checks
+        run: uv run pytest packages/apparatus-core/tests/test_bootstrap_normal_flow.py packages/apparatus-core/tests/test_installer_wrappers.py
       - name: Run macOS bootstrap dry-run checks
         run: |
           /usr/bin/env -u BASH_ENV -u ENV /bin/bash installer/macos/bootstrap-apparatus.sh --dry-run

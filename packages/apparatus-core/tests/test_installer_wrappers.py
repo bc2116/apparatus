@@ -78,6 +78,8 @@ def test_windows_wrapper_embeds_and_verifies_only_the_canonical_script() -> None
     assert "SetupLogging=no" in definition
     assert "'/DRYRUN'" in definition
     assert "'/WORKSPACEPATH='" in definition
+    assert "'/ADOPT'" in definition and "AdoptSeen" in definition
+    assert "ParsedBootstrapArguments + '-Adopt'" in definition
     assert "Unsupported installer option" in definition
     assert "DryRunSeen" in definition and "WorkspacePathSeen" in definition
     assert "Pos(#10, WorkspacePath)" in definition

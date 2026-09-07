@@ -76,7 +76,7 @@ end;
 function InitializeSetup(): Boolean;
 var
   Argument: String;
-  DryRunSeen, WorkspacePathSeen: Boolean;
+  DryRunSeen, WorkspacePathSeen, AdoptSeen: Boolean;
   I: Integer;
   WorkspacePath: String;
 begin
@@ -85,6 +85,7 @@ begin
   BootstrapExitCode := 0;
   BootstrapOutput := '';
   DryRunSeen := False;
+  AdoptSeen := False;
   WorkspacePathSeen := False;
 
   for I := 1 to ParamCount do
@@ -101,6 +102,18 @@ begin
       if ParsedBootstrapArguments <> '' then
         ParsedBootstrapArguments := ParsedBootstrapArguments + ' ';
       ParsedBootstrapArguments := ParsedBootstrapArguments + '-DryRun';
+    end
+    else if CompareText(Argument, '/ADOPT') = 0 then
+    begin
+      if AdoptSeen then
+      begin
+        SuppressibleMsgBox('The adoption option may be supplied only once.', mbError, MB_OK, IDOK);
+        Exit;
+      end;
+      AdoptSeen := True;
+      if ParsedBootstrapArguments <> '' then
+        ParsedBootstrapArguments := ParsedBootstrapArguments + ' ';
+      ParsedBootstrapArguments := ParsedBootstrapArguments + '-Adopt';
     end
     else if StartsWith(Argument, '/WORKSPACEPATH=') then
     begin
