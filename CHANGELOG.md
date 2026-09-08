@@ -10,31 +10,37 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
-- Require pypdf 6.16.1 or newer, covering upstream fixes for excessive PDF
-  outline/XForm processing and a tree insertion loop.
+## v0.0.1
 
-- Convert five built-in workflows to portable Skills with one canonical body.
-  Preserve custom Skills and migrate recognized older procedures to small
-  pointers. Checks and managed recovery cover the exact built-in files;
-  native discovery adapters and app-version acceptance remain separate work.
-- Add work-area enrollment, explicit existing-folder adoption and relative project
-  links to one Library and Memory. Preserve existing repositories and custom
-  instructions; keep finished work in its project. Decisions in both the new
-  Memory folder and legacy location support the existing Memory lifecycle.
-- Add an isolated recovery backend for the shared work-area layout.
-  Managed snapshots and backups cover declared Apparatus state and recovery
-  history without changing root or project Git. New setup and explicit adoption
-  enable this scope; project documents and Library originals are excluded.
+Initial pre-alpha release. Apparatus adds portable files and a small toolchain
+to local projects; your AI app does the work. It does not call model APIs or
+require an Apparatus account.
 
-- Add resumable task Memory decisions. No-save tasks suppress new Memory, setup
-  answers and automatic capture; requested work files, Library additions and
-  backups remain possible. Necessary receipts omit task content, Library recall
-  can read without persistence, and snapshot restore preserves live task flags.
+- Set up a chosen work area or explicitly adopt existing folders, preserving
+  project files, repositories, and custom instructions. Bind projects to shared
+  context while keeping finished work in each project.
+- Recall sourced Memory and correct, mark outdated, or forget People, Facts,
+  and Decisions. Task Memory controls suppress automatic capture when requested;
+  forgetting does not erase historical backups or control AI-provider retention.
+- Register selected Library originals in place, extract supported documents,
+  search with citations, and create grounded cards. Missing, changed, and
+  partially extracted sources retain explicit coverage limits.
+- Include seven portable Skills: task-first welcome, deliverable creation,
+  research, on-demand checklist and weekly reviews, economizer, and humanizer.
+  Repeated workflows can become editable learned Skills after user review.
+  Economizer is guidance, not automatic model switching or a quota limit.
+- Snapshot, restore, and export declared managed state without changing project
+  Git repositories. Project documents and Library originals are outside this
+  recovery coverage. Maintenance reports concrete repair actions.
+- Remove the App-specific sharing gate. Ordinary file work follows the user's
+  request and the AI app's permissions; existing credential protection remains.
+- Provide the `apparatus-core` package with embedded starter files, a separate
+  portable payload, Windows and macOS installers, flat setup scripts, and
+  release checksums. Public native installers require verified platform signing.
+- Require pypdf 6.16.1 or newer for the PDF extraction security fixes included
+  during development.
 
-- Add current Memory recall and explicit correction, outdated status, and
-  forgetting for People and Facts. Legacy records remain current; forgotten
-  markers prevent automatic re-seeding at the same path.
-- Remove the App-specific sharing gate and command. Repair original legacy
-  instructions through `init`, preserving custom conflicts and historical
-  receipts. Backup export and credential/filesystem protections are unchanged.
-- Initial pre-alpha development.
+Core needs file reading, file writing, and approved commands. Native Skill
+discovery and tested AI-app behavior depend on the particular app and version;
+this release does not claim universal certification. Cloud or team Library
+services and advanced integrations remain future optional modules.
