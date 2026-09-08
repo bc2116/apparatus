@@ -86,7 +86,14 @@ def validate_source(run, jobs, repository, run_id, workflow_id, tag_sha):
             "head_sha": tag_sha, "version": tag[1:], "repository": repository}
 
 
-def resolve(run_id, repository):
+def acceptance_platforms(choice):
+    choices = {"both": ["macos-15", "windows-2025"], "windows": ["windows-2025"], "macos": ["macos-15"]}
+    require(choice in choices, "Acceptance platform must be both, windows or macos")
+    return {"os": choices[choice]}
+
+
+def resolve(run_id, repository, selected_platform="both"):
+    matrix = acceptance_platforms(selected_platform)
     require(re.fullmatch(r"[1-9][0-9]{0,19}", run_id), "acceptance_run_id must be a positive numeric ID")
     require(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository), "Invalid repository")
     root = f"repos/{repository}"
@@ -112,6 +119,7 @@ def resolve(run_id, repository):
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
         stream.write(f"artifact_id={source['artifact_id']}\n")
         stream.write("source=" + json.dumps(source, separators=(",", ":")) + "\n")
+        stream.write("matrix=" + json.dumps(matrix, separators=(",", ":")) + "\n")
 
 
 def regular(path):
@@ -154,10 +162,18 @@ def validate_artifact(directory, version, pypi):
     return hashes
 
 
+def child_environment():
+    if platform.system() != "Windows":
+        return None
+    # PowerShell 7 -> Python -> Windows PowerShell otherwise retains incompatible
+    # module paths. Clean only child environments, including installer descendants.
+    return {key: value for key, value in os.environ.items() if key.casefold() != "psmodulepath"}
+
+
 def command(args, receipt, stage, timeout=900):
     try:
         result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True, timeout=timeout, check=False)
+                                text=True, timeout=timeout, check=False, env=child_environment())
     except subprocess.TimeoutExpired:
         receipt["commands"].append({"stage": stage, "result": "timeout"})
         raise AcceptanceError(stage + " exceeded its time limit") from None
@@ -180,6 +196,53 @@ def require_installer_identity(signature_output):
     # certificate identity is combined with Gatekeeper and stapler below.
     require(re.search(r"(?m)^\s*[0-9]+\.\s+Developer ID Installer: [^\r\n]+$", signature_output),
             "Package signature does not identify a Developer ID Installer certificate")
+
+
+WINDOWS_SIGNATURE_PROBE = r"""
+$ErrorActionPreference = 'Stop'
+$result = [ordered]@{
+    engine_version = [string]$PSVersionTable.PSVersion
+    status = 'unavailable'
+    signer_present = $false
+    timestamp_present = $false
+    failure_category = 'none'
+}
+try {
+    $signature = Get-AuthenticodeSignature -LiteralPath $env:APPARATUS_ACCEPTANCE_INSTALLER -ErrorAction Stop
+    $result.status = [string]$signature.Status
+    $result.signer_present = $null -ne $signature.SignerCertificate
+    $result.timestamp_present = $null -ne $signature.TimeStamperCertificate
+} catch {
+    $result.failure_category = 'verifier_exception'
+}
+$result | ConvertTo-Json -Compress
+"""
+
+
+def require_windows_signature(output, receipt):
+    # Only this fixed schema reaches durable evidence. Reject extra output,
+    # duplicate keys and unknown values without retaining any raw diagnostics.
+    def unique_object(pairs):
+        require(len(pairs) == len({key for key, _ in pairs}), "Malformed signature diagnostics")
+        return dict(pairs)
+    require(isinstance(output, str) and len(output) <= 2048, "Malformed signature diagnostics")
+    try:
+        data = json.loads(output, object_pairs_hook=unique_object)
+    except (ValueError, TypeError):
+        raise AcceptanceError("Malformed signature diagnostics") from None
+    require(isinstance(data, dict) and set(data) == {
+        "engine_version", "status", "signer_present", "timestamp_present", "failure_category"
+    }, "Malformed signature diagnostics")
+    require(isinstance(data["engine_version"], str) and
+            re.fullmatch(r"[0-9]{1,5}(?:\.[0-9]{1,6}){1,3}", data["engine_version"]) and
+            isinstance(data["status"], str) and data["status"] in {"Valid", "UnknownError", "NotSigned", "HashMismatch", "NotTrusted",
+                                "NotSupportedFileFormat", "Incompatible", "unavailable"} and
+            type(data["signer_present"]) is bool and type(data["timestamp_present"]) is bool and
+            isinstance(data["failure_category"], str) and data["failure_category"] in {"none", "verifier_exception"}, "Malformed signature diagnostics")
+    receipt["windows_signature"] = data
+    require(data["failure_category"] == "none" and data["status"] == "Valid" and
+            data["signer_present"] and data["timestamp_present"],
+            "Windows signature verification did not establish a valid signer and timestamp")
 
 
 def native(directory, source, receipt):
@@ -219,8 +282,9 @@ def native(directory, source, receipt):
         # The path comes from the fixed local artifact directory, never source metadata.
         env_path = str(installer)
         os.environ["APPARATUS_ACCEPTANCE_INSTALLER"] = env_path
-        command(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-                 "$s=Get-AuthenticodeSignature -LiteralPath $env:APPARATUS_ACCEPTANCE_INSTALLER; if ($s.Status -ne 'Valid' -or $null -eq $s.TimeStamperCertificate) { exit 1 }"], receipt, "Authenticode and timestamp", 120)
+        diagnostics = command(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+                               WINDOWS_SIGNATURE_PROBE], receipt, "Authenticode and timestamp", 120)
+        require_windows_signature(diagnostics, receipt)
         install = [str(installer), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
         app = home / ".local/bin/apparatus.exe"
     else:
@@ -255,7 +319,8 @@ def main():
     parser.add_argument("mode", choices=["resolve", "native"])
     args = parser.parse_args()
     if args.mode == "resolve":
-        resolve(os.environ["ACCEPTANCE_RUN_ID"], os.environ["GITHUB_REPOSITORY"])
+        resolve(os.environ["ACCEPTANCE_RUN_ID"], os.environ["GITHUB_REPOSITORY"],
+                os.environ.get("ACCEPTANCE_PLATFORM", "both"))
         return
     source = json.loads(os.environ["ACCEPTANCE_SOURCE"])
     receipt = {"source": source, "result": "failed", "commands": [], "limitations": [

@@ -10,6 +10,12 @@ on:
         required: false
         type: string
         default: ''
+      acceptance_platform:
+        description: 'Native platform to verify when an acceptance source run is supplied'
+        required: false
+        type: choice
+        default: both
+        options: [both, windows, macos]
 
 permissions:
   contents: read
@@ -1077,6 +1083,7 @@ jobs:
     outputs:
       artifact_id: ${{ steps.source.outputs.artifact_id }}
       source: ${{ steps.source.outputs.source }}
+      matrix: ${{ steps.source.outputs.matrix }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -1086,6 +1093,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ACCEPTANCE_RUN_ID: ${{ inputs.acceptance_run_id }}
+          ACCEPTANCE_PLATFORM: ${{ inputs.acceptance_platform || 'both' }}
         run: python3 tools/installer_acceptance/acceptance.py resolve
 
   acceptance-native:
@@ -1093,8 +1101,7 @@ jobs:
     needs: acceptance-source
     strategy:
       fail-fast: false
-      matrix:
-        os: [macos-15, windows-2025]
+      matrix: ${{ fromJSON(needs.acceptance-source.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     permissions:
@@ -1119,6 +1126,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: apparatus-native-acceptance-${{ matrix.os }}-${{ github.run_id }}
+          name: apparatus-native-acceptance-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: acceptance-receipt.json
           if-no-files-found: error
