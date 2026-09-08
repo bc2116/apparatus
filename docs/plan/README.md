@@ -111,6 +111,7 @@ later slices remain planned.
 | 48 | [Feature reads through external path aliases](PR-48-feature-path-aliases.md) | Repair | ✅ landed | 46 |
 | 49 | [Accurate Library cache diagnostics](PR-49-cache-diagnostics.md) | Repair | ✅ landed | 48 |
 | 50 | [Explicit Memory fact capture](PR-50-explicit-memory-capture.md) | Repair | ✅ landed | 49 |
+| 51 | [First-publication acceptance gate](PR-51-release-acceptance-gate.md) | Release | ✅ landed | 50 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

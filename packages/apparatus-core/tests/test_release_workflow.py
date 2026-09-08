@@ -27,17 +27,18 @@ def test_release_workflow_keeps_dispatch_and_publishing_separate() -> None:
     assert action["uses"] == "pypa/gh-action-pypi-publish@release/v1"
     assert "token" not in str(action).lower()
     release = workflow["jobs"]["github-release"]
+    assert release["needs"] == ["build", "publish-pypi", "assemble-release"]
+    assert release["environment"] == "release"
     assert release["permissions"] == {"contents": "write"}
     assert "needs.build.result == 'success'" in release["if"]
     assert "needs.publish-pypi.result == 'success'" in release["if"]
-    assert "needs.build.outputs.dry_run == 'true'" in release["if"]
+    assert "needs.build.outputs.dry_run == 'false'" in release["if"]
     release_step = release["steps"][-1]
     assert "uses" not in release_step
     assert release_step["env"] == {
         "GH_TOKEN": "${{ github.token }}",
         "GH_REPO": "${{ github.repository }}",
         "VERSION": "${{ needs.build.outputs.version }}",
-        "DRY_RUN": "${{ needs.build.outputs.dry_run }}",
         "SDIST_NAME": "${{ needs.build.outputs.sdist_name }}",
         "WHEEL_NAME": "${{ needs.build.outputs.wheel_name }}",
     }
@@ -383,7 +384,7 @@ def _github_release_is_eligible(
         "github.event_name == 'push'": event == "push",
         "needs.build.result == 'success'": build_result == "success",
         "needs.assemble-release.result == 'success'": assemble_result == "success",
-        "needs.build.outputs.dry_run == 'true'": dry_run == "true",
+        "needs.build.outputs.dry_run == 'false'": dry_run == "false",
         "needs.publish-pypi.result == 'success'": publish_result == "success",
     }
     for term, value in substitutions.items():
@@ -403,7 +404,7 @@ def test_github_release_requires_a_successful_build_for_every_path() -> None:
     assert not _github_release_is_eligible(
         build_result="success", assemble_result="failure", dry_run="true", publish_result="skipped"
     )
-    assert _github_release_is_eligible(
+    assert not _github_release_is_eligible(
         build_result="success", assemble_result="success", dry_run="true", publish_result="skipped"
     )
     assert _github_release_is_eligible(
@@ -412,6 +413,55 @@ def test_github_release_requires_a_successful_build_for_every_path() -> None:
     assert not _github_release_is_eligible(
         build_result="success", assemble_result="success", dry_run="false", publish_result="failure"
     )
+    assert not _github_release_is_eligible(
+        build_result="success",
+        assemble_result="success",
+        dry_run="true",
+        publish_result="skipped",
+        event="workflow_dispatch",
+    )
+
+
+def _run_publish_signing_assertion(*, dry_run: str, windows_signer: str, macos_signer: str):
+    return subprocess.run(
+        ["bash", "-c", _job_step_run("assemble-release", "Require signed installers for publication")],
+        env={
+            **os.environ,
+            "DRY_RUN": dry_run,
+            "WINDOWS_SIGNER_RESULT": windows_signer,
+            "MACOS_SIGNER_RESULT": macos_signer,
+        },
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_assembly_requires_both_signatures_for_publish_but_allows_dry_run_skips() -> None:
+    assert _run_publish_signing_assertion(
+        dry_run="true", windows_signer="skipped", macos_signer="skipped"
+    ).returncode == 0
+
+    missing = _run_publish_signing_assertion(
+        dry_run="false", windows_signer="skipped", macos_signer="skipped"
+    )
+    assert missing.returncode != 0
+    assert "successful Windows installer signing; got skipped" in missing.stderr
+
+    one = _run_publish_signing_assertion(
+        dry_run="false", windows_signer="success", macos_signer="skipped"
+    )
+    assert one.returncode != 0
+    assert "successful macOS installer signing; got skipped" in one.stderr
+
+    assert _run_publish_signing_assertion(
+        dry_run="false", windows_signer="success", macos_signer="success"
+    ).returncode == 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", windows_signer="failure", macos_signer="success"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", windows_signer="success", macos_signer="cancelled"
+    ).returncode != 0
 
 
 def _distribution_resolver_script() -> str:
