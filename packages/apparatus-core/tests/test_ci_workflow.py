@@ -107,6 +107,7 @@ def test_windows_aggregate_retains_the_required_check_and_always_observes_matrix
     assert gate["name"] == "windows-safety"
     assert gate["needs"] == "windows-safety"
     assert gate["if"] == "${{ always() }}"
+    assert gate["permissions"] == {}
     assert not gate.get("continue-on-error")
     assert jobs["windows-safety"]["name"] == "Windows safety (${{ matrix.group }})"
     assert gate["steps"][0]["env"] == {

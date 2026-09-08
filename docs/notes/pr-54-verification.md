@@ -19,5 +19,14 @@ Focused checks passed (nine tests): the new coverage/gate tests and the
 existing hosted-Windows scoped-filesystem proof. Independent frontier review
 found no correctness or security issue in the final workflow, tests, and notes.
 The full local `uv run pytest` passed: **1286 passed, 38 skipped in 552.14s**.
-Live CI timing remains pending; no elapsed-time improvement is claimed yet.
-This change adds no app behavior or native AI-app certification claim.
+The [first split CI run](https://github.com/bc2116/apparatus/actions/runs/34235648726)
+passed all eleven checks in 14m35s. Windows safety including aggregation took
+14m32s, about 65% less elapsed time than the serial baseline. The four groups
+used 38m56s of combined runner time; the aggregate added four seconds. Combined
+pytest counts match the baseline exactly: 1,082 passed, 87 skipped, one
+deselected. This is one observed run, not a guarantee for every runner.
+
+The aggregate explicitly receives no token permissions. Focused checks pin
+that restriction alongside its failure handling; final CI verifies the revised
+head after this permissions hardening. Product and payload remain unchanged.
+This change adds no native AI-app certification claim.

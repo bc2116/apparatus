@@ -121,6 +121,7 @@ jobs:
     needs: windows-safety
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Require every Windows safety group to pass
         env:
