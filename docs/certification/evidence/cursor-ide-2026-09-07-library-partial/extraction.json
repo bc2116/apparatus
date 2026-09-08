@@ -1,0 +1,11 @@
+{
+  "character_count": 119,
+  "error": null,
+  "extractor": "pypdf",
+  "extractor_version": "1",
+  "size_bytes": 2358,
+  "source_path": "project-a/appendix.pdf",
+  "source_sha256": "388cbe03623f1eda8080ed42a3125326ae49db1e2b3c902608a7d2233ba82a95",
+  "status": "extracted",
+  "timestamp": "2026-09-07T18:38:50Z"
+}

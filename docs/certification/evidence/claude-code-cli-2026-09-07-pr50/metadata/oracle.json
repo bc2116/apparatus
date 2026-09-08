@@ -1,0 +1,38 @@
+{
+  "schema": "apparatus/certification-oracle-summary@v0",
+  "first_chat": {
+    "duration": "57.32s",
+    "task_id": "dec42082-1df4-43e8-a6b5-0f049c0b8480",
+    "result": "accurate plan, Memory fact, Library card, and snapshot",
+    "permission_denials": [],
+    "existing_state": "only expected managed reference changed",
+    "temporary_helper": "created inside project and removed"
+  },
+  "second_chat": {
+    "duration": "49.122s",
+    "task_id": "9634bcf6-6c9c-42c8-b42e-4d3bc7b37736",
+    "result": "correct cited facilitator note; duration unknown",
+    "permission_denials": [],
+    "filesystem_oracle": "only new no-save task metadata and deliverable; all pre-existing files unchanged"
+  },
+  "runtime": {
+    "cli": "2.1.263",
+    "model_requested": "claude-sonnet-5",
+    "effort_requested": "medium",
+    "permission_mode": "auto",
+    "restricted": true,
+    "allowed_tools": "Read, Write, Edit, Glob, Grep, and Bash scoped to the Apparatus CLI",
+    "strict_empty_mcp": true,
+    "browser": false,
+    "agents": false,
+    "history_persistence": false,
+    "roots": "own area and cache parent",
+    "model_usage": "telemetry reports Sonnet 5 plus Haiku 4.5 helper; no subagent was spawned"
+  },
+  "limitations": [
+    "This is a fixture-local result; global native permission settings are not established.",
+    "Provider retention, signing, public release, and full certification are not claimed.",
+    "Prior failed Claude runs elsewhere remain relevant and are not erased by this pass."
+  ],
+  "raw_traces": "excluded"
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "apparatus/certification-oracle-summary@v0",
+  "source": "synthetic fixture before/after hash maps",
+  "saving_chat_delta": {
+    "added_relevant_paths": [
+      "Memory/Facts/practice-workshop-has-two-sessions-with-12-places-each.md",
+      "System/library/cards/<card-id>.yaml",
+      "System/library/sources/<card-id>.yaml",
+      "System/receipts/<managed-snapshot>.md",
+      "System/tasks/ac846292-4f16-4b55-adbb-3a61cd022b7c.yaml",
+      "project-a/workshop-plan.md"
+    ],
+    "changed_relevant_paths": ["System/recovery/store/refs/heads/managed"],
+    "unrelated_recovery_objects_added": 16
+  },
+  "no_save_chat_delta": {
+    "added_paths": [
+      "System/tasks/4dadcc3e-a564-44dc-9aae-e8b3509e9d13.yaml",
+      "project-a/facilitator-note.md"
+    ],
+    "removed_paths": [],
+    "changed_paths": []
+  },
+  "same_chat_follow_up": {
+    "task_id": "ac846292-4f16-4b55-adbb-3a61cd022b7c",
+    "native_observation": "all files unchanged"
+  }
+}

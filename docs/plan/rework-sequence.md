@@ -235,6 +235,9 @@ unavailable recovery remains explicit; no task content enters opted-out notes.
 
 ### R11 — Installer and existing-folder delivery
 
+Implemented in [PR46](PR-46-installer-adoption.md). [Local verification](../notes/pr-46-verification.md)
+separates source/package checks from native CI, signing and publication evidence.
+
 **After R5 and R10, with R6–R9 integrated.** Carry the reworked payload and
 adoption behavior through package embedding, installers, rerun/repair, machine
 reporting, and user docs. Preserve user-scope setup and signing requirements.
@@ -247,6 +250,17 @@ signing claims match real artifacts. Packaging checks do not count as native
 app certification. Resolve Windows prerequisites with actual platform evidence.
 
 ### R12 — Recut certification and prove the first-task experience
+
+[PR47](PR-47-first-task-certification.md) records passing focused two-chat gates
+for Cursor IDE/Luna, Codex CLI/Terra and Claude Code CLI/Sonnet on the repaired
+baseline. These named configurations do not establish broad support
+certification or results for untested variants. Both Windows and macOS signed
+rehearsals passed for 0.0.1; release work for 0.0.2 preserves tested core and
+payload behavior apart from the version constant. The
+[checklist](../certification/checklist.md) and quickstarts describe the route;
+the [dated matrix](../certification/matrix.md) owns current publication, native
+install-and-repair status and remaining limits. Earlier diagnostic failures and
+held PR24 work remain attached to their original builds.
 
 **After R11.** Replace the held PR-24 checklist and dependencies in a focused
 new prompt, preserving any useful prior work as evidence for its original

@@ -1,0 +1,129 @@
+{
+  "date": "2026-09-07",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Learned Skill draft, adoption and native use observed; bounded case only, not certified",
+  "files": {
+    "draft/prompt.txt": "b0521cccb2319a915a1df2e3990ae3b8de0512695c765377b473177fe901b1d3",
+    "draft/observation.md": "008b0bc7b0216d6f0a2644d0febfc5cd2d973c45ef29880328a8a5fc63096b1f",
+    "draft/learned-workshop-source-check.md": "587ad425241ec961ed700a9e1c24b11397ab6be10dffb44e1e51c2d6fef79d23",
+    "adopt/learned-workshop-source-check.yaml": "df03fbc82add959c4b9d9e100e40fc187939959337382ffbe12a877bb0d17a5d",
+    "adopt/native-adopt.json": "b2a80b803b752fc10610760f8e89f6d5f7077bce9a854d6edba0889bd5423104",
+    "adopt/prompt.txt": "84256edc3f78b0726fb6b536790d109f17759e2ae0b9386d285971015bb7ece0",
+    "adopt/SKILL.md": "587ad425241ec961ed700a9e1c24b11397ab6be10dffb44e1e51c2d6fef79d23",
+    "adopt/observation.md": "1cfe7026dfdffc4a303d085fb80416dabc206bffec7d0ce2764526c5395134c0",
+    "adopt/2026-09-07-185636-snapshot.md": "21b63e54975f986749fd54c720c603c0d432ff2acc9e09275bef1a744f130451",
+    "use/skill-plan.md": "405aaf66068679f810d13400e5ad51ccf71d660292b2113deee9c861b00ed241",
+    "use/skill-source.md": "2d245195855360c7e5a077f9b01039d874af44b1026e855e787f6e50c272ceb9",
+    "use/prompt.txt": "e6ca8e350d453de38ea1bce9de41b6ef8d1f200896a1aa4c2552ef267b01a481",
+    "use/observation.md": "14c659f4ab5c0774e8c2ba98e32d016bed5678500f0a06cf6201c78a2814c7a9"
+  },
+  "timezone": "America/Los_Angeles",
+  "apparatus_core_version": "0.0.1",
+  "cache_override": "<fixture>/operator-evidence/library-cache",
+  "cases": [
+    {
+      "case": "draft",
+      "status": "pass",
+      "task_id": "d7c719cf-0001-46de-adf2-aaddcd25bdce",
+      "ui_time": "11:48 AM",
+      "seconds": 89,
+      "setup": "Repeated workshop planning pattern; no learned Skill exists yet. Explicit saving task.",
+      "expected": "Create one inactive draft and expose exact bytes/digest for review; no adoption.",
+      "prompt_artifact": "draft/prompt.txt",
+      "observation_artifact": "draft/observation.md",
+      "filesystem_verification": {
+        "before_file_count": 154,
+        "after_file_count": 155,
+        "changed": [],
+        "deleted": [],
+        "added": [
+          "System/skill-drafts/learned-workshop-source-check.md"
+        ]
+      },
+      "cache_verification": {
+        "before_file_count": 6,
+        "after_file_count": 6,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      },
+      "result": "Only the inactive draft was added. Root reviewed its exact stored bytes before the later adoption prompt."
+    },
+    {
+      "case": "adopt",
+      "status": "pass",
+      "task_id": "ee5be179-7c28-4403-ab72-93bc9ebc5071",
+      "ui_time": "11:56 AM",
+      "seconds": 36,
+      "setup": "Root reviewed the frozen draft with SHA-256 587ad425241ec961ed700a9e1c24b11397ab6be10dffb44e1e51c2d6fef79d23, then supplied that exact digest for explicit adoption in a new saving task.",
+      "expected": "Adopt only reviewed bytes; publish canonical body and closed ownership.",
+      "prompt_artifact": "adopt/prompt.txt",
+      "observation_artifact": "adopt/observation.md",
+      "filesystem_verification": {
+        "before_file_count": 156,
+        "after_file_count": 170,
+        "changed": [
+          "System/recovery/store/refs/heads/managed"
+        ],
+        "deleted": [],
+        "added": [
+          ".agents/skills/learned-workshop-source-check/SKILL.md",
+          "System/receipts/2026-09-07-185636-snapshot.md",
+          "System/skills/adopted/learned-workshop-source-check.yaml"
+        ],
+        "git_objects_added": 11
+      },
+      "cache_verification": {
+        "before_file_count": 6,
+        "after_file_count": 6,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      },
+      "result": "Expanded native adoption output reported the exact reviewed digest. Canonical body and frozen draft are byte-identical. Ownership has only schema/name; the inactive draft remained unchanged."
+    },
+    {
+      "case": "use",
+      "status": "pass",
+      "task_id": "7944812b-7334-4418-b73e-d42d30527458",
+      "ui_time": "11:59 AM",
+      "seconds": 36,
+      "setup": "Fresh Cursor chat; adopted canonical Skill present. Synthetic project-b/skill-source.md provided before the explicit no-save task baseline.",
+      "expected": "Apply the adopted body to a plan that separates source facts, proposals and unknowns; preserve no-save.",
+      "prompt_artifact": "use/prompt.txt",
+      "observation_artifact": "use/observation.md",
+      "filesystem_verification": {
+        "before_file_count": 172,
+        "after_file_count": 173,
+        "changed": [],
+        "deleted": [],
+        "added": [
+          "project-b/skill-plan.md"
+        ]
+      },
+      "cache_verification": {
+        "before_file_count": 6,
+        "after_file_count": 6,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      },
+      "result": "The native Used learned-workshop-source-check event was observed. Operator clicking that event opened the canonical .agents/skills/learned-workshop-source-check/SKILL.md path. This is actual native Skill use, with no claim of a separate shell cat/read command. Resulting plan matches supplied facts, labels proposals, and leaves unknowns blank; only the project plan was added."
+    }
+  ],
+  "limits": [
+    "Explicit isolated runtime/cache; default installation/cache, native permission settings and provider retention were not tested.",
+    "Native Skill use was requested explicitly; unsolicited discovery was not evaluated.",
+    "No full six-step or three-app certification; final installer/build gates remain separate."
+  ]
+}

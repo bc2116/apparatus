@@ -1,0 +1,3 @@
+snapshot <work-area> --requested
+Snapshot saved. Snapshot id: ed845c45c3f4
+Saved Apparatus Memory, goals and settings. Project files and Library originals are not included.

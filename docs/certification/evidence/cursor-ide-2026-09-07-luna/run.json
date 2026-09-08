@@ -1,0 +1,46 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "cursor-ide-2026-09-07-luna",
+  "captured_at": "2026-09-07",
+  "app": {
+    "name": "Cursor IDE",
+    "version": "3.19.13",
+    "model": "GPT-5.6 Luna Medium",
+    "fast_mode": "not observed"
+  },
+  "build": {
+    "core_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316",
+    "version": "0.0.1",
+    "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89",
+    "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94",
+    "python": "3.12.4",
+    "cache_override": null
+  },
+  "chats": [
+    {
+      "kind": "saving",
+      "task_id": "97bad5fa-92cd-4b5a-b18f-783fe5017177",
+      "duration": "52s",
+      "result": "pass"
+    },
+    {
+      "kind": "no-save",
+      "task_id": "31110f7b-38d2-4fa7-83fa-92740a85f621",
+      "duration": "79s",
+      "preexisting_files_unchanged": 85,
+      "result": "pass"
+    }
+  ],
+  "source_hash_manifest": "source-hashes.md",
+  "normalized_source_directory": "normalized/",
+  "claims": {
+    "named_two_chat_case": "pass",
+    "prompted_canonical_skill_use": "observed",
+    "automatic_skill_discovery": "not established",
+    "overall_rc_gate": "incomplete; signed installer install-and-repair acceptance remains"
+  },
+  "gaps": [
+    "Native observations are operator-supplied, not a complete transcript or hidden tool trace.",
+    "No OS confinement, provider retention, signing, public release, or installer install-and-repair claim follows."
+  ]
+}

@@ -15,7 +15,11 @@ PR-40 implements R6: economical native work and selective prose editing.
 PR-41 implements R7: draft and review-bound adoption of learned Skills.
 PR-46 implements R11 installer routing and explicit adoption on the integrated
 PR-45 core, with separate native setup/release evidence.
-Native discovery adapters and runtime evidence remain planned.
+PR-47 records the lean [actual-app compatibility gate](../certification/matrix.md):
+two focused chats passed for the named Cursor IDE, Codex CLI and Claude Code CLI
+configurations, with earlier failures and desktop gaps preserved. Signed native
+`0.0.2` install and repair passed on Mac ARM64 and Windows x64. The matrix tracks
+public release availability separately; native discovery adapters remain planned.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
 
@@ -118,6 +122,7 @@ later slices remain planned.
 | 55 | [Prepare the first release notes](PR-55-first-release-notes.md) | Release | ✅ landed | 54 |
 | 56 | [Verify published installers on clean native runners](PR-56-native-installer-acceptance.md) | Release | ✅ landed | 55 |
 | 57 | [Diagnose native Windows signature checks](PR-57-native-signature-diagnostics.md) | Release | ✅ landed | 56 |
+| 47 | [Prove the reworked first task](PR-47-first-task-certification.md) | Rework | ✅ landed | 49 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

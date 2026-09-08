@@ -30,3 +30,14 @@ supplies full repository pytest. The native Windows rerun must establish the
 runtime result; the original failures are retained, and their precise exception
 remains unavailable. A local dirty-versus-clean reproduction was unavailable
 because that VM has no PowerShell 7.
+
+## Native result — September 8
+
+The Windows-only rerun [34274972458](https://github.com/bc2116/apparatus/actions/runs/34274972458)
+passed at verifier commit `6864a22e944fe9568f078320ca07114d98b7d5d2`. Windows
+PowerShell 5.1 reported Valid with signer and timestamp present. The unchanged
+signed `0.0.2` EXE completed native install, version and workspace checks, exact
+managed-file repair and project sentinel preservation. All eleven PR58 checks
+passed, including 1367 pytest tests passed and 45 skipped. The
+[current release matrix](../certification/matrix.md) records exact native
+receipts and hosted-runner limitations.

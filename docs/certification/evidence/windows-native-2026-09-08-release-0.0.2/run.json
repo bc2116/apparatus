@@ -1,0 +1,93 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "windows-native-2026-09-08-release-0.0.2",
+  "captured_at": "2026-09-08",
+  "scope": "signed Windows installer install-and-repair acceptance",
+  "source": {
+    "run_id": "34272472809",
+    "run_attempt": 1,
+    "tag": "v0.0.2",
+    "head_sha": "7a1b0cda634f5d44ff100f83b72fe5e3cc3a4d25",
+    "version": "0.0.2",
+    "repository": "bc2116/apparatus",
+    "artifact_id": 10074486721,
+    "artifact_digest": "sha256:9eae35fde791b4f902a99c6e53b9557dbf789d64d4c5cd53366cbbd05e1d1331"
+  },
+  "result": "passed",
+  "platform": {
+    "os": "Windows Server 2025",
+    "os_version": "10.0.26100 SP0",
+    "architecture": "x64",
+    "runner": "hosted x64"
+  },
+  "windows_signature": {
+    "engine_version": "5.1.26100.33296",
+    "status": "Valid",
+    "signer_present": true,
+    "timestamp_present": true,
+    "failure_category": "none"
+  },
+  "steps": [
+    {
+      "name": "Windows user context",
+      "exit_code": 0
+    },
+    {
+      "name": "Authenticode and timestamp",
+      "exit_code": 0
+    },
+    {
+      "name": "native install",
+      "exit_code": 0
+    },
+    {
+      "name": "installed version",
+      "exit_code": 0
+    },
+    {
+      "name": "installed workspace check",
+      "exit_code": 0
+    },
+    {
+      "name": "native repair",
+      "exit_code": 0
+    },
+    {
+      "name": "repaired version",
+      "exit_code": 0
+    },
+    {
+      "name": "repaired workspace check",
+      "exit_code": 0
+    }
+  ],
+  "installed_version": "0.0.2",
+  "repair": {
+    "file": ".agents/skills/apparatus-welcome/SKILL.md",
+    "repaired_sha256": "689dc8fd3373d55b01391fa43e3a8604808733b03225663ada0524104295e9e8",
+    "sentinel_sha256": "1285668991d7289b6c49d926330a406b82626df40a0dfa58f56a3d4cad7e7e60"
+  },
+  "distribution_hashes": {
+    "apparatus-payload-0.0.2.zip": "c87328ad4ae8f051647cd07b2faae6ff80c0fc4d87161873a716fb6bb8f5710a",
+    "apparatus_core-0.0.2.tar.gz": "5276b33b8a33e74d41a9082f352d4e9cf4b9e0f075ca790b9c736ee7ae9ed7e7",
+    "apparatus_core-0.0.2-py3-none-any.whl": "4192852c4ce46e9e2abceef989e0ee9ff708e695a0052d8258355bff35aca517",
+    "bootstrap-apparatus.ps1": "88421184286589c42b31336ade4d91b912e4fe131012a27303a037344690c133",
+    "bootstrap-apparatus.sh": "7d7115e77b267fa59ba1135e9c33985c50850813c89a5a4f7cce037d7b300431",
+    "apparatus-installer.exe": "16881503d23994461b5c2c3c655af66a010b21e0bad749696645c11fd64d67bb",
+    "apparatus-installer.pkg": "928284435a86e5fde8ce0e9ad86b6e5d19b010cfcd93deadf133b1723400d982"
+  },
+  "limitations": [
+    "The acceptance ran on a hosted x64 Windows Server 2025 runner with preinstalled tools, not a bare operating-system image.",
+    "The recorded context was administrator with UAC disabled; corporate-policy and standard-user/UAC-on behavior were not tested.",
+    "Installer/wrapper execution was through the command line; interactive GUI presentation was not tested.",
+    "This is package install-and-repair evidence only. It makes no desktop AI-app claim and does not certify a native AI app.",
+    "Earlier attempts stopped at signature before installation; this record covers only the later isolated successful run and does not infer causes for those failures."
+  ],
+  "acceptance_run": {
+    "run_id": 34274972458,
+    "run_attempt": 1,
+    "url": "https://github.com/bc2116/apparatus/actions/runs/34274972458",
+    "verifier_commit": "6864a22e944fe9568f078320ca07114d98b7d5d2",
+    "runner": "windows-2025"
+  }
+}

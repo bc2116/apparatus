@@ -1,0 +1,59 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "release-source-equivalence-0.0.2",
+  "captured_at": "2026-09-08",
+  "comparison": {
+    "base_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316",
+    "base_version": "0.0.1",
+    "release_commit": "7a1b0cda634f5d44ff100f83b72fe5e3cc3a4d25",
+    "release_version": "0.0.2",
+    "scoped_paths": [
+      "packages/apparatus-core/src",
+      "starter",
+      "installer"
+    ],
+    "changed_files": [
+      "packages/apparatus-core/src/apparatus_core/__init__.py"
+    ],
+    "diff_result": "only __version__ changed from 0.0.1 to 0.0.2"
+  },
+  "prior_app_chat_evidence": {
+    "status": "retained as source-equivalent behavior evidence",
+    "records": [
+      "cursor-ide-2026-09-07-luna/run.json",
+      "codex-cli-2026-09-07-pr50/run.json",
+      "claude-code-cli-2026-09-07-pr50/run.json"
+    ],
+    "prior_build": {
+      "core_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316",
+      "version": "0.0.1",
+      "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89",
+      "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94"
+    },
+    "rerun_status": "not rerun on 0.0.2",
+    "interpretation": "The prior passing chats support unchanged source behavior within the scoped paths; they are not relabeled as 0.0.2 chats."
+  },
+  "release_distribution": {
+    "version": "0.0.2",
+    "hashes_differ_from_prior_distribution": true,
+    "wheel_sha256": "4192852c4ce46e9e2abceef989e0ee9ff708e695a0052d8258355bff35aca517",
+    "payload_sha256": "c87328ad4ae8f051647cd07b2faae6ff80c0fc4d87161873a716fb6bb8f5710a"
+  },
+  "limitations": [
+    "Source equivalence covers only the listed source paths and the observed one-line version delta.",
+    "It does not rerun prior app chats, establish new app behavior, or certify a desktop AI app.",
+    "Distribution artifact hashes differ because this is a new 0.0.2 release."
+  ],
+  "publication": {
+    "verified_date": "2026-09-08",
+    "tagged_run_id": 34272472809,
+    "tagged_run_result": "success",
+    "github_release": "https://github.com/bc2116/apparatus/releases/tag/v0.0.2",
+    "pypi": "https://pypi.org/project/apparatus-core/0.0.2/",
+    "github_public_attachments_byte_matched": 8,
+    "distributable_checksums_passed": 7,
+    "unauthenticated_windows_download_http": 200,
+    "unauthenticated_macos_download_http": 200,
+    "pypi_wheel_and_sdist_hashes_match": true
+  }
+}

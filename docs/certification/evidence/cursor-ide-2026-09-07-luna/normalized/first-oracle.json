@@ -1,0 +1,27 @@
+{
+  "before_files": 67,
+  "after_files": 85,
+  "changed_existing": [
+    "System/recovery/store/refs/heads/managed"
+  ],
+  "added": [
+    "Memory/Facts/workshop-format-and-capacity.md",
+    "System/library/cards/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+    "System/library/sources/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+    "System/receipts/2026-09-08-002842-snapshot.md",
+    "System/recovery/store/objects/04/823d9636ef4bf21dd9f6473f85fd02c17a2827",
+    "System/recovery/store/objects/13/7d179ad40239a22dbef21f33d08b90c8945708",
+    "System/recovery/store/objects/29/4661a95c687260df5d8d2fe1d7d80bb5ff7f1c",
+    "System/recovery/store/objects/3f/ba7c08a032fa64838626e9cdb61c1f0aea446f",
+    "System/recovery/store/objects/72/625e486cc480dc7b54aa38168cc531e631749d",
+    "System/recovery/store/objects/a3/920912e4412336a9433840fcac41b1bd7847bd",
+    "System/recovery/store/objects/a4/7e48056ad343d4f2e7f0e0a3e4aac905719428",
+    "System/recovery/store/objects/ae/1cca56de37ae9a70051bc01e8c46f3ac43ccb4",
+    "System/recovery/store/objects/e0/d8add851ff4898c74ae8562b3eddc1d412b1b0",
+    "System/recovery/store/objects/e8/2ec3e491abe27139af1fc12e33ecd761875334",
+    "System/recovery/store/objects/f7/12a6b0992ea09a366cdf8379c4d10a4b2935cb",
+    "System/recovery/store/objects/fe/6d88b710d08309bbaff53d60e5a11e7dc67832",
+    "System/tasks/97bad5fa-92cd-4b5a-b18f-783fe5017177.yaml",
+    "project-a/workshop-plan.md"
+  ]
+}

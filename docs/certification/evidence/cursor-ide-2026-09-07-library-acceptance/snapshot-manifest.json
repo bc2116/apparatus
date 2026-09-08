@@ -1,0 +1,91 @@
+{
+  "files": [
+    {
+      "path": ".agents/skills/apparatus-economizer/SKILL.md",
+      "sha256": "e9f6bd8961053592bd8f45826e13966c8fdf03a58893fe1496c48d47a34ac8af"
+    },
+    {
+      "path": ".agents/skills/apparatus-humanizer/SKILL.md",
+      "sha256": "547dd19f651e591d03100da942db48d101368cae3166510e133b606ed60aa74a"
+    },
+    {
+      "path": ".agents/skills/apparatus-produce-deliverable/SKILL.md",
+      "sha256": "bbf09304eb6b015869017fbd0a495de6f3cf357970227e621fe06921092183be"
+    },
+    {
+      "path": ".agents/skills/apparatus-research-and-summarize/SKILL.md",
+      "sha256": "9ec46a37f5c127a20a3320fb13f25e16ee4f2131b6c13a2145c89943a164f2a7"
+    },
+    {
+      "path": ".agents/skills/apparatus-review-against-checklist/SKILL.md",
+      "sha256": "de70f44a9ea56223fe4b1aa5745fcef5af7b7d8a83ec6bd06fcc3c7c25671401"
+    },
+    {
+      "path": ".agents/skills/apparatus-weekly-review/SKILL.md",
+      "sha256": "a9cdb5d9cd0e93fa1fe71678614265b736fc6478c4981ebc61e854ca589fc82d"
+    },
+    {
+      "path": ".agents/skills/apparatus-welcome/SKILL.md",
+      "sha256": "689dc8fd3373d55b01391fa43e3a8604808733b03225663ada0524104295e9e8"
+    },
+    {
+      "path": ".cursor/rules/apparatus.mdc",
+      "sha256": "6172375346317bc89c0d8c4f4706765fbdb8bcde3469126dd6634d002205c8a9"
+    },
+    {
+      "path": ".github/copilot-instructions.md",
+      "sha256": "453cab2d6fef0ecd968b9d8b15cfbcc7146c98f8801fd2665097402610402eb5"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "391711d666fb55656a01592ce9cf32b16024d0045cc167ea27233ddcda26c22d"
+    },
+    {
+      "path": "System/README.md",
+      "sha256": "d44926de0f7557cc5d27af9060813195dd0ffb5677172ac35f7965f577e693e7"
+    },
+    {
+      "path": "System/guidance/model-guidance.md",
+      "sha256": "1c821b61229fcc82749a381e030b53f59c5c70885d27995aad86d8d96c996ff3"
+    },
+    {
+      "path": "System/ignore",
+      "sha256": "27c4c2af0db7006ea64eb9e4670e91edb21d57f8b34e7c910beb2119e8988bcf"
+    },
+    {
+      "path": "System/library/cards/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+      "sha256": "8f5a11d3ba9925f3ed78ac490c5bcfa2bb87f9f5ae3037f1c11a83cc8a27f0bd"
+    },
+    {
+      "path": "System/library/sources/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+      "sha256": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031"
+    },
+    {
+      "path": "System/policy/private.md",
+      "sha256": "f3472ceaacef9b1dd1091ed56aa56c9aad3b79b2109e79199223e13a84dd2576"
+    },
+    {
+      "path": "System/policy/standard.md",
+      "sha256": "41e7804882adb2ad4544634028841fcedd2422394ee6d44071654b64621b4613"
+    },
+    {
+      "path": "System/profile.yaml",
+      "sha256": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2"
+    },
+    {
+      "path": "System/receipts/2026-09-07-151441-init.md",
+      "sha256": "2a10741a11c9ce12afa73a486693da017d12276c7375819d22e9e78f9f875884"
+    },
+    {
+      "path": "Welcome.md",
+      "sha256": "a2d4b26fddd5bc23a709f5e6c756476f0b5d6d86772774757dbaab09dda3eee8"
+    }
+  ],
+  "schema": "apparatus/recovery-manifest@v0",
+  "scope": "managed-state",
+  "workspace_id": "b3d9627f-f932-43e0-be0f-10e39e244d43"
+}

@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Ignored-source no-save Library abstention passed; bounded case only, not certified",
+  "cache_override": "<fixture>/operator-evidence/library-cache",
+  "task_id": "7a41154e-281a-4bb7-a378-b66a576b6219",
+  "files": {
+    "unchanged-ignore": "a22a484362fd7a020e9811a43acbab822d206269e1a333f7f7db8676a6784b0b",
+    "native-recall.json": "fa9c9f83f817b6b0e36765c36ddfadbe4c8e42553e45d9e75c47b3757eb4aa7e",
+    "observation.md": "53de758ea8594a5b3de2ba2f8bff70f4d7aed3e2f192b7d8bf999bcb0e2c589b",
+    "prompt.txt": "da013e8a7da65fdf1fb78ab2b2da322bd1eaed41f8c0ceaf75bc867034800bfc",
+    "unchanged-card.yaml": "623799982b92452d52970a38bfdc7b0ae124912148b9d071a0833f5949e903e0",
+    "unchanged-registration.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031"
+  },
+  "cases": [
+    {
+      "case": "Ignored source cannot supply a current venue answer",
+      "status": "pass",
+      "ui_time": "09:20 AM",
+      "seconds": 23,
+      "prompt": "Using only current Library evidence, what venue is chosen for the practice workshop? Do not use Memory or browse source files to fill a Library gap; do not change ignore rules, refresh, or repair anything. Run recall and explain its actual evidence and coverage. Continue only with assigned no-save task 7a41154e-281a-4bb7-a378-b66a576b6219; do not start another task. Command prefix: APPARATUS_HOME=<fixture>/operator-evidence/library-cache <fixture>/runtime/bin/apparatus --task 7a41154e-281a-4bb7-a378-b66a576b6219. Work area: <fixture>/area-library. Work yourself; no delegation.",
+      "native_command": "APPARATUS_HOME=<fixture>/operator-evidence/library-cache <fixture>/runtime/bin/apparatus --task 7a41154e-281a-4bb7-a378-b66a576b6219 recall <fixture>/area-library \"What venue is chosen for the practice workshop?\" --json",
+      "native_output": "native-recall.json",
+      "filesystem_verification": {
+        "before_file_count": 128,
+        "after_file_count": 128,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      },
+      "result": "Native recall abstained with ignored coverage. Every baseline work-area file and all three isolated-cache files remained byte-identical; none were added or deleted. The operator restored the fixture only after freezing the result.",
+      "reply_summary": "Current Library evidence does not support an answer for the practice workshop venue. Library recall returned abstained, with no evidence and partial coverage because project-a/workshop-plan.md is ignored. I cannot name a venue from this recall result.",
+      "reply_note": "Operator paraphrase of the observed final reply, not a verbatim transcript. Actual native command and JSON were expanded in the Cursor UI.",
+      "setup": "The corrected original was present; the operator added its exact relative path to System/ignore before the fresh no-save task and baseline. Original ignore bytes were restored only after freezing the completed case.",
+      "expected": "Recall abstains with no evidence and reports ignored partial coverage; work-area and isolated-cache files remain unchanged.",
+      "cache_verification": {
+        "before_file_count": 3,
+        "after_file_count": 3,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      }
+    }
+  ],
+  "limits": [
+    "Only ignored-original Library coverage; other negative cases remain separately attributed.",
+    "Explicit isolated runtime and cache; default installation/cache, native permission settings and provider retention were not tested.",
+    "No full six-step or three-app certification."
+  ]
+}

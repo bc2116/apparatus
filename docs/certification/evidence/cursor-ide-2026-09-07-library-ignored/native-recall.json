@@ -1,0 +1,16 @@
+{
+  "status": "abstained",
+  "question": "What venue is chosen for the practice workshop?",
+  "threshold": 0.0,
+  "evidence": [],
+  "generated_at": "2026-09-07T16:20:02Z",
+  "coverage": {
+    "status": "partial",
+    "sources": [
+      {
+        "source_path": "project-a/workshop-plan.md",
+        "reason": "ignored"
+      }
+    ]
+  }
+}

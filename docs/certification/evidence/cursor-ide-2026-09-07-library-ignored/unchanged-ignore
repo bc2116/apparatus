@@ -1,0 +1,24 @@
+# Ignore rules for this workspace.
+#
+# Matching paths are left out of Library ingest, local Library search and
+# recall, and record checks. Ask your assistant to edit this file when you
+# want a folder left alone. Ignoring never changes the credential floor:
+# credential redaction still happens before durable writes. These exclusions
+# govern Apparatus machinery, not the AI app's native access permissions.
+#
+# One workspace-relative pattern per line. This uses a documented subset of
+# gitignore-style patterns; see docs/spec/ignore-rules.md in the source
+# distribution for details. The following built-in defaults always apply:
+# .DS_Store
+# Thumbs.db
+# desktop.ini
+# .git/
+
+# Editable defaults for generated dependencies and caches. Remove a pattern
+# if these files are useful sources; built-in OS/Git rules remain active.
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+
+project-a/workshop-plan.md

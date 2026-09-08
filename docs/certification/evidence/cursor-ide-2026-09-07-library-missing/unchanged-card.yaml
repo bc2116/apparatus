@@ -1,0 +1,23 @@
+schema: apparatus/library-card@v0
+source: project-a/workshop-plan.md
+summary: 'Practice-workshop run-of-show from project-a/source.md: two sessions with
+  12 places each, a water break after 45 minutes, and an undecided venue. The source
+  does not say whether that break applies per session or across the workshop, so the
+  reusable session sequence that places a break after 45 minutes in each session is
+  labeled a proposal rather than a source fact; remaining unknowns (dates, length
+  after the break, facilitators, agenda, materials, registration, and how the break
+  is hosted) stay blank. Operator revision: confirm the venue with the organizer.
+  Available extracted text; extraction success does not establish complete page, image
+  or table coverage.'
+topics:
+- practice workshop
+- two sessions
+- 12 places
+- 45-minute water break
+- undecided venue
+- proposed session sequence
+- unknowns
+- operator revision
+source_sha256: a04caba51f68c746e35a9143bb363ac8a72b0a0e2241528f79fa902f4e22157a
+text_sha256: a04caba51f68c746e35a9143bb363ac8a72b0a0e2241528f79fa902f4e22157a
+extractor_version: '1'

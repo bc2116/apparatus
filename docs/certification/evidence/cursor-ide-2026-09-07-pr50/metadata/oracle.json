@@ -1,0 +1,26 @@
+{
+  "schema": "apparatus/certification-oracle-summary@v0",
+  "saving_chat": {
+    "duration": "2m15s",
+    "task_id": "16c9aef9-b746-4c25-a0a0-911131c07d68",
+    "result": "correct plan, sourced Memory fact, Library card, snapshot 967e0bccaa22",
+    "source_and_sentinel": "preserved"
+  },
+  "optional_same_chat_followup": {
+    "duration": "54s",
+    "result": "native Used apparatus-produce-deliverable observation; exact relative path reported; no correction needed",
+    "qualification": "expanded activity also searched parent fixture/operator transcripts and read prompt-2/final-2 from another fixture; not a clean isolated pass"
+  },
+  "fresh_chat": {
+    "duration": "1m19s",
+    "task_id": "493b66ba-22fd-4385-bf76-6e8f3b39e904",
+    "result": "no-save cited facilitator note; general recall abstained because index was empty; valid Memory and selected Library extracted text used",
+    "filesystem_oracle": "85 pre-existing files unchanged; only new task metadata and requested note"
+  },
+  "correction": {
+    "duration": "4s",
+    "result": "operator feedback corrected wording; no file changes; all 87 pre-existing files unchanged"
+  },
+  "native_observation_source": "operator-observed UI supplied as evidence; not an independent trace",
+  "claims": {"two_chat_gate": "qualified only", "candidate_rc_compatible": false, "canonical_body_execution": "not independently proven by export"}
+}

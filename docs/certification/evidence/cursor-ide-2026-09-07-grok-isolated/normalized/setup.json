@@ -1,0 +1,26 @@
+[
+  {
+    "args": [
+      "<fixture-runtime>/bin/apparatus",
+      "init",
+      "<fixture-root>",
+      "--adopt"
+    ],
+    "exit": 0,
+    "stdout": "Workspace created.\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "<fixture-runtime>/bin/apparatus",
+      "project",
+      "bind",
+      "<fixture-root>/project-a",
+      "--workspace",
+      "<fixture-root>"
+    ],
+    "exit": 0,
+    "stdout": "Project linked to its work area.\n",
+    "stderr": ""
+  }
+]

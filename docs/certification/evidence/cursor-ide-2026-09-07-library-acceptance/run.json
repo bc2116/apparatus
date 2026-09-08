@@ -1,0 +1,100 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "dependency_versions": {
+    "pypdf": "6.17.0",
+    "python-docx": "1.2.0",
+    "lxml": "6.1.3",
+    "pyyaml": "6.0.3",
+    "typing-extensions": "4.16.0"
+  },
+  "fast": true,
+  "status": "Library selection/card mechanics passed; shared-root plan has a semantic qualification; not certified",
+  "cache_override": "<fixture>/operator-evidence/library-cache",
+  "task_id": "8db1e51f-4e96-4e75-bd91-ed4a3a08653c",
+  "files": {
+    "System/library/cards/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml": "8f5a11d3ba9925f3ed78ac490c5bcfa2bb87f9f5ae3037f1c11a83cc8a27f0bd",
+    "System/library/sources/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031",
+    "project-a/instructions-before.txt": "df8b36db76d71c27fe5fb81f6699859e54ff5ae5aa848ea27eca66ae06b96534",
+    "project-a/local-note.txt": "847cd6f4e357cd394804862a42e434b4bfc5b741a6553957d2a478696ee8cbc2",
+    "project-a/source.md": "315f38491669e43032977298e3d5b831be4d823b248e33c953a1e8c2e28bcff1",
+    "project-a/workshop-plan.md": "fd2ca03bf70b363839c17b7de2d9ed544ebbea711f1f22cc525657d3bd6bea3c",
+    "semantic-review.json": "9fd5cec5d08a70e54928a14e577bb2954d987162e848880ba2655542e54bc39d",
+    "snapshot-manifest.json": "f62fca1e968a83645fb0485a7bbc28bcb1b9e03b8680d83fc75ea5e4280f3ab5",
+    "snapshot-paths.txt": "702de6c4c33bc6d95ea12fb8addd6f28f1a9596d998f34d95526769fe5f52405",
+    "snapshot-receipt.md": "3b3d31ecda81f7b0a5bce31b7557d948e67e43e2883a89df4897c887e14b3715"
+  },
+  "cases": [
+    {
+      "case": "Shared-root workshop plan and optional Library offer",
+      "status": "partial",
+      "ui_time": "08:17 AM",
+      "seconds": 77,
+      "setup": "Fresh adopted area-library with source, local note and custom project instructions; project-a has an existing synthetic Git commit. Shared root opened using Cursor IDE File > Open Folder. Saving task was created before the 95-file baseline.",
+      "prompt": "From project-a/source.md, finish and save a concise reusable workshop plan as project-a/workshop-plan.md. Cite the source, preserve its numbers and timing, and identify missing details without inventing them. Preserve existing notes, instructions, and project Git state. Work yourself; do not delegate. This is an isolated synthetic acceptance case using saving task 8db1e51f-4e96-4e75-bd91-ed4a3a08653c. For Apparatus commands use <fixture>/runtime/bin/apparatus with APPARATUS_TASK_ID=8db1e51f-4e96-4e75-bd91-ed4a3a08653c and APPARATUS_HOME=<fixture>/operator-evidence/library-cache. Use this selected work area only.",
+      "filesystem_verification": {
+        "before_file_count": 95,
+        "after_file_count": 96,
+        "changed": [],
+        "deleted": [],
+        "added": [
+          "project-a/workshop-plan.md"
+        ]
+      },
+      "native_observation": "Cursor saved the literal requested workshop-plan.md, preserved existing files and reported a no-change managed snapshot with project files outside coverage. No preliminary questionnaire or native/additional Apparatus approval dialog was observed.",
+      "library_offer": "If you want this plan in the Library, say so and I can register project-a/workshop-plan.md.",
+      "semantic_result": "The original workshop source does not explicitly state whether the 45-minute break applies to each session or the overall workshop. The generated plan applies a reusable break/resume/close template to both sessions without labeling that structure as an assumption. The card accurately summarizes that saved plan but inherits this qualification.",
+      "result": "File placement, preservation, explicit numbers and missing venue passed. Semantic source-only acceptance remains qualified by the unlabeled per-session template assumption."
+    },
+    {
+      "case": "Independent acceptance of the Library offer",
+      "status": "pass",
+      "ui_time": "08:19 AM",
+      "seconds": 31,
+      "prompt": "Yes, add this finished workshop plan to my Library. Keep the original in its project and create a short, grounded Library card using the current Apparatus workflow. Continue with the same saving task, runtime, and isolated cache. Work yourself; do not delegate.",
+      "expected_result": "Register the exact original without copying or linking it; current assistant supplies a card grounded in its available extracted bytes with exact provenance.",
+      "native_observation": "Expanded actual card command output showed card_status current and status written; subsequent card output showed evidence_status extracted and exact source/text digests. The assistant supplied the card JSON to the current library card command with --stdin. Full command text was partly truncated by the UI; no unseen command suffix is inferred.",
+      "source_sha256": "fd2ca03bf70b363839c17b7de2d9ed544ebbea711f1f22cc525657d3bd6bea3c",
+      "text_sha256": "fd2ca03bf70b363839c17b7de2d9ed544ebbea711f1f22cc525657d3bd6bea3c",
+      "extractor_version": "1",
+      "registration": "System/library/sources/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+      "card": "System/library/cards/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+      "filesystem_verification": {
+        "before_file_count": 96,
+        "after_file_count": 108,
+        "changed": [
+          "System/recovery/store/refs/heads/managed"
+        ],
+        "deleted": [],
+        "added_count": 12,
+        "added_scope": "One registration, one card, one metadata-only snapshot receipt and 9 Git objects."
+      },
+      "snapshot_id": "2ab2645233793fdca7eed92ed0dec21ddf3845ad",
+      "snapshot_evidence": [
+        "snapshot-receipt.md",
+        "snapshot-manifest.json",
+        "snapshot-paths.txt"
+      ],
+      "result": "All project files and project Git bytes unchanged from the completed-plan baseline. The original remained in project-a; no copied original or symlink. Card digest matches exact original and extracted text. Snapshot membership excludes project originals.",
+      "semantic_limit": "Card grounding passed against the saved plan; the plan assumption described in semantic-review.json remains. Extraction success does not establish full page/image/table coverage."
+    }
+  ],
+  "limits": [
+    "Explicit isolated runtime/cache; default installation/cache and permission settings were not tested.",
+    "This is a fresh shared-root case; it does not replace earlier independent bound-project or decline evidence.",
+    "A native produce-deliverable usage label appeared; the canonical body was not opened in this case.",
+    "Missing/ignored/partial/unsupported-original cases, learned Skills and remaining recovery/quiet cases are incomplete.",
+    "No full six-step or three-app certification; no signed release claim."
+  ]
+}

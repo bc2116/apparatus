@@ -1,0 +1,32 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "release-rehearsal-2026-09-07-pr50",
+  "date": "2026-09-07",
+  "source_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316",
+  "workflow_url": "https://github.com/bc2116/apparatus/actions/runs/34165314766",
+  "workflow_conclusion": "success",
+  "signing_jobs": "skipped",
+  "publication_jobs": "skipped",
+  "artifact_checksums_verified": 7,
+  "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89",
+  "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94",
+  "windows_vm": {
+    "architecture": "ARM64",
+    "os_api_version": "10.0.26220.0",
+    "wrapper_exit": 0,
+    "signature": "NotSigned",
+    "existing_files": 67,
+    "changed_files": 0,
+    "added_files": 0,
+    "scope": "wrapper dry-run only"
+  },
+  "macos_package": {
+    "signature": "no signature",
+    "stapler_exit": 66
+  },
+  "full_installer_acceptance": "not run",
+  "artifacts_sha256": {
+    "observation.md": "6d2df8425e70d9ca5a3582773148b89b6e084c3c1bf5fed46f0298049e0d0689",
+    "SHA256SUMS": "89413b9e472f76b278567c02781103aa545355e13322834a4c8ed713582cf5fa"
+  }
+}

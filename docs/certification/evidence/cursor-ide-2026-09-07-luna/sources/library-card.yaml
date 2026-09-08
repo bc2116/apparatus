@@ -1,0 +1,16 @@
+schema: apparatus/library-card@v0
+source: project-a/workshop-plan.md
+summary: Brief plan for a practice workshop with two sessions and 12 places per session,
+  including a water break after 45 minutes. The venue is undecided, and the source
+  does not specify session lengths or a timetable.
+topics:
+- practice workshop
+- two sessions
+- 12 places per session
+- water break after 45 minutes
+- venue undecided
+- session lengths unspecified
+- timetable unspecified
+source_sha256: 5090734326502ad37b9203c787b89aa2ded424c97475daca08db848f4f30eedf
+text_sha256: 5090734326502ad37b9203c787b89aa2ded424c97475daca08db848f4f30eedf
+extractor_version: '1'

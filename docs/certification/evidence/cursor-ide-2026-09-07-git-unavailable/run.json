@@ -1,0 +1,47 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Unavailable-Git snapshot failure passed; bounded case only, not certified",
+  "fixture_root": "<fixture>",
+  "files": {
+    "native-snapshot.txt": "fd5ae66716c178fcf0a101bebc61389bdd1abfdb45b94e376e3c29b2bdce1780",
+    "observation.md": "e96bfbb9447d5dbc87d8cccdd0ed7aba501706382380302b7a5174ee3e7bff34",
+    "prompt.txt": "6c3d0e08c5c9a7fa334dadcc48af6bb75642784e7c13a85069d6701fd15371b1"
+  },
+  "actual_file_set": ["native-snapshot.txt", "observation.md", "prompt.txt", "run.json"],
+  "actual_file_set_assertion": "actual_file_set == keys(files) | {'run.json'}",
+  "cases": [
+    {
+      "case": "Unavailable Git makes the scoped snapshot unavailable without side effects",
+      "status": "pass",
+      "task_id": "c08cb4ca-9b79-4d35-81a8-3910b648a390",
+      "ui_time": "12:16 PM",
+      "seconds": 21,
+      "prompt": "prompt.txt",
+      "native_output": "native-snapshot.txt",
+      "setup": "The existing task had memory save enabled. The snapshot process alone received PATH=<fixture>/operator-evidence/empty-git-path.",
+      "expected": "The scoped snapshot reports its actual unavailable outcome and a concrete next action, without installation, global PATH change, retry, recovery point, receipt, or completion snapshot.",
+      "result": "The expanded snapshot command reported that snapshots were unavailable and advised apparatus doctor; the final reported exit 1, no recovery point, the existing saving task retained, and doctor as the concrete next action. A separate task-status read occurred before the scoped snapshot, so the test does not claim literally one total shell command.",
+      "area_delta": {"before_file_count": 207, "after_file_count": 207, "changed": [], "added": [], "deleted": []},
+      "cache_delta": {"before_file_count": 6, "after_file_count": 6, "changed": [], "added": [], "deleted": []},
+      "selected_artifacts": ["native-snapshot.txt", "observation.md"]
+    }
+  ],
+  "limits": [
+    "Only the scoped snapshot process had an empty PATH; no global PATH behavior was tested.",
+    "No installation, retry, recovery point, receipt, completion snapshot, or raw inventory is represented.",
+    "No final build, three-app, installer, default-runtime/cache, permission-settings, or provider-retention certification."
+  ]
+}

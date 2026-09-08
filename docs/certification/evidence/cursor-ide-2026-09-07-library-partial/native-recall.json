@@ -1,0 +1,11 @@
+{
+  "status": "abstained",
+  "question": "which venue does this appendix identify",
+  "threshold": 0.0,
+  "evidence": [],
+  "generated_at": "2026-09-07T18:39:04Z",
+  "coverage": {
+    "status": "complete",
+    "sources": []
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "apparatus/certification-oracle-summary@v0",
+  "codex_cli": {
+    "version": "0.153.4",
+    "model": "gpt-5.6-terra",
+    "first_chat_efforts": ["medium", "high"],
+    "medium_first_chat": "failed required Memory fact: no Memory/Facts entry and no add-fact call; plan and Library card were created",
+    "high_first_chat": "failed required Memory fact: no Memory/Facts entry and no add-fact call; plan and Library card were created",
+    "medium_second_chat": "no-save; only task metadata and facilitator-note.md deliverable; truthful Memory no-match; Memory continuity not demonstrated",
+    "high_second_chat": "not run",
+    "launcher": "initial symlink launcher companion failure before vendor-binary retry; environment gap"
+  },
+  "mechanical_scope": {
+    "raw_provider_jsonl": "excluded",
+    "selected_hashes_and_small_outputs": "included",
+    "candidate_rc_compatible": false
+  }
+}

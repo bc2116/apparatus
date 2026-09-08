@@ -1,0 +1,88 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "dependency_versions": {
+    "pypdf": "6.17.0",
+    "python-docx": "1.2.0",
+    "lxml": "6.1.3",
+    "pyyaml": "6.0.3",
+    "typing-extensions": "4.16.0"
+  },
+  "cache_override": "<fixture>/operator-evidence/cache; outside work area, within synthetic fixture",
+  "status": "Sourced retention, correction/current recall and fresh no-save pass; explicit exceptions recorded separately; not certified",
+  "saving_task_id": "f64a77ba-5d05-4bb3-a0f6-7d512ae8f229",
+  "files": {
+    "source-before.md": "315f38491669e43032977298e3d5b831be4d823b248e33c953a1e8c2e28bcff1",
+    "source-after.md": "592af87ad463f5671d2cbcdf43f3e028a069a74509a785b6e3c8827ad7d398d3",
+    "fact-before.md": "f249da6430d28864559a189b30b7c2adeb7a8ecb0c06a62e22a5a7114a25c2f9",
+    "fact-after.md": "1c715f567476688f7394bf4a0888df8589218b75adb12e0eec0d10a4a254d683",
+    "recall.json": "33b4007d3a52c8149151ebdd6bf7761ca95812b348f3eda2f07a1ece6cecbafc",
+    "project-b/private-workshop-note.md": "3bebe9a7b910e69a97560f0b87f307b31f619be5e9c65437885ed98711ed4051"
+  },
+  "cases": [
+    {
+      "case": "Explicit sourced retention",
+      "status": "pass",
+      "ui_time": "05:35 AM",
+      "seconds": 47,
+      "fast": true,
+      "prompt": "Using the same saving task and linked work area, remember this sourced fact for future work: the practice workshop currently has two sessions, as stated in this project's source.md. Use Apparatus Memory and the same supplied runtime and cache. Preserve project files. Work yourself without delegation, and show the resulting Memory path.",
+      "result": "Created current Fact citing project-b/source.md. The model used Memory correct to add the source field after creation; fact-before.md captures that complete current record."
+    },
+    {
+      "case": "Sourced correction and current recall",
+      "status": "pass",
+      "ui_time": "05:37 AM",
+      "seconds": 16,
+      "fast": true,
+      "operator_action": "Changed only synthetic project-b/source.md from two sessions to three before the correction prompt. The first-case source remains frozen separately.",
+      "prompt": "The synthetic source.md now says three sessions. Read the updated source, correct the remembered workshop-session fact using Apparatus Memory, then recall it and tell me the current count with its source. Do not present two sessions as current. Keep the same saving task/runtime/cache; leave the existing workshop plan and all other project files unchanged. Work yourself without delegation.",
+      "result": "Native command output returned one current Fact with three sessions and project-b/source.md attribution. Final answer reported three; it explicitly said two is no longer current. Stable Fact filename still contains has-two-sessions; its title and content contain three.",
+      "native_command": "APPARATUS_HOME=<fixture>/operator-evidence/cache <fixture>/runtime/bin/apparatus --task f64a77ba-5d05-4bb3-a0f6-7d512ae8f229 memory recall <fixture>/area/project-b \"practice workshop sessions\"",
+      "operator_verification": "Repeated the read-only recall successfully and retained recall.json. Hash comparison showed only the operator-updated source and corrected Fact changed; all existing project Git files and the existing workshop plan were unchanged."
+    },
+    {
+      "case": "Fresh no-save deliverable",
+      "status": "pass",
+      "ui_time": "05:42 AM",
+      "seconds": 83,
+      "fast": false,
+      "task_id": "bd4ecbb6-8862-4e71-8d86-cd9b039709bb",
+      "setup": "Fresh native chat with a new no-save control created before the 140-file baseline. Existing sourced Memory may still be read.",
+      "prompt": "Don't save this task. Use this project's linked Apparatus work area and read source.md to write a three-sentence summary in private-workshop-note.md here. Cite source.md and retain its unknown venue. Keep all existing files unchanged. Work yourself; do not delegate. This isolated synthetic case uses no-save task bd4ecbb6-8862-4e71-8d86-cd9b039709bb. For commands use <fixture>/runtime/bin/apparatus with APPARATUS_HOME=<fixture>/operator-evidence/cache. Stay within <fixture>. No sending or publication.",
+      "expected_result": "Save only the requested three-sentence project note; no new Memory, goals, learned Skills, cards, activity notes, routine offer or automatic snapshot.",
+      "native_final_claims": "Cursor reported the sourced three-session summary and no new Memory, goal update, Library offer or snapshot. No delegation or extra approval dialog was observed.",
+      "filesystem_verification": {
+        "before_file_count": 140,
+        "after_file_count": 141,
+        "changed": [],
+        "deleted": [],
+        "only_added": "project-b/private-workshop-note.md",
+        "all_preexisting_files_unchanged": true,
+        "private_workshop_note_sha256": "3bebe9a7b910e69a97560f0b87f307b31f619be5e9c65437885ed98711ed4051"
+      },
+      "observed_content": "The saved note cites source.md, retains the three sessions and 12 places each, keeps the water break after 45 minutes, and states the venue is undecided.",
+      "negative_observations": [
+        "No Library offer or acceptance/decline was observed.",
+        "No snapshot was observed.",
+        "No new Memory or goal update was observed; existing Memory was allowed to be read."
+      ]
+    }
+  ],
+  "limits": [
+    "Full six-step and three-app certification remain incomplete.",
+    "Explicit fixture runtime/cache; default environment not tested.",
+    "No provider retention or historical erasure claim."
+  ]
+}

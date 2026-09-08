@@ -1,0 +1,76 @@
+{
+  "scope": "Native UI metadata discovery only; no Skill or normal model prompt submitted.",
+  "observations": [
+    {
+      "app": "claude",
+      "version": "2.1.261",
+      "case": "local-positive",
+      "name": "apparatus-r4b-metadata-7319",
+      "source": "project",
+      "result": "discovered",
+      "project_rows": 1
+    },
+    {
+      "app": "claude",
+      "version": "2.1.261",
+      "case": "shared-parent",
+      "name": "apparatus-r4b-metadata-7319",
+      "source": null,
+      "project_rows": 0,
+      "native_inventory_confirmed": true,
+      "model_prompt_submitted": false,
+      "result": "absent",
+      "native_empty_inventory_message": "No skills found"
+    },
+    {
+      "app": "claude",
+      "version": "2.1.261",
+      "case": "thin-wrapper",
+      "name": "apparatus-r4b-metadata-7319",
+      "source": "project",
+      "project_rows": 1,
+      "native_inventory_confirmed": true,
+      "model_prompt_submitted": false,
+      "result": "discovered"
+    },
+    {
+      "app": "claude",
+      "version": "2.1.261",
+      "case": "directory-symlink",
+      "name": "apparatus-r4b-metadata-7319",
+      "source": "project",
+      "project_rows": 1,
+      "native_inventory_confirmed": true,
+      "model_prompt_submitted": false,
+      "result": "discovered"
+    },
+    {
+      "app": "claude",
+      "version": "2.1.261",
+      "case": "duplicate-paths",
+      "name": "apparatus-r4b-metadata-7319",
+      "source": "project",
+      "project_rows": 1,
+      "native_inventory_confirmed": true,
+      "model_prompt_submitted": false,
+      "result": "discovered"
+    },
+    {
+      "app": "cursor-agent",
+      "version": "2026.09.02-c22c1a3",
+      "case": "local-positive",
+      "name": "apparatus-r4b-metadata-7319",
+      "source": null,
+      "result": "inconclusive",
+      "evidence": "Exact-name input echo observed; shortened unsent menu prefix produced no full synthetic candidate row. Discovery and absence are not established."
+    }
+  ],
+  "limits": [
+    "Claude invocation used --ax-screen-reader --setting-sources project --strict-mcp-config; evidence applies to this project-only configuration.",
+    "Thin wrapper was listed; following its canonical body pointer was not invoked or tested.",
+    "Duplicate paths yielded one Claude project row; this does not prove deduplication because the .agents path was not independently established as a Claude discovery source.",
+    "Cursor matrix stopped because positive discovery was not established.",
+    "macOS only; Windows link creation and native discovery remain untested.",
+    "A second Cursor CLI probe used an ANSI terminal emulator to inspect unsent menu state. It still did not establish a positive Skill candidate; no invocation was submitted and no additional support claim follows."
+  ]
+}

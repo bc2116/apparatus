@@ -170,6 +170,9 @@ Preserve user-scope installation, signed public artifacts, a readable machine
 report, and repair by rerunning setup. Detect capabilities without forcing an
 AI app choice. Report unavailable dependencies and snapshot coverage honestly.
 Basic compatibility, adapter availability, and tested support are distinct.
+The [dated certification matrix](../certification/matrix.md) records actual
+coverage; the [quickstarts](../quickstarts/codex.md) describe opening an actual
+task without implying certified support or a signed public release.
 
 Current implementation constraints remain until deliberately changed:
 
@@ -215,13 +218,28 @@ edits; update specs, fixtures, and migrations in each implementation PR.
 Demonstrate a real first-task deliverable without setup interrogation or sharing
 pauses; useful continuity and citations; one catalog referencing project-local
 work; effective task Memory opt-out; useful Skills with a plain-file fallback;
-and recovery within documented coverage. Certify one payload in at least
-three AI apps with dated app/OS/version evidence. A green unit suite or a
-detected app is not that certification.
+and recovery within documented coverage. Deterministic core/conformance checks
+establish the catalog and recovery mechanics; the app chats below establish
+representative assistant behavior. The lean RC compatibility gate is two
+actual chats per named app/variant on one payload, with dated app/version/model/OS
+and persisted-artifact/hash evidence. The bounded gate covers the available
+named variants: Cursor IDE, Codex CLI, and Claude Code CLI. Codex desktop remains
+an explicit coverage gap. A green unit suite, detected app, script,
+or menu is not evidence of assistant behavior. Broader support certification
+remains a later gate.
 
-No further product-choice interview is needed to prepare the refactor.
-Implementation matters remain: migration layout, task-control plumbing,
-current native discovery paths, Windows snapshot availability, signing
-provisioning, and actual certification runs. Resolve small reversible choices
-in each implementation prompt. Return to the owner only if evidence requires
-a material change to this direction.
+The reworked layout, task controls and installer routing are implemented.
+PR48's path-alias fix and PR49's cache diagnostic fix are implemented.
+[PR47](../plan/PR-47-first-task-certification.md) records passing two-chat gates
+for the named Cursor IDE/Luna, Codex CLI/Terra and Claude Code CLI/Sonnet
+configurations. Codex desktop and other untested variants remain outside that
+evidence; earlier failures retain their original build and configuration.
+Both Windows and macOS signed rehearsals passed for 0.0.1. Release work for 0.0.2
+preserves the tested core and payload behavior apart from the version constant.
+The [dated matrix](../certification/matrix.md) owns current publication and native
+install-and-repair status, exact app settings and remaining coverage gaps.
+Windows ARM64 VM evidence does not replace required x64 evidence. Native
+discovery adapters, broad support certification and public delivery retain their
+own acceptance requirements. No further product-choice interview is needed.
+Resolve small reversible implementation choices in their focused prompts;
+return to the owner only if evidence requires a material change to this direction.

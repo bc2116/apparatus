@@ -1,0 +1,58 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "cursor-ide-2026-09-07-lean-rc",
+  "captured_at": "2026-09-07",
+  "host_observed": "macOS27",
+  "app": {
+    "name": "Cursor IDE",
+    "version": "3.19.13",
+    "model": "Grok4.6High",
+    "fast_mode": "off"
+  },
+  "build": {
+    "core_commit": "8953d374ee5e6ce751ba2217aac24f5e6f2a7486",
+    "version": "0.0.1",
+    "wheel_sha256": "33fc6440e63b03487370dd626426ca68ad37e1a866851cc279f4ccc5f3023ed8",
+    "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+    "python": "3.12.4",
+    "cache_override": null,
+    "cli": "<fixture-runtime>/bin/apparatus"
+  },
+  "chats": [
+    {
+      "kind": "saving",
+      "task_id": "ac846292-4f16-4b55-adbb-3a61cd022b7c",
+      "duration": "2m11s",
+      "follow_up_duration": "37s",
+      "follow_up": "same-chat native UI verification; no corrections; all files unchanged"
+    },
+    {
+      "kind": "no-save",
+      "task_id": "4dadcc3e-a564-44dc-9aae-e8b3509e9d13",
+      "duration": "1m12s",
+      "preexisting_files_unchanged": 85,
+      "result": "qualified-final-wording"
+    }
+  ],
+  "artifacts_sha256": {
+    "metadata/task-no-save.yaml": "79522136f79b590dd579d2fa04c79038d655f3109c3b461098884e98bc24e44f",
+    "metadata/oracle.json": "1cead40ba9aa77e0fa19d7d82b1b2b4b84ef231331f058a1e4f46a0f9f00135a",
+    "metadata/task-save.yaml": "c5b845e9765fcf980babfbc246375a188bf496bed00ea3cdc729e31669015133",
+    "observation.md": "10f8b5cd692d4007b04dbdab5cb4dbdcadbe1a89ecd82a1bc07cbd8cfc1651eb",
+    "outputs/facilitator-note.md": "5cd6928edf34cf74129c9b6886a523f40a69747824aa499d106b1af3bb2ea52b",
+    "outputs/workshop-plan.md": "ee44caae5e145776d44e75c91e78748e8ab2b700aada9340a47fca68f5753413",
+    "prompts/prompt-1.txt": "0d04fbf0286d5945e76019f5d75148b2961c93779ac7a61d66912e26a1f673eb",
+    "prompts/prompt-2.txt": "a79a94aaf85911584c5f3984346b7cdd7fec5eb186234069ea7d1215e052d3a6",
+    "sources/apparatus-produce-deliverable-SKILL.md": "bbf09304eb6b015869017fbd0a495de6f3cf357970227e621fe06921092183be",
+    "sources/library-card.yaml": "09b6276c36710585d37db12b53f645b1e1723f5ecc447ccc689eec528f24f54b",
+    "sources/library-source-registration.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031",
+    "sources/memory-fact.md": "1c6715c0dbc812b691ae629fb1cab514ba90dcbc25864b98aee5ecb45cd25f41",
+    "sources/source.md": "315f38491669e43032977298e3d5b831be4d823b248e33c953a1e8c2e28bcff1"
+  },
+  "gaps": [
+    "The supplied Cursor export contains human messages only; tool traces and the follow-up message are not included.",
+    "No second native transcript export exists; the typed second prompt is included separately.",
+    "Exact global native permission settings, provider retention, signing, public release, and full certification claims were not verified.",
+    "Second-chat final reply mislabeled a break after 45 minutes as a 45-minute break; saved output is correct."
+  ]
+}

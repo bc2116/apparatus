@@ -1,0 +1,7 @@
+{
+  "input_sha256": "2ef79493426e024ab85adb7b9d03b7f11a605bff7decb75aaf2d3f0fb35b698a",
+  "input_unchanged": true,
+  "input_value_not_exported": true,
+  "replacement": "[redacted-password]",
+  "original_value_absent_from_fact_and_receipt": true
+}

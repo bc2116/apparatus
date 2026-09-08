@@ -1,0 +1,19 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "codex-cli-2026-09-07-pr50",
+  "app": {"name": "Codex CLI", "version": "0.153.4", "model_requested": "gpt-5.6-terra", "effort_requested": "medium"},
+  "build": {"core_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316", "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89", "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94", "cache_override": null},
+  "artifacts_sha256": {
+    "metadata/build.json": "a822e2bc8ef2b2788cd7ef17843173ea9b8b7601b48b16ccb48afe9a12f7fe90",
+    "metadata/oracle.json": "6403474099de0acff8cb8092ce8a89c7038c822ecfa22543070b3d84c0022688",
+    "observation.md": "e51f69ec7e5f91a777333384b67a921a1523f06da7a0611b65dacf8a49e619ba",
+    "outputs/casual-final.md": "a1006f22c152a07d5c25737459149afbf6206f9fca1f5b3cc397cfc6ff33e131",
+    "outputs/explicit-final-1.md": "534522770c31b74c43a2bde575882de29fc75cd442eb310e5d664ff7540483d5",
+    "outputs/explicit-final-2.md": "066d24875db8d59f340a39fab7d5f8d0e098f1f1aef862b3d79e38727e26acc7",
+    "prompts/casual-first.txt": "567aff1b5f5dee0be41be763412cf0a5db84bf39f9aa7465ccd43394f29d06dc",
+    "prompts/explicit-first.txt": "d7fd95a9a9f6aa9051d251682273fc3627236c0de1944a9f134a0692616a9c1d",
+    "prompts/explicit-second.txt": "bf6abce9bc7b75cc718a67b3c6df05b76d865d6d0e2644cd984c9054e163feac",
+    "sources/skill-read.md": "57a288cbb7486b4bf3d399bf0da95c013b0e96504650de49ebde961c2832f1be"
+  },
+  "gaps": ["No provider-side model assertion beyond available telemetry is claimed.", "No OS-level read-confinement claim is made.", "Casual wording remains a reproduced failure on this payload."]
+}

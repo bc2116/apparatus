@@ -1,0 +1,15 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "claude-code-cli-2026-09-07-memory-gap",
+  "app": {"name": "Claude Code CLI", "version": "2.1.263", "model": "claude-sonnet-5", "effort": "medium"},
+  "build": {"core_commit": "8953d374ee5e6ce751ba2217aac24f5e6f2a7486", "version": "0.0.1", "wheel_sha256": "33fc6440e63b03487370dd626426ca68ad37e1a866851cc279f4ccc5f3023ed8", "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851", "python": "3.12.4", "os": "macOS27", "cache_override": null},
+  "artifacts_sha256": {
+    "metadata/build.json": "4b38e3484aeaa5e5a4850ed30c9faea982a93474a5b4b9e953c65acc988786c9",
+    "metadata/oracle.json": "3868589c6f14de7e05e71a868ee85db552a595e7b19e41e3d5ca94c4731b2cef",
+    "observation.md": "f1b4636c73c64e8ed40336a2f807dd22b17625ea4cd348dd7d3f931017e172f3",
+    "outputs/claude-final-1.md": "11f5c70e993c49026c8fbccd3d526e71479570a3622818dff8d18871e6d4a6b8",
+    "outputs/workshop-plan.md": "8583eaf7ea40b65a9590863cca7897aff6a7008f7dcf0b3099328024c1e0ef90",
+    "prompts/prompt-1.txt": "f020f7cd14aa6053243743f90292ad925ba1438683475a07752d5dbf965120c2"
+  },
+  "gaps": ["Memory fact omitted in the partial first chat.", "No second Claude chat was run.", "Permission-denial sequence was not a clean pass."]
+}

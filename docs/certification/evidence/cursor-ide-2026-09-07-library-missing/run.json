@@ -1,0 +1,61 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Missing-source no-save Library abstention passed; bounded case only, not certified",
+  "cache_override": "<fixture>/operator-evidence/library-cache",
+  "task_id": "6878b745-259b-479a-a0f7-ec53624006eb",
+  "files": {
+    "native-recall.json": "23d2bed9ca4b8c35667c77322978dfb401c94cd0ea18bf8c37217caaf0ac8350",
+    "observation.md": "81c8cdddea00d618d432faacd77a56cd61353bdf19962b1cb1a1c56c918ab646",
+    "prompt.txt": "ca9848433f6bc4e963a5a6c194fec99f034c9630a9d741e64880b470c8113def",
+    "unchanged-card.yaml": "623799982b92452d52970a38bfdc7b0ae124912148b9d071a0833f5949e903e0",
+    "unchanged-registration.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031"
+  },
+  "cases": [
+    {
+      "case": "Missing source cannot supply a current venue answer",
+      "status": "pass",
+      "ui_time": "09:16 AM",
+      "seconds": 29,
+      "prompt": "Using only current Library evidence, what venue is chosen for the practice workshop? Do not use Memory or browse source files to fill a Library gap; do not refresh or repair anything. Run recall and explain its actual evidence and coverage. Continue only with assigned no-save task 6878b745-259b-479a-a0f7-ec53624006eb; do not start another task. Command prefix: APPARATUS_HOME=<fixture>/operator-evidence/library-cache <fixture>/runtime/bin/apparatus --task 6878b745-259b-479a-a0f7-ec53624006eb. Work area: <fixture>/area-library. Work yourself; no delegation.",
+      "native_command": "APPARATUS_HOME=<fixture>/operator-evidence/library-cache <fixture>/runtime/bin/apparatus --task 6878b745-259b-479a-a0f7-ec53624006eb recall <fixture>/area-library \"What venue is chosen for the practice workshop?\" --json",
+      "native_output": "native-recall.json",
+      "filesystem_verification": {
+        "before_file_count": 126,
+        "after_file_count": 126,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      },
+      "result": "Native recall abstained with missing coverage. Every baseline work-area file and all three isolated-cache files remained byte-identical; none were added or deleted. The operator restored the fixture only after freezing the result.",
+      "reply_summary": "Current Library evidence does not support an answer for the practice workshop venue. Library recall returned abstained, with no evidence and partial coverage because project-a/workshop-plan.md is missing. I cannot name a venue from this recall result.",
+      "reply_note": "Operator paraphrase of the observed final reply, not a verbatim transcript. Actual native command and JSON were expanded in the Cursor UI.",
+      "setup": "The corrected registered original was temporarily held outside the work area before the fresh no-save task and baseline. The operator restored the same original bytes after freezing the completed case.",
+      "expected": "Recall abstains with no evidence and reports missing partial coverage; work-area and isolated-cache files remain unchanged.",
+      "cache_verification": {
+        "before_file_count": 3,
+        "after_file_count": 3,
+        "changed": [],
+        "deleted": [],
+        "added": []
+      }
+    }
+  ],
+  "limits": [
+    "Only missing-original Library coverage; other negative cases remain separately attributed.",
+    "Explicit isolated runtime and cache; default installation/cache, native permission settings and provider retention were not tested.",
+    "No full six-step or three-app certification."
+  ]
+}

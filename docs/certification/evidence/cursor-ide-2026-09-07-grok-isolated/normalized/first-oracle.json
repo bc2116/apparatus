@@ -1,0 +1,29 @@
+{
+  "before_files": 67,
+  "after_files": 85,
+  "changed_existing": [
+    "System/recovery/store/refs/heads/managed"
+  ],
+  "added": [
+    "Memory/Facts/practice-workshop-has-two-sessions-with-12-places-each.md",
+    "System/library/cards/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+    "System/library/sources/57661abd67ac66b0e5dd07148631ffe594df14e8b9df6f4ddbb4e7e3c6f7dc17.yaml",
+    "System/receipts/2026-09-08-001830-snapshot.md",
+    "System/recovery/store/objects/13/7d179ad40239a22dbef21f33d08b90c8945708",
+    "System/recovery/store/objects/31/b7b25a2ed5037bd8db2db809315c648818377d",
+    "System/recovery/store/objects/33/bab80609faeb7edfbcb267006d04bdb067d5c2",
+    "System/recovery/store/objects/39/c65e6918bdadb4c617ae169bcc5ccd11c492ce",
+    "System/recovery/store/objects/5b/312bbcea1f8150bc7e440c01902a4893af3d67",
+    "System/recovery/store/objects/72/625e486cc480dc7b54aa38168cc531e631749d",
+    "System/recovery/store/objects/91/ff2d38819f5c38737e4dba003b15e3d66e4386",
+    "System/recovery/store/objects/b9/7cceb23d73ad4d3bc131b3bc4e31d3c7614d88",
+    "System/recovery/store/objects/ca/edce9cf21da8d51a7122852b3bc7a956609184",
+    "System/recovery/store/objects/e0/ddec8a19d8eda3be252dbcc237b803d77d45bc",
+    "System/recovery/store/objects/e6/3a8a05c8b3d2443f4098bc7b52f1238b73eedc",
+    "System/recovery/store/objects/fd/a33980725d9440364fd19fa0a3134a83641e6c",
+    "System/tasks/dc0adfdb-1fd3-4d70-b8bd-81d0147f1504.yaml",
+    "project-a/workshop-plan.md"
+  ],
+  "source_unchanged": true,
+  "sentinel_unchanged": true
+}

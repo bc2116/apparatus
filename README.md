@@ -72,11 +72,21 @@ After an explicit Library addition, the assistant can write a small grounded
 Finished work may receive one brief optional addition offer; no-save suppresses
 these offers and card capture. Card freshness is checked against current evidence.
 
-The [approved rework](docs/design/design-brief.md) still includes native discovery adapters. **The remaining rework is planned,
-not yet implemented.** Existing specs and conformance tests describe the
-baseline until their migration PRs land. Formal app certification is held
-while the target changes; packaging code alone does not establish a signed
-public release or certified support.
+The [approved rework](docs/design/design-brief.md) still includes planned native
+discovery adapters. The focused two-chat gate passed for Cursor IDE with Luna,
+Codex CLI with Terra, and Claude Code CLI with Sonnet. The
+[dated support matrix](docs/certification/matrix.md) records exact versions,
+settings, preserved failures and variant limits; these results are not broad
+support certification or evidence for untested desktop/CLI variants.
+
+[Version 0.0.2](https://github.com/bc2116/apparatus/releases/tag/v0.0.2) is public
+with signed Windows and signed, notarized macOS installers. Actual install and
+repair passed on hosted Windows x64 and Mac ARM64. The release preserves the
+app-tested core and payload behavior apart from the version constant; the
+[matrix](docs/certification/matrix.md) records exact source and artifact identity,
+app settings, and remaining coverage limits. Start with the short
+[Codex](docs/quickstarts/codex.md), [Claude Code](docs/quickstarts/claude-code.md),
+or [Cursor](docs/quickstarts/cursor.md) guide.
 
 Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
 [refactor sequence](docs/plan/rework-sequence.md), and

@@ -1,0 +1,24 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "claude-code-cli-2026-09-07-pr50",
+  "app": {"name": "Claude Code CLI", "version": "2.1.263", "model_requested": "claude-sonnet-5", "effort_requested": "medium"},
+  "build": {"core_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316", "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89", "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94", "cache_override": null},
+  "artifacts_sha256": {
+    "metadata/build.json": "a822e2bc8ef2b2788cd7ef17843173ea9b8b7601b48b16ccb48afe9a12f7fe90",
+    "metadata/oracle.json": "2108741dc44089b4465ae0ca366df2ce430ecba8138dea02e1c22a5595be93b4",
+    "metadata/task-no-save.yaml": "7370a23638a66e50f074757ed901efb47c91d2258742e86d92f57e8282fd091b",
+    "metadata/task-save.yaml": "d4596fbd68fd008f61e721fd2848753f7859c4c00dd3faf6db738a100785f092",
+    "observation.md": "22cc3b8e394140004ace5e0760906e07c725a69684a87e496ee2afc01329539c",
+    "outputs/facilitator-note.md": "8bae2280da12901a329f09c4c2886586d92d0dde1f2e09b7807731ad0a4e1d73",
+    "outputs/first-final.md": "d31f9789e3721cbe75d325c95185ccc84bf14ba15c0efc01eede27992f6df30e",
+    "outputs/second-final.md": "c3ce2ba41a2259dd9847c572ebf713c89bd83e26e47c1469d623dfd202c807cd",
+    "outputs/workshop-plan.md": "39fd54a13b9a6ba451fc32102c50f4082fba45c3e25c25a7239d37191313359a",
+    "prompts/first.txt": "361e2ccb080a63de88350589e44ade08e37427745adc8a1548b666b54d02133d",
+    "prompts/second.txt": "661d806f42d09d5b46c8c636337d27ac73fe6f4c359d3d5e651f2b03786584f1",
+    "sources/library-card.yaml": "6492c443229cc483b0834ba3a27e7ef74f2ac2aa228dd6fd14e5c98e2adc9a0d",
+    "sources/library-source-registration.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031",
+    "sources/memory-fact.md": "200a115a8725e221a0080b345cacea9d8803f8128f2690fe615980765f3be0b1",
+    "sources/skill-read.md": "5f4d82ba07e1e815f80884d6a26e6b37c693be3f5defb18524eae83459be0ceb"
+  },
+  "gaps": ["Fixture-local evidence only; no global permission claim.", "No provider-retention, signing, public-release, or full-certification claim.", "Prior failed Claude runs elsewhere remain relevant."]
+}

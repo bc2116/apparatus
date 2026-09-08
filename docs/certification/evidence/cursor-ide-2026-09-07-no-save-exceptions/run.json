@@ -1,0 +1,87 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "dependency_versions": {
+    "pypdf": "6.17.0",
+    "python-docx": "1.2.0",
+    "lxml": "6.1.3",
+    "pyyaml": "6.0.3",
+    "typing-extensions": "4.16.0"
+  },
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; one assistant per independent fresh chat",
+  "permission_settings": "not inspected",
+  "cache_override": "<fixture>/operator-evidence/cache",
+  "status": "Independent requested Library and snapshot exceptions passed; no general retention enabled; not certified",
+  "files": {
+    "library/registration.yaml": "7dab6a7093c973529899b924ec80517f26796bceb52f85ab1e82440ada31081c",
+    "library/extraction.json": "8f6640fc3396cc184fe86bccc96ed570071cab516269545de0014048aa7f5add",
+    "library/extraction.txt": "3bebe9a7b910e69a97560f0b87f307b31f619be5e9c65437885ed98711ed4051",
+    "library/original.md": "3bebe9a7b910e69a97560f0b87f307b31f619be5e9c65437885ed98711ed4051",
+    "snapshot/receipt.md": "0a860ac5f9585e332f56d3ce2ffae83c03d85c45f4bac45c61e20e8871963b21",
+    "snapshot/snapshot-paths.txt": "71faff6f951700028bc45b776db01fcea455d155c3d294eda5bf7b68182ec4ae",
+    "snapshot/recovery-manifest.json": "35a6f425d97303c9faaf3513397464a32193bc74459c5febd55fbfc0427c6a3e"
+  },
+  "cases": [
+    {
+      "case": "Separate explicit Library registration under no-save",
+      "status": "pass",
+      "task_id": "03eb7259-e991-4421-8f5f-1321b1d3c01e",
+      "ui_time": "05:50 AM",
+      "seconds": 54,
+      "setup": "Fresh native chat; a fresh no-save control was created before the baseline. The requested note already existed after the completed no-save case.",
+      "prompt": "Keep this task out of Memory. I separately request adding project-b/private-workshop-note.md to the linked work area's Library so it can be found later. Register its existing original; leave project files where they are. Do only this Library operation and report what was actually retained. This isolated synthetic case uses no-save task 03eb7259-e991-4421-8f5f-1321b1d3c01e. For Apparatus commands use <fixture>/runtime/bin/apparatus with APPARATUS_HOME=<fixture>/operator-evidence/cache. Work yourself without delegation; stay within <fixture>. No sending or publication.",
+      "expected_result": "Registration/extraction only; original remains in the project. No new Memory, learned Skill, card, goal, activity receipt or snapshot.",
+      "native_observation": "The actual assistant ran the Library add command with --requested, inspected registration/extraction, reported available original, 1 scanned/1 extracted, card absent, and confirmed the no-save task. Full command text was not expanded in the operator UI.",
+      "filesystem_verification": {
+        "before_file_count": 142,
+        "after_file_count": 143,
+        "changed": [],
+        "deleted": [],
+        "added": [
+          "System/library/sources/1726524e646f0f0556036380be7aab5c6f5c3ce09a44b562817724ca9d539ab5.yaml"
+        ]
+      },
+      "result": "All 142 preexisting work-area files stayed unchanged. Only the source registration was added there; extracted text and metadata appeared in the explicitly selected cache. Source hash matches the unchanged original. No new cards, Memory, learned Skills, goals, receipts or recovery changes. Evidence copies in this folder are curation copies, not Library originals."
+    },
+    {
+      "case": "Separate explicit snapshot under no-save",
+      "status": "pass",
+      "task_id": "f3349547-7cb9-45e1-b475-bd741e4751a7",
+      "ui_time": "05:55 AM",
+      "seconds": 200,
+      "setup": "Fresh native chat and fresh no-save control created before the 144-file baseline. Prior corrected Memory and the explicitly requested Library registration already existed.",
+      "prompt": "Keep this task out of Memory. I separately request a snapshot of this linked work area's existing managed state. Make that snapshot now and tell me what it actually covers. Leave the source and project deliverables unchanged. This isolated synthetic case uses no-save task f3349547-7cb9-45e1-b475-bd741e4751a7. For Apparatus commands use <fixture>/runtime/bin/apparatus with APPARATUS_HOME=<fixture>/operator-evidence/cache. Work yourself without delegation; stay within <fixture>. No sending or publication.",
+      "expected_result": "Requested snapshot of current managed state, unchanged live no-save control and project originals/deliverables; one metadata-only recovery receipt and no new Memory or card capture.",
+      "snapshot_id": "954c65c979d4f73bd613d12df7896ac2d92b8aee",
+      "native_observation": "The assistant reported this exact snapshot and command-owned receipt, listed captured managed paths from the actual tree/manifest, and correctly excluded projects, Library originals, live task controls, workspace identity and object store. Full snapshot command text was not expanded in the operator UI.",
+      "filesystem_verification": {
+        "before_file_count": 144,
+        "after_file_count": 155,
+        "changed": [
+          "System/recovery/store/refs/heads/managed"
+        ],
+        "deleted": [],
+        "new_recovery_object_count": 10,
+        "new_receipts": [
+          "System/receipts/2026-09-07-125436-snapshot.md"
+        ]
+      },
+      "coverage_verification": "Read the actual bare-store tree and recovery manifest. It includes existing sourced Memory, goal, Library registration and managed instructions; no project paths or task controls. One recovery reference changed, ten objects and one metadata-only receipt were added; all other preexisting files stayed unchanged. The live task still says no-save. No new content-bearing records were added."
+    }
+  ],
+  "limits": [
+    "The runtime and cache are explicit isolated-fixture overrides; default installation is not tested.",
+    "Task controls do not govern provider conversation retention or erase old snapshots/backups.",
+    "These cases do not complete the separate full Library or recovery checklist."
+  ]
+}

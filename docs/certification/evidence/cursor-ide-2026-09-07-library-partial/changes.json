@@ -1,0 +1,22 @@
+{
+  "before_file_count": 130,
+  "after_file_count": 142,
+  "changed": [
+    "System/recovery/store/refs/heads/managed"
+  ],
+  "deleted": [],
+  "added": [
+    "System/library/cards/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.yaml",
+    "System/library/sources/c8e003cea5bb9eef7949ce20673622d2df9138edb97f2f3c6b6d1e48272f9e91.yaml",
+    "System/receipts/2026-09-07-183950-snapshot.md",
+    "System/recovery/store/objects/07/cdf110bf0ba86e4a841a92209c50fc254c4cc2",
+    "System/recovery/store/objects/37/ee4c6640d641c5fbbfd9ea98daf8ac3682c4db",
+    "System/recovery/store/objects/47/07c6466b84fce7d8848561a1b55af4721623ec",
+    "System/recovery/store/objects/4b/05632753a06203b459d8ef6ea90e138027210a",
+    "System/recovery/store/objects/bc/df864d489eacdd9b3a2fe34b875fc39b7cad24",
+    "System/recovery/store/objects/d7/d10f1c015859c8cd35b0251a6a424eb18acdff",
+    "System/recovery/store/objects/da/dc0d9903adbdf2210d6d7ffded5991fa29aadd",
+    "System/recovery/store/objects/db/4ae3b3af4c3cb9bcbb28f4f43f36941814371b",
+    "System/recovery/store/objects/fc/09c8f879b7e5313aa1fdbf317d86019b268250"
+  ]
+}

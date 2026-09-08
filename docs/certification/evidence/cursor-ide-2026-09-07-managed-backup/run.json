@@ -1,0 +1,57 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "permission_settings": "not inspected",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Managed-state backup export passed; bounded case only, not certified",
+  "fixture_root": "<fixture>",
+  "files": {
+    "archive-oracle.json": "24e94aaa471d604badf318ba8dc412160b9a60695710f8e2106c764e58217440",
+    "observation.md": "b2689e389a4dbb2cd65f37cd1addd3d2f5b3366cff02de5b5ec25c401cf743da",
+    "prompt.txt": "d2ec67fe249792732266f11173bd497a1310642b495bdbfdb3bf881343db4cb0",
+    "receipt-backup-export-190917.md": "73486fdaf9306494fca07e3a6fc1222d61332bc27484605bfff132ccbf4d32be",
+    "scope-note.md": "0e8e7f912dc65bc4c283fc55aa45c6bdb38ffceb376cb982d54c1db94576d381"
+  },
+  "actual_file_set": [
+    "archive-oracle.json",
+    "observation.md",
+    "prompt.txt",
+    "receipt-backup-export-190917.md",
+    "run.json",
+    "scope-note.md"
+  ],
+  "actual_file_set_assertion": "actual_file_set == keys(files) | {'run.json'}",
+  "cases": [
+    {
+      "case": "One-way managed-state backup has a closed non-history scope",
+      "status": "pass",
+      "task_id": "fb6f3e5d-cf6c-466d-800f-019bcfc7bc17",
+      "ui_time": "12:10 PM",
+      "seconds": 143,
+      "prompt": "prompt.txt",
+      "native_output": "not captured: the full export command output was not expanded before leaving the UI viewport",
+      "setup": "The task had memory save enabled; the export destination was <fixture>/operator-evidence/managed-backup/export.",
+      "expected": "Export a one-way managed backup, inspect its archive entry list and scope note in place, and report coverage and exclusions without extraction, upload, sync, or publication.",
+      "result": "apparatus-backup-2026-09-07-190858.zip is 106320 bytes with 149 entries: 103 reachable managed-history entries and 46 non-history entries. The oracle verifies no project or Library originals, no project Git, no absolute/parent paths, and exact closed non-history membership against the current managed manifest, task controls, and workspace marker.",
+      "archive": {"path": "export/apparatus-backup-2026-09-07-190858.zip", "sha256": "ca6b0b808fae51d281492886bcaef28ade23429035ad83533ac7317a12b42e55", "size": 106320, "entry_count": 149},
+      "area_delta": {"before_file_count": 194, "after_file_count": 195, "changed": [], "added": ["System/receipts/2026-09-07-190917-backup-export.md"], "deleted": []},
+      "cache_delta": {"before_file_count": 6, "after_file_count": 6, "changed": [], "added": [], "deleted": []},
+      "selected_artifacts": ["receipt-backup-export-190917.md", "scope-note.md", "archive-oracle.json", "observation.md"]
+    }
+  ],
+  "limits": [
+    "The raw ZIP, raw archive entry list, full area/cache delta inventories, and raw provider logs are intentionally absent from this public evidence.",
+    "The full export command output was not expanded in the UI and is not represented as a verbatim transcript.",
+    "No final build, three-app, installer, default-runtime/cache, permission-settings, or provider-retention certification."
+  ]
+}

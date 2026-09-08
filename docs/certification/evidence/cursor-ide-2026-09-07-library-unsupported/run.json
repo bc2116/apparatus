@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-07",
+  "timezone": "America/Los_Angeles",
+  "app": "Cursor IDE",
+  "app_version": "3.19.13",
+  "os": "macOS 27.0",
+  "model": "Grok 4.6",
+  "effort": "High",
+  "fast": false,
+  "delegation": "none; single assistant",
+  "core_commit": "b1290082707322b1e1ab7ba77dda2ddff67f6224",
+  "apparatus_core_version": "0.0.1",
+  "wheel_sha256": "9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "status": "Unsupported-source registration and honest unavailable extraction/card reported; bounded case only, not certified",
+  "cache_override": "<fixture>/operator-evidence/library-cache",
+  "permission_settings": "not inspected",
+  "task_id": "993efa9e-6abf-43d8-94d7-555f1223a80d",
+  "files": {
+    "observation.md": "ef324cd81abf5304810d183fb5e944e948e5ab6745da65005abe821e7c5a3951",
+    "prompt.txt": "ee76d5ece3b93661cfaa4d555a8bcf478e4b0fb68199942fb325ba9e0a66f8c5",
+    "native-add.txt": "c309960858cf574f970e73c2a0783f6edc0bd930846153a81b82dadaed8ac14a",
+    "changes.json": "524f04e22370e7dffc574a06ebfd6a5c8389ba42d0cb17ec20717cc045233eff",
+    "cache-changes.json": "b3416f84b53a0aec67e3976954f39d20118bd7de3790d2fe8254c294eb446842",
+    "frozen/project-a/unsupported.bin": "aebea7df43307817e92b936bd9f44806c7f043f72446d359f6064727f7810c22",
+    "frozen/System/library/sources/b276144dd351c9daf28c2cda503f4d5c323992e506b8b7160fcfa46dd2d181ac.yaml": "3c149f45a4219718ae1f2880119b8bb38aad5d046be3e5c802c0337f02c3d8dd",
+    "frozen/System/receipts/2026-09-07-184355-snapshot.md": "aaa29d2e0f1ccc5be3eb6679c5086baf984412609468b39124f8c10f78af47b0"
+  },
+  "cases": [
+    {
+      "case": "Unsupported original registers with unavailable extraction and card",
+      "status": "pass",
+      "ui_time": "11:43 AM",
+      "seconds": 54,
+      "prompt_artifact": "prompt.txt",
+      "prompt_summary": "Operator summary of the exact normalized prompt in prompt.txt; it requested registration with separate extraction/card status, honest unsupported handling, the assigned task, and no delegation.",
+      "native_output": "native-add.txt",
+      "native_reply_summary": "Operator summary of the observed native add output: registration was reported separately from extraction and card status; the original was added, extraction scanned one file and classified it unsupported, and card generation was unavailable. No searchable text or card was invented. This case did not call recall.",
+      "source_sha256": "aebea7df43307817e92b936bd9f44806c7f043f72446d359f6064727f7810c22",
+      "filesystem_verification": {
+        "before_file_count": 144,
+        "after_file_count": 153,
+        "changed": ["System/recovery/store/refs/heads/managed"],
+        "deleted": [],
+        "added_scope": "One registration, one snapshot receipt and 7 Git objects."
+      },
+      "cache_verification": {
+        "before_file_count": 5,
+        "after_file_count": 6,
+        "changed": [],
+        "deleted": [],
+        "added": ["library/f493983911c1/references/b276144dd351c9daf28c2cda503f4d5c323992e506b8b7160fcfa46dd2d181ac.json"]
+      },
+      "result": "The exact original bytes were preserved and registered. Native output reported unsupported: .bin, with zero extracted and no card. The frozen evidence contains no card for this original."
+    }
+  ],
+  "limits": [
+    "Only unsupported-original Library coverage; other negative cases remain separately attributed.",
+    "Explicit isolated runtime/cache; default installation/cache, permissions and provider retention were not tested.",
+    "No full six-step or three-app certification."
+  ]
+}
