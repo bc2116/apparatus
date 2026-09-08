@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 
+import pytest
 import yaml
 
 
@@ -89,10 +90,10 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "Get-AuthenticodeSignature -FilePath $download" in content
     assert "CN=Pyrsys B\\.V\\." in content
     assert content.count("shell: pwsh") >= 3
-    assert content.count("[System.Diagnostics.ProcessStartInfo]::new()") == 2
-    assert content.count("$startInfo.UseShellExecute = $false") == 2
-    assert content.count("$startInfo.ArgumentList.Add($argument)") == 2
-    assert content.count("$process.WaitForExit()") == 2
+    assert content.count("[System.Diagnostics.ProcessStartInfo]::new()") == 3
+    assert content.count("$startInfo.UseShellExecute = $false") == 3
+    assert content.count("$startInfo.ArgumentList.Add($argument)") == 3
+    assert content.count("$process.WaitForExit()") == 3
     assert "apparatus-injection-marker';" in content
     assert r"@('C:\Runner Temp\Apparatus\', 'C:\Runner Temp\Apparatus\\')" in content
     assert "apparatus-unsigned-windows-installer" in content
@@ -122,6 +123,19 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert '"release-files/apparatus-installer.exe"' in content
     assert '"release-files/apparatus-installer.pkg"' in content
     assert content.count("OPERATOR:") >= 10
+    assert "windows_signing_provider: ${{ steps.release.outputs.windows_signing_provider }}" in content
+    assert "Azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6" in content
+    assert "Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82" in content
+    assert "trusted-signing-account-name" not in content
+    assert "signing-account-name:" in content
+    assert "id-token: write" in content
+    assert "cache-dependencies: false" in content
+    assert "exclude-environment-credential: true" in content
+    assert "exclude-azure-cli-credential: false" in content
+    assert "timestamp-rfc3161: http://timestamp.acs.microsoft.com" in content
+    assert "files: unsigned-windows/apparatus-installer.exe" in content
+    assert "verify /pa /tw" in content
+    assert "1.3.6.1.4.1.311.10.3.13" in content
 
 
 def test_signing_documents_pin_operator_configuration_and_it_claims() -> None:
@@ -171,7 +185,7 @@ def _release_metadata_script() -> str:
 
 
 def _run_release_metadata(
-    temporary_path: Path, changelog: str, *, event: str = "workflow_dispatch"
+    temporary_path: Path, changelog: str, *, event: str = "workflow_dispatch", provider: str = ""
 ) -> tuple[str, str]:
     (temporary_path / "packages" / "apparatus-core").mkdir(parents=True)
     (temporary_path / "packages" / "apparatus-core" / "pyproject.toml").write_text(
@@ -185,6 +199,7 @@ def _run_release_metadata(
         "GITHUB_REF_NAME": "v0.0.1",
         "GITHUB_OUTPUT": str(output),
         "APPARATUS_RELEASE_MODE": "publish",
+        "APPARATUS_WINDOWS_SIGNING_PROVIDER": provider,
     }
     subprocess.run(
         [sys.executable, "-c", _release_metadata_script()],
@@ -204,7 +219,31 @@ def test_release_metadata_creates_dist_in_a_fresh_tree_and_uses_exact_heading(tm
     )
 
     assert notes == "# Dry-run release — not published to PyPI\n\n## v0.0.1\n\n- Exact notes.\n"
-    assert output == "version=0.0.1\ndry_run=true\n"
+    assert output == "version=0.0.1\ndry_run=true\nwindows_signing_provider=certificate-store\n"
+
+
+def test_release_metadata_resolves_only_supported_windows_signing_providers(tmp_path: Path) -> None:
+    _notes, azure_output = _run_release_metadata(
+        tmp_path / "azure", "# Changelog\n", provider="azure-artifact-signing"
+    )
+    assert azure_output.endswith("windows_signing_provider=azure-artifact-signing\n")
+
+    invalid = subprocess.run(
+        [sys.executable, "-c", _release_metadata_script()],
+        cwd=tmp_path / "azure",
+        env={
+            **os.environ,
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "GITHUB_REF_NAME": "v0.0.1",
+            "GITHUB_OUTPUT": str(tmp_path / "invalid-output"),
+            "APPARATUS_RELEASE_MODE": "publish",
+            "APPARATUS_WINDOWS_SIGNING_PROVIDER": "other",
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert invalid.returncode != 0
+    assert "certificate-store or azure-artifact-signing" in invalid.stderr
 
 
 def test_release_metadata_does_not_prefix_match_changelog_versions(tmp_path: Path) -> None:
@@ -289,7 +328,106 @@ def _job_step_run(job_name: str, step_name: str) -> str:
     return next(step["run"] for step in steps if step.get("name") == step_name)
 
 
-def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Path) -> None:
+def _run_azure_configuration(tmp_path: Path, **values: str) -> subprocess.CompletedProcess[str]:
+    output = tmp_path / "github-output"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    defaults = {
+        "APPARATUS_AZURE_SIGNING_TENANT_ID": "11111111-1111-1111-1111-111111111111",
+        "APPARATUS_AZURE_SIGNING_CLIENT_ID": "22222222-2222-2222-2222-222222222222",
+        "APPARATUS_AZURE_SIGNING_SUBSCRIPTION_ID": "33333333-3333-3333-3333-333333333333",
+        "APPARATUS_AZURE_SIGNING_ENDPOINT": "https://westus.codesigning.azure.net",
+        "APPARATUS_AZURE_SIGNING_ACCOUNT_NAME": "apparatus-signing",
+        "APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME": "public-trust",
+        "APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT": "CN=Apparatus Publisher",
+    }
+    defaults.update(values)
+    return subprocess.run(
+        [sys.executable, "-c", _job_step_run("sign-windows-installer-azure", "Validate Azure signing configuration")],
+        env={**os.environ, **defaults, "GITHUB_OUTPUT": str(output)},
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_azure_signing_configuration_rejects_malformed_and_injected_metadata(tmp_path: Path) -> None:
+    valid = _run_azure_configuration(tmp_path / "valid")
+    assert valid.returncode == 0, valid.stderr
+    assert (tmp_path / "valid" / "github-output").read_text(encoding="utf-8").splitlines() == [
+        "apparatus_azure_signing_tenant_id=11111111-1111-1111-1111-111111111111",
+        "apparatus_azure_signing_client_id=22222222-2222-2222-2222-222222222222",
+        "apparatus_azure_signing_subscription_id=33333333-3333-3333-3333-333333333333",
+        "apparatus_azure_signing_endpoint=https://westus.codesigning.azure.net",
+        "apparatus_azure_signing_account_name=apparatus-signing",
+        "apparatus_azure_signing_certificate_profile_name=public-trust",
+        "apparatus_windows_signing_certificate_subject=CN=Apparatus Publisher",
+    ]
+    for index, (name, value) in enumerate((
+        ("APPARATUS_AZURE_SIGNING_TENANT_ID", "not-a-uuid"),
+        ("APPARATUS_AZURE_SIGNING_CLIENT_ID", "22222222-2222-2222-2222-222222222222\nextra"),
+        ("APPARATUS_AZURE_SIGNING_ENDPOINT", "https://user@westus.codesigning.azure.net"),
+        ("APPARATUS_AZURE_SIGNING_ENDPOINT", "https://westus.codesigning.azure.net:443"),
+        ("APPARATUS_AZURE_SIGNING_ENDPOINT", "https://westus.codesigning.azure.net/sign"),
+        ("APPARATUS_AZURE_SIGNING_ENDPOINT", "http://westus.codesigning.azure.net"),
+        ("APPARATUS_AZURE_SIGNING_ENDPOINT", " https://westus.codesigning.azure.net"),
+        ("APPARATUS_AZURE_SIGNING_ACCOUNT_NAME", "not a name"),
+        ("APPARATUS_AZURE_SIGNING_ACCOUNT_NAME", "a" * 25),
+        ("APPARATUS_AZURE_SIGNING_ACCOUNT_NAME", "account-"),
+        ("APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME", "p" * 101),
+        ("APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME", "profile_name"),
+        ("APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT", " CN=Apparatus Publisher"),
+        ("APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT", "CN=Apparatus\u0085Publisher"),
+    )):
+        rejected = _run_azure_configuration(tmp_path / f"invalid-{index}", **{name: value})
+        assert rejected.returncode != 0
+
+    maximum_names = _run_azure_configuration(
+        tmp_path / "maximum-names",
+        APPARATUS_AZURE_SIGNING_ACCOUNT_NAME="a" * 24,
+        APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME="p" * 100,
+    )
+    assert maximum_names.returncode == 0, maximum_names.stderr
+    for name in (
+        "APPARATUS_AZURE_SIGNING_TENANT_ID", "APPARATUS_AZURE_SIGNING_CLIENT_ID",
+        "APPARATUS_AZURE_SIGNING_SUBSCRIPTION_ID", "APPARATUS_AZURE_SIGNING_ENDPOINT",
+        "APPARATUS_AZURE_SIGNING_ACCOUNT_NAME", "APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME",
+        "APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT",
+    ):
+        missing = _run_azure_configuration(tmp_path / f"missing-{name}", **{name: ""})
+        assert missing.returncode != 0
+        assert not (tmp_path / f"missing-{name}" / "github-output").exists()
+
+
+def test_azure_signing_job_has_only_the_selected_oidc_credential_path() -> None:
+    workflow = yaml.safe_load((REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"))
+    job = workflow["jobs"]["sign-windows-installer-azure"]
+    assert job["runs-on"] == "windows-2025"
+    assert job["environment"] == "signing"
+    assert job["permissions"] == {"contents": "read", "id-token": "write"}
+    assert "windows_signing_provider == 'azure-artifact-signing'" in job["if"]
+    steps = job["steps"]
+    names = [step["name"] for step in steps]
+    assert names.index("Validate Azure signing configuration") < names.index("Authenticate Azure signing identity with OIDC") < names.index("Sign the downloaded Windows installer")
+    action = next(step for step in steps if step["name"] == "Sign the downloaded Windows installer")
+    assert action["with"] == {
+        "endpoint": "${{ steps.azure-config.outputs.apparatus_azure_signing_endpoint }}",
+        "signing-account-name": "${{ steps.azure-config.outputs.apparatus_azure_signing_account_name }}",
+        "certificate-profile-name": "${{ steps.azure-config.outputs.apparatus_azure_signing_certificate_profile_name }}",
+        "files": "unsigned-windows/apparatus-installer.exe", "file-digest": "SHA256",
+        "timestamp-rfc3161": "http://timestamp.acs.microsoft.com", "timestamp-digest": "SHA256",
+        "cache-dependencies": False, "exclude-environment-credential": True,
+        "exclude-workload-identity-credential": True, "exclude-managed-identity-credential": True,
+        "exclude-shared-token-cache-credential": True, "exclude-visual-studio-credential": True,
+        "exclude-visual-studio-code-credential": True, "exclude-azure-cli-credential": False,
+        "exclude-azure-powershell-credential": True, "exclude-azure-developer-cli-credential": True,
+        "exclude-interactive-browser-credential": True,
+    }
+    assert names.index("Verify Azure-signed Windows installer") < names.index("Exercise Azure-signed Windows installer dry-run") < names.index("Upload Azure-signed Windows installer")
+    dry_run = next(step["run"] for step in steps if step["name"] == "Exercise Azure-signed Windows installer dry-run")
+    assert '"/LOG=$log"' in dry_run and "Embedded bootstrap SHA-256 verified" in dry_run and "Apparatus setup dry-run" in dry_run
+
+
+@pytest.mark.parametrize("windows_provider", ["certificate-store", "azure-artifact-signing"])
+def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Path, windows_provider: str) -> None:
     version = "0.0.1"
     sdist_name = "apparatus_core-0.0.1.tar.gz"
     wheel_name = "apparatus_core-0.0.1-py3-none-any.whl"
@@ -328,11 +466,19 @@ def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Pat
     signed_windows = tmp_path / "signed-windows" / "apparatus-installer.exe"
     signed_windows.parent.mkdir()
     signed_windows.write_bytes(b"signed windows")
+    azure_signed_windows = tmp_path / "azure-signed-windows" / "apparatus-installer.exe"
+    azure_signed_windows.parent.mkdir()
+    azure_signed_windows.write_bytes(b"azure signed windows")
+    install_step = (
+        "Install Azure-signed Windows installer"
+        if windows_provider == "azure-artifact-signing"
+        else "Install signed Windows installer"
+    )
     subprocess.run(
         [
             "bash",
             "-c",
-            _job_step_run("assemble-release", "Install signed Windows installer"),
+            _job_step_run("assemble-release", install_step),
         ],
         cwd=tmp_path,
         check=True,
@@ -357,7 +503,8 @@ def test_assembled_release_checksums_match_flat_github_asset_names(tmp_path: Pat
         "apparatus-installer.pkg",
     }
     assert all("/" not in name and "\\" not in name for name in checksum_names)
-    assert (final_release / "apparatus-installer.exe").read_bytes() == b"signed windows"
+    expected_windows = b"azure signed windows" if windows_provider == "azure-artifact-signing" else b"signed windows"
+    assert (final_release / "apparatus-installer.exe").read_bytes() == expected_windows
     subprocess.run(
         ["shasum", "-a", "256", "--check", "SHA256SUMS"],
         cwd=final_release,
@@ -422,13 +569,22 @@ def test_github_release_requires_a_successful_build_for_every_path() -> None:
     )
 
 
-def _run_publish_signing_assertion(*, dry_run: str, windows_signer: str, macos_signer: str):
+def _run_publish_signing_assertion(
+    *,
+    dry_run: str,
+    provider: str,
+    store_signer: str,
+    azure_signer: str,
+    macos_signer: str,
+):
     return subprocess.run(
         ["bash", "-c", _job_step_run("assemble-release", "Require signed installers for publication")],
         env={
             **os.environ,
             "DRY_RUN": dry_run,
-            "WINDOWS_SIGNER_RESULT": windows_signer,
+            "WINDOWS_SIGNING_PROVIDER": provider,
+            "WINDOWS_STORE_SIGNER_RESULT": store_signer,
+            "WINDOWS_AZURE_SIGNER_RESULT": azure_signer,
             "MACOS_SIGNER_RESULT": macos_signer,
         },
         capture_output=True,
@@ -436,31 +592,61 @@ def _run_publish_signing_assertion(*, dry_run: str, windows_signer: str, macos_s
     )
 
 
-def test_assembly_requires_both_signatures_for_publish_but_allows_dry_run_skips() -> None:
+def test_assembly_requires_exactly_one_selected_windows_signature_and_macos_for_publish() -> None:
     assert _run_publish_signing_assertion(
-        dry_run="true", windows_signer="skipped", macos_signer="skipped"
+        dry_run="true", provider="certificate-store", store_signer="skipped", azure_signer="skipped", macos_signer="skipped"
+    ).returncode == 0
+    assert _run_publish_signing_assertion(
+        dry_run="true", provider="azure-artifact-signing", store_signer="skipped", azure_signer="skipped", macos_signer="skipped"
     ).returncode == 0
 
     missing = _run_publish_signing_assertion(
-        dry_run="false", windows_signer="skipped", macos_signer="skipped"
+        dry_run="false", provider="certificate-store", store_signer="skipped", azure_signer="skipped", macos_signer="skipped"
     )
     assert missing.returncode != 0
-    assert "successful Windows installer signing; got skipped" in missing.stderr
+    assert "exactly one successful Windows installer signing" in missing.stderr
 
     one = _run_publish_signing_assertion(
-        dry_run="false", windows_signer="success", macos_signer="skipped"
+        dry_run="false", provider="certificate-store", store_signer="success", azure_signer="skipped", macos_signer="skipped"
     )
     assert one.returncode != 0
     assert "successful macOS installer signing; got skipped" in one.stderr
 
     assert _run_publish_signing_assertion(
-        dry_run="false", windows_signer="success", macos_signer="success"
+        dry_run="false", provider="certificate-store", store_signer="success", azure_signer="skipped", macos_signer="success"
     ).returncode == 0
     assert _run_publish_signing_assertion(
-        dry_run="false", windows_signer="failure", macos_signer="success"
+        dry_run="false", provider="azure-artifact-signing", store_signer="skipped", azure_signer="success", macos_signer="success"
+    ).returncode == 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", provider="azure-artifact-signing", store_signer="success", azure_signer="skipped", macos_signer="success"
     ).returncode != 0
     assert _run_publish_signing_assertion(
-        dry_run="false", windows_signer="success", macos_signer="cancelled"
+        dry_run="false", provider="certificate-store", store_signer="success", azure_signer="success", macos_signer="success"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", provider="certificate-store", store_signer="failure", azure_signer="skipped", macos_signer="success"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", provider="azure-artifact-signing", store_signer="skipped", azure_signer="failure", macos_signer="success"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", provider="azure-artifact-signing", store_signer="skipped", azure_signer="cancelled", macos_signer="success"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", provider="certificate-store", store_signer="success", azure_signer="skipped", macos_signer="cancelled"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", provider="azure-artifact-signing", store_signer="skipped", azure_signer="success", macos_signer="skipped"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="false", provider="certificate-store", store_signer="unknown", azure_signer="skipped", macos_signer="success"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="bogus", provider="certificate-store", store_signer="skipped", azure_signer="skipped", macos_signer="skipped"
+    ).returncode != 0
+    assert _run_publish_signing_assertion(
+        dry_run="true", provider="certificate-store", store_signer="success", azure_signer="success", macos_signer="skipped"
     ).returncode != 0
 
 

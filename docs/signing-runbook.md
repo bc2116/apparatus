@@ -7,10 +7,10 @@ this repository.
 ## 1. Choose and enroll with a signing service
 
 For Windows, choose either a standard code-signing certificate, an EV
-code-signing certificate, or a cloud-signing service. A standard certificate
-usually costs less but may have less initial SmartScreen reputation. EV and an
-established publisher reputation can shorten that warning period, but neither
-removes it by promise: a valid signature still accrues reputation over time.
+code-signing certificate, or a cloud-signing service. [Microsoft states](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
+that EV certificates no longer receive immediate SmartScreen reputation. A valid
+signature still accrues reputation over time; do not buy an enrollment on a
+promise to bypass SmartScreen or corporate policy.
 Cloud signing can keep the private key in the provider's service instead of in
 GitHub.
 
@@ -45,7 +45,7 @@ Configure the `signing` environment's deployment-branch policy to allow the
 protected default branch for signed `workflow_dispatch` rehearsals and `v*`
 tags for approved releases. Do not broaden that policy to pull requests, forks,
 or unrelated branches.
-For Windows, register a dedicated x64 Windows runner to this repository with
+For the certificate-store provider, register a dedicated x64 Windows runner to this repository with
 the fixed labels `self-hosted`, `Windows`, `X64`, and
 `apparatus-signing-windows`. Environment-level variables cannot select a runner
 because GitHub resolves `runs-on` before opening the environment. Restrict the
@@ -62,9 +62,9 @@ Set protected environment variables
 `APPARATUS_WINDOWS_SIGNING_CERTIFICATE_THUMBPRINT`,
 `APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT`, and
 `APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL`. These are certificate metadata, not
-private material. The workflow invokes native `signtool` against the
-certificate store; no PFX, key, password, provider-specific action, public
-cloud identity token, or arbitrary command path is stored here.
+private material. The certificate-store workflow invokes native `signtool`
+against the certificate store; no PFX, key, password, or arbitrary command
+path is stored here.
 
 Store macOS signing and notarization values under these six exact `signing`
 environment secret names:
@@ -98,6 +98,46 @@ issue, pull request, or release notes.
    release copy, and has the matching entry in `SHA256SUMS`. The flat
    PowerShell script remains an unsigned, checksummed fallback. Only then use
    the normal tagged release path.
+
+### Optional Azure Artifact Signing enrollment
+
+Azure Artifact Signing is an alternative for an individual publisher who does
+not want a dedicated signing runner. Enrollment, pricing, and the provider's
+availability rules are separate operator decisions; consult current Microsoft
+documentation before proceeding. Review Microsoft's [signing integration](https://learn.microsoft.com/en-us/azure/artifact-signing/how-to-signing-integrations)
+and [OIDC integration](https://github.com/Azure/artifact-signing-action/blob/c7ab2a863ab5f9a846ddb8265964877ef296ee82/docs/OIDC.md)
+before proceeding. Choose a **Public Trust** certificate profile,
+never a test or private profile. Grant the GitHub OIDC application only the
+**Artifact Signing Certificate Profile Signer** role scoped to that profile.
+
+Create a federated credential whose subject is exactly
+`repo:OWNER/REPO:environment:signing`. Separately configure the protected
+default branch and `v*` tags in the environment deployment-branch policy.
+Environment-scoped OIDC approval does not by itself
+bind the identity to a particular workflow filename, so restrict the release
+workflow through repository review and branch protection.
+
+Set these protected `signing` environment variables:
+`APPARATUS_AZURE_SIGNING_TENANT_ID`, `APPARATUS_AZURE_SIGNING_CLIENT_ID`,
+`APPARATUS_AZURE_SIGNING_SUBSCRIPTION_ID`, `APPARATUS_AZURE_SIGNING_ENDPOINT`,
+`APPARATUS_AZURE_SIGNING_ACCOUNT_NAME`,
+`APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME`, and the existing exact
+`APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT`. Set repository variable
+`APPARATUS_WINDOWS_SIGNING_PROVIDER` to `azure-artifact-signing`, then enable
+`APPARATUS_SIGN_WINDOWS` and run an approved signed rehearsal. Confirm native
+Authenticode and timestamp verification, exact publisher identity, the observed
+rotating certificate thumbprint, embedded-bootstrap dry-run, and `SHA256SUMS`.
+
+Use an account name of 3–24 characters and a profile name of 5–100 characters:
+start with a letter and use letters, digits, and single internal hyphens.
+See Microsoft's [account](https://learn.microsoft.com/en-us/azure/templates/microsoft.codesigning/codesigningaccounts)
+and [profile](https://learn.microsoft.com/en-us/azure/templates/microsoft.codesigning/codesigningaccounts/certificateprofiles)
+resource constraints. Copy the publisher subject exactly from the enrolled
+certificate, including internal spaces.
+
+To roll back, unset `APPARATUS_SIGN_WINDOWS` or set the provider to
+`certificate-store`; leaving it unset also selects the certificate-store path.
+No simulated workflow check is evidence of a live Azure signature.
 
 ## 4. Enable macOS package signing
 

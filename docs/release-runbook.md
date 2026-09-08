@@ -34,8 +34,9 @@ secrets, or its variables.
 2. From the branch containing `release.yml`, run the **Release** workflow with
    **Run workflow**. A manually dispatched run is always dry-run, even if the
    repository variable says `publish`.
-3. Run the rehearsal with both signing jobs enabled and approved through the
-   protected `signing` environment. Download the
+3. Run the rehearsal with macOS signing and exactly one selected Windows
+   signing provider enabled and approved through the protected `signing`
+   environment. Download the
    `apparatus-release-<version>` workflow artifact. Confirm it
    includes all seven distributables: payload ZIP, `apparatus-core` source
    distribution, wheel, both flat bootstrap scripts, Windows `.exe` and macOS
@@ -54,9 +55,10 @@ secrets, or its variables.
 1. Land the version bump, `CHANGELOG.md` section, and release changes.
 2. Confirm checks are green and the release branch is the intended commit.
 3. Confirm the protected `pypi`, `signing`, and `release` environments have
-   their required-reviewer rules in place. The publish path requires both
-   signing jobs to succeed; it cannot assemble a publish release from skipped,
-   failed, or cancelled signing jobs.
+   their required-reviewer rules in place. The publish path requires macOS and
+   exactly one Windows signing provider to succeed; it cannot assemble a
+   publish release from skipped, failed, cancelled, duplicated, or unexpected
+   signing results.
 4. Set `APPARATUS_RELEASE_MODE` to exactly `publish` in the repository
    variables. This is the only state that allows the trusted-publishing job to
    run for a tag push.
