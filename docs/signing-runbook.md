@@ -110,12 +110,44 @@ before proceeding. Choose a **Public Trust** certificate profile,
 never a test or private profile. Grant the GitHub OIDC application only the
 **Artifact Signing Certificate Profile Signer** role scoped to that profile.
 
-Create a federated credential whose subject is exactly
-`repo:OWNER/REPO:environment:signing`. Separately configure the protected
-default branch and `v*` tags in the environment deployment-branch policy.
+Before creating the federated credential, inspect the repository's current
+[OIDC configuration](https://docs.github.com/en/rest/actions/oidc):
+
+```sh
+gh api repos/OWNER/REPO/actions/oidc/customization/sub
+```
+
+For the default subject template, append `:environment:signing` to the returned
+`sub_claim_prefix`. The complete subject may be the legacy
+`repo:OWNER/REPO:environment:signing` or the immutable
+`repo:OWNER@OWNER-ID/REPO@REPO-ID:environment:signing`. Do not select a format
+from repository names or the `use_immutable_subject` flag alone. GitHub's
+[current subject rules](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims)
+also enable immutable IDs automatically for newer, renamed, or transferred
+repositories. If the API does not return a prefix, or the repository uses a
+custom subject template, resolve the exact subject from its effective OIDC
+configuration before granting access; do not assume the default example.
+Never paste an OIDC token into a log or issue to diagnose a mismatch.
+
+Set the federated credential issuer to
+`https://token.actions.githubusercontent.com`, audience to
+`api://AzureADTokenExchange`, and subject to that exact resolved string.
+Separately configure the protected default branch and `v*` tags in the
+environment deployment-branch policy.
 Environment-scoped OIDC approval does not by itself
 bind the identity to a particular workflow filename, so restrict the release
 workflow through repository review and branch protection.
+
+If repository, organization, or enterprise policy restricts permitted Actions,
+allow the exact reviewed commits used in `.github/workflows/release.yml`:
+
+```text
+Azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6
+Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
+```
+
+Preserve existing restrictions; do not enable all Azure or third-party actions.
+An action-pin update also needs a matching policy review before rehearsal.
 
 Set these protected `signing` environment variables:
 `APPARATUS_AZURE_SIGNING_TENANT_ID`, `APPARATUS_AZURE_SIGNING_CLIENT_ID`,

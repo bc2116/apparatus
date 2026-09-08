@@ -133,7 +133,7 @@ def test_release_workflow_builds_and_attaches_every_release_file() -> None:
     assert "exclude-environment-credential: true" in content
     assert "exclude-azure-cli-credential: false" in content
     assert "timestamp-rfc3161: http://timestamp.acs.microsoft.com" in content
-    assert "files: unsigned-windows/apparatus-installer.exe" in content
+    assert "files: ${{ github.workspace }}/unsigned-windows/apparatus-installer.exe" in content
     assert "verify /pa /tw" in content
     assert "1.3.6.1.4.1.311.10.3.13" in content
 
@@ -412,7 +412,7 @@ def test_azure_signing_job_has_only_the_selected_oidc_credential_path() -> None:
         "endpoint": "${{ steps.azure-config.outputs.apparatus_azure_signing_endpoint }}",
         "signing-account-name": "${{ steps.azure-config.outputs.apparatus_azure_signing_account_name }}",
         "certificate-profile-name": "${{ steps.azure-config.outputs.apparatus_azure_signing_certificate_profile_name }}",
-        "files": "unsigned-windows/apparatus-installer.exe", "file-digest": "SHA256",
+        "files": "${{ github.workspace }}/unsigned-windows/apparatus-installer.exe", "file-digest": "SHA256",
         "timestamp-rfc3161": "http://timestamp.acs.microsoft.com", "timestamp-digest": "SHA256",
         "cache-dependencies": False, "exclude-environment-credential": True,
         "exclude-workload-identity-credential": True, "exclude-managed-identity-credential": True,
