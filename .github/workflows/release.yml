@@ -716,7 +716,7 @@ jobs:
           endpoint: ${{ steps.azure-config.outputs.apparatus_azure_signing_endpoint }}
           signing-account-name: ${{ steps.azure-config.outputs.apparatus_azure_signing_account_name }}
           certificate-profile-name: ${{ steps.azure-config.outputs.apparatus_azure_signing_certificate_profile_name }}
-          files: unsigned-windows/apparatus-installer.exe
+          files: ${{ github.workspace }}/unsigned-windows/apparatus-installer.exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256

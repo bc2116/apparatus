@@ -113,6 +113,7 @@ later slices remain planned.
 | 50 | [Explicit Memory fact capture](PR-50-explicit-memory-capture.md) | Repair | ✅ landed | 49 |
 | 51 | [First-publication acceptance gate](PR-51-release-acceptance-gate.md) | Release | ✅ landed | 50 |
 | 52 | [Optional hosted Windows signing](PR-52-hosted-windows-signing.md) | Release | ✅ landed | 51 |
+| 53 | [Repair the Azure signing rehearsal](PR-53-azure-signing-rehearsal.md) | Release | ✅ landed | 52 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
