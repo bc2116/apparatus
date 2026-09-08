@@ -15,6 +15,7 @@ jobs:
     outputs:
       version: ${{ steps.release.outputs.version }}
       dry_run: ${{ steps.release.outputs.dry_run }}
+      windows_signing_provider: ${{ steps.release.outputs.windows_signing_provider }}
       sdist_name: ${{ steps.packages.outputs.sdist_name }}
       wheel_name: ${{ steps.packages.outputs.wheel_name }}
     steps:
@@ -26,6 +27,7 @@ jobs:
         id: release
         env:
           APPARATUS_RELEASE_MODE: ${{ vars.APPARATUS_RELEASE_MODE }}
+          APPARATUS_WINDOWS_SIGNING_PROVIDER: ${{ vars.APPARATUS_WINDOWS_SIGNING_PROVIDER }}
         shell: python
         run: |
           import os
@@ -47,9 +49,17 @@ jobs:
 
           Path("dist").mkdir(exist_ok=True)
           dry_run = event == "workflow_dispatch" or os.environ.get("APPARATUS_RELEASE_MODE") != "publish"
+          provider = os.environ.get("APPARATUS_WINDOWS_SIGNING_PROVIDER", "")
+          if provider == "":
+              provider = "certificate-store"
+          if provider not in {"certificate-store", "azure-artifact-signing"}:
+              raise SystemExit(
+                  "APPARATUS_WINDOWS_SIGNING_PROVIDER must be certificate-store or azure-artifact-signing"
+              )
           with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
               output.write(f"version={version}\n")
               output.write(f"dry_run={str(dry_run).lower()}\n")
+              output.write(f"windows_signing_provider={provider}\n")
 
           changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
           heading = f"## v{version}"
@@ -417,7 +427,8 @@ jobs:
     if: >-
       needs.build.result == 'success' &&
       needs.build-windows-installer.result == 'success' &&
-      vars.APPARATUS_SIGN_WINDOWS == 'enabled'
+      vars.APPARATUS_SIGN_WINDOWS == 'enabled' &&
+      needs.build.outputs.windows_signing_provider == 'certificate-store'
     # Routing happens before an environment is opened, so these fixed labels
     # are repository-level configuration rather than environment variables.
     runs-on: [self-hosted, Windows, X64, apparatus-signing-windows]
@@ -601,6 +612,178 @@ jobs:
           if-no-files-found: error
           path: unsigned-windows/apparatus-installer.exe
 
+  sign-windows-installer-azure:
+    name: Sign Windows installer with Azure Artifact Signing
+    needs: [build, build-windows-installer]
+    if: >-
+      needs.build.result == 'success' &&
+      needs.build-windows-installer.result == 'success' &&
+      vars.APPARATUS_SIGN_WINDOWS == 'enabled' &&
+      needs.build.outputs.windows_signing_provider == 'azure-artifact-signing'
+    runs-on: windows-2025
+    environment: signing
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download unsigned Windows installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: apparatus-unsigned-windows-installer-${{ needs.build.outputs.version }}
+          path: unsigned-windows
+      - name: Validate Azure signing configuration
+        id: azure-config
+        shell: python
+        env:
+          APPARATUS_AZURE_SIGNING_TENANT_ID: ${{ vars.APPARATUS_AZURE_SIGNING_TENANT_ID }}
+          APPARATUS_AZURE_SIGNING_CLIENT_ID: ${{ vars.APPARATUS_AZURE_SIGNING_CLIENT_ID }}
+          APPARATUS_AZURE_SIGNING_SUBSCRIPTION_ID: ${{ vars.APPARATUS_AZURE_SIGNING_SUBSCRIPTION_ID }}
+          APPARATUS_AZURE_SIGNING_ENDPOINT: ${{ vars.APPARATUS_AZURE_SIGNING_ENDPOINT }}
+          APPARATUS_AZURE_SIGNING_ACCOUNT_NAME: ${{ vars.APPARATUS_AZURE_SIGNING_ACCOUNT_NAME }}
+          APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ vars.APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ vars.APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT }}
+        run: |
+          import os
+          import re
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          values = {name: os.environ.get(name, "") for name in (
+              "APPARATUS_AZURE_SIGNING_TENANT_ID",
+              "APPARATUS_AZURE_SIGNING_CLIENT_ID",
+              "APPARATUS_AZURE_SIGNING_SUBSCRIPTION_ID",
+              "APPARATUS_AZURE_SIGNING_ENDPOINT",
+              "APPARATUS_AZURE_SIGNING_ACCOUNT_NAME",
+              "APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME",
+              "APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT",
+          )}
+          if any(any(ord(character) < 32 or 127 <= ord(character) <= 159 for character in value) for value in values.values()):
+              raise SystemExit("Azure signing metadata must not contain control characters.")
+          for name in (
+              "APPARATUS_AZURE_SIGNING_TENANT_ID",
+              "APPARATUS_AZURE_SIGNING_CLIENT_ID",
+              "APPARATUS_AZURE_SIGNING_SUBSCRIPTION_ID",
+          ):
+              value = values[name]
+              if re.fullmatch(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}", value) is None:
+                  raise SystemExit(f"{name} must be a canonical UUID.")
+          if any(character.isspace() for character in values["APPARATUS_AZURE_SIGNING_ENDPOINT"]):
+              raise SystemExit("APPARATUS_AZURE_SIGNING_ENDPOINT must not contain whitespace.")
+          endpoint = urlsplit(values["APPARATUS_AZURE_SIGNING_ENDPOINT"])
+          if (
+              endpoint.scheme != "https" or endpoint.username is not None or endpoint.password is not None
+              or endpoint.port is not None or endpoint.path not in ("", "/") or endpoint.query or endpoint.fragment
+              or endpoint.hostname is None
+              or re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*\.codesigning\.azure\.net", endpoint.hostname) is None
+          ):
+              raise SystemExit("APPARATUS_AZURE_SIGNING_ENDPOINT must be an HTTPS regional *.codesigning.azure.net endpoint.")
+          for name, minimum, maximum in (
+              ("APPARATUS_AZURE_SIGNING_ACCOUNT_NAME", 3, 24),
+              ("APPARATUS_AZURE_SIGNING_CERTIFICATE_PROFILE_NAME", 5, 100),
+          ):
+              if not minimum <= len(values[name]) <= maximum or re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*", values[name]) is None:
+                  raise SystemExit(f"{name} must be a safe Azure resource identifier.")
+          subject = values["APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT"]
+          if not subject or subject.strip() != subject:
+              raise SystemExit("APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT must be nonempty and trimmed.")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              for name, value in values.items():
+                  output.write(f"{name.lower()}={value}\n")
+      - name: Verify Azure signing input
+        shell: pwsh
+        run: |
+          $inputDirectory = Get-Item -LiteralPath 'unsigned-windows'
+          $reparsePoint = [IO.FileAttributes]::ReparsePoint
+          if (-not $inputDirectory.PSIsContainer -or ($inputDirectory.Attributes -band $reparsePoint)) {
+            throw 'The Azure signing input directory must be an ordinary directory.'
+          }
+          $files = @(Get-ChildItem -LiteralPath $inputDirectory.FullName -Force)
+          if ($files.Count -ne 1 -or $files[0] -isnot [IO.FileInfo] -or $files[0].Name -ne 'apparatus-installer.exe') {
+            throw 'The Azure signing input must be exactly one installer file.'
+          }
+          if ($files[0].LinkType -or ($files[0].Attributes -band $reparsePoint) -or $files[0].Length -le 0) {
+            throw 'The Azure signing input must be an ordinary nonempty installer file.'
+          }
+      - name: Authenticate Azure signing identity with OIDC
+        uses: Azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ steps.azure-config.outputs.apparatus_azure_signing_client_id }}
+          tenant-id: ${{ steps.azure-config.outputs.apparatus_azure_signing_tenant_id }}
+          subscription-id: ${{ steps.azure-config.outputs.apparatus_azure_signing_subscription_id }}
+      - name: Sign the downloaded Windows installer
+        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2
+        with:
+          endpoint: ${{ steps.azure-config.outputs.apparatus_azure_signing_endpoint }}
+          signing-account-name: ${{ steps.azure-config.outputs.apparatus_azure_signing_account_name }}
+          certificate-profile-name: ${{ steps.azure-config.outputs.apparatus_azure_signing_certificate_profile_name }}
+          files: unsigned-windows/apparatus-installer.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          cache-dependencies: false
+          exclude-environment-credential: true
+          exclude-workload-identity-credential: true
+          exclude-managed-identity-credential: true
+          exclude-shared-token-cache-credential: true
+          exclude-visual-studio-credential: true
+          exclude-visual-studio-code-credential: true
+          exclude-azure-cli-credential: false
+          exclude-azure-powershell-credential: true
+          exclude-azure-developer-cli-credential: true
+          exclude-interactive-browser-credential: true
+      - name: Verify Azure-signed Windows installer
+        shell: pwsh
+        env:
+          APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT: ${{ steps.azure-config.outputs.apparatus_windows_signing_certificate_subject }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $inputDirectory = Get-Item -LiteralPath 'unsigned-windows'
+          $reparsePoint = [IO.FileAttributes]::ReparsePoint
+          $files = @(Get-ChildItem -LiteralPath $inputDirectory.FullName -Force)
+          if (-not $inputDirectory.PSIsContainer -or ($inputDirectory.Attributes -band $reparsePoint) -or $files.Count -ne 1 -or $files[0] -isnot [IO.FileInfo] -or $files[0].Name -ne 'apparatus-installer.exe') {
+            throw 'The Azure signing input must be exactly one ordinary nonempty installer file.'
+          }
+          $installer = $files[0]
+          if ($installer.LinkType -or ($installer.Attributes -band $reparsePoint) -or $installer.Length -le 0) { throw 'The Azure signing input must be an ordinary nonempty installer file.' }
+          $sdkBin = 'C:\Program Files (x86)\Windows Kits\10\bin'
+          $signTool = Get-ChildItem -LiteralPath $sdkBin -Directory | Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object { [version]$_.Name } -Descending | ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'x64\signtool.exe') -ErrorAction SilentlyContinue } | Select-Object -First 1
+          $trustedPrefix = $sdkBin.TrimEnd('\') + '\'
+          if ($null -eq $signTool -or $signTool.LinkType -or ($signTool.Attributes -band $reparsePoint) -or -not $signTool.FullName.StartsWith($trustedPrefix, [StringComparison]::OrdinalIgnoreCase) -or (Get-AuthenticodeSignature -FilePath $signTool.FullName).Status -ne 'Valid') { throw 'No valid Windows SDK signtool is available.' }
+          & $signTool.FullName verify /pa /tw $installer.FullName
+          if ($LASTEXITCODE -ne 0) { throw "signtool verification failed with exit code $LASTEXITCODE." }
+          $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+          $certificate = $signature.SignerCertificate
+          if ($signature.Status -ne 'Valid' -or $null -eq $certificate -or $certificate.Subject -cne $env:APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT) { throw 'The Azure-signed installer does not have the protected publisher identity.' }
+          $now = [DateTime]::UtcNow
+          if ($certificate.NotBefore.ToUniversalTime() -gt $now -or $certificate.NotAfter.ToUniversalTime() -lt $now) { throw 'The signing certificate is outside its validity window.' }
+          $usages = @($certificate.Extensions | Where-Object { $_.Oid.Value -eq '2.5.29.37' } | ForEach-Object { $_.EnhancedKeyUsages })
+          if ($usages.Value -notcontains '1.3.6.1.5.5.7.3.3' -or $usages.Value -contains '1.3.6.1.4.1.311.10.3.13') { throw 'The Azure signing certificate has an invalid Enhanced Key Usage profile.' }
+          if ($null -eq $signature.TimeStamperCertificate -or $signature.TimeStamperCertificate.NotBefore.ToUniversalTime() -gt $now -or $signature.TimeStamperCertificate.NotAfter.ToUniversalTime() -lt $now) { throw 'The Azure signature lacks a current timestamp certificate.' }
+          Write-Output "Observed Azure signing thumbprint: $($certificate.Thumbprint)"
+      - name: Exercise Azure-signed Windows installer dry-run
+        shell: pwsh
+        run: |
+          $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $startInfo.FileName = (Resolve-Path '.\unsigned-windows\apparatus-installer.exe').Path
+          $startInfo.UseShellExecute = $false
+          $log = Join-Path $env:RUNNER_TEMP 'apparatus-azure-signed-installer.log'
+          foreach ($argument in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DRYRUN', "/LOG=$log")) { [void] $startInfo.ArgumentList.Add($argument) }
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          $process.WaitForExit()
+          if ($process.ExitCode -ne 0) {
+            if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log }
+            throw "Azure-signed Windows installer dry-run failed with exit code $($process.ExitCode)."
+          }
+          if (-not (Test-Path -LiteralPath $log)) { throw 'The Azure-signed Windows installer did not create its requested verification log.' }
+          $logText = Get-Content -LiteralPath $log -Raw
+          if ($logText -notmatch 'Embedded bootstrap SHA-256 verified\.' -or $logText -notmatch 'Apparatus setup dry-run') { throw 'The Azure-signed Windows installer did not verify and run its embedded bootstrap.' }
+      - name: Upload Azure-signed Windows installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: apparatus-azure-signed-windows-installer-${{ needs.build.outputs.version }}
+          if-no-files-found: error
+          path: unsigned-windows/apparatus-installer.exe
+
   sign-macos-installer:
     name: Sign and notarize macOS installer
     needs: [build, build-macos-installer]
@@ -674,27 +857,43 @@ jobs:
 
   assemble-release:
     name: Assemble release files and checksums
-    needs: [build, build-windows-installer, build-macos-installer, sign-windows-installer, sign-macos-installer]
+    needs: [build, build-windows-installer, build-macos-installer, sign-windows-installer, sign-windows-installer-azure, sign-macos-installer]
     if: >-
       always() && needs.build.result == 'success' &&
       needs.build-windows-installer.result == 'success' &&
       needs.build-macos-installer.result == 'success' &&
       (needs.sign-windows-installer.result == 'success' || needs.sign-windows-installer.result == 'skipped') &&
+      (needs.sign-windows-installer-azure.result == 'success' || needs.sign-windows-installer-azure.result == 'skipped') &&
       (needs.sign-macos-installer.result == 'success' || needs.sign-macos-installer.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Require signed installers for publication
         env:
           DRY_RUN: ${{ needs.build.outputs.dry_run }}
-          WINDOWS_SIGNER_RESULT: ${{ needs.sign-windows-installer.result }}
+          WINDOWS_SIGNING_PROVIDER: ${{ needs.build.outputs.windows_signing_provider }}
+          WINDOWS_STORE_SIGNER_RESULT: ${{ needs.sign-windows-installer.result }}
+          WINDOWS_AZURE_SIGNER_RESULT: ${{ needs.sign-windows-installer-azure.result }}
           MACOS_SIGNER_RESULT: ${{ needs.sign-macos-installer.result }}
         run: |
           set -euo pipefail
+          [[ "$DRY_RUN" == 'true' || "$DRY_RUN" == 'false' ]] || { echo 'Invalid dry-run mode.' >&2; exit 1; }
+          [[ "$WINDOWS_SIGNING_PROVIDER" == 'certificate-store' || "$WINDOWS_SIGNING_PROVIDER" == 'azure-artifact-signing' ]] || { echo 'Invalid Windows signing provider.' >&2; exit 1; }
+          for result in "$WINDOWS_STORE_SIGNER_RESULT" "$WINDOWS_AZURE_SIGNER_RESULT" "$MACOS_SIGNER_RESULT"; do
+            [[ "$result" == 'success' || "$result" == 'skipped' ]] || { echo "Unexpected signer result: $result." >&2; exit 1; }
+          done
+          successes=0
+          [[ "$WINDOWS_STORE_SIGNER_RESULT" == 'success' ]] && successes=$((successes + 1))
+          [[ "$WINDOWS_AZURE_SIGNER_RESULT" == 'success' ]] && successes=$((successes + 1))
+          [[ "$successes" -le 1 ]] || { echo 'Exactly one Windows signer may succeed.' >&2; exit 1; }
+          if [[ "$WINDOWS_STORE_SIGNER_RESULT" == 'success' && "$WINDOWS_SIGNING_PROVIDER" != 'certificate-store' ]] || [[ "$WINDOWS_AZURE_SIGNER_RESULT" == 'success' && "$WINDOWS_SIGNING_PROVIDER" != 'azure-artifact-signing' ]]; then
+            echo 'Successful Windows signer disagrees with the resolved provider.' >&2
+            exit 1
+          fi
           if [[ "$DRY_RUN" == 'true' ]]; then
             exit 0
           fi
-          if [[ "$WINDOWS_SIGNER_RESULT" != 'success' ]]; then
-            echo "Publish release requires successful Windows installer signing; got $WINDOWS_SIGNER_RESULT." >&2
+          if [[ "$successes" -ne 1 ]]; then
+            echo 'Publish release requires exactly one successful Windows installer signing.' >&2
             exit 1
           fi
           if [[ "$MACOS_SIGNER_RESULT" != 'success' ]]; then
@@ -741,6 +940,15 @@ jobs:
       - name: Install signed Windows installer
         if: needs.sign-windows-installer.result == 'success'
         run: cp signed-windows/apparatus-installer.exe final-release/apparatus-installer.exe
+      - name: Download Azure-signed Windows installer
+        if: needs.sign-windows-installer-azure.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: apparatus-azure-signed-windows-installer-${{ needs.build.outputs.version }}
+          path: azure-signed-windows
+      - name: Install Azure-signed Windows installer
+        if: needs.sign-windows-installer-azure.result == 'success'
+        run: cp azure-signed-windows/apparatus-installer.exe final-release/apparatus-installer.exe
       - name: Download signed macOS installer
         if: needs.sign-macos-installer.result == 'success'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

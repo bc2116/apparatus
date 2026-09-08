@@ -17,6 +17,7 @@ The first public release requires verified signatures. When enabled, the
 outer `.exe` is Authenticode-signed and the outer `.pkg` is Developer ID signed,
 notarized, and stapled. `SHA256SUMS` covers the seven distributable artifacts:
 the payload, source distribution, wheel, two bare scripts, `.exe`, and `.pkg`.
+A valid signature does not override SmartScreen or company application policies.
 
 ## Workspace data
 
