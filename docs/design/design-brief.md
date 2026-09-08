@@ -221,21 +221,25 @@ work; effective task Memory opt-out; useful Skills with a plain-file fallback;
 and recovery within documented coverage. Deterministic core/conformance checks
 establish the catalog and recovery mechanics; the app chats below establish
 representative assistant behavior. The lean RC compatibility gate is two
-actual chats per named app/variant—Cursor IDE, Codex desktop, and the actually
-available Claude Code variant—on one payload, with dated app/version/model/OS
-and persisted-artifact/hash evidence. A green unit suite, detected app, script,
+actual chats per named app/variant on one payload, with dated app/version/model/OS
+and persisted-artifact/hash evidence. The bounded gate covers the available
+named variants: Cursor IDE, Codex CLI, and Claude Code CLI. Codex desktop remains
+an explicit coverage gap. A green unit suite, detected app, script,
 or menu is not evidence of assistant behavior. Broader support certification
 remains a later gate.
 
 The reworked layout, task controls and installer routing are implemented.
 PR48's path-alias fix and PR49's cache diagnostic fix are implemented.
-[PR47](../plan/PR-47-first-task-certification.md) records a working basic Cursor
-task on the current local build and earlier Memory/Library observations. Cursor
-is the priority app for remaining acceptance. The two-chat-per-named-variant RC
-gate, installer install-and-repair evidence for each supported OS, signing, and
-publication remain incomplete; no support certification, full pass, or signed
-public RC is established. Windows ARM64 VM evidence must be labelled and does
-not replace required x64 evidence. Native discovery adapters and public delivery retain
-their own acceptance requirements. No further product-choice interview is needed. Resolve
-small reversible implementation choices in their focused prompts; return to the
-owner only if evidence requires a material change to this direction.
+[PR47](../plan/PR-47-first-task-certification.md) records passing two-chat gates
+for the named Cursor IDE/Luna, Codex CLI/Terra and Claude Code CLI/Sonnet
+configurations. Codex desktop and other untested variants remain outside that
+evidence; earlier failures retain their original build and configuration.
+Both Windows and macOS signed rehearsals passed for 0.0.1. Release work for 0.0.2
+preserves the tested core and payload behavior apart from the version constant.
+The [dated matrix](../certification/matrix.md) owns current publication and native
+install-and-repair status, exact app settings and remaining coverage gaps.
+Windows ARM64 VM evidence does not replace required x64 evidence. Native
+discovery adapters, broad support certification and public delivery retain their
+own acceptance requirements. No further product-choice interview is needed.
+Resolve small reversible implementation choices in their focused prompts;
+return to the owner only if evidence requires a material change to this direction.

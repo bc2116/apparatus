@@ -73,18 +73,19 @@ Finished work may receive one brief optional addition offer; no-save suppresses
 these offers and card capture. Card freshness is checked against current evidence.
 
 The [approved rework](docs/design/design-brief.md) still includes planned native
-discovery adapters. PR48's path-alias repair and PR49's cache diagnostic repair
-are implemented. The current local release-candidate checkpoint completes a
-basic Cursor task; earlier observations also cover Memory correction and Library
-addition. Cursor is the priority app for remaining acceptance. Full required
-cases, Windows CI and signing remain incomplete; this is not a signed public RC.
-**No reworked app is certified yet**; see the
-[dated support matrix](docs/certification/matrix.md) and [six-step checklist](docs/certification/checklist.md).
-Start with the short [Codex](docs/quickstarts/codex.md),
-[Claude Code](docs/quickstarts/claude-code.md), or [Cursor](docs/quickstarts/cursor.md)
-guide. These documented routes are not completed runtime certification.
-Packaging checks do not establish a signed public release, and the current
-PyPI package must not be assumed to contain this rework.
+discovery adapters. The focused two-chat gate passed for Cursor IDE with Luna,
+Codex CLI with Terra, and Claude Code CLI with Sonnet. The
+[dated support matrix](docs/certification/matrix.md) records exact versions,
+settings, preserved failures and variant limits; these results are not broad
+support certification or evidence for untested desktop/CLI variants.
+
+Both Windows and macOS signed rehearsals succeeded for 0.0.1. The move to 0.0.2
+changes release orchestration and the version constant, without changing the
+tested core or payload behavior. Publication and actual native install-and-repair
+are separate gates; consult the [matrix](docs/certification/matrix.md) for their
+current status before selecting a release. Start with the short
+[Codex](docs/quickstarts/codex.md), [Claude Code](docs/quickstarts/claude-code.md),
+or [Cursor](docs/quickstarts/cursor.md) guide.
 
 Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
 [refactor sequence](docs/plan/rework-sequence.md), and

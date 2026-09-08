@@ -1,8 +1,8 @@
 # Apparatus with Claude Code — pre-alpha quickstart
 
 Open a terminal in your chosen work-area folder and start `claude`. Start with
-an actual task; this draft does not certify Claude Code or its IDE/desktop
-variants. The official quickstart documents project-directory launch and the
+an actual task. Claude Code CLI 2.1.263 with Sonnet 5 Medium passed the focused
+two-chat gate; its IDE/desktop variants remain untested. The official quickstart documents project-directory launch and the
 normal sign-in flow. Use an already authorized account and follow native
 permissions. [Claude Code quickstart](https://code.claude.com/docs/en/quickstart)
 
@@ -21,10 +21,11 @@ permissions. [Claude Code quickstart](https://code.claude.com/docs/en/quickstart
    desired; requested work files remain possible, with no provider-retention
    or historical-backup-erasure promise.
 
-Need Apparatus first? This is a tested local pre-alpha build; a signed public
-release is not established. Follow the [setup guide](../../installer/README.md)
-and choose the actual work area; do not assume PyPI contains this rework. Fresh/empty roots use ordinary init; existing nonempty folders need
-explicit adoption. The scripts accept `--path WORKAREA --adopt` on macOS and
+Need Apparatus first? Consult the [dated matrix](../certification/matrix.md) for
+current package publication and native installer acceptance, then follow the
+[setup guide](../../installer/README.md) and choose the actual work area.
+Apparatus remains pre-alpha. Fresh/empty roots use ordinary init; existing
+nonempty folders need explicit adoption. The scripts accept `--path WORKAREA --adopt` on macOS and
 `-Path WORKAREA -Adopt` on Windows; the Windows wrapper uses `/WORKSPACEPATH=`
 and `/ADOPT`. Omit adoption for fresh setup. Defaults are `~/Projects` and
 `C:\Projects`. The macOS package has no custom-root/adoption option; use the
@@ -37,7 +38,9 @@ its existing instruction pointer and the chosen canonical
 body, symlink or successful menu discovery. A listed thin wrapper has not yet
 proved that its body pointer is followed.
 
-Official launch instructions checked 2026-09-06. The current build has a qualified
-CLI first-task observation; its sample timing caveat and earlier semantic failures
-remain in the [dated matrix](../certification/matrix.md). Windows CI, signing and
-full app certification remain incomplete; no IDE result is inferred.
+Official launch instructions checked 2026-09-06. The passing CLI configuration
+used native auto permission mode and a restricted tool setup. Earlier permission
+denials, semantic failures and the earlier sample-timing caveat remain attached
+to their original runs in the [dated matrix](../certification/matrix.md), alongside
+current release/install gates. No IDE result or broad support certification is
+inferred.

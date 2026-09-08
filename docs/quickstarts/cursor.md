@@ -1,8 +1,9 @@
 # Apparatus with Cursor — pre-alpha quickstart
 
 In Cursor, choose **File > Open Folder** and select your actual work-area root.
-Open the Agent panel and ask for a concrete result. These are official setup
-instructions, not evidence that this final payload has passed in Cursor.
+Open the Agent panel and ask for a concrete result. Cursor IDE 3.19.13 with
+GPT-5.6 Luna Medium passed the focused two-chat gate; that result does not extend
+to every Cursor model or the CLI.
 [Open a project](https://cursor.com/help/getting-started/first-project),
 [Cursor quickstart](https://cursor.com/docs/get-started/quickstart).
 
@@ -20,10 +21,11 @@ instructions, not evidence that this final payload has passed in Cursor.
    when desired; the requested deliverable can still be saved. This does not
    change provider retention or erase historical copies.
 
-If Apparatus is not set up, this tested local pre-alpha build has no established
-signed public release. Follow the [setup guide](../../installer/README.md) for
-the selected root; do not assume PyPI contains this rework. Defaults are `~/Projects` or `C:\Projects`; an Apparatus enclosure is not
-required. Existing nonempty unmarked folders need explicit adoption through
+If Apparatus is not set up, consult the [dated matrix](../certification/matrix.md)
+for current package publication and native installer acceptance, then follow
+the [setup guide](../../installer/README.md) for the selected root. Apparatus
+remains pre-alpha. Defaults are `~/Projects` or `C:\Projects`; an Apparatus
+enclosure is not required. Existing nonempty unmarked folders need explicit adoption through
 `--adopt` on the macOS script or `-Adopt` on the Windows script (`/ADOPT` for the
 Windows wrapper). The macOS package cannot select a custom root or pass
 adoption; use the flat script. Ask for the matching path option and command
@@ -34,8 +36,9 @@ canonical `.agents/skills/NAME/SKILL.md`. A native menu entry is not required;
 no duplicate body or symlink is needed. Existing Cursor **CLI** metadata probes
 were inconclusive and establish neither IDE discovery nor body execution.
 
-Official setup pages checked 2026-09-06. Cursor IDE/CLI are separate variants;
-the current local build completes a basic IDE task. Earlier Memory correction
-and Library addition observations remain tied to their build. See the [dated
-matrix](../certification/matrix.md) for exact identifiers and missing cases.
-Required Windows CI, signing and full app certification remain incomplete.
+Official setup pages checked 2026-09-06. The Luna IDE run observed canonical
+Skill use through the prompted path; automatic discovery remains unproven.
+The separate Grok 4.6 High run retained a timing error in its final prose.
+See the [dated matrix](../certification/matrix.md) for exact identifiers, preserved
+failures, variant limits and current release/install gates. No CLI result or
+broad support certification is inferred.

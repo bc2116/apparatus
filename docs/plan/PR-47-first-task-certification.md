@@ -23,9 +23,10 @@ behavior. Unit tests and native metadata discovery do not satisfy app acceptance
 - README support link, current design/rework/status reconciliation, and a
   verification note that distinguishes implemented source from tested runtime.
 
-Prioritize Cursor IDE, Codex desktop, and the actually available Claude Code
-variant. The lean RC compatibility gate is two actual chats for each named
-app/variant on the same final payload. Record variants separately: a CLI
+The bounded gate covers the available named variants: Cursor IDE, Codex CLI,
+and Claude Code CLI. Codex desktop remains an explicit coverage gap. The lean
+RC compatibility gate is two actual chats for each named app/variant on the
+same app-tested payload. Record variants separately: a CLI
 observation is not IDE or desktop evidence. An unavailable app gets a gap, not
 a fabricated run or an inference from another app. The basic read/write/approved
 commands contract remains available to new capable apps immediately; tested
@@ -80,8 +81,13 @@ documentation before publishing them; label any untested path honestly.
 
 ## Acceptance and stop conditions
 
-Every RC-compatible row identifies the same final core/payload and supplies two
-real passing chats. Each record includes exact app/variant, app version, model,
+Every RC-compatible row identifies the same app-tested core/payload and supplies
+two real passing chats. A release-only version bump may reuse that evidence
+when committed-tree comparison establishes unchanged core behavior, starter
+and installer content. Record the exact source delta and new distribution
+hashes separately; never relabel the original chats as runs of the new package.
+Any behavioral change requires new evidence for the changed layer.
+Each record includes exact app/variant, app version, model,
 OS/version, persisted-artifact and hash oracles. Partial or unavailable rows
 remain diagnostic evidence and cannot satisfy the named-app RC gate. Preserve
 signed first public release requirements separately: native compatibility,

@@ -251,12 +251,16 @@ app certification. Resolve Windows prerequisites with actual platform evidence.
 
 ### R12 — Recut certification and prove the first-task experience
 
-[PR47](PR-47-first-task-certification.md) is in progress. The
-[checklist](../certification/checklist.md), [dated matrix](../certification/matrix.md)
-and quickstarts exist; no reworked app is certified. The six-case, three-app
-gate remains open and requires the PR48 feature-profile path-alias repair.
-The first PR46 Cursor run is diagnostic evidence; use one repaired baseline for
-final acceptance. Held PR24 work remains untouched.
+[PR47](PR-47-first-task-certification.md) records passing focused two-chat gates
+for Cursor IDE/Luna, Codex CLI/Terra and Claude Code CLI/Sonnet on the repaired
+baseline. These named configurations do not establish broad support
+certification or results for untested variants. Both Windows and macOS signed
+rehearsals passed for 0.0.1; release work for 0.0.2 preserves tested core and
+payload behavior apart from the version constant. The
+[checklist](../certification/checklist.md) and quickstarts describe the route;
+the [dated matrix](../certification/matrix.md) owns current publication, native
+install-and-repair status and remaining limits. Earlier diagnostic failures and
+held PR24 work remain attached to their original builds.
 
 **After R11.** Replace the held PR-24 checklist and dependencies in a focused
 new prompt, preserving any useful prior work as evidence for its original

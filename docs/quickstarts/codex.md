@@ -1,8 +1,8 @@
 # Apparatus with Codex — pre-alpha quickstart
 
-Open your chosen local work area and ask for useful work. This is a documented
-setup route, not a certified Codex run. The observed local build remains pre-alpha;
-a signed public release is not established.
+Open your chosen local work area and ask for useful work. Codex CLI 0.153.4
+with Terra Medium requested passed the focused two-chat gate. The desktop route
+below is documented separately and remains untested; Apparatus stays pre-alpha.
 
 1. In the desktop app, use a local project with the work-area folder attached.
    Under **Edit project**, **Add folder** attaches a folder and **Make primary**
@@ -23,8 +23,9 @@ a signed public release is not established.
    WORKAREA`, then open that project and follow its pointer. Honor native access
    controls if the work area is outside the selected readable/writable roots.
 
-If setup is needed, use the tested local build described in the
-[setup guide](../../installer/README.md); do not assume PyPI contains this rework.
+If setup is needed, consult the [dated matrix](../certification/matrix.md) for
+current package publication and native installer acceptance, then follow the
+[setup guide](../../installer/README.md).
 The installer uses the chosen root directly: fresh/empty roots use normal setup; existing
 nonempty roots need explicit `--adopt` (macOS script) or `-Adopt` (Windows script;
 wrapper `/ADOPT`). Defaults are `~/Projects` and `C:\Projects`, without a required
@@ -37,7 +38,8 @@ Keep one body; do not create duplicate Skills or infer execution from a menu.
 For a task you do not want retained, say “Don't save this task to Memory”; this
 still allows its requested deliverable and does not control provider retention.
 
-Official setup pages checked 2026-09-06. The current build has a bounded Codex
-CLI first-task observation, not desktop certification. See exact build identifiers
-and remaining cases in the [dated matrix](../certification/matrix.md). Windows CI,
-signing and full app certification remain incomplete.
+Official setup pages checked 2026-09-06. The passing CLI case explicitly asked
+“Save a Memory fact”; casual “remember” still omitted the Fact. See the
+[dated matrix](../certification/matrix.md) for exact build/configuration evidence,
+preserved failures and current release/install gates. No desktop result or broad
+support certification is inferred.
