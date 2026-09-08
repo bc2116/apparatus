@@ -1,0 +1,1 @@
+Saved `facilitator-note.md` under a no-memory task. It cites Memory and Library for two sessions with 12 places each and an undecided venue; total duration is unspecified because no duration or timetable is recorded. No new Memory, Library cards, skills, or activity notes were created.

@@ -1,0 +1,1 @@
+Created `project-a/workshop-plan.md`, saved and verified the sourced Memory fact, registered and carded the Library source, and completed managed snapshot `967e0bccaa22`. Existing source and sentinel were preserved.

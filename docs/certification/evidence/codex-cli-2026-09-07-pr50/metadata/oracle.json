@@ -1,0 +1,24 @@
+{
+  "schema": "apparatus/certification-oracle-summary@v0",
+  "casual_payload": {
+    "first_chat": "plan, Library registration/extraction/card-indexing, and snapshot completed; required Memory fact still failed",
+    "memory_failure": "no durable Memory fact persisted; no add-fact call observed",
+    "model_request": "gpt-5.6-terra, medium"
+  },
+  "explicit_payload": {
+    "first_chat": "Memory fact and source reference saved; record existence verified; plan and current Library card completed",
+    "second_chat": "no-save; facilitator-note deliverable and task metadata only; pre-existing files unchanged",
+    "model_request": "gpt-5.6-terra, medium"
+  },
+  "prompt_difference": "The explicit first prompt adds save-and-verify Memory language; the casual prompt only says to remember the sourced fact.",
+  "runtime": {
+    "cli": "0.153.4",
+    "execution": "isolated runtime, vendor binary direct path, default cache, plugins disabled",
+    "workspace_write": true,
+    "approvals": "never",
+    "own_area_and_cache_parent_writable": true,
+    "grant_scope": "~/.apparatus parent was wider than the own cache; bounded probe searched the cache parent",
+    "os_read_confinement": "not claimed"
+  },
+  "raw_traces": "excluded"
+}

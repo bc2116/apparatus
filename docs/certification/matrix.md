@@ -1,15 +1,46 @@
-# Certification matrix — DRAFT
+# Certification matrix — focused release evidence
 
-Updated 2026-09-07. **The focused app-chat gate passed for the three named
-configurations below. The overall lean RC gate remains incomplete pending
-signed installer install-and-repair acceptance.**
-Codex CLI, Claude Code CLI, and the named Cursor/Luna variant passed two focused
-chats on the candidate below. A separate Cursor/Grok run remains qualified after
-an incorrect final timing phrase. These bounded observations establish neither
-broad certification nor a signed public release. Held PR24 evidence stays
-attached to its original payload.
+Updated 2026-09-08. The focused app-chat gate passed for the three named
+configurations below. Version `0.0.2` is published on PyPI; both native wrappers
+are signed and the Mac package is notarized. Mac native install and repair
+passed, as did Windows x64 native install and repair. Public GitHub installer
+publication remains pending. These bounded observations establish neither broad app certification
+nor corporate Windows deployment approval. Held PR24 evidence stays attached to
+its original payload.
 
-## Current candidate — explicit Memory capture
+## Version 0.0.2 release acceptance
+
+The immutable `v0.0.2` tag resolves to
+`7a1b0cda634f5d44ff100f83b72fe5e3cc3a4d25`. The [tagged release run](https://github.com/bc2116/apparatus/actions/runs/34272472809)
+built and signed both native wrappers and published
+[apparatus-core 0.0.2](https://pypi.org/project/apparatus-core/0.0.2/).
+Both PyPI distribution hashes match the final release bundle. All seven bundle
+checksums were independently verified.
+
+The [source-equivalence record](evidence/release-source-equivalence-0.0.2/run.json)
+retains the app-chat baseline as version `0.0.1`. Comparing its source with
+the release tag across core source, starter content and installers finds only
+the core version constant changed to `0.0.2`. This supports reuse of those
+bounded behavior observations; it does not relabel the original chats as new
+package runs or claim byte-identical distributions. Native acceptance uses the
+actual signed `0.0.2` installers and published package.
+
+| Native acceptance | Result | Boundary |
+| --- | --- | --- |
+| [macOS 15 hosted ARM64](evidence/macos-native-2026-09-08-release-0.0.2/run.json) | Real native package install, version check, workspace check, managed Skill repair and project sentinel preservation passed | Actual console-user session; no Mac Intel, desktop AI app or interactive installer-UI coverage inferred |
+| [Windows Server 2025 hosted x64](evidence/windows-native-2026-09-08-release-0.0.2/run.json) | Valid signature and timestamp, actual EXE install, version and workspace checks, managed Skill repair and project sentinel preservation passed | Hosted administrator context with UAC disabled; no standard-user, corporate-policy or interactive installer-UI coverage inferred |
+
+Two earlier Windows runs stopped at the signature probe before installation.
+The successful run isolates child commands from inherited PowerShell 7 module
+paths and retains strict signature validation; it does not change installer
+bytes or replace the earlier failures with a pass.
+
+The source commit's full Linux CI passed with 1334 tests passed and 45 skipped;
+all eleven required checks passed. Windows safety groups retain their original
+coverage. Installer signatures do not establish SmartScreen reputation or
+permission to install under a company's device policy.
+
+## App-tested baseline — explicit Memory capture
 
 - Source commit: `964d5a1738b2d8928ec85b964474bcc8e59b2316`; version `0.0.1`.
 - Wheel SHA-256: `a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89`.
@@ -36,7 +67,8 @@ completed and all seven distributable checksums matched. Its wheel and payload
 are byte-identical to the local test build. The Windows ARM64 VM wrapper dry run
 exited 0 and left all 67 work-area files unchanged. A dry run is not full installer
 acceptance and cannot replace required Windows x64 evidence. Signing and
-publication were skipped; PyPI still needs its first package publication.
+publication were skipped in that historical rehearsal. The later `0.0.2`
+publication and native acceptance are recorded above.
 
 ## Earlier September 7 build — focused observations
 
@@ -172,10 +204,11 @@ case. The remaining independent cases were subsequently exercised as follows.
 
 ### Remaining Cursor scenario inventory — completed on September 7
 
-All cases below used the same explicit runtime and isolated cache above, Cursor
-3.19.13, Grok 4.6 High, Fast off, and no delegation. Each command used an explicit
-global `--task ID`. Full work-area/cache inventories were checked locally; public
-records retain selected synthetic artifacts, hashes and compact change summaries.
+All cases below used Cursor 3.19.13, Grok 4.6 High, Fast off, and no delegation
+in synthetic fixtures. Runtime and cache configuration are recorded per case;
+an isolated-cache override was not recorded for every case. Each command used
+an explicit global `--task ID`. Public records retain selected synthetic
+artifacts, hashes and compact change summaries within their stated coverage.
 
 | Scenario group | Result | Observed outcome |
 | --- | --- | --- |

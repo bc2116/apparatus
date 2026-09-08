@@ -1,0 +1,1 @@
+The archived event stream explicitly records a Read of `.agents/skills/apparatus-produce-deliverable/SKILL.md` and displays its complete canonical 33-line body. This is evidence of the read; no broader skill-execution claim is inferred.

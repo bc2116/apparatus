@@ -1,22 +1,19 @@
-# First-task certification checklist — certification incomplete
+# First-task certification checklist — focused release evidence
 
-Prepared 2026-09-07 for PR47. The latest observed candidate is core
-`964d5a1738b2d8928ec85b964474bcc8e59b2316`, version `0.0.1`, payload SHA-256
-`9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94`, and
-wheel SHA-256 `a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89`.
-Codex CLI and Claude Code CLI passed the two chats using an explicit Memory-fact
-request. The named Cursor IDE 3.19.13 / GPT-5.6 Luna Medium two-chat case also
-passed, with prompted canonical Skill use observed. Casual “remember” wording
-still failed in Codex and the separate Cursor/Grok isolated rerun remains
-qualified because its final prose misstated the break timing. The named app-chat
-gate is therefore recorded by variant, while the combined RC gate remains
-incomplete. Earlier observations retain their original build identities and
-qualifications. No signed release, installer install-and-repair gate, or broad
-app certification is established. The [matrix](matrix.md) records actual
-progress. Codex desktop remains untested because native computer control was
-unavailable.
+Updated 2026-09-08 for PR47. The [matrix](matrix.md) records the current release
+and exact app-tested baseline. Cursor IDE with Luna, Codex CLI and Claude Code
+CLI passed the focused pair of chats using explicit Memory-fact wording.
+Casual “remember” still failed in Codex and the separate Cursor/Grok final prose
+misstated the break timing; both qualifications remain recorded. Codex desktop
+remains untested because native computer control was unavailable. Mac native
+install and repair and Windows x64 install and repair passed for `0.0.2`;
+public GitHub installer publication remains pending. This is bounded release evidence, not
+broad app certification.
 
 Use the same final core version, commit and payload SHA-256 in every app run.
+A version-only release bump may reuse earlier chats only when a recorded source
+comparison establishes unchanged core behavior, starter content and installers;
+retain the original build identity and do not claim identical package bytes.
 Record app **and variant**, exact version, OS/version, date, native permission
 mode and permitted roots. Use fresh isolated synthetic work areas for each app;
 never reuse live projects or provider account data. Run each step through the
@@ -76,7 +73,8 @@ unavailable / not run**. Use only the minimal synthetic assistant excerpts neede
 to establish behavior; do not export raw conversations or private app state.
 A chat passes only when its required outcomes have evidence. A partial or
 unavailable requirement cannot silently become a pass. The lean RC gate requires
-two passing chats on the same final payload for each named app/variant: Cursor
+two passing chats on the same final payload, or the explicitly documented
+version-only equivalent above, for each named app/variant: Cursor
 IDE, Codex CLI, and the actually available Claude Code variant. Separate
 desktop, CLI, and IDE variants; optional discovery/delegation observations do
 not substitute for actual chats. Automated core/conformance mechanics run once;

@@ -1,0 +1,26 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "cursor-ide-2026-09-07-pr50",
+  "app": {"name": "Cursor IDE", "version": "3.19.13", "model": "Grok4.6High", "fast_mode": "off"},
+  "build": {"core_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316", "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89", "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94", "cache_override": null},
+  "artifacts_sha256": {
+    "metadata/build.json": "a822e2bc8ef2b2788cd7ef17843173ea9b8b7601b48b16ccb48afe9a12f7fe90",
+    "metadata/oracle.json": "897db737c625bd4859b2ef8fba322bbd46f8f3f1c91a815e7079af1ee4310f12",
+    "metadata/task-no-save.yaml": "842ab1d108028e5572b31468df626ad783ba23595d0beeca87acf4629afccc87",
+    "metadata/task-save.yaml": "3cf373ecf75bd21f17c209a84095e44a1f7480654396b35fae25a1ce861da428",
+    "observation.md": "c12eecd979771c845d8ebda567f2e036f617bef5b4ba2e57d272e6c2e996cb57",
+    "outputs/facilitator-note.md": "903e5eda95ce5c5552653ed9afcd670ac0110839e8996b6b90863e4899b27dc2",
+    "outputs/first-final.md": "be5e8551d672921db00509d0b8e7d511bd3f11ab127fc023ba30dcbd3a66820b",
+    "outputs/second-final-corrected.md": "7969cfe0878d35834e378ed17c73677c3044c3e98c4363c44a52c49d6230334a",
+    "outputs/workshop-plan.md": "fe2f9daeea1cf5a0022d6b02f28e214c073ab411d18009a510dafe179495c4fc",
+    "prompts/first.txt": "82909d9e7ee2404fcd875607bce9ca92ac56cfb8b2396053e2d305c167001cae",
+    "prompts/followup-1.txt": "9dff41148b2444e7ea89c9c46972a2568e6c69556d4d64cfa23feae41a112c1c",
+    "prompts/followup-2.txt": "827feb0a304e8b769d85885228c26014a7a1dbbc6856de465f981fadaff2c898",
+    "prompts/second.txt": "a79a94aaf85911584c5f3984346b7cdd7fec5eb186234069ea7d1215e052d3a6",
+    "sources/library-card.yaml": "55ba801adbad725559cea3894d365fb12ccdf9503837cdf3cf530c8d1ebab17e",
+    "sources/library-source-registration.yaml": "0d4941fa2f781e7a10dc921397f56565aeeb100cfd149f26f74ee2aed73fd031",
+    "sources/memory-fact.md": "bf2fcba09d1cecdfb74f5cf4d8c75f62fb1405414324364d06f94500bb4a8d31",
+    "sources/skill-read.md": "17d74f28fbabd3ac3e7061c074fc338a6ca0c815f9cc3f4ccf8fa12305cdb0d7"
+  },
+  "gaps": ["Follow-up activity had expanded parent-fixture scope, so it is not a clean isolated pass.", "Native UI observation was operator-supplied, not an independent trace.", "Exact canonical-body execution and unqualified two-chat-gate/RC compatibility are not claimed."]
+}

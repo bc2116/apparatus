@@ -1,0 +1,1 @@
+Created `project-a/workshop-plan.md`, citing `source.md`, preserving the existing files, and saving and verifying the sourced Memory fact. The plan was registered, extracted, and carded in Library; the managed snapshot completed. Existing managed references changed only as expected, and the temporary helper was removed.

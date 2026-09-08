@@ -1,5 +1,17 @@
 # PR47 preparation and evidence status
 
+## September 8 release closeout
+
+The current release and named app outcomes are in the
+[matrix](../certification/matrix.md). Version `0.0.2` is on PyPI, both native
+wrappers are signed, and Mac ARM64 and Windows x64 native install and repair
+passed. GitHub installer publication remains pending. The app-tested
+`0.0.1` source differs from the release in the core version constant only across
+core source, starter content and installers. Earlier observations below retain
+their original build identities and failures.
+
+## September 7 checkpoint — historical
+
 Updated 2026-09-07. The current candidate is source
 `964d5a1738b2d8928ec85b964474bcc8e59b2316`; its wheel and payload identifiers
 and current app outcomes are in the [matrix](../certification/matrix.md).

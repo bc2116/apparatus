@@ -1,0 +1,1 @@
+The native follow-up observed `Used apparatus-produce-deliverable` and a read of the canonical relative path `.agents/skills/apparatus-produce-deliverable/SKILL.md`, followed by plan/source checks. Exact canonical-body execution is not independently proven by the export; this evidence preserves the narrower observation only.

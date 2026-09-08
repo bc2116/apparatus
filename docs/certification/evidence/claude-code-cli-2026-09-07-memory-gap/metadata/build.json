@@ -1,0 +1,9 @@
+{
+  "core_commit": "8953d374ee5e6ce751ba2217aac24f5e6f2a7486",
+  "version": "0.0.1",
+  "wheel_sha256": "33fc6440e63b03487370dd626426ca68ad37e1a866851cc279f4ccc5f3023ed8",
+  "payload_sha256": "24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851",
+  "python": "3.12.4",
+  "os": "macOS27",
+  "cache_override": null
+}

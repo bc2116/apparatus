@@ -1,0 +1,1 @@
+The Codex event stream explicitly shows the canonical `.agents/skills/apparatus-produce-deliverable/SKILL.md` read during each relevant run. This evidence records the observed read only; it does not infer complete skill execution from that read.
