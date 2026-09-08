@@ -1,0 +1,14 @@
+{
+  "candidate": "964d5a1",
+  "core_commit": "964d5a1",
+  "version": "0.0.1",
+  "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89",
+  "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94",
+  "cli_path": "<fixture-runtime>/bin/apparatus",
+  "cli_sha256": "594de7661ace2059fb7af56737d51eeb4568f495ef454364f5e25c4da98aac15",
+  "python": "3.12.4",
+  "os": "macOS27",
+  "cache_override": null,
+  "fixture_created_at": "2026-09-07",
+  "model_requested": "GPT-5.6 Luna Medium in Cursor"
+}

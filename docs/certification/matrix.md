@@ -1,18 +1,74 @@
 # Certification matrix — DRAFT
 
-Updated 2026-09-07. **No reworked core app certification or lean RC compatibility
-gate is complete.** These are
-partial observations of named local builds, not a signed public release or a
-support promise. Held PR24 results cover their original payload.
+Updated 2026-09-07. **The focused app-chat gate passed for the three named
+configurations below. The overall lean RC gate remains incomplete pending
+signed installer install-and-repair acceptance.**
+Codex CLI, Claude Code CLI, and the named Cursor/Luna variant passed two focused
+chats on the candidate below. A separate Cursor/Grok run remains qualified after
+an incorrect final timing phrase. These bounded observations establish neither
+broad certification nor a signed public release. Held PR24 evidence stays
+attached to its original payload.
 
-Release status: **Cursor-tested local preview; no signed public RC.** Fourteen
-Cursor runs exercised eleven remaining scenario groups on the September 7 build:
-ten passed and one retains its browsing qualification. Earlier qualified
-plan/refresh observations remain qualified. Windows legacy-folder adoption still
-has a dated historical timeout record, but PR46 merged as `5ae3a8c6ea07fc3e768a51a594a6097b6285f0ee`
-after all four required CI checks passed in run `34159231921`, including the
-unchanged 90-second Windows bootstrap and Windows safety checks. Signing is
-unconfigured and the final-build named-app RC gate is incomplete.
+## Current candidate — explicit Memory capture
+
+- Source commit: `964d5a1738b2d8928ec85b964474bcc8e59b2316`; version `0.0.1`.
+- Wheel SHA-256: `a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89`.
+- Payload SHA-256: `9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94`.
+- Full exact-head Linux CI: 1266 passed, 45 skipped; focused local checks:
+  39 passed, 1 skipped. A redundant local full run was canceled after CI passed.
+
+| App / exact variant and model | Observed result | Remaining qualification |
+| --- | --- | --- |
+| [Codex CLI 0.153.4](evidence/codex-cli-2026-09-07-pr50/run.json), Terra Medium requested | Two passing chats: explicit sourced Fact, project plan, Library card, fresh cited recall, no-save and missing-duration abstention | Casual “remember” still omitted the Fact on this payload; explicit wording is required by the passing case. Desktop remains untested. |
+| [Claude Code CLI 2.1.263](evidence/claude-code-cli-2026-09-07-pr50/run.json), Sonnet 5 Medium | Two passing chats with the same persisted outcomes; both results report no native permission denials | Native auto permission mode and restricted tool setup are specific to this run; earlier denied configuration remains separate. |
+| [Cursor IDE 3.19.13](evidence/cursor-ide-2026-09-07-grok-isolated/run.json), Grok 4.6 High, Fast off | Persisted facilitator note was correct and existing files were preserved | Native final prose called the timing a “45-minute water break”; this remains qualified failure evidence. |
+| [Cursor IDE 3.19.13](evidence/cursor-ide-2026-09-07-luna/run.json), GPT-5.6 Luna Medium | Two native chats passed: sourced plan, verified Memory fact, Library card, cited recall, accurate facilitator note, and 85 pre-existing files unchanged in no-save | Canonical Skill use was observed through the prompted path; automatic discovery, OS confinement, retention, signing, installer repair, and broad certification remain untested. |
+
+The passing explicit request says “Save a Memory fact” and asks for verification.
+Do not infer that the instruction repair alone fixed casual “remember” requests.
+All runs use the same installed wheel and payload with the default work-area
+cache. Their native configurations, permitted roots and tool-read observations
+are recorded separately; these tests do not establish operating-system read
+confinement, provider-retention controls, or another app variant's behavior.
+
+The [unsigned release rehearsal](evidence/release-rehearsal-2026-09-07-pr50/run.json)
+completed and all seven distributable checksums matched. Its wheel and payload
+are byte-identical to the local test build. The Windows ARM64 VM wrapper dry run
+exited 0 and left all 67 work-area files unchanged. A dry run is not full installer
+acceptance and cannot replace required Windows x64 evidence. Signing and
+publication were skipped; PyPI still needs its first package publication.
+
+## Earlier September 7 build — focused observations
+
+- Core commit: `8953d374ee5e6ce751ba2217aac24f5e6f2a7486`; version `0.0.1`.
+- Wheel SHA-256: `33fc6440e63b03487370dd626426ca68ad37e1a866851cc279f4ccc5f3023ed8`.
+- Payload SHA-256: `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`.
+- Integration commit `58507bfacf1b58492df9bcc249ae3832d1125607` has exactly the
+  same Git tree (`251fa6d087b6f28a81e489bccdd0d3f2e5879ed1`).
+
+Each app used a fresh synthetic bound project and the explicit isolated runtime,
+with the default work-area cache. This is package-based app acceptance, not a
+system-installer test. The final integrated core suite passed: 1269 tests passed,
+38 skipped. Native Windows CI is recorded independently.
+
+| Exact AI app / model | Saving chat | Fresh no-save chat | Bounded result |
+| --- | --- | --- | --- |
+| Cursor IDE 3.19.13, Grok 4.6 High, Fast off, macOS 27 | Pass: sourced plan, saved Memory fact, grounded Library card, canonical Skill verified in a same-chat follow-up | Qualified: saved note and recall passed; all 85 existing files unchanged; final reply mislabeled break timing as break length | Two chats recorded with final-reply qualification; [evidence](evidence/cursor-ide-2026-09-07-lean-rc/run.json) |
+| Codex CLI 0.153.4, Terra Medium, macOS 27 | Fail: plan and Library card created, requested Memory fact omitted | Partial: no-save preservation passed, but Memory continuity could not be demonstrated | Required Memory capture missing; [evidence](evidence/codex-cli-2026-09-07-memory-gap/run.json) |
+| Codex CLI 0.153.4, Terra High, macOS 27 | Fail: same Memory omission on one fresh bounded effort retry | Not run after saving-chat failure | Retry stopped; failure retained |
+| Claude Code CLI 2.1.263, Sonnet 5 Medium, macOS 27 | Partial: plan and card created; Memory fact omitted; native helper-command denials and continued work prevent a clean permission result | Not run after saving-chat failure | Required Memory capture missing; [evidence](evidence/claude-code-cli-2026-09-07-memory-gap/run.json) |
+| Codex desktop | Unavailable to native computer control | Not run | No desktop coverage inferred from CLI |
+
+The Memory omissions prompted a focused instruction repair: the existing canon
+explains retention and recall but does not explicitly map “remember this fact”
+to durable fact capture. These failures remain attached to the original payload;
+a revised payload requires fresh evidence for the changed behavior. Claude's
+native permission denials are a separate test-configuration qualification.
+
+The Windows ARM64 virtual machine installed this wheel with native Python
+3.13.13 and prepared a bound synthetic work area. This is an ARM64 CLI setup
+observation only; it does not establish installer-wrapper acceptance, x64
+coverage, or a desktop assistant run.
 
 ## September 6 repaired build — historical first-task smokes
 
@@ -49,8 +105,7 @@ return no changes and a final optional Library offer; no acceptance followed.
 Direct comparison verified all 67 preexisting work-area files and 28 project Git
 files unchanged. Nine reads were observed, but the exact canonical Skill body
 was not verified in this case. See [Cursor run record and artifact hashes](evidence/cursor-ide-2026-09-06-pr49/run.json).
-Those September 6 runs stopped at this partial checkpoint. **No app is certified
-or lean-RC compatible.**
+Those September 6 runs stopped at this partial checkpoint. **These historical smokes certify no app and do not establish lean RC compatibility.**
 
 ## Sep 7 build — bounded Cursor fragments
 
@@ -143,8 +198,8 @@ observed final replies from independently verified persisted files and inventori
 Native permission settings, default-cache installation and provider retention were
 not assessed. The earlier plan/refresh qualifications are preserved.
 
-These are fragments: no complete two-chat Cursor row or named-app lean RC gate
-is claimed. Older common three-app observations at core `1e50521…` remain
+These earlier-build fragments do not themselves supply the two-chat Cursor row
+or the combined named-app lean RC gate. Older common three-app observations at core `1e50521…` remain
 historical evidence and are not relabeled as this build.
 
 ## Earlier PR48 build — dated partial observations

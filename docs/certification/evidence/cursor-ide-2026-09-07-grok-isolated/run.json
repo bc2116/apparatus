@@ -1,0 +1,14 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "cursor-ide-2026-09-07-grok-isolated",
+  "captured_at": "2026-09-07",
+  "app": {"name": "Cursor IDE", "version": "3.19.13", "model": "Grok 4.6 High", "fast_mode": "off"},
+  "build": {"core_commit": "964d5a1738b2d8928ec85b964474bcc8e59b2316", "version": "0.0.1", "wheel_sha256": "a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89", "payload_sha256": "9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94", "cache_override": null},
+  "source_hash_manifest": "source-hashes.md",
+  "normalized_source_directory": "normalized/",
+  "result": "qualified-failure",
+  "persisted_output": "facilitator-note.md accurate",
+  "final_prose": "wrong: called the timing a 45-minute water break",
+  "claims": {"two_chat_gate": "qualified only", "candidate_rc_compatible": false},
+  "gaps": ["Native observation is operator-supplied; raw transcript and machine-local paths excluded."]
+}

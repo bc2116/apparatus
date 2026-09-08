@@ -1,16 +1,20 @@
 # First-task certification checklist — certification incomplete
 
-Prepared 2026-09-07 for PR47. The latest integrated build observed in Cursor is commit
-`b1290082707322b1e1ab7ba77dda2ddff67f6224`, version `0.0.1`, payload SHA-256
-`24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`, and
-wheel SHA-256 `9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054`.
-Fourteen Cursor runs exercised eleven remaining scenario groups on this build:
-ten passed and the partial-PDF case retains its browsing qualification. Earlier
-plan/refresh observations retain their qualifications; certification is incomplete. Earlier
-PR46 and PR48 failures, fragments and cache workarounds remain dated observations;
-they do not complete this checklist. No signed release or app certification is
-established. Preserve held PR24 separately. The [matrix](matrix.md) records
-actual progress; checklist instructions alone prove no result.
+Prepared 2026-09-07 for PR47. The latest observed candidate is core
+`964d5a1738b2d8928ec85b964474bcc8e59b2316`, version `0.0.1`, payload SHA-256
+`9ef2a754346ace668ac1d64ff6bdfbeae354017dc4e26965f6f10cbfc7819c94`, and
+wheel SHA-256 `a15084de226bacfa9b0936f7417dff11c418f44decd948fa9bd26b00cfa5ac89`.
+Codex CLI and Claude Code CLI passed the two chats using an explicit Memory-fact
+request. The named Cursor IDE 3.19.13 / GPT-5.6 Luna Medium two-chat case also
+passed, with prompted canonical Skill use observed. Casual “remember” wording
+still failed in Codex and the separate Cursor/Grok isolated rerun remains
+qualified because its final prose misstated the break timing. The named app-chat
+gate is therefore recorded by variant, while the combined RC gate remains
+incomplete. Earlier observations retain their original build identities and
+qualifications. No signed release, installer install-and-repair gate, or broad
+app certification is established. The [matrix](matrix.md) records actual
+progress. Codex desktop remains untested because native computer control was
+unavailable.
 
 Use the same final core version, commit and payload SHA-256 in every app run.
 Record app **and variant**, exact version, OS/version, date, native permission
@@ -73,7 +77,7 @@ to establish behavior; do not export raw conversations or private app state.
 A chat passes only when its required outcomes have evidence. A partial or
 unavailable requirement cannot silently become a pass. The lean RC gate requires
 two passing chats on the same final payload for each named app/variant: Cursor
-IDE, Codex desktop, and the actually available Claude Code variant. Separate
+IDE, Codex CLI, and the actually available Claude Code variant. Separate
 desktop, CLI, and IDE variants; optional discovery/delegation observations do
 not substitute for actual chats. Automated core/conformance mechanics run once;
 each supported OS also needs one installer install-and-repair pass. Label Windows

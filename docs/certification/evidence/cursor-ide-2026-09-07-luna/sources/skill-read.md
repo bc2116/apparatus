@@ -1,0 +1,1 @@
+The native UI displayed “Used apparatus-produce-deliverable” and opened the exact canonical relative path `.agents/skills/apparatus-produce-deliverable/SKILL.md`. This was explicitly prompted Skill use; it does not establish automatic Skill discovery.

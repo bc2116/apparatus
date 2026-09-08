@@ -1,19 +1,28 @@
 # PR47 preparation and evidence status
 
-Updated 2026-09-07. **Cursor-tested local preview: eleven remaining scenario groups
-executed, ten passed and one qualified. Certification, Windows adoption CI and
-signing remain incomplete. No signed public RC claim.**
-PR47 is integrated onto final PR49 and retains both earlier partial app
-observations and bounded PR49 first-task smokes. Latest observed
-source is `b1290082707322b1e1ab7ba77dda2ddff67f6224`; earlier multi-case fragments
-used `7c0c6c4252bf948a0e4dd32decfb35cf308e963d`. These are exact-build evidence,
-not claims about a release. Only documentation and synthetic evidence are
-curated here; held PR24 evidence remains untouched.
+Updated 2026-09-07. The current candidate is source
+`964d5a1738b2d8928ec85b964474bcc8e59b2316`; its wheel and payload identifiers
+and current app outcomes are in the [matrix](../certification/matrix.md).
+Codex CLI and Claude Code CLI passed the focused pair with explicit Memory-fact
+wording. The named Cursor IDE 3.19.13 / GPT-5.6 Luna Medium pair also passed on
+this candidate, with prompted canonical Skill use observed and no-save inventory
+independently verified. The separate Grok isolated rerun remains qualified
+failure evidence because its native final prose called the timing a “45-minute
+water break,” although the source says only “after 45 minutes.” The focused app-chat gate is complete for these named configurations. Signed
+installer install-and-repair acceptance and the overall RC gate remain incomplete. Earlier observations below retain
+their original build identities.
+
+The exact candidate's full Linux CI passed (1266 passed, 45 skipped); focused
+local checks passed (39 passed, 1 skipped). The redundant local full run was
+canceled after CI passed. Release rehearsal built all seven distributables,
+verified checksums, and skipped signing/publication. The Windows ARM64 wrapper
+dry run passed with 67 existing files unchanged; actual installer acceptance
+still requires package publication. Held PR24 remains untouched.
 
 ## Prepared documents
 
-- [Portable checklist](../certification/checklist.md): six observable steps with
-  independent negative cases and minimal synthetic evidence.
+- [Portable checklist](../certification/checklist.md): two actual chats per named
+  app/variant, with minimal synthetic evidence.
 - [Matrix](../certification/matrix.md): common local build, current app inventory,
   actual run status and historical metadata diagnostics kept separate.
 - One-page quickstarts for [Codex](../quickstarts/codex.md),
@@ -151,7 +160,7 @@ PR47's own integrated full-suite result follows.
 
 ## September 7 bounded native evidence
 
-The current integrated build observed in Cursor is `b1290082707322b1e1ab7ba77dda2ddff67f6224`, with
+The earlier integrated build observed in Cursor was `b1290082707322b1e1ab7ba77dda2ddff67f6224`, with
 wheel SHA-256 `9971e54fd100d72b54e780215fa37b150a7ea1f1fce122923f1a6a2da744c054`
 and payload SHA-256 `24e20f0cd31898e66887f21f95a4964fedd36d6f06a5205df14ce20a00b74851`.
 Cursor IDE 3.19.13 on macOS 27.0 completed a separately opened bound-project
