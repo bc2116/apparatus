@@ -3,8 +3,8 @@
 Updated 2026-09-08. The focused app-chat gate passed for the three named
 configurations below. Version `0.0.2` is published on PyPI; both native wrappers
 are signed and the Mac package is notarized. Mac native install and repair
-passed, as did Windows x64 native install and repair. Public GitHub installer
-publication remains pending. These bounded observations establish neither broad app certification
+passed, as did Windows x64 native install and repair. The signed installers
+are [publicly available](https://github.com/bc2116/apparatus/releases/tag/v0.0.2). These bounded observations establish neither broad app certification
 nor corporate Windows deployment approval. Held PR24 evidence stays attached to
 its original payload.
 
@@ -15,7 +15,8 @@ The immutable `v0.0.2` tag resolves to
 built and signed both native wrappers and published
 [apparatus-core 0.0.2](https://pypi.org/project/apparatus-core/0.0.2/).
 Both PyPI distribution hashes match the final release bundle. All seven bundle
-checksums were independently verified.
+checksums were independently verified. All eight public GitHub attachments
+byte-match that bundle; anonymous native downloads return HTTP 200.
 
 The [source-equivalence record](evidence/release-source-equivalence-0.0.2/run.json)
 retains the app-chat baseline as version `0.0.1`. Comparing its source with
@@ -36,8 +37,9 @@ paths and retains strict signature validation; it does not change installer
 bytes or replace the earlier failures with a pass.
 
 The source commit's full Linux CI passed with 1334 tests passed and 45 skipped;
-all eleven required checks passed. Windows safety groups retain their original
-coverage. Installer signatures do not establish SmartScreen reputation or
+all eleven required checks passed. The later verifier correction also passed
+all eleven checks, including 1367 tests passed and 45 skipped on Linux. Windows
+safety groups retain their original coverage. Installer signatures do not establish SmartScreen reputation or
 permission to install under a company's device policy.
 
 ## App-tested baseline — explicit Memory capture

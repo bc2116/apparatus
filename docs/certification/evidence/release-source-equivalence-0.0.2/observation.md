@@ -10,3 +10,10 @@ The existing app chats remain evidence for the prior source-equivalent behavior
 and retain their `0.0.1` build identity. They were not rerun on `0.0.2` and are
 not relabeled as release chats. The 0.0.2 distribution hashes differ from the
 prior wheel and payload hashes; both sets are recorded in `run.json`.
+
+The [public GitHub Release](https://github.com/bc2116/apparatus/releases/tag/v0.0.2)
+and [PyPI package](https://pypi.org/project/apparatus-core/0.0.2/) were verified on
+September 8. All eight GitHub attachments byte-match the signed tagged bundle;
+all seven distributable checksums pass. Both native downloads and checksums
+return HTTP 200 without authentication. The PyPI wheel and source package match
+the same bundle and are not yanked.

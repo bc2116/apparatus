@@ -7,7 +7,8 @@ Casual “remember” still failed in Codex and the separate Cursor/Grok final p
 misstated the break timing; both qualifications remain recorded. Codex desktop
 remains untested because native computer control was unavailable. Mac native
 install and repair and Windows x64 install and repair passed for `0.0.2`;
-public GitHub installer publication remains pending. This is bounded release evidence, not
+the [signed public release](https://github.com/bc2116/apparatus/releases/tag/v0.0.2)
+is verified. This is bounded release evidence, not
 broad app certification.
 
 Use the same final core version, commit and payload SHA-256 in every app run.

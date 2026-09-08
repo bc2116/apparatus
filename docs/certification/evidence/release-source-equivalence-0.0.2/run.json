@@ -43,5 +43,17 @@
     "Source equivalence covers only the listed source paths and the observed one-line version delta.",
     "It does not rerun prior app chats, establish new app behavior, or certify a desktop AI app.",
     "Distribution artifact hashes differ because this is a new 0.0.2 release."
-  ]
+  ],
+  "publication": {
+    "verified_date": "2026-09-08",
+    "tagged_run_id": 34272472809,
+    "tagged_run_result": "success",
+    "github_release": "https://github.com/bc2116/apparatus/releases/tag/v0.0.2",
+    "pypi": "https://pypi.org/project/apparatus-core/0.0.2/",
+    "github_public_attachments_byte_matched": 8,
+    "distributable_checksums_passed": 7,
+    "unauthenticated_windows_download_http": 200,
+    "unauthenticated_macos_download_http": 200,
+    "pypi_wheel_and_sdist_hashes_match": true
+  }
 }

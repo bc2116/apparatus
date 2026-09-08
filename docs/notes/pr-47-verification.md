@@ -5,10 +5,17 @@
 The current release and named app outcomes are in the
 [matrix](../certification/matrix.md). Version `0.0.2` is on PyPI, both native
 wrappers are signed, and Mac ARM64 and Windows x64 native install and repair
-passed. GitHub installer publication remains pending. The app-tested
+passed. The [public release](https://github.com/bc2116/apparatus/releases/tag/v0.0.2)
+and PyPI publication are verified against the exact signed bundle. The app-tested
 `0.0.1` source differs from the release in the core version constant only across
 core source, starter content and installers. Earlier observations below retain
 their original build identities and failures.
+
+Final document validation verified 81 recorded local artifact hashes, the new
+native/source-equivalence checksum bundles and current documentation links.
+Missing historical evidence was restored byte-for-byte from its original
+committed record. Independent review found no remaining blockers. Final PR CI
+supplies full pytest; no app chats were repeated for these documentation edits.
 
 ## September 7 checkpoint — historical
 
