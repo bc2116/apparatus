@@ -39,70 +39,96 @@ jobs:
           if-no-files-found: error
 
   windows-safety:
+    name: Windows safety (${{ matrix.group }})
     runs-on: windows-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: learned-skills
+            tests: >-
+              packages/apparatus-core/tests/test_credentials.py
+              packages/apparatus-core/tests/test_labeler.py
+              packages/apparatus-core/tests/test_render.py
+              packages/apparatus-core/tests/test_instruction_updates.py
+              packages/apparatus-core/tests/test_explicit_memory_capture.py
+              packages/apparatus-core/tests/test_learned_skills.py
+              packages/apparatus-core/tests/test_skills.py
+              packages/apparatus-core/tests/test_skill_migration.py
+              packages/apparatus-core/tests/test_skill_checks.py
+              packages/apparatus-core/tests/test_skill_overlays.py
+              packages/apparatus-core/tests/test_task_first_welcome.py
+              conformance/test_r6_guidance.py
+              packages/apparatus-core/tests/test_feature_selection.py
+              conformance/test_payload_archive.py
+          - group: recovery
+            tests: >-
+              packages/apparatus-core/tests/test_skill_recovery.py
+              packages/apparatus-core/tests/test_receipt_retention.py
+              packages/apparatus-core/tests/test_snapshot_retention.py
+              packages/apparatus-core/tests/test_decision_memory.py
+              packages/apparatus-core/tests/test_managed_state_recovery.py
+              packages/apparatus-core/tests/test_managed_state_backup.py
+              packages/apparatus-core/tests/test_managed_recovery_commands.py
+              packages/apparatus-core/tests/test_backup.py
+              packages/apparatus-core/tests/test_quiet_operations.py
+              packages/apparatus-core/tests/test_snapshots.py
+          - group: workspace
+            tests: >-
+              packages/apparatus-core/tests/test_r6_skills.py
+              packages/apparatus-core/tests/test_memory_lifecycle.py
+              packages/apparatus-core/tests/test_task_retention.py
+              packages/apparatus-core/tests/test_memory_profile_retention.py
+              packages/apparatus-core/tests/test_workspace_layout.py
+              packages/apparatus-core/tests/test_workarea_adoption.py
+              packages/apparatus-core/tests/test_project_binding.py
+              packages/apparatus-core/tests/test_init.py
+              packages/apparatus-core/tests/test_memory_commands.py::test_standard_fact_scans_title_and_body_writes_labels_redaction_receipt_and_checks_clean
+              packages/apparatus-core/tests/test_memory_commands.py::test_standard_person_scans_name_role_and_body_but_stores_no_structural_fifth_label
+              packages/apparatus-core/tests/test_memory_commands.py::test_every_private_add_person_blocks_structurally_with_zero_effects
+              packages/apparatus-core/tests/test_memory_commands.py::test_private_sweep_redacts_refreshes_stale_managed_labels_keeps_unrelated_and_is_idempotent
+              packages/apparatus-core/tests/test_memory_commands.py::test_new_record_retries_suffix_when_exclusive_open_loses_a_race
+              packages/apparatus-core/tests/test_interview_profiles.py
+              packages/apparatus-core/tests/test_quiet_guidance.py
+              conformance/test_welcome_e2e.py
+              conformance/test_bootstrap_dry_run.py
+              --deselect conformance/test_bootstrap_dry_run.py::test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls
+          - group: library
+            tests: >-
+              packages/apparatus-core/tests/test_fs_transactions.py
+              packages/apparatus-core/tests/test_library_ingest.py
+              packages/apparatus-core/tests/test_library_index.py
+              packages/apparatus-core/tests/test_library_sources.py
+              packages/apparatus-core/tests/test_library_cards.py
+              packages/apparatus-core/tests/test_library_references.py
+              packages/apparatus-core/tests/test_library_reference_boundaries.py
+              packages/apparatus-core/tests/test_library_index_sources.py
+              packages/apparatus-core/tests/test_library_retention.py
+              packages/apparatus-core/tests/test_receipts.py
+              packages/apparatus-core/tests/test_machine_report.py
+              packages/apparatus-core/tests/test_check.py
+              packages/apparatus-core/tests/test_recall.py
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Sync workspace
         run: uv sync --all-packages
       - name: Run Windows safety coverage
-        run: >-
-          uv run pytest --durations=20
-          packages/apparatus-core/tests/test_credentials.py
-          packages/apparatus-core/tests/test_fs_transactions.py
-          packages/apparatus-core/tests/test_labeler.py
-          packages/apparatus-core/tests/test_library_ingest.py
-          packages/apparatus-core/tests/test_library_index.py
-          packages/apparatus-core/tests/test_library_sources.py
-          packages/apparatus-core/tests/test_library_cards.py
-          packages/apparatus-core/tests/test_library_references.py
-          packages/apparatus-core/tests/test_library_reference_boundaries.py
-          packages/apparatus-core/tests/test_library_index_sources.py
-          packages/apparatus-core/tests/test_render.py
-          packages/apparatus-core/tests/test_instruction_updates.py
-          packages/apparatus-core/tests/test_explicit_memory_capture.py
-          packages/apparatus-core/tests/test_learned_skills.py
-          packages/apparatus-core/tests/test_skills.py
-          packages/apparatus-core/tests/test_skill_migration.py
-          packages/apparatus-core/tests/test_skill_checks.py
-          packages/apparatus-core/tests/test_skill_overlays.py
-          packages/apparatus-core/tests/test_skill_recovery.py
-          packages/apparatus-core/tests/test_task_first_welcome.py
-          packages/apparatus-core/tests/test_r6_skills.py
-          conformance/test_r6_guidance.py
-          packages/apparatus-core/tests/test_memory_lifecycle.py
-          packages/apparatus-core/tests/test_task_retention.py
-          packages/apparatus-core/tests/test_memory_profile_retention.py
-          packages/apparatus-core/tests/test_library_retention.py
-          packages/apparatus-core/tests/test_receipt_retention.py
-          packages/apparatus-core/tests/test_snapshot_retention.py
-          packages/apparatus-core/tests/test_workspace_layout.py
-          packages/apparatus-core/tests/test_workarea_adoption.py
-          packages/apparatus-core/tests/test_project_binding.py
-          packages/apparatus-core/tests/test_decision_memory.py
-          packages/apparatus-core/tests/test_managed_state_recovery.py
-          packages/apparatus-core/tests/test_managed_state_backup.py
-          packages/apparatus-core/tests/test_managed_recovery_commands.py
-          packages/apparatus-core/tests/test_backup.py
-          packages/apparatus-core/tests/test_receipts.py
-          packages/apparatus-core/tests/test_machine_report.py
-          packages/apparatus-core/tests/test_init.py
-          packages/apparatus-core/tests/test_memory_commands.py::test_standard_fact_scans_title_and_body_writes_labels_redaction_receipt_and_checks_clean
-          packages/apparatus-core/tests/test_memory_commands.py::test_standard_person_scans_name_role_and_body_but_stores_no_structural_fifth_label
-          packages/apparatus-core/tests/test_memory_commands.py::test_every_private_add_person_blocks_structurally_with_zero_effects
-          packages/apparatus-core/tests/test_memory_commands.py::test_private_sweep_redacts_refreshes_stale_managed_labels_keeps_unrelated_and_is_idempotent
-          packages/apparatus-core/tests/test_memory_commands.py::test_new_record_retries_suffix_when_exclusive_open_loses_a_race
-          packages/apparatus-core/tests/test_interview_profiles.py
-          packages/apparatus-core/tests/test_quiet_operations.py
-          packages/apparatus-core/tests/test_quiet_guidance.py
-          packages/apparatus-core/tests/test_check.py
-          packages/apparatus-core/tests/test_recall.py
-          packages/apparatus-core/tests/test_snapshots.py
-          conformance/test_welcome_e2e.py
-          packages/apparatus-core/tests/test_feature_selection.py
-          conformance/test_payload_archive.py
-          conformance/test_bootstrap_dry_run.py
-          --deselect conformance/test_bootstrap_dry_run.py::test_windows_optional_etw_witness_has_no_file_registry_or_network_syscalls
+        run: uv run pytest --durations=20 ${{ matrix.tests }}
+
+  windows-safety-result:
+    name: windows-safety
+    needs: windows-safety
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require every Windows safety group to pass
+        env:
+          WINDOWS_SAFETY_RESULT: ${{ needs.windows-safety.result }}
+        run: test "$WINDOWS_SAFETY_RESULT" = success
 
   bootstrap-windows:
     runs-on: windows-latest
