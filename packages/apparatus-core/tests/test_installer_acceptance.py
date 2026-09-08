@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -162,7 +163,13 @@ def test_acceptance_mode_has_no_release_credentials_or_write_permissions():
     assert "inputs.acceptance_run_id != ''" in jobs["acceptance-source"]["if"]
     assert "github.event_name == 'workflow_dispatch'" in jobs["acceptance-source"]["if"]
     assert jobs["acceptance-native"]["needs"] == "acceptance-source"
-    assert jobs["acceptance-native"]["strategy"]["matrix"]["os"] == ["macos-15", "windows-2025"]
+    assert jobs["acceptance-native"]["strategy"]["matrix"] == "${{ fromJSON(needs.acceptance-source.outputs.matrix) }}"
+    assert jobs["acceptance-source"]["outputs"]["matrix"] == "${{ steps.source.outputs.matrix }}"
+    assert workflow[True]["workflow_dispatch"]["inputs"]["acceptance_platform"] == {
+        "description": "Native platform to verify when an acceptance source run is supplied",
+        "required": False, "type": "choice", "default": "both", "options": ["both", "windows", "macos"]
+    }
+    assert "${{ github.run_attempt }}" in jobs["acceptance-native"]["steps"][-1]["with"]["name"]
     for name in ["acceptance-source", "acceptance-native"]:
         job = jobs[name]
         assert job["permissions"] == {"contents": "read", "actions": "read"}
@@ -225,6 +232,8 @@ def test_installed_version_mismatch_stops_before_managed_file_removal(synthetic_
     stages = []
     def external_command(args, receipt, stage, timeout=900):
         stages.append(stage)
+        if stage == "Authenticode and timestamp":
+            return json.dumps(signature_record())
         if stage == "native install":
             managed.parent.mkdir(parents=True)
             managed.write_bytes(original)
@@ -248,6 +257,8 @@ def test_failed_or_mismatched_repair_preserves_sentinel_without_success(syntheti
     stages = []
     def external_command(args, receipt, stage, timeout=900):
         stages.append(stage)
+        if stage == "Authenticode and timestamp":
+            return json.dumps(signature_record())
         if stage == "native install":
             managed.parent.mkdir(parents=True)
             managed.write_bytes(original)
@@ -267,3 +278,122 @@ def test_failed_or_mismatched_repair_preserves_sentinel_without_success(syntheti
     assert stages.count("native repair") == 1
     assert "repaired workspace check" not in stages
     assert receipt["result"] != "passed"
+
+
+def signature_record(**changes):
+    record = {"engine_version": "5.1.26100.1", "status": "Valid", "signer_present": True,
+              "timestamp_present": True, "failure_category": "none"}
+    return dict(record, **changes)
+
+
+@pytest.mark.parametrize("command_name", ["powershell.exe", "apparatus-installer.exe"])
+def test_windows_children_drop_only_case_insensitive_psmodulepath(monkeypatch, command_name):
+    original = {"PSModulePath": "synthetic-path-one", "pSmOdUlEpAtH": "synthetic-path-two",
+                "HOME": "synthetic-home", "USERPROFILE": "synthetic-profile", "USER": "synthetic-user",
+                "Path": "synthetic-executables", "ANOTHER_SETTING": "preserve-me"}
+    monkeypatch.setattr(a.os, "environ", original)
+    monkeypatch.setattr(a.platform, "system", lambda: "Windows")
+    captured = []
+    def run(args, **kwargs):
+        captured.append(kwargs["env"])
+        return a.subprocess.CompletedProcess(args, 0, "", None)
+    monkeypatch.setattr(a.subprocess, "run", run)
+    a.command([command_name], {"commands": []}, "synthetic child")
+    assert captured == [{k: v for k, v in original.items() if k.casefold() != "psmodulepath"}]
+    assert original["PSModulePath"] == "synthetic-path-one"
+    assert original["pSmOdUlEpAtH"] == "synthetic-path-two"
+
+
+def test_non_windows_children_keep_inherited_environment(monkeypatch):
+    monkeypatch.setattr(a.platform, "system", lambda: "Darwin")
+    assert a.child_environment() is None
+
+
+def test_signature_receipt_contains_only_validated_fields():
+    receipt = {}
+    record = signature_record()
+    a.require_windows_signature(json.dumps(record), receipt)
+    assert receipt == {"windows_signature": record}
+
+
+@pytest.mark.parametrize("text", [
+    "", "not JSON", "null", "[]", "{}", "x" * 2049,
+    json.dumps(signature_record(engine_version="unexpected synthetic path")),
+    json.dumps(signature_record(status=[])),
+    json.dumps(signature_record(status="unrecognized-status")),
+    json.dumps(signature_record(signer_present=1)),
+    json.dumps(signature_record(timestamp_present="true")),
+    json.dumps(signature_record(failure_category="raw synthetic exception message")),
+    json.dumps(signature_record(extra="synthetic private output")),
+    json.dumps(signature_record())[:-1] + ',"status":"Valid"}',
+])
+def test_malformed_signature_data_is_not_retained_or_echoed(text, capsys):
+    receipt = {}
+    with pytest.raises(a.AcceptanceError, match="Malformed signature diagnostics"):
+        a.require_windows_signature(text, receipt)
+    assert receipt == {}
+    captured = capsys.readouterr()
+    assert captured.out == captured.err == ""
+
+
+@pytest.mark.parametrize("record", [
+    signature_record(status="NotTrusted"), signature_record(status="HashMismatch"),
+    signature_record(status="NotSigned"), signature_record(signer_present=False),
+    signature_record(timestamp_present=False),
+    signature_record(status="unavailable", signer_present=False, timestamp_present=False, failure_category="verifier_exception"),
+])
+def test_invalid_signature_records_safe_diagnostics_and_fails(record):
+    receipt = {}
+    with pytest.raises(a.AcceptanceError, match="did not establish"):
+        a.require_windows_signature(json.dumps(record), receipt)
+    assert receipt == {"windows_signature": record}
+
+
+@pytest.mark.parametrize("diagnostics", ["malformed synthetic JSON", json.dumps(signature_record(status="NotTrusted"))])
+def test_invalid_signature_or_json_stops_before_installer(synthetic_native_boundary, monkeypatch, diagnostics):
+    _, target, artifact_directory, _ = synthetic_native_boundary
+    stages = []
+    def external_command(args, receipt, stage, timeout=900):
+        stages.append(stage)
+        return diagnostics if stage == "Authenticode and timestamp" else ""
+    monkeypatch.setattr(a, "command", external_command)
+    receipt = {"commands": [], "result": "failed"}
+    with pytest.raises(a.AcceptanceError):
+        a.native(artifact_directory, {"version": "1.2.3"}, receipt)
+    assert "native install" not in stages
+    assert not target.exists()
+    assert receipt["result"] == "failed"
+
+
+@pytest.mark.parametrize("choice,expected", [
+    ("both", ["macos-15", "windows-2025"]), ("windows", ["windows-2025"]), ("macos", ["macos-15"]),
+])
+def test_platform_choice_controls_emitted_matrix(tmp_path, monkeypatch, choice, expected):
+    run, jobs = source()
+    def api(path):
+        if path.endswith("/actions/runs/12"):
+            return run
+        if path.endswith("/git/ref/tags/v1.2.3"):
+            return {"object": {"type": "commit", "sha": "a" * 40}}
+        if path.endswith("/actions/workflows/release.yml"):
+            return {"id": 3}
+        pytest.fail("Unexpected metadata request")
+    def pages(path, field):
+        if field == "jobs":
+            return jobs
+        return [{"id": 4, "name": "apparatus-release-1.2.3", "expired": False,
+                 "workflow_run": {"head_sha": "a" * 40}}]
+    output = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    monkeypatch.setattr(a, "api", api)
+    monkeypatch.setattr(a, "pages", pages)
+    a.resolve("12", "owner/product", choice)
+    values = dict(line.split("=", 1) for line in output.read_text().splitlines())
+    assert json.loads(values["matrix"]) == {"os": expected}
+
+
+@pytest.mark.parametrize("choice", ["", "linux", "both\n", "windows,macos"])
+def test_unknown_platform_fails_before_metadata_access(monkeypatch, choice):
+    monkeypatch.setattr(a, "api", lambda *_: pytest.fail("Invalid platform reached API"))
+    with pytest.raises(a.AcceptanceError, match="Acceptance platform"):
+        a.resolve("12", "owner/product", choice)

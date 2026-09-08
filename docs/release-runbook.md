@@ -81,6 +81,9 @@ After the tagged workflow's PyPI job succeeds, manually dispatch **Release**
 with `acceptance_run_id` set to that workflow's numeric run ID. This selects
 acceptance only: no build, signing, package publication or public Release runs.
 Leave the input empty for an ordinary signed rehearsal.
+The optional platform choice defaults to both; choose Windows or macOS to
+repeat only an unresolved platform while preserving the other platform's
+passing receipt for the same source and artifact hashes.
 
 The acceptance path checks the same repository, version tag, source commit,
 successful signing/publication jobs, final artifact and PyPI distribution hashes.
@@ -95,3 +98,10 @@ success with the intended source run and version before approving the original
 tagged workflow's protected `release` environment. These checks cover real native
 command-line installer execution; interactive installer presentation remains a
 separate observation. Preserve any unavailable platform result as a coverage gap.
+
+Windows acceptance removes an inherited `PSModulePath` from child processes so
+PowerShell 7's workflow host cannot pass incompatible modules through Python
+to Windows PowerShell. This changes only the test process environment. Signature
+status, signer and timestamp checks remain required before installer execution;
+fixed diagnostic fields identify a verification failure without raw command
+output. Receipt artifact names include the run attempt to preserve retry evidence.
