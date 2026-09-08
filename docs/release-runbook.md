@@ -74,3 +74,24 @@ secrets, or its variables.
    installer is signed from this first release.
 8. Return `APPARATUS_RELEASE_MODE` to an unset value after the release unless a
    subsequent approved release is immediately pending.
+
+## Native install-and-repair acceptance
+
+After the tagged workflow's PyPI job succeeds, manually dispatch **Release**
+with `acceptance_run_id` set to that workflow's numeric run ID. This selects
+acceptance only: no build, signing, package publication or public Release runs.
+Leave the input empty for an ordinary signed rehearsal.
+
+The acceptance path checks the same repository, version tag, source commit,
+successful signing/publication jobs, final artifact and PyPI distribution hashes.
+It then runs the unchanged signed installers twice on fresh Windows x64 and Mac
+runners, verifies the installed version, restores one removed shipped file and
+checks that a synthetic project file survives. The Mac test requires an actual
+console session and clean owned home; it never redirects the install into an
+artificial profile. A missing session or preexisting workspace stops the check.
+
+Download the two `apparatus-native-acceptance-*` receipts. Both must report
+success with the intended source run and version before approving the original
+tagged workflow's protected `release` environment. These checks cover real native
+command-line installer execution; interactive installer presentation remains a
+separate observation. Preserve any unavailable platform result as a coverage gap.

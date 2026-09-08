@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,7 +20,7 @@ def test_release_workflow_keeps_dispatch_and_publishing_separate() -> None:
     )
 
     assert workflow[True]["push"]["tags"] == ["v*"]
-    assert workflow[True]["workflow_dispatch"] is None
+    assert workflow[True]["workflow_dispatch"]["inputs"]["acceptance_run_id"]["default"] == ""
     publish = workflow["jobs"]["publish-pypi"]
     assert "github.event_name == 'push'" in publish["if"]
     assert publish["environment"] == "pypi"
@@ -569,6 +570,60 @@ def test_github_release_requires_a_successful_build_for_every_path() -> None:
     )
 
 
+def _pypi_is_eligible(
+    *,
+    build_result: str = "success",
+    assemble_result: str = "success",
+    dry_run: str = "false",
+    event: str = "push",
+    cancelled: bool = False,
+    ancestor_success: bool = False,
+) -> bool:
+    workflow = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    expression = workflow["jobs"]["publish-pypi"]["if"]
+    # GitHub implicitly adds success() unless the job uses a status function.
+    # The unused Windows provider is intentionally skipped in the ancestry.
+    # This checks our predicate; the tagged run remains the scheduler oracle.
+    if not any(name + "()" in expression for name in ("always", "cancelled", "success", "failure")):
+        if not ancestor_success:
+            return False
+    substitutions = {
+        "!cancelled()": not cancelled,
+        "always()": True,
+        "success()": ancestor_success,
+        "github.event_name == 'push'": event == "push",
+        "needs.build.result == 'success'": build_result == "success",
+        "needs.assemble-release.result == 'success'": assemble_result == "success",
+        "needs.build.outputs.dry_run == 'false'": dry_run == "false",
+    }
+    for term, value in substitutions.items():
+        expression = expression.replace(term, str(value))
+    expression = expression.replace("&&", " and ").replace("||", " or ")
+    assert not any(character not in "TrueFalsandor ()" for character in expression)
+    return bool(eval(expression, {"__builtins__": {}}, {}))
+
+
+def test_pypi_allows_successful_publish_with_unused_signer_skipped() -> None:
+    assert _pypi_is_eligible(ancestor_success=False)
+
+
+@pytest.mark.parametrize("result", ["failure", "cancelled", "skipped", ""])
+def test_pypi_requires_each_direct_dependency_to_succeed(result: str) -> None:
+    assert not _pypi_is_eligible(build_result=result)
+    assert not _pypi_is_eligible(assemble_result=result)
+
+
+def test_pypi_rejects_cancelled_dry_run_and_manual_dispatch() -> None:
+    assert not _pypi_is_eligible(cancelled=True)
+    assert not _pypi_is_eligible(dry_run="true")
+    assert not _pypi_is_eligible(dry_run="")
+    assert not _pypi_is_eligible(event="workflow_dispatch")
+
+
 def _run_publish_signing_assertion(
     *,
     dry_run: str,
@@ -682,7 +737,8 @@ def _run_real_build_and_resolver(temporary_path: Path, *, version: str | None = 
         shutil.copytree(source, copied_source)
         pyproject = copied_source / "pyproject.toml"
         text = pyproject.read_text(encoding="utf-8")
-        text = text.replace('version = "0.0.1"', f'version = "{version}"', 1)
+        text, count = re.subn(r'^version = "[^"]+"$', f'version = "{version}"', text, count=1, flags=re.MULTILINE)
+        assert count == 1
         pyproject.write_text(text, encoding="utf-8")
         source = copied_source
     package_dir = temporary_path / "dist" / "packages"
@@ -704,10 +760,14 @@ def _run_real_build_and_resolver(temporary_path: Path, *, version: str | None = 
 
 def test_distribution_resolver_accepts_current_real_uv_build(tmp_path: Path) -> None:
     output = _run_real_build_and_resolver(tmp_path)
+    metadata = (REPOSITORY_ROOT / "packages" / "apparatus-core" / "pyproject.toml").read_text(encoding="utf-8")
+    match = re.search(r'^version = "([^"]+)"$', metadata, flags=re.MULTILINE)
+    assert match is not None
+    version = match.group(1)
 
     assert output == (
-        "sdist_name=apparatus_core-0.0.1.tar.gz\n"
-        "wheel_name=apparatus_core-0.0.1-py3-none-any.whl\n"
+        f"sdist_name=apparatus_core-{version}.tar.gz\n"
+        f"wheel_name=apparatus_core-{version}-py3-none-any.whl\n"
     )
 
 

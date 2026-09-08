@@ -116,6 +116,7 @@ later slices remain planned.
 | 53 | [Repair the Azure signing rehearsal](PR-53-azure-signing-rehearsal.md) | Release | ✅ landed | 52 |
 | 54 | [Run Windows safety groups in parallel](PR-54-parallel-windows-safety.md) | CI | ✅ landed | 53 |
 | 55 | [Prepare the first release notes](PR-55-first-release-notes.md) | Release | ✅ landed | 54 |
+| 56 | [Verify published installers on clean native runners](PR-56-native-installer-acceptance.md) | Release | ✅ landed | 55 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

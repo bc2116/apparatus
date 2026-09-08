@@ -10,7 +10,7 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
-## v0.0.1
+## v0.0.2
 
 Initial pre-alpha release. Apparatus adds portable files and a small toolchain
 to local projects; your AI app does the work. It does not call model APIs or
@@ -44,3 +44,9 @@ Core needs file reading, file writing, and approved commands. Native Skill
 discovery and tested AI-app behavior depend on the particular app and version;
 this release does not claim universal certification. Cloud or team Library
 services and advanced integrations remain future optional modules.
+
+## v0.0.1
+
+Unpublished signed candidate. Both platform signatures passed, but a workflow
+dependency condition skipped PyPI publication. Version 0.0.2 corrects the
+publication gate and adds on-demand native installer acceptance checks.
