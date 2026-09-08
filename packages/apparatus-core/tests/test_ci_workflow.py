@@ -79,6 +79,7 @@ def _jobs():
 def test_windows_groups_preserve_each_selector_and_the_scoped_etw_exclusion():
     job = _jobs()["windows-safety"]
     assert job["runs-on"] == "windows-latest"
+    assert job["permissions"] == {"contents": "read"}
     assert job["strategy"]["fail-fast"] is False
     assert not job.get("continue-on-error")
     groups = job["strategy"]["matrix"]["include"]

@@ -26,7 +26,8 @@ used 38m56s of combined runner time; the aggregate added four seconds. Combined
 pytest counts match the baseline exactly: 1,082 passed, 87 skipped, one
 deselected. This is one observed run, not a guarantee for every runner.
 
-The aggregate explicitly receives no token permissions. Focused checks pin
-that restriction alongside its failure handling; final CI verifies the revised
+The Windows groups explicitly receive only repository-content read access for
+checkout; the aggregate receives no token permissions. Focused checks pin
+those restrictions alongside failure handling; final CI verifies the revised
 head after this permissions hardening. Product and payload remain unchanged.
 This change adds no native AI-app certification claim.
