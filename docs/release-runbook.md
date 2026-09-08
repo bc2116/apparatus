@@ -5,14 +5,20 @@ it does not store credentials or account identifiers.
 
 ## One-time operator setup
 
-1. Create the `apparatus-core` project on PyPI.
-2. In PyPI, add a trusted publisher for this repository. Populate its **Owner**
-   and **Repository** fields with this repository's GitHub owner and name, then
-   set its workflow filename to `release.yml` and its environment name to
-   `pypi`.
-3. In GitHub, create the repository environment named `pypi`. Apply the
-   approval rules appropriate for releases.
-4. Leave the repository variable `APPARATUS_RELEASE_MODE` unset. An unset value
+1. Before the first package exists, use PyPI's account-sidebar **Publishing**
+   page to add a **pending** GitHub Actions trusted publisher for
+   `apparatus-core`. Set its project name, this repository's GitHub **Owner**
+   and **Repository**, workflow filename `release.yml`, and environment `pypi`.
+   PyPI creates the project and converts the pending publisher on its first
+   successful publication. A pending publisher neither reserves the name nor
+   creates a project before that publication.
+2. In GitHub, verify or create protected `pypi`, `signing`, and `release`
+   environments with the required reviewers for their respective gates. The `release`
+   environment protects the public GitHub Release job; creating an environment
+   name alone is not evidence that protection is configured. Permit the
+   protected default branch for signed manual rehearsals and `v*` tags for
+   releases in the signing environment's deployment-branch policy.
+3. Leave the repository variable `APPARATUS_RELEASE_MODE` unset. An unset value
    is dry-run mode. Only set it to exactly `publish` after a successful
    rehearsal and explicit release approval.
 
@@ -28,7 +34,9 @@ secrets, or its variables.
 2. From the branch containing `release.yml`, run the **Release** workflow with
    **Run workflow**. A manually dispatched run is always dry-run, even if the
    repository variable says `publish`.
-3. Download the `apparatus-release-<version>` workflow artifact. Confirm it
+3. Run the rehearsal with both signing jobs enabled and approved through the
+   protected `signing` environment. Download the
+   `apparatus-release-<version>` workflow artifact. Confirm it
    includes all seven distributables: payload ZIP, `apparatus-core` source
    distribution, wheel, both flat bootstrap scripts, Windows `.exe` and macOS
    `.pkg`, plus release notes and `SHA256SUMS`. Verify the checksums and record
@@ -37,21 +45,30 @@ secrets, or its variables.
    gaps. The bootstrap resolves PyPI independently; a rehearsal wheel is not
    evidence of the currently published package.
 4. Confirm that no GitHub Release was created and that PyPI was not changed.
-5. If practical in an operator-approved setting, use a dedicated rehearsal
-   version and matching tag while `APPARATUS_RELEASE_MODE` is unset. Confirm the
-   resulting GitHub Release is marked prerelease and begins with the dry-run
-   notice. The rehearsal tag permanently consumes that version; never reuse or
-   move it.
+5. A tag pushed in dry-run mode also produces workflow artifacts only. It must
+   not create a public GitHub Release or change PyPI. Use manual dispatch for
+   rehearsals; never reuse or move a release tag.
 
 ## Publish a release
 
 1. Land the version bump, `CHANGELOG.md` section, and release changes.
 2. Confirm checks are green and the release branch is the intended commit.
-3. Set `APPARATUS_RELEASE_MODE` to exactly `publish` in the repository
+3. Confirm the protected `pypi`, `signing`, and `release` environments have
+   their required-reviewer rules in place. The publish path requires both
+   signing jobs to succeed; it cannot assemble a publish release from skipped,
+   failed, or cancelled signing jobs.
+4. Set `APPARATUS_RELEASE_MODE` to exactly `publish` in the repository
    variables. This is the only state that allows the trusted-publishing job to
    run for a tag push.
-4. Push a new, never-before-used `v<version>` tag matching the package version.
-   The pipeline rejects a mismatched tag.
-5. Verify the GitHub Release attachments, release notes, and PyPI publication.
-6. Return `APPARATUS_RELEASE_MODE` to an unset value after the release unless a
+5. Push a new, never-before-used `v<version>` tag matching the package version.
+   The pipeline rejects a mismatched tag. PyPI publication is public, and a
+   published package version cannot be reused.
+6. After PyPI accepts the package, download the signed artifacts from that same
+   workflow run. On each supported OS, perform actual install-and-repair
+   validation against the published package. Record the results before
+   approving the protected `release` environment.
+7. Approve the `release` environment only after those validations pass, then
+   verify the GitHub Release attachments and release notes. The public
+   installer is signed from this first release.
+8. Return `APPARATUS_RELEASE_MODE` to an unset value after the release unless a
    subsequent approved release is immediately pending.

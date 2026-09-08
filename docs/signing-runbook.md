@@ -36,7 +36,15 @@ shell-script fallback remains unsigned and is covered by `SHA256SUMS`.
 
 ## 2. Store the material outside this repository
 
-Create a protected GitHub environment named `signing` with required reviewers.
+Create protected GitHub environments named `signing` and `release` with
+required reviewers. `signing` protects access to signing material; `release`
+protects creation of the public GitHub Release after PyPI publication. An
+environment name alone is not evidence that required-reviewer protection is
+configured.
+Configure the `signing` environment's deployment-branch policy to allow the
+protected default branch for signed `workflow_dispatch` rehearsals and `v*`
+tags for approved releases. Do not broaden that policy to pull requests, forks,
+or unrelated branches.
 For Windows, register a dedicated x64 Windows runner to this repository with
 the fixed labels `self-hosted`, `Windows`, `X64`, and
 `apparatus-signing-windows`. Environment-level variables cannot select a runner
@@ -83,7 +91,8 @@ issue, pull request, or release notes.
    `APPARATUS_WINDOWS_SIGNING_CERTIFICATE_SUBJECT`, and
    `APPARATUS_WINDOWS_SIGNING_TIMESTAMP_URL`.
 4. Set repository variable `APPARATUS_SIGN_WINDOWS` to `enabled`.
-5. Run a release `workflow_dispatch` dry-run first. Verify that
+5. Run a release `workflow_dispatch` dry-run first and approve the protected
+   `signing` environment. Verify that
    `apparatus-installer.exe` has a valid Authenticode signature, still passes
    the embedded-script integrity and dry-run checks, replaces the unsigned
    release copy, and has the matching entry in `SHA256SUMS`. The flat
@@ -96,7 +105,8 @@ issue, pull request, or release notes.
    password for notarization to `signing`. The workflow creates its
    `apparatus-notary` keychain profile on the fresh runner.
 2. Set repository variable `APPARATUS_SIGN_MACOS` to `enabled` and run a
-   `workflow_dispatch` dry-run. Verify the package is Developer ID signed,
+   `workflow_dispatch` dry-run through the protected `signing` environment.
+   Verify the package is Developer ID signed,
    notarized, stapled, still contains the exact repository bootstrap script,
    replaces the unsigned package, and has the matching entry in `SHA256SUMS`.
    Verify with `pkgutil --check-signature`, `spctl --assess --type install`,

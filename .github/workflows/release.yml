@@ -683,6 +683,24 @@ jobs:
       (needs.sign-macos-installer.result == 'success' || needs.sign-macos-installer.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
+      - name: Require signed installers for publication
+        env:
+          DRY_RUN: ${{ needs.build.outputs.dry_run }}
+          WINDOWS_SIGNER_RESULT: ${{ needs.sign-windows-installer.result }}
+          MACOS_SIGNER_RESULT: ${{ needs.sign-macos-installer.result }}
+        run: |
+          set -euo pipefail
+          if [[ "$DRY_RUN" == 'true' ]]; then
+            exit 0
+          fi
+          if [[ "$WINDOWS_SIGNER_RESULT" != 'success' ]]; then
+            echo "Publish release requires successful Windows installer signing; got $WINDOWS_SIGNER_RESULT." >&2
+            exit 1
+          fi
+          if [[ "$MACOS_SIGNER_RESULT" != 'success' ]]; then
+            echo "Publish release requires successful macOS installer signing; got $MACOS_SIGNER_RESULT." >&2
+            exit 1
+          fi
       - name: Download release inputs
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -796,8 +814,9 @@ jobs:
       always() && github.event_name == 'push' &&
       needs.build.result == 'success' &&
       needs.assemble-release.result == 'success' &&
-      (needs.build.outputs.dry_run == 'true' || needs.publish-pypi.result == 'success')
+      needs.build.outputs.dry_run == 'false' && needs.publish-pypi.result == 'success'
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
     steps:
@@ -811,15 +830,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.build.outputs.version }}
-          DRY_RUN: ${{ needs.build.outputs.dry_run }}
           SDIST_NAME: ${{ needs.build.outputs.sdist_name }}
           WHEEL_NAME: ${{ needs.build.outputs.wheel_name }}
         run: |
           set -euo pipefail
-          prerelease=()
-          if [[ "$DRY_RUN" == "true" ]]; then
-            prerelease=(--prerelease)
-          fi
           release_files=(
             "release-files/apparatus-payload-${VERSION}.zip"
             "release-files/${SDIST_NAME}"
@@ -834,5 +848,4 @@ jobs:
             --repo "$GH_REPO" \
             --title "v${VERSION}" \
             --notes-file "release-files/release-notes.md" \
-            "${prerelease[@]}" \
             "${release_files[@]}"
