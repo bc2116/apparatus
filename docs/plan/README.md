@@ -114,6 +114,7 @@ later slices remain planned.
 | 51 | [First-publication acceptance gate](PR-51-release-acceptance-gate.md) | Release | ✅ landed | 50 |
 | 52 | [Optional hosted Windows signing](PR-52-hosted-windows-signing.md) | Release | ✅ landed | 51 |
 | 53 | [Repair the Azure signing rehearsal](PR-53-azure-signing-rehearsal.md) | Release | ✅ landed | 52 |
+| 54 | [Run Windows safety groups in parallel](PR-54-parallel-windows-safety.md) | CI | ✅ landed | 53 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
