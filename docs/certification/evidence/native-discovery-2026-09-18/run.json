@@ -1,0 +1,125 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "native-discovery-2026-09-18",
+  "captured_at": "2026-09-18",
+  "timezone": "America/Los_Angeles",
+  "baseline_commit": "6ee463d94497d9d17c5d0782586bef60679dca9b",
+  "build_scope": "PR-59 uses unchanged baseline core and Skills; independent of PR-58. Synthetic witness is test-only.",
+  "overall_result": "partial",
+  "sources": "sources.md",
+  "input_hashes": "pre-hashes.json",
+  "app": {
+    "name": "Cursor IDE",
+    "version": "3.21.13",
+    "model": "GPT-5.6 Luna",
+    "effort": "Medium",
+    "fast_mode": "unavailable",
+    "other_relevant_settings": "unavailable",
+    "os": "macOS 27.0",
+    "architecture": "arm64"
+  },
+  "codex_desktop": {
+    "outcome": "unavailable",
+    "reason": "Native computer-control interface explicitly rejects access to com.openai.codex. No desktop chat attempted; no CLI substitution.",
+    "model": "unavailable",
+    "effort": "unavailable",
+    "version": "unavailable",
+    "cases_attempted": 0
+  },
+  "cases": [
+    {
+      "case": 1,
+      "name": "root named",
+      "observed_local_time": "21:28",
+      "outcome": "partial",
+      "mechanism": "native invocation",
+      "reason": "Canonical source UI and persisted marker observed; prompt delivered as successive messages; task command unavailable.",
+      "fresh_chat": "New Agent in separately opened local folder; no inherited chat",
+      "prompt": "prompt-1-root-named.txt",
+      "hashes": "results/case-1/hashes.json",
+      "observation": "results/case-1/observation.md",
+      "preexisting_files": 60,
+      "changed": [],
+      "removed": [],
+      "added": [
+        "root-witness-note.md"
+      ],
+      "project_repository_boundary": "work-area root"
+    },
+    {
+      "case": 2,
+      "name": "independent bound relevance",
+      "observed_local_time": "21:33",
+      "outcome": "unavailable",
+      "mechanism": "unknown",
+      "reason": "Stopped on unavailable product executable before persisted output.",
+      "fresh_chat": "New Agent in separately opened local folder; no inherited chat",
+      "prompt": "prompt-2-bound-relevance.txt",
+      "hashes": "results/case-2/hashes.json",
+      "observation": "results/case-2/observation.md",
+      "preexisting_files": 66,
+      "changed": [],
+      "removed": [],
+      "added": [],
+      "project_repository_boundary": "independent project Git root"
+    },
+    {
+      "case": 3,
+      "name": "duplicate-name collision",
+      "observed_local_time": "21:36",
+      "outcome": "partial",
+      "mechanism": "unknown",
+      "reason": "Requested output written and custom Skills preserved; neither candidate marker emitted; task command unavailable.",
+      "fresh_chat": "New Agent in separately opened local folder; no inherited chat",
+      "prompt": "prompt-3-collision-negative.txt",
+      "hashes": "results/case-3/hashes.json",
+      "observation": "results/case-3/observation.md",
+      "preexisting_files": 67,
+      "changed": [],
+      "removed": [],
+      "added": [
+        "project-collision/collision-note.md"
+      ],
+      "project_repository_boundary": "independent project Git root"
+    },
+    {
+      "case": 4,
+      "name": "non-relevant negative",
+      "observed_local_time": "21:39",
+      "outcome": "unavailable",
+      "mechanism": "unknown",
+      "reason": "Stopped on unavailable product executable; no requested output, so no passing behavioral negative.",
+      "fresh_chat": "New Agent in separately opened local folder; no inherited chat",
+      "prompt": "prompt-4-nonrelevant-negative.txt",
+      "hashes": "results/case-4/hashes.json",
+      "observation": "results/case-4/observation.md",
+      "preexisting_files": 61,
+      "changed": [],
+      "removed": [],
+      "added": [],
+      "project_repository_boundary": "work-area root"
+    }
+  ],
+  "platform_retries": 0,
+  "gaps": [
+    "No clean root single-prompt pass; input delivery was segmented.",
+    "Bound-project discovery and duplicate-name precedence remain unverified.",
+    "The unrelated-task case stopped before producing output.",
+    "Product executable was absent from the native command path; later probes must declare a built runtime before freezing their fixture. This is not installer failure evidence.",
+    "CLI variants, other desktop apps, Windows and other versions were not tested.",
+    "No complete provider trace, operating-system confinement or provider retention claim."
+  ],
+  "adapter_decisions": {
+    "Cursor root": "insufficient evidence; retain fallback",
+    "Cursor independent bound project": "insufficient evidence; retain fallback",
+    "Codex desktop": "insufficient evidence; retain fallback"
+  },
+  "validation": {
+    "full_suite": "uv run pytest: 1374 passed, 38 skipped in 618.36s",
+    "diff_check": "passed"
+  },
+  "archived_sources": {
+    "results/case-1/root-task-source.md": "a737ce1e91c9ae41bb7d33e088f170f71400d980cf8f63c97bc79e5c031347c0",
+    "results/case-3/collision-task-source.md": "02d1a1e95e825fdc78743bea6e4d868395ff76bc3e4ac3cfa010cc8397eac063"
+  }
+}

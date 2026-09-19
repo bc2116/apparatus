@@ -1,0 +1,24 @@
+{
+  "algorithm": "sha256",
+  "scope": "synthetic source inputs and submitted-prompt templates before native observation",
+  "files": {
+    "inputs/README.md": "ed38f7cb99324e89edf3a195ee38be2fdf34b90f1f405461f244cbf3ec984fd6",
+    "inputs/project-bound/.agents/skills/usercustom-bound-notes/SKILL.md": "9164664734662690f1d4b1b2460f434797e19dc0697114b474d941ed3db0a13a",
+    "inputs/project-bound/AGENTS.md": "c24a3d310cce7a2807945516dbb0232d917a831e6ec6915931cc23912d97a70f",
+    "inputs/project-bound/bound-task-source.md": "86dba28fbe03aa0269b5dff8ab197173ec85260a1f89645d2ffb07af20de584d",
+    "inputs/project-bound/project-sentinel.txt": "21c98c33d1c56f52ce90004b798cbb835ba96db03d70513d94ed3db273c2d6e8",
+    "inputs/project-collision/.agents/skills/apparatus-native-discovery-witness/SKILL.md": "6d25d2e89e16f5690567d68f2ad80e6c5f92d19628141957cc11033621509e16",
+    "inputs/project-collision/.agents/skills/usercustom-bound-notes/SKILL.md": "9164664734662690f1d4b1b2460f434797e19dc0697114b474d941ed3db0a13a",
+    "inputs/project-collision/AGENTS.md": "9841f6183b643981c7ba0c2506a36ba75b298579aa4db9ab8cde9baaa5f5b2c9",
+    "inputs/project-collision/collision-sentinel.txt": "20386d02d3e034705234b910a12bcc81cdcf55066b05760bf1541d85a099fa24",
+    "inputs/project-collision/collision-task-source.md": "02d1a1e95e825fdc78743bea6e4d868395ff76bc3e4ac3cfa010cc8397eac063",
+    "inputs/workarea/.agents/skills/apparatus-native-discovery-witness/SKILL.md": "86f4ff737274f7ead687e2a9dbd130fd660980893787f0afeef1a584242731cc",
+    "inputs/workarea/nonrelevant-task-source.md": "9b8d36011a27b9c29843f6bf5dc7d17f424c340958f9cc0840b616ccafdd1abb",
+    "inputs/workarea/root-sentinel.txt": "1b002af7bf4a5d739bbd919943a30bae4bf6891b93b7b471a33f8e2a4e468a89",
+    "inputs/workarea/root-task-source.md": "a737ce1e91c9ae41bb7d33e088f170f71400d980cf8f63c97bc79e5c031347c0",
+    "prompt-1-root-named.txt": "a572ac37f8f924589a734ae5dee43f8bd0d19011f4bddb0a86665f55a207c123",
+    "prompt-2-bound-relevance.txt": "5bc9553f375366c365bc4fb48d6e450110f74ebd19da6471685365b05c8aea07",
+    "prompt-3-collision-negative.txt": "9a644bfbea8d64fe1168d7e799f21e6a5fe0c660cbf6104384369578839db1ff",
+    "prompt-4-nonrelevant-negative.txt": "ca76a5eac445aea83f7328e0af8034b1963b404725224679cd132a7b1f66d90a"
+  }
+}

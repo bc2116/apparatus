@@ -1,0 +1,9 @@
+Create `inventory-list.md` from `nonrelevant-task-source.md`. List each supplied
+inventory item once and cite the source with a relative Markdown link. Preserve
+all existing files. This is a synthetic, no-save test: do not save Memory, create
+learned Skills, or make automatic cards or activity notes. Work only in this
+locally opened work area. If an Apparatus task control is needed, continue only
+with task `<NONRELEVANT_NO_SAVE_TASK_ID>` for work area
+`<FIXTURE_ROOT>/case-4-nonrelevant/workarea`. Use one assistant; do not use
+subagents, web, MCP, external model CLIs, or user/global Skills. Stop and report
+any native permission or tool denial without trying to bypass it.
