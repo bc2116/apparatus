@@ -28,3 +28,9 @@ worktree had only root development dependencies. Running the existing CI setup
 command, `uv sync --all-packages`, installed the workspace package; the corrected
 `uv run pytest` result is recorded in `run.json`. This required no source repair.
 Current-head CI remains required before merge.
+
+A final portability probe reproduced CRLF conversion of archived JSON under
+`core.autocrlf=true`. This capsule alone is now marked `-text` so checkouts
+preserve its exact recorded bytes. No product input, historical evidence,
+conformance fixture or comparison was changed. The lead exported every staged
+archive file under that checkout policy and compared it byte-for-byte.

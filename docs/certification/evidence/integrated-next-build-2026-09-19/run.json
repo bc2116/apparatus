@@ -33,7 +33,8 @@
     "diff_check": "Pass excluding only the byte-identical native worksheet output; full diff check reports its 15 original Markdown trailing-space lines.",
     "independent_review": "Sol review passed after correcting one app-name attribution in the quickstart; hashes, source identity, deltas, links, privacy and scoped claims verified.",
     "source_quickstart": "uv sync --all-packages followed by uv run apparatus resume PROJECT verified from the source checkout; explicit binding, current goal and source availability reported.",
-    "pr61_ci": "passed at 8ae64f903f77e6971cf8b3669acc0a97ee3b2e28; merged 6d05582fbfa5df68a1fc0d13a027acb3740942b9"
+    "pr61_ci": "passed at 8ae64f903f77e6971cf8b3669acc0a97ee3b2e28; merged 6d05582fbfa5df68a1fc0d13a027acb3740942b9",
+    "checkout_bytes": "A core.autocrlf=true export reproduced JSON byte drift before the fix. A narrowly scoped -text attribute now preserves this entire dated capsule byte-for-byte under that checkout policy."
   },
   "deferrals": {
     "N4": "No observed early-use demand for moved-source repair; negative fixture is not product demand.",
@@ -46,7 +47,7 @@
     "Previous PR58 and PR60 native observations retain their original build identities; this archive does not relabel them."
   ],
   "artifact_hashes": {
-    "README.md": "5db3f0e8924667403608ec912dd7cc6019cebe202b6a55e1c0e3eef48edb6a2e",
+    "README.md": "7a1d24f694d0d35a0778b9081f33105fea96e349499e96775e4511b4ba0720cb",
     "build-identity.json": "bb7945bc089ecfef0d2c77d04e82fe199d566507582be7898e9830ba021f23cc",
     "continuation/configuration.json": "1d961d00ba6510ba1cab248826695149bbda7ac940a5db1d734e227f28587b17",
     "continuation/hashes/after-nosave.json": "9367f00657954071ed4107b3d09a009d4068f53dc0717713d1452d7677b2e0d2",
@@ -123,7 +124,7 @@
     "native-discovery/inputs/workarea/nonrelevant-task-source.md": "9b8d36011a27b9c29843f6bf5dc7d17f424c340958f9cc0840b616ccafdd1abb",
     "native-discovery/inputs/workarea/root-sentinel.txt": "1b002af7bf4a5d739bbd919943a30bae4bf6891b93b7b471a33f8e2a4e468a89",
     "native-discovery/inputs/workarea/root-task-source.md": "a737ce1e91c9ae41bb7d33e088f170f71400d980cf8f63c97bc79e5c031347c0",
-    "review.md": "fa3c058af2dbc67ed0fff54d35500438fa9a56806101b399feadf66595ef65c4",
+    "review.md": "fd067afad218279d839f1cfd7c91b0f3aeed114e7bea58feff8a229a9ead1bfd",
     "source-checkout/resume-output.txt": "0f632273f481d24570704cb83bb950ec6c3d1d7e764720ff24d75aa03c3b37ab"
   }
 }

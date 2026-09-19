@@ -46,3 +46,9 @@ path. Unlike the native negative fixture's launcher, this source command has
 Git available and reports the real latest snapshot and its explicit coverage.
 It still returns a partial brief for the missing original. The complete native
 after-tree remained byte-identical after this read-only check.
+
+The archive's `.gitattributes` rule disables text conversion for this exact
+capsule. A real checkout-index probe with `core.autocrlf=true` first reproduced
+changed JSON bytes under the default checkout policy. The scoped raw-byte rule
+keeps every captured file and recorded digest intact, without imposing a new
+line ending on the original evidence.

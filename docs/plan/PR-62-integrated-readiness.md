@@ -103,6 +103,13 @@ does not replace the matrix's published installer, signing, repair, or
 public-release evidence. Do not change other quickstarts or claim an updated
 public version.
 
+## Evidence checkout preservation
+
+Disable Git text conversion only for this dated evidence capsule in
+`.gitattributes`, so recorded native bytes and digests survive differing
+checkout policies. Verify an export with `core.autocrlf=true` against every
+staged archive file; do not normalize captured outputs or weaken hashes.
+
 ## Ownership
 
 This PR owns the integrated readiness documentation:
@@ -117,6 +124,8 @@ This PR owns the integrated readiness documentation:
 Work may divide these files among named contributors, but the final PR must
 reconcile them. CI, delivery, package metadata, installers, and product code are
 outside this documentation slice. Preserve concurrent work.
+
+The dated-capsule raw-byte rule in `.gitattributes` is also in scope.
 
 ## Validation and completion
 
