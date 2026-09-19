@@ -157,6 +157,11 @@ VERIFIABLE_MEMORY_PREVIOUS_INSTRUCTIONS = {
     'AGENTS.md': '85d4a54f27f70375b1b6be63d5a1b283e0a605490c121ac4b8d3c1b4712065d1',
 }
 
+# Exact landed PR-58 stock canon before read-only resume guidance.
+RESUME_PREVIOUS_INSTRUCTIONS = {
+    'AGENTS.md': '0e8ce384c8c71250fbce7cd09f68e3a1eeddca31ba2553bce73edfd50e29179a',
+}
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -169,6 +174,7 @@ def known_instruction(relative: str, content: bytes) -> bool:
         LEARNED_PREVIOUS_INSTRUCTIONS, CARDS_PREVIOUS_INSTRUCTIONS, QUIET_PREVIOUS_INSTRUCTIONS,
         EXPLICIT_MEMORY_PREVIOUS_INSTRUCTIONS,
         VERIFIABLE_MEMORY_PREVIOUS_INSTRUCTIONS,
+        RESUME_PREVIOUS_INSTRUCTIONS,
     )}
 
 

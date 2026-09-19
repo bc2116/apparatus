@@ -61,6 +61,17 @@ caches, unknown files, task controls, routing/bindings and recovery storage are
 outside snapshot contents. Filesystem traversal does not follow links or reparse
 points. Capture validates its file preimages before publishing.
 
+The read-only `apparatus resume WORKSPACE` probe reports only the latest saved
+point. For `managed-state`, its coverage statement describes the validated record
+lifecycle, named files, selected-source registrations/cards, adopted-Skill
+ownership, and exact built-in Skill bodies declared above, together with the
+receipt exclusions above. It also names project files, Library originals, caches,
+task controls, bindings/routing, and recovery storage as excluded. A legacy
+workspace snapshot keeps its existing scope label and has no managed-state
+coverage declaration. Empty inspected history is distinct from unavailable Git,
+disabled or malformed history, and other safe inspection failures. The probe
+never initializes a store, updates the machine report, or publishes a receipt.
+
 The dedicated bare store is `System/recovery/store`, identified by a closed
 `apparatus-owner.json` with schema `apparatus/recovery-store@v0` and matching
 `workspace_id`. Its sole branch is `refs/heads/managed`. Every Git operation targets

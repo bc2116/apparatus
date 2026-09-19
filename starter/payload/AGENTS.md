@@ -24,6 +24,12 @@ Pass `apparatus --task ID` before managed commands. On resumption, inspect
 saving task or use another conversation's ID. If its ID is lost or ambiguous,
 start a no-save continuation. There is no shared active-task setting.
 
+For a request to resume or continue ordinary work, run the read-only `apparatus
+resume WORKSPACE` brief, then read its relevant linked records and current
+Memory/Library evidence before writing a narrative or deliverable. A no-save
+task may read this evidence but creates no managed content; requested project
+work remains available.
+
 For a no-save task, do not save new Memory, corrections containing new content,
 setup answers, goal updates, activity notes, learned Skills, Library cards, or automatic
 Library extractions/indexes or snapshots. Follow this rule for direct file

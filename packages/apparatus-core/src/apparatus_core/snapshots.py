@@ -91,6 +91,14 @@ class SnapshotResult:
 
 
 @dataclass(frozen=True)
+class SnapshotProbe:
+    """One read-only inspection of the newest available snapshot."""
+
+    status: str
+    snapshot: Snapshot | None = None
+
+
+@dataclass(frozen=True)
 class SnapshotTransientPath:
     """One invocation-owned path omitted from durable snapshot state."""
 
@@ -893,6 +901,71 @@ def list_snapshots(
                 timestamp = parts[1]
             snapshots.append(Snapshot(parts[0], timestamp, parts[2]))
     return snapshots
+
+
+def probe_latest_snapshot(
+    workspace: str | Path,
+    *,
+    available: Callable[[], bool] = git_available,
+    run: Callable[..., Any] = subprocess.run,
+) -> SnapshotProbe:
+    """Inspect the newest snapshot without initializing or changing any store."""
+    from apparatus_core.features import enabled as feature_enabled
+
+    try:
+        if not feature_enabled(workspace, "snapshots") or not available():
+            return SnapshotProbe("unavailable")
+        backend = _managed_backend(workspace)
+        if backend is not None:
+            entries = backend.list_snapshots(workspace, run=run)
+        else:
+            root = Path(workspace).resolve()
+            result = _run_git(root, ["rev-parse", "--show-toplevel"], run=run)
+            if getattr(result, "returncode", 1) != 0:
+                with WorkspaceAnchor(root) as anchor:
+                    return SnapshotProbe(
+                        "unavailable" if anchor.entry_exists(".git") else "none"
+                    )
+            top = Path(str(getattr(result, "stdout", "") or "").strip()).resolve()
+            if top != root:
+                return SnapshotProbe("none")
+            result = _run_git(
+                root, ["log", "--format=%H%x1f%cI%x1f%s", "HEAD"], run=run
+            )
+            if getattr(result, "returncode", 1) != 0:
+                return SnapshotProbe("unavailable")
+            entries = []
+            for line in str(getattr(result, "stdout", "") or "").splitlines():
+                parts = line.split("\x1f", 2)
+                if len(parts) != 3 or not _SNAPSHOT_ID.fullmatch(parts[0]):
+                    return SnapshotProbe("unavailable")
+                parsed = datetime.fromisoformat(parts[1].replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    return SnapshotProbe("unavailable")
+                timestamp = (
+                    parsed.astimezone(timezone.utc)
+                    .replace(microsecond=0)
+                    .isoformat()
+                    .replace("+00:00", "Z")
+                )
+                entries.append(Snapshot(parts[0], timestamp, parts[2]))
+        if not entries:
+            return SnapshotProbe("none")
+        latest = entries[0]
+        if (
+            not isinstance(latest, Snapshot)
+            or not _SNAPSHOT_ID.fullmatch(latest.identifier)
+            or not isinstance(latest.timestamp, str)
+            or not isinstance(latest.label, str)
+            or latest.scope not in {"workspace", "managed-state"}
+        ):
+            return SnapshotProbe("unavailable")
+        parsed = datetime.fromisoformat(latest.timestamp.replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+            return SnapshotProbe("unavailable")
+        return SnapshotProbe("latest", latest)
+    except Exception:
+        return SnapshotProbe("unavailable")
 
 
 def resolve_snapshot_id(

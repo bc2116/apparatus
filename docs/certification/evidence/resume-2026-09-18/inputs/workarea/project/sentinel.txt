@@ -1,0 +1,1 @@
+Synthetic PR-60 fixture sentinel. Preserve this file during both chats.
