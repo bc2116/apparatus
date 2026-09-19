@@ -1,0 +1,31 @@
+{
+  "result": "pass",
+  "observed_date": "2026-09-19",
+  "timezone": "America/Los_Angeles",
+  "saving_chat": "96170224-e9be-4ee1-ba60-4a1911f60acf",
+  "fresh_chat": "8b704c8f-40f3-41a3-a4f1-a75bb209a749",
+  "fresh_duration": "31s",
+  "model": "GPT-5.6 Luna",
+  "reasoning": "Medium",
+  "fast": false,
+  "prompt_delivery": "One intact prompt per separate conversation; no human retry, corrective follow-up or reminder.",
+  "saving": "Persisted requested outline, dated Decision with reason, current goal next action, registered brief, grounded Library card and managed snapshot.",
+  "fresh_command": "EXECUTABLE resume PROJECT",
+  "fresh_selection": "linked work area",
+  "fresh_result": "partial; current next action, available current brief, missing retired registration, unavailable snapshot history",
+  "native_output_visibility": "The expanded native UI showed the command with PROJECT, linked selection, partial status, current goal and two sources; its preview truncated later lines. The native final answer reported missing retired requirements and unavailable history. A separate read-only invocation of the identical installed command reproduced the complete output archived here.",
+  "continuation": "Used saved two-page offline decision and current 10-person, 40-minute brief; relative links cite Decision, brief and outline. Left equipment example, facilitator, date and report excerpt unresolved.",
+  "baseline_files": 117,
+  "changed_files": [],
+  "removed_files": [],
+  "added_files": [
+    "workarea/project/participant-worksheet.md"
+  ],
+  "directory_changes": [],
+  "human_reminders": 0,
+  "limits": [
+    "The worksheet is Markdown organized into two page sections; physical print pagination was not rendered or verified.",
+    "One synthetic task pair and one native app configuration; not universal recall or app certification.",
+    "Git absence and missing registration are declared negative-fixture configurations. The original was deliberately moved outside the work area before either chat; no relink was requested."
+  ]
+}

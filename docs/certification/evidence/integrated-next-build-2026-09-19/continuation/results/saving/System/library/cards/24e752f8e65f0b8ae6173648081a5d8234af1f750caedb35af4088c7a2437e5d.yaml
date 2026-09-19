@@ -1,0 +1,16 @@
+schema: apparatus/library-card@v0
+source: project/brief.md
+summary: The Harbor workshop is a 40-minute exercise for 10 participants on separating
+  observations from assumptions using a fictional equipment-maintenance report. Because
+  the room has no dependable internet or display, a printed offline worksheet is appropriate;
+  the equipment example, facilitator name, and exact date remain undecided.
+topics:
+- observations and assumptions
+- fictional equipment-maintenance report
+- 10 participants
+- 40-minute workshop
+- offline delivery
+- undecided details
+source_sha256: a0e908e4ea06b855a7c21e70c0d03fe575ba0f711cfd44fa97d6d35d5161faab
+text_sha256: a0e908e4ea06b855a7c21e70c0d03fe575ba0f711cfd44fa97d6d35d5161faab
+extractor_version: '1'

@@ -1,0 +1,21 @@
+Work-area context
+Selection: linked work area
+Result: partial
+Scope: the selected work area; no project ownership or task history is inferred.
+
+Goals
+Status: available; shown: 1; remaining: 0
+- Goals/prepare-harbor-worksheet.md | status: active | title: Prepare Harbor worksheet | next action: Confirm the equipment example, facilitator, date, and final report excerpt before completing the two-page worksheet.
+
+Sources
+Status: available; shown: 2; remaining: 0
+- project/brief.md | availability: available
+- project/retired-requirements.md | availability: missing | The original remains selected; decide whether to repair its path or re-register it.
+
+Latest snapshot
+Status: latest
+- id: ebf6d9fba369f16f02eb9ea9bfade27517304972 | UTC: 2026-09-19T07:17:07Z | label: Harbor worksheet outline saved | scope: managed-state
+Coverage records: validated Goals; current, outdated, and forgotten Memory/Facts, Memory/People, Memory/Decisions, and legacy Decisions; System/procedures; non-recovery System/receipts; selected source registrations and cards; and adopted-Skill ownership.
+Coverage files: AGENTS.md, CLAUDE.md, Welcome.md, .cursor/rules/apparatus.mdc, .github/copilot-instructions.md, System/profile.yaml, System/ignore, System/README.md, System/guidance/model-guidance.md, System/policy/standard.md, and System/policy/private.md when present.
+Coverage Skills: exactly the named apparatus-welcome, apparatus-produce-deliverable, apparatus-research-and-summarize, apparatus-review-against-checklist, apparatus-weekly-review, apparatus-economizer, and apparatus-humanizer Skill bodies when present; .agents/skills is not covered recursively.
+Excluded: project files, Library originals, extraction and index caches, task controls, project bindings and routing, recovery storage, and recovery-generated snapshot, restore, and backup-export receipts.

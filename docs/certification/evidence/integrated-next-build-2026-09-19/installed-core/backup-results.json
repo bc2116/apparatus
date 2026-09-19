@@ -1,0 +1,39 @@
+{
+  "wheel_sha256": "6284f08fd3fccb63e6fa98cfa236f8b7e219c0aeb796fe861bdabd1f7749ab5c",
+  "cases": [
+    {
+      "case": "canonical",
+      "exit_code": 0,
+      "archive_count": 1,
+      "protected_files_unchanged": true,
+      "canonical_destination_output": true,
+      "canonical_receipt_destination": true,
+      "project_and_originals_excluded": true,
+      "archive_sha256": "440fbdd34bdefd1a24d7fed7acc38a80f29c122c8fbd4eda87cf00cf3c16e30a"
+    },
+    {
+      "case": "system-alias",
+      "exit_code": 0,
+      "archive_count": 1,
+      "protected_files_unchanged": true,
+      "canonical_destination_output": true,
+      "canonical_receipt_destination": true,
+      "project_and_originals_excluded": true,
+      "archive_sha256": "41bb4f0dbf26ab714333f225757ebdd9319d171559403313c569cce23c690ea3"
+    },
+    {
+      "case": "leaf-link",
+      "exit_code": 2,
+      "archive_count": 0,
+      "protected_files_unchanged": true,
+      "no_archive_in_workarea": true
+    },
+    {
+      "case": "alias-inside",
+      "exit_code": 2,
+      "archive_count": 0,
+      "protected_files_unchanged": true,
+      "no_archive_in_workarea": true
+    }
+  ]
+}

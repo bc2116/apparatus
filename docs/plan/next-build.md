@@ -1,7 +1,8 @@
 # Next build: dependable everyday work
 
-- **Status:** N2, N1 and N3 landed. Later slices
-  remain outlines until their dependencies and early-use evidence are available.
+- **Status:** N2, N1 and N3 landed; the bounded backup repair is PR-61.
+  [PR-62](PR-62-integrated-readiness.md) records retained N6 source-build evidence.
+  N4 and N5 are deliberately deferred; no public release is claimed.
 - **Date:** 2026-09-13
 - **Readiness review:** 2026-09-18; baseline remains `6ee463d`.
 - **Baseline inspected:** `6ee463d`, the current 0.0.2 source baseline.
@@ -14,8 +15,8 @@
 A person opens an existing project, asks the assistant to remember a fact or
 decision, finishes some work, and returns in a fresh conversation. The saved
 context is findable, the next action is visible, relevant Skills are usable,
-and a renamed source can be repaired without rebuilding its Library entry by
-hand. The assistant states what actually saved and what remains unavailable.
+and selected sources report their availability. Renamed-source repair remains
+conditional on demonstrated early-use demand. The assistant states what actually saved and what remains unavailable.
 
 Four priorities guide this cycle: reliable Memory saves, useful resumption,
 evidence-backed native Skill discovery, and Library relinking when the early-use
@@ -240,6 +241,25 @@ Limit new mechanisms to those that fit a focused slice. A substantially
 different per-app mechanism uses a spare slot or remains an explicit native
 coverage gap. Do not add home-directory installs, cross-app synchronization,
 model routing or native delegation work here.
+
+### Retained September 19 scope
+
+The [integrated readiness record](../certification/next-build-readiness-2026-09-19.md)
+closes this smaller source-build cycle with verifiable saves, useful fresh
+continuation and a reproduced backup destination repair. N4 is deferred because
+no early-use case established relinking demand. N5 is deferred because the
+available observations do not isolate a discovery-adapter defect. Root named
+Skill use passed; bound-project discovery and duplicate-name precedence remain
+gaps. The existing file-reading fallback remains available. A deliberately
+missing registered source is negative coverage, not demand for N4.
+
+The three representative task pairs now have dated evidence: PR-58 revised work
+after a fact changed; PR-60 resumed a current next action; PR-62 continued a
+document using a saved Decision on the integrated candidate. These runs retain
+their own build identities; they are not three trials of the same candidate.
+The optional personal writing pilot is also deferred: no authorized writing
+examples or user usefulness assessment is supplied for that separate pilot.
+Signing, publishing and native installer release acceptance remain separate.
 
 ### N6 — Verify the combined experience
 

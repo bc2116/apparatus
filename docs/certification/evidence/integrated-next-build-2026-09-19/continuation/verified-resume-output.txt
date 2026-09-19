@@ -1,0 +1,17 @@
+Work-area context
+Selection: linked work area
+Result: partial
+Scope: the selected work area; no project ownership or task history is inferred.
+
+Goals
+Status: available; shown: 1; remaining: 0
+- Goals/prepare-harbor-worksheet.md | status: active | title: Prepare Harbor worksheet | next action: Confirm the equipment example, facilitator, date, and final report excerpt before completing the two-page worksheet.
+
+Sources
+Status: available; shown: 2; remaining: 0
+- project/brief.md | availability: available
+- project/retired-requirements.md | availability: missing | The original remains selected; decide whether to repair its path or re-register it.
+
+Latest snapshot
+Status: unavailable
+Snapshot history could not be safely inspected; repair snapshot availability, then retry.

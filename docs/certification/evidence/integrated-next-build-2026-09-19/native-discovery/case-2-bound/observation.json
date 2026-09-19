@@ -1,0 +1,19 @@
+{
+  "case": "bound-relevance",
+  "result": "partial",
+  "basic_task": "pass",
+  "canonical_skill_discovery": "not demonstrated",
+  "observed_date": "2026-09-19",
+  "timezone": "America/Los_Angeles",
+  "chat_id": "63feee0b-3056-4004-a2e6-933785df9612",
+  "duration": "15s",
+  "model": "GPT-5.6 Luna",
+  "reasoning": "Medium",
+  "fast": false,
+  "prompt_delivery": "one intact message; no retry or follow-up",
+  "ui_evidence": "Read the explicit binding, project and work-area AGENTS, brief, and task control. No native Used witness Skill or canonical witness read was observed.",
+  "output": "project-bound/bound-witness-note.md",
+  "body_marker": false,
+  "human_reminders": 0,
+  "preservation": "All 91 baseline files unchanged; only requested note added; no directory delta."
+}
