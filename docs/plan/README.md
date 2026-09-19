@@ -133,6 +133,7 @@ later slices remain planned.
 | 58 | [Make Memory saves verifiable](PR-58-verifiable-memory-saves.md) | Next build N2 | ✅ landed | 47, 50 |
 | 59 | [Observe native Skill discovery](PR-59-native-skill-discovery-evidence.md) | Next build N1 / R4b | ✅ landed | 38, 47 |
 | 60 | [Show a read-only resume brief](PR-60-resume-brief.md) | Next build N3 | ✅ landed | 58 |
+| 61 | [Accept safe backup path aliases](PR-61-backup-path-aliases.md) | Next build spare repair | ✅ landed | 60 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
