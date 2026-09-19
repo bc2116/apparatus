@@ -131,7 +131,7 @@ later slices remain planned.
 | 57 | [Diagnose native Windows signature checks](PR-57-native-signature-diagnostics.md) | Release | ✅ landed | 56 |
 | 47 | [Prove the reworked first task](PR-47-first-task-certification.md) | Rework | ✅ landed | 49 |
 | 58 | [Make Memory saves verifiable](PR-58-verifiable-memory-saves.md) | Next build N2 | ✅ landed | 47, 50 |
-| 59 | [Observe native Skill discovery](PR-59-native-skill-discovery-evidence.md) | Next build N1 / R4b | ready | 38, 47 |
+| 59 | [Observe native Skill discovery](PR-59-native-skill-discovery-evidence.md) | Next build N1 / R4b | ✅ landed | 38, 47 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
