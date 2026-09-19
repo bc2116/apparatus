@@ -120,7 +120,7 @@ def export_backup(workspace: str | Path, destination: str | Path, *,
     from apparatus_core import managed_state_recovery as recovery
 
     root_path = publication._absolute(workspace)
-    destination_path = publication._absolute(destination)
+    destination_path = publication._backup_destination(destination)
     timestamp = publication.utc_archive_timestamp(clock)
     source_type, target_type = publication._anchor_types()
     try:

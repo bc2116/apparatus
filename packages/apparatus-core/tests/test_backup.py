@@ -352,6 +352,75 @@ def test_invalid_paths_are_usage_errors(tmp_path, capsys, workspace, destination
     assert message in capsys.readouterr().out
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX external ancestor alias")
+def test_legacy_export_accepts_external_ancestor_alias_and_freezes_canonical_receipt(
+    tmp_path,
+):
+    workspace = tmp_path / "workspace"
+    real_parent = tmp_path / "real-parent"
+    destination = real_parent / "backups"
+    alias_parent = tmp_path / "alias-parent"
+    workspace.mkdir()
+    destination.mkdir(parents=True)
+    alias_parent.symlink_to(real_parent, target_is_directory=True)
+    (workspace / "note.txt").write_text("saved\n", encoding="utf-8")
+
+    result = export_backup(
+        workspace,
+        alias_parent / destination.name,
+        available=lambda: False,
+        clock=_clock,
+    )
+
+    canonical_destination = destination.resolve(strict=True)
+    assert result.archive == canonical_destination / "apparatus-backup-2026-08-10-123456.zip"
+    assert _archives(canonical_destination) == [result.archive]
+    receipt = next((workspace / "System/receipts").glob("*-backup-export.md"))
+    frontmatter, _body = records.parse_record(receipt.read_text(encoding="utf-8"))
+    assert frontmatter["destination"] == str(canonical_destination)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX destination leaf link")
+def test_destination_leaf_link_remains_rejected_without_archive(tmp_path):
+    workspace = tmp_path / "workspace"
+    real_destination = tmp_path / "real-destination"
+    linked_destination = tmp_path / "linked-destination"
+    workspace.mkdir()
+    real_destination.mkdir()
+    linked_destination.symlink_to(real_destination, target_is_directory=True)
+    (workspace / "note.txt").write_text("saved\n", encoding="utf-8")
+
+    with pytest.raises(
+        backup_engine.BackupUsageError,
+        match="destination path does not exist or is not a safe directory",
+    ):
+        export_backup(
+            workspace,
+            linked_destination,
+            available=lambda: False,
+            clock=_clock,
+        )
+
+    assert _archives(real_destination) == []
+    assert not (workspace / "System/receipts").exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows destination-path guard")
+def test_windows_destination_path_does_not_use_posix_ancestor_preflight(
+    tmp_path, monkeypatch
+):
+    destination = tmp_path / "backups"
+    destination.mkdir()
+    monkeypatch.setattr(
+        backup_engine,
+        "preflight_workspace_paths",
+        lambda *_args, **_kwargs: pytest.fail("Windows used POSIX destination normalization"),
+    )
+    assert backup_engine._backup_destination(destination) == backup_engine._absolute(
+        destination
+    )
+
+
 def test_archive_creation_never_opens_existing_destination_files_for_reading(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     destination = tmp_path / "backups"

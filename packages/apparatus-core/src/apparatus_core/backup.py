@@ -14,6 +14,7 @@ import zipfile
 from typing import Any, BinaryIO
 
 from apparatus_core.fs_transactions import WorkspaceAnchor
+from apparatus_core.payload import PayloadError, preflight_workspace_paths
 from apparatus_core.retention import operation
 from apparatus_core.workspace_layout import LayoutError, read_layout
 from apparatus_core.receipts import (
@@ -72,6 +73,19 @@ def utc_archive_timestamp(clock: Callable[[], datetime] | None = None) -> str:
 
 def _absolute(path: str | Path) -> Path:
     return Path(os.path.abspath(os.fspath(path)))
+
+
+def _backup_destination(path: str | Path) -> Path:
+    """Freeze a safe destination spelling without following its final component."""
+    absolute = _absolute(path)
+    if os.name != "posix":
+        return absolute
+    try:
+        return preflight_workspace_paths(absolute)
+    except (OSError, PayloadError) as error:
+        raise BackupUsageError(
+            "destination path does not exist or is not a safe directory"
+        ) from error
 
 
 def _zip_datetime(timestamp: float) -> tuple[int, int, int, int, int, int]:
@@ -1676,7 +1690,7 @@ def export_backup(
         from apparatus_core.managed_state_backup import export_backup as export_managed
         return export_managed(workspace, destination, available=available, write=write,
                               clock=clock, task_id=task_id)
-    destination_path = _absolute(destination)
+    destination_path = _backup_destination(destination)
     timestamp = utc_archive_timestamp(clock)
     workspace_anchor_type, destination_anchor_type = _anchor_types()
     try:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -9,7 +11,8 @@ import zipfile
 
 import pytest
 
-from apparatus_core import backup, managed_state_backup as managed, managed_state_recovery as recovery
+from apparatus_core import backup, cli, managed_state_backup as managed, managed_state_recovery as recovery, records
+from apparatus_core.commands import backup as backup_command
 from apparatus_core.receipts import ReceiptPublication
 from apparatus_core.retention import TaskRetentionError, context_for, operation, set_no_memory, start_task
 from apparatus_core.snapshots import _git_environment
@@ -81,6 +84,184 @@ def test_no_git_exports_only_declared_state_and_canonical_controls(tmp_path, mon
     assert not context_for(root, task_id=task.task_id).save_memory
     assert not (root / "System/recovery").exists()
     assert b"exports" not in b"".join(_receipts(root).values())
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX external ancestor alias")
+def test_managed_alias_and_canonical_destinations_have_matching_fresh_contracts(
+    tmp_path,
+):
+    canonical_root, canonical_destination = _area(tmp_path / "canonical-case")
+    alias_root, alias_destination = _area(tmp_path / "alias-case")
+    alias_parent = tmp_path / "destination-alias"
+    alias_parent.symlink_to(alias_destination.parent, target_is_directory=True)
+    clock = lambda: datetime(2026, 9, 18, 7, 0, tzinfo=timezone.utc)
+
+    direct = managed.export_backup(
+        canonical_root,
+        canonical_destination,
+        available=lambda: False,
+        clock=clock,
+    )
+    through_alias = managed.export_backup(
+        alias_root,
+        alias_parent / alias_destination.name,
+        available=lambda: False,
+        clock=clock,
+    )
+
+    canonical_alias_destination = alias_destination.resolve(strict=True)
+    assert direct.archive.name == through_alias.archive.name
+    assert direct.scope == through_alias.scope == "managed-state"
+    assert direct.snapshots_available is through_alias.snapshots_available is False
+    assert through_alias.archive.parent == canonical_alias_destination
+    assert list(canonical_alias_destination.glob("*.zip")) == [through_alias.archive]
+    with zipfile.ZipFile(direct.archive) as direct_zip, zipfile.ZipFile(
+        through_alias.archive
+    ) as alias_zip:
+        assert direct_zip.namelist() == alias_zip.namelist()
+        assert all(
+            not name.startswith(("project/", "Library/"))
+            for name in alias_zip.namelist()
+        )
+    receipt = next((alias_root / "System/receipts").glob("*-backup-export.md"))
+    frontmatter, _body = records.parse_record(receipt.read_text(encoding="utf-8"))
+    assert frontmatter["destination"] == str(canonical_alias_destination)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX external ancestor alias")
+def test_managed_cli_alias_output_is_canonical_and_keeps_scope_exclusions(
+    tmp_path, capsys
+):
+    root, destination = _area(tmp_path / "cli-case")
+    alias_parent = tmp_path / "cli-destination-alias"
+    alias_parent.symlink_to(destination.parent, target_is_directory=True)
+
+    parsed = cli.build_parser().parse_args(
+        ["backup", "export", str(root.resolve(strict=True)),
+         str(alias_parent / destination.name)]
+    )
+    assert cli._dispatch(
+        parsed,
+        lambda selected: backup_command.run(selected, available=lambda: False),
+    ) == 0
+
+    canonical_destination = destination.resolve(strict=True)
+    output = capsys.readouterr().out
+    assert f"Destination: {canonical_destination}" in output
+    assert "project files and Library originals are not included" in output
+    archives = list(canonical_destination.glob("apparatus-backup-*.zip"))
+    assert len(archives) == 1
+    with zipfile.ZipFile(archives[0]) as archive:
+        assert all(
+            not name.startswith(("project/", "Library/"))
+            for name in archive.namelist()
+        )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX external ancestor alias")
+def test_alias_resolving_inside_workarea_is_rejected_without_publication(
+    tmp_path, capsys
+):
+    root, external_destination = _area(tmp_path / "inside-case")
+    inside_destination = root / "inside-exports"
+    inside_destination.mkdir()
+    alias_parent = tmp_path / "inside-alias"
+    alias_parent.symlink_to(root, target_is_directory=True)
+    before = _tree(root)
+
+    assert backup_command.run(
+        argparse.Namespace(
+            workspace=str(root),
+            destination=str(alias_parent / inside_destination.name),
+            task=None,
+        ),
+        available=lambda: False,
+    ) == 2
+
+    assert "destination must be outside the workspace" in capsys.readouterr().out
+    assert list(inside_destination.iterdir()) == []
+    assert list(external_destination.iterdir()) == []
+    assert _tree(root) == before
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX external ancestor retarget")
+def test_alias_retarget_after_preflight_stays_on_frozen_canonical_destination(
+    tmp_path, monkeypatch
+):
+    root, destination = _area(tmp_path / "retarget-case")
+    (destination / "keep.txt").write_bytes(b"canonical sentinel")
+    replacement_parent = tmp_path / "replacement-parent"
+    replacement_destination = replacement_parent / destination.name
+    replacement_destination.mkdir(parents=True)
+    (replacement_destination / "keep.txt").write_bytes(b"replacement sentinel")
+    alias_parent = tmp_path / "retarget-alias"
+    alias_parent.symlink_to(destination.parent, target_is_directory=True)
+    original = backup._backup_destination
+    retargeted = False
+
+    def retarget_after_preflight(value):
+        nonlocal retargeted
+        frozen = original(value)
+        alias_parent.unlink()
+        alias_parent.symlink_to(replacement_parent, target_is_directory=True)
+        retargeted = True
+        return frozen
+
+    monkeypatch.setattr(backup, "_backup_destination", retarget_after_preflight)
+    result = managed.export_backup(
+        root,
+        alias_parent / destination.name,
+        available=lambda: False,
+        clock=lambda: datetime(2026, 9, 18, 7, 0, tzinfo=timezone.utc),
+    )
+
+    assert retargeted
+    assert result.archive.parent == destination.resolve(strict=True)
+    assert result.archive.is_file()
+    assert (destination / "keep.txt").read_bytes() == b"canonical sentinel"
+    assert list(destination.glob("apparatus-backup-*.zip")) == [result.archive]
+    assert _tree(replacement_destination) == {"keep.txt": b"replacement sentinel"}
+    receipt = next((root / "System/receipts").glob("*-backup-export.md"))
+    frontmatter, _body = records.parse_record(receipt.read_text(encoding="utf-8"))
+    assert frontmatter["destination"] == str(destination.resolve(strict=True))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX external ancestor retarget")
+def test_alias_retarget_failure_cleans_only_owned_canonical_publication(
+    tmp_path, monkeypatch
+):
+    root, destination = _area(tmp_path / "retarget-failure-case")
+    (destination / "keep.txt").write_bytes(b"canonical sentinel")
+    replacement_parent = tmp_path / "failure-replacement-parent"
+    replacement_destination = replacement_parent / destination.name
+    replacement_destination.mkdir(parents=True)
+    (replacement_destination / "keep.txt").write_bytes(b"replacement sentinel")
+    alias_parent = tmp_path / "failure-retarget-alias"
+    alias_parent.symlink_to(destination.parent, target_is_directory=True)
+    original = backup._backup_destination
+
+    def retarget_after_preflight(value):
+        frozen = original(value)
+        alias_parent.unlink()
+        alias_parent.symlink_to(replacement_parent, target_is_directory=True)
+        return frozen
+
+    def fail_receipt(*_args, **_kwargs):
+        raise OSError("injected receipt failure")
+
+    monkeypatch.setattr(backup, "_backup_destination", retarget_after_preflight)
+    with pytest.raises(backup.BackupError):
+        managed.export_backup(
+            root,
+            alias_parent / destination.name,
+            available=lambda: False,
+            write=fail_receipt,
+            clock=lambda: datetime(2026, 9, 18, 7, 0, tzinfo=timezone.utc),
+        )
+
+    assert _tree(destination) == {"keep.txt": b"canonical sentinel"}
+    assert _tree(replacement_destination) == {"keep.txt": b"replacement sentinel"}
+    assert _receipts(root) == {}
 
 
 def test_empty_task_enrollment_is_included(tmp_path):
