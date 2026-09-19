@@ -32,6 +32,15 @@ wrapper `/ADOPT`). Defaults are `~/Projects` and `C:\Projects`, without a requir
 Apparatus subfolder. The macOS package cannot forward custom-path/adoption flags;
 use its flat script. Do not silently adopt an existing folder.
 
+The [September 19 readiness record](../certification/next-build-readiness-2026-09-19.md)
+is an unreleased source-build check of an isolated core and payload. In the
+recorded Cursor IDE continuation, a fresh request did not name the command;
+the assistant selected `EXECUTABLE resume PROJECT`, where `PROJECT` was explicitly
+bound and resolved its linked work area. From a source checkout, first run
+`uv sync --all-packages`, then `uv run apparatus resume PROJECT` to inspect
+the same read-only brief. This does not refresh the matrix's
+published installer, signing, repair, or public-release evidence.
+
 If no native Skill entry appears, ask Codex to read the selected work area's
 `AGENTS.md` and the relevant canonical `.agents/skills/NAME/SKILL.md` directly.
 Keep one body; do not create duplicate Skills or infer execution from a menu.

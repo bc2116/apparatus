@@ -1,0 +1,10 @@
+This synthetic project uses its explicit work-area link in `.apparatus/workspace.yaml`. Read the linked work-area instructions when Apparatus context is needed. Preserve sources and cite them with relative Markdown links.
+
+<!-- Apparatus project link: v1 -->
+Read .apparatus/workspace.yaml to find this project's work area.
+Resolve its relative workspace path and verify its workspace_id against
+System/workspace.yaml there before reading that work area's AGENTS.md.
+Use that area's Memory, goals and Library; keep this project's instructions
+and finished files here. A missing or invalid link needs repair, not an
+ancestor search. Apparatus commands accept this project as WORKSPACE.
+<!-- /Apparatus project link -->

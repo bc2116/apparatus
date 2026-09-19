@@ -1,0 +1,18 @@
+{
+  "case": "nonrelevant-task",
+  "result": "pass with command-path friction",
+  "observed_date": "2026-09-19",
+  "timezone": "America/Los_Angeles",
+  "chat_id": "e86d786c-54b6-4366-924e-a24e342fb6d1",
+  "duration": "15s",
+  "model": "GPT-5.6 Luna",
+  "reasoning": "Medium",
+  "fast": false,
+  "prompt_delivery": "one intact message; no human retry or follow-up",
+  "ui_evidence": "Two initially guessed command paths preceded the correct supplied executable. Expanded final task show returned the supplied task ID and memory=no-save.",
+  "output": "inventory-list.md",
+  "body_marker": false,
+  "human_reminders": 0,
+  "preservation": "All 68 baseline files unchanged; only requested inventory added; no directory delta.",
+  "scope": "No irrelevant Skill marker appeared; no assertion about provider internal behavior."
+}

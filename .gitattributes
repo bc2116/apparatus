@@ -7,6 +7,9 @@ packages/apparatus-core/src/apparatus_core/shims/*.template text eol=lf
 conformance/golden/egress/* text eol=lf
 conformance/golden/shims/* text eol=lf
 
+# Preserve exact captured evidence bytes, including their recorded line endings.
+docs/certification/evidence/integrated-next-build-2026-09-19/** -text
+
 # Native wrapper builds embed or execute these exact tracked bytes. Pin each
 # current text input explicitly so checkout policy cannot introduce byte drift.
 installer/windows/bootstrap-apparatus.ps1 text eol=lf

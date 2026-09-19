@@ -4,12 +4,12 @@ Executable work is pre-cut into focused PRs with self-contained prompts.
 The [approved rework sequence](rework-sequence.md) also contains explicitly
 uncut outlines; these are not ready-to-execute prompts.
 
-**Next entries:** [PR-58](PR-58-verifiable-memory-saves.md) makes Memory saves
-verifiable; [PR-59](PR-59-native-skill-discovery-evidence.md) gathers bounded
-native Skill-discovery evidence. Both have landed baseline dependencies and can
-proceed independently. The [bounded next-build plan](next-build.md) owns the
-remaining outlines, early-use trial and eight-PR ceiling. Prompt readiness does
-not itself authorize external delivery actions.
+**Completed next-build cycle:** PR-58 through PR-62 deliver verifiable Memory
+saves, native Skill-discovery evidence, a read-only resume brief, a bounded
+backup repair and [integrated source-build acceptance](../certification/next-build-readiness-2026-09-19.md).
+The [bounded next-build plan](next-build.md) records five focused PRs within its
+eight-PR ceiling. Library relinking, discovery adapters and the optional writing
+pilot remain explicitly deferred. A new public release is not claimed.
 
 **Implemented rework:** PR-32 removes the sharing gate. PR-33 implements R2a:
 Memory correction, outdated status, forgetting, and current-record recall.
@@ -26,7 +26,7 @@ PR-47 records the lean [actual-app compatibility gate](../certification/matrix.m
 two focused chats passed for the named Cursor IDE, Codex CLI and Claude Code CLI
 configurations, with earlier failures and desktop gaps preserved. Signed native
 `0.0.2` install and repair passed on Mac ARM64 and Windows x64. The matrix tracks
-public release availability separately; native discovery adapters remain planned.
+public release availability separately; native discovery adapters remain deferred.
 PR-24 is held; its old checklist must not certify the new target. Preserve any
 existing certification work.
 
@@ -134,6 +134,7 @@ later slices remain planned.
 | 59 | [Observe native Skill discovery](PR-59-native-skill-discovery-evidence.md) | Next build N1 / R4b | ✅ landed | 38, 47 |
 | 60 | [Show a read-only resume brief](PR-60-resume-brief.md) | Next build N3 | ✅ landed | 58 |
 | 61 | [Accept safe backup path aliases](PR-61-backup-path-aliases.md) | Next build spare repair | ✅ landed | 60 |
+| 62 | [Verify integrated source-build readiness](PR-62-integrated-readiness.md) | Next build N6 | ✅ landed | 58, 59, 60, 61 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

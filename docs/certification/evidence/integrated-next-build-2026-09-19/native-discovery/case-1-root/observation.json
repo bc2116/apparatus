@@ -1,0 +1,17 @@
+{
+  "case": "root-named",
+  "result": "pass",
+  "observed_date": "2026-09-19",
+  "timezone": "America/Los_Angeles",
+  "chat_id": "67560cec-cbd4-4b8f-8ebb-40bbb310c603",
+  "duration": "11s",
+  "model": "GPT-5.6 Luna",
+  "reasoning": "Medium",
+  "fast": false,
+  "prompt_delivery": "one intact message; no retry or follow-up",
+  "ui_evidence": "Expanded Explored 3 files showed Used apparatus-native-discovery-witness. Opening it selected the work-area .agents/skills/apparatus-native-discovery-witness/SKILL.md and its exact canonical witness body.",
+  "output": "root-witness-note.md",
+  "body_marker": "APPARATUS-NATIVE-WITNESS-7F3A",
+  "human_reminders": 0,
+  "preservation": "All 68 baseline files unchanged; only requested note added; no directory delta."
+}

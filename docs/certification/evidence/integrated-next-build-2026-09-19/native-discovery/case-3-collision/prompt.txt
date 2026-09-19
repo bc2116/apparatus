@@ -1,0 +1,15 @@
+Open only this independently bound synthetic project. Create
+`collision-note.md` from `collision-task-source.md`. Keep it concise, separate
+confirmed work from scheduled work, and cite the source with a relative Markdown
+link. Preserve all existing files, including every user-owned Skill. The
+project’s explicit work-area link is `.apparatus/workspace.yaml`; use that link
+if work-area context is needed. This is a synthetic, no-save test: do not save
+Memory, create learned Skills, or make automatic cards or activity notes. Work
+only in this locally opened project and its explicitly linked work area. If an
+Apparatus task control is needed, continue only with task
+`<COLLISION_NO_SAVE_TASK_ID>` for work area
+`<FIXTURE_ROOT>/case-3-collision/workarea`. Use one assistant; do not use
+subagents, web, MCP, external model CLIs, or user/global Skills. Stop and report
+any native permission or tool denial without trying to bypass it.
+
+Use `<EXECUTABLE>` for every Apparatus command; this is the declared built runtime for this probe.

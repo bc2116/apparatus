@@ -1,0 +1,18 @@
+{
+  "case": "custom-skill-collision",
+  "result": "partial",
+  "basic_task": "pass",
+  "canonical_skill_discovery": "not demonstrated",
+  "precedence": "not established; neither canonical nor custom body marker appeared",
+  "observed_date": "2026-09-19",
+  "timezone": "America/Los_Angeles",
+  "chat_id": "a497ff5a-f2bb-42e2-a657-ca8822d12795",
+  "duration": "14s",
+  "model": "GPT-5.6 Luna",
+  "reasoning": "Medium",
+  "fast": false,
+  "prompt_delivery": "one intact message; no retry or follow-up",
+  "output": "project-collision/collision-note.md",
+  "human_reminders": 0,
+  "preservation": "All 92 baseline files, including both custom Skills, unchanged; only requested note added; no directory delta."
+}

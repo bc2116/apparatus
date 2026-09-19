@@ -1,0 +1,31 @@
+{
+  "default_init_outside_checkout": "pass",
+  "existing_files_outside_recovery_unchanged": true,
+  "installed_shims": [
+    "apparatus",
+    "ap"
+  ],
+  "missing_generated_shim_repaired_exactly": true,
+  "probe_correction": "Initial helper correctly passed repeat init but incorrectly expected the requested repair to leave receipt and recovery state unchanged. This fresh check validates those expected managed changes explicitly; no product change was required.",
+  "repair_delta": {
+    "added": [
+      "System/receipts/2026-09-19-072312-init.md",
+      "System/receipts/2026-09-19-072317-snapshot.md",
+      "System/recovery/store/objects/67/644a319271a2f437e08ee736e09a194fa0eace",
+      "System/recovery/store/objects/6b/c59e3375393b18ee50ffa35ffd01a4ae825e6f",
+      "System/recovery/store/objects/83/b7cef20137f2daac88433767d13297a3d1982e",
+      "System/recovery/store/objects/9f/d23550f6a4aee8e25457cbc9c36b6484e41cda",
+      "System/recovery/store/objects/cd/7466b3eb87bd8375ab819947e34071618cb54e",
+      "System/recovery/store/objects/e7/fbe864b5acdf1822770d3508e6a72b7478de8a"
+    ],
+    "changed": [
+      "System/recovery/store/refs/heads/managed"
+    ],
+    "removed": []
+  },
+  "repair_output": "Work area repaired.\n",
+  "repeat_init_files_unchanged": 64,
+  "repeat_output": "Work area is already up to date.\nManaged snapshot unchanged; no new snapshot was needed.\n",
+  "scope": "Isolated installed core wheel on macOS; no native installer wrapper or public-release claim.",
+  "wheel_sha256": "6284f08fd3fccb63e6fa98cfa236f8b7e219c0aeb796fe861bdabd1f7749ab5c"
+}

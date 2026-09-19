@@ -374,3 +374,21 @@ No model prompt or Skill invocation was submitted in those probes. Symlink
 observations are diagnostics, not a shipped adapter recommendation. No Windows
 link-privilege or native discovery result exists here. New app access and native
 permissions must be verified when a run actually occurs.
+
+## September 19 integrated source-build observation
+
+The [readiness record](next-build-readiness-2026-09-19.md) and
+[hashed evidence capsule](evidence/integrated-next-build-2026-09-19/run.json)
+cover the unreleased PR-58/60/61 core and payload in Cursor IDE 3.21.13,
+GPT-5.6 Luna, Medium reasoning, Fast off, macOS 27.0 ARM64. A fresh conversation
+used its earlier Decision and current goal to create a cited project document
+while all 117 baseline work-area/cache files stayed unchanged. Native project
+binding dispatch, a missing registered original, and Git-absent snapshot
+coverage were exercised in that bounded case.
+
+Named root Skill use passed with canonical-body proof; relevance-based bound
+selection and duplicate-name precedence remain partial. The non-relevant task
+preserved files but initially guessed command paths. Codex desktop remained
+unavailable to the authorized native-control tool. Historical CLI rows and
+published-installer evidence are unchanged; this entry adds neither broad app
+certification nor a new public release.

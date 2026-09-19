@@ -1,10 +1,14 @@
 # Next build: dependable everyday work
 
-- **Status:** N2, N1 and N3 landed. Later slices
-  remain outlines until their dependencies and early-use evidence are available.
+- **Status:** Retained cycle complete in five focused PRs, PR-58 through PR-62.
+  N2, N1 and N3 landed alongside the PR-61 backup repair;
+  [PR-62](PR-62-integrated-readiness.md) records retained N6 source-build evidence.
+  N4 and N5 are deliberately deferred; no public release is claimed.
 - **Date:** 2026-09-13
-- **Readiness review:** 2026-09-18; baseline remains `6ee463d`.
-- **Baseline inspected:** `6ee463d`, the current 0.0.2 source baseline.
+- **Planning review:** 2026-09-18 against `6ee463d`.
+- **Integrated review:** 2026-09-19; candidate source matches `6d05582`, with
+  exact package identities in the [readiness record](../certification/next-build-readiness-2026-09-19.md).
+- **Original baseline inspected:** `6ee463d`, the 0.0.2 source baseline used for planning.
 - **Size:** Up to six planned core PRs; eight PRs maximum for this cycle, including
   necessary splits and any optional pilot. These are planning labels, not
   reserved PR numbers. The count is a ceiling; a useful smaller release can stop earlier.
@@ -14,8 +18,8 @@
 A person opens an existing project, asks the assistant to remember a fact or
 decision, finishes some work, and returns in a fresh conversation. The saved
 context is findable, the next action is visible, relevant Skills are usable,
-and a renamed source can be repaired without rebuilding its Library entry by
-hand. The assistant states what actually saved and what remains unavailable.
+and selected sources report their availability. Renamed-source repair remains
+conditional on demonstrated early-use demand. The assistant states what actually saved and what remains unavailable.
 
 Four priorities guide this cycle: reliable Memory saves, useful resumption,
 evidence-backed native Skill discovery, and Library relinking when the early-use
@@ -29,14 +33,14 @@ decision, implementation status, or support claim by itself.
 
 ## Readiness and execution constraints
 
-The bounded scope is suitable for focused implementation. The broader
+The bounded scope was implemented through the retained sequence below. The broader
 proposal is a backlog, not an executable release plan: its module infrastructure
-depends on demand that ADR-0006 explicitly leaves for later. Start
+depends on demand that ADR-0006 explicitly leaves for later. The first slices were
 [PR-58, verifiable Memory saves](PR-58-verifiable-memory-saves.md), alongside
 [PR-59, native discovery evidence](PR-59-native-skill-discovery-evidence.md).
-Neither depends on the other. Cut N3 next, then use the early-use trial below
-to decide whether N4 earns a place in this cycle. N5 depends on N1's actual
-results. Keep the six-PR planning allowance and eight-PR ceiling.
+Neither depended on the other. N3 followed in PR-60. Early-use and discovery
+observations led to the explicit N4/N5 deferrals recorded under retained scope.
+The six-PR planning allowance and eight-PR ceiling were not quotas.
 
 Use the current AI app's native delegation for this cycle. Assign bounded
 extraction to a fast model, well-specified implementation to a strong model, and
@@ -241,6 +245,25 @@ different per-app mechanism uses a spare slot or remains an explicit native
 coverage gap. Do not add home-directory installs, cross-app synchronization,
 model routing or native delegation work here.
 
+### Retained September 19 scope
+
+The [integrated readiness record](../certification/next-build-readiness-2026-09-19.md)
+closes this smaller source-build cycle with verifiable saves, useful fresh
+continuation and a reproduced backup destination repair. N4 is deferred because
+no early-use case established relinking demand. N5 is deferred because the
+available observations do not isolate a discovery-adapter defect. Root named
+Skill use passed; bound-project discovery and duplicate-name precedence remain
+gaps. The existing file-reading fallback remains available. A deliberately
+missing registered source is negative coverage, not demand for N4.
+
+The three representative task pairs now have dated evidence: PR-58 revised work
+after a fact changed; PR-60 resumed a current next action; PR-62 continued a
+document using a saved Decision on the integrated candidate. These runs retain
+their own build identities; they are not three trials of the same candidate.
+The optional personal writing pilot is also deferred: no authorized writing
+examples or user usefulness assessment is supplied for that separate pilot.
+Signing, publishing and native installer release acceptance remain separate.
+
 ### N6 — Verify the combined experience
 
 Reuse the existing two-chat acceptance pattern on one integrated core/payload:
@@ -305,9 +328,10 @@ claim follows from this small pilot.
 - Keep scheduling, integrations and graph/shared-Library possibilities in their
   accepted later category. No change to those product decisions is proposed.
 - Each implementation prompt owns exact files, migrations, acceptance and
-  dependencies. PR-58 and PR-59 are cut; other labels remain outlines. Add ready
-  rows to the executable plan only when prompts exist. Prompt readiness is
-  separate from executing work and authorizing external delivery actions.
+  dependencies. PR-58 through PR-62 have completed prompts; deferred labels
+  remain outlines. Add ready rows to the executable plan only when future
+  prompts exist. Prompt readiness is separate from executing work and
+  authorizing external delivery actions.
 
 ## Source basis
 
