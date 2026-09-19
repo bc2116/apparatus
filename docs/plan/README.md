@@ -4,7 +4,14 @@ Executable work is pre-cut into focused PRs with self-contained prompts.
 The [approved rework sequence](rework-sequence.md) also contains explicitly
 uncut outlines; these are not ready-to-execute prompts.
 
-**Current entry:** PR-32 removes the sharing gate. PR-33 implements R2a:
+**Next entries:** [PR-58](PR-58-verifiable-memory-saves.md) makes Memory saves
+verifiable; [PR-59](PR-59-native-skill-discovery-evidence.md) gathers bounded
+native Skill-discovery evidence. Both have landed baseline dependencies and can
+proceed independently. The [bounded next-build plan](next-build.md) owns the
+remaining outlines, early-use trial and eight-PR ceiling. Prompt readiness does
+not itself authorize external delivery actions.
+
+**Implemented rework:** PR-32 removes the sharing gate. PR-33 implements R2a:
 Memory correction, outdated status, forgetting, and current-record recall.
 PR-34 implements R2b: task retention across managed writers and derived content.
 PR-35 implements R3a: isolated recovery for shared work areas.
@@ -123,6 +130,8 @@ later slices remain planned.
 | 56 | [Verify published installers on clean native runners](PR-56-native-installer-acceptance.md) | Release | ✅ landed | 55 |
 | 57 | [Diagnose native Windows signature checks](PR-57-native-signature-diagnostics.md) | Release | ✅ landed | 56 |
 | 47 | [Prove the reworked first task](PR-47-first-task-certification.md) | Rework | ✅ landed | 49 |
+| 58 | [Make Memory saves verifiable](PR-58-verifiable-memory-saves.md) | Next build N2 | ✅ landed | 47, 50 |
+| 59 | [Observe native Skill discovery](PR-59-native-skill-discovery-evidence.md) | Next build N1 / R4b | ready | 38, 47 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

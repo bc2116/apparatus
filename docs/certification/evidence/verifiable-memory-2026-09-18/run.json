@@ -1,0 +1,76 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "verifiable-memory-2026-09-18",
+  "captured_at": "2026-09-18",
+  "timezone": "America/Los_Angeles",
+  "source_base": "6ee463d94497d9d17c5d0782586bef60679dca9b",
+  "candidate": {
+    "wheel_filename": "apparatus_core-0.0.2-py3-none-any.whl",
+    "wheel_sha256": "a574e1b156ae109419dcb2f969c3b448a0499ee0bfdca070797d98085b8a20fc",
+    "payload_identity": {
+      "kind": "deterministic relative-file-hash-list",
+      "sha256": "a4139a8bee2e5e06394de05fb2ef254ba6579cab88a4a625429bc6ee62d0f3a1",
+      "file_count": 23
+    }
+  },
+  "candidate_source_hashes": {
+    "packages/apparatus-core/src/apparatus_core/commands/memory.py": "a882adf4c154d83e6fe94a22ae746618d3ae12a0622392013a5388c229be8ee0",
+    "packages/apparatus-core/src/apparatus_core/instruction_updates.py": "60ca219c1dfc0f3e5bf78639d0a8087a96720c9217336f7a2d4f5344646da7fc",
+    "starter/payload/AGENTS.md": "0e8ce384c8c71250fbce7cd09f68e3a1eeddca31ba2553bce73edfd50e29179a"
+  },
+  "app": {
+    "name": "Cursor IDE",
+    "version": "3.21.13",
+    "model": "GPT-5.6 Luna",
+    "effort": "Medium",
+    "fast_mode": "unavailable",
+    "other_settings": "unavailable",
+    "os": "macOS 27.0",
+    "architecture": "arm64"
+  },
+  "outcome": "pass",
+  "chats": [
+    {
+      "kind": "saving",
+      "fresh": true,
+      "prompts": [
+        "prompts/saving.txt",
+        "prompts/saving-followup.txt"
+      ],
+      "outcome": "pass",
+      "fact_creation": "distinct follow-up in same chat; initial request corrected an existing outdated fact",
+      "locators_observed": [
+        "Memory/Decisions/use-printed-handouts-for-lantern-workshop.md",
+        "Memory/Facts/lantern-room-has-no-reliable-projector.md"
+      ],
+      "hashes": "results/saving/hashes.json"
+    },
+    {
+      "kind": "no-save",
+      "fresh": true,
+      "prompt": "prompts/no-save.txt",
+      "outcome": "pass",
+      "existing_workarea_files_unchanged": 94,
+      "added": [
+        "project/facilitator-note.md"
+      ],
+      "cache_changed": false,
+      "delta": "results/no-save/delta.json"
+    }
+  ],
+  "observation": "observation.md",
+  "review": "review.md",
+  "validation": {
+    "full_suite": "uv run pytest: 1403 passed, 38 skipped in 612.19s",
+    "focused_memory": "87 passed",
+    "payload_conformance": "44 passed, 1 skipped",
+    "payload_build": "uv run python tools/build_payload.py: passed",
+    "diff_check": "passed",
+    "Windows": "PR CI includes new writer and migration tests; see PR checks"
+  },
+  "gaps": [
+    "No other native app, CLI or Windows conversational acceptance.",
+    "No native Skill discovery, OS confinement or provider-retention claim.",
+    "No populated Library retrieval claim and no release/version bump."
+  ]
+}

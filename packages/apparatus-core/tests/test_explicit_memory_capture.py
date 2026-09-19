@@ -54,7 +54,9 @@ def test_pr49_stock_canon_upgrade_adds_explicit_fact_capture_and_preserves_user_
         assert canon.read_bytes() == before_canon
     else:
         assert canon.read_bytes() == (shipped_payload() / "AGENTS.md").read_bytes()
-        text = canon.read_text()
-        assert "explicitly asks to remember, save, or keep a durable fact" in text
+        text = " ".join(canon.read_text().split())
+        assert "explicitly asks to remember, save, or keep durable context" in text
         assert "apparatus --task ID memory add-fact WORKSPACE" in text
-        assert "include its source when known" in " ".join(text.split())
+        assert "apparatus --task ID memory add-person WORKSPACE" in text
+        assert "apparatus --task ID memory add-decision WORKSPACE" in text
+        assert "returned as `Record: PATH` exists" in text

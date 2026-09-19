@@ -152,6 +152,11 @@ EXPLICIT_MEMORY_PREVIOUS_INSTRUCTIONS = {
     'AGENTS.md': '96f7354dde2b8cc07685af724061dfd22b030d743432db89d1fd9f1421a971a8',
 }
 
+# Exact PR-58 stock canon before verified Fact, People, and Decision guidance.
+VERIFIABLE_MEMORY_PREVIOUS_INSTRUCTIONS = {
+    'AGENTS.md': '85d4a54f27f70375b1b6be63d5a1b283e0a605490c121ac4b8d3c1b4712065d1',
+}
+
 def _digest(content: bytes) -> str:
     return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
@@ -163,6 +168,7 @@ def known_instruction(relative: str, content: bytes) -> bool:
         TASK_FIRST_PREVIOUS_INSTRUCTIONS, ECONOMY_PREVIOUS_INSTRUCTIONS,
         LEARNED_PREVIOUS_INSTRUCTIONS, CARDS_PREVIOUS_INSTRUCTIONS, QUIET_PREVIOUS_INSTRUCTIONS,
         EXPLICIT_MEMORY_PREVIOUS_INSTRUCTIONS,
+        VERIFIABLE_MEMORY_PREVIOUS_INSTRUCTIONS,
     )}
 
 
