@@ -24,6 +24,25 @@ profile, selected overlays and seeded records have no actual change; it retains
 exact preimage validation and required credential-redaction evidence. `apparatus recall` remains the separate Library
 retrieval command; this change does not silently mix its results with Memory.
 
+## Save a verified Memory record
+
+In a saving task, an explicit request selects one record kind: use `add-fact`
+for a durable fact, `add-person` for a person or organization, and
+`add-decision` for a decision. Supply the relevant title or name and the body
+using either `--body` or `--from-file`. Decisions require a nonblank title and
+body and a valid `--date YYYY-MM-DD`. A People record may include `--role`.
+Facts retain a source in the body when known. A Decision body states the
+decision and reason, with alternatives or source when known. The assistant must
+not invent any of those details or capture unrelated conversation content.
+
+After successful publication each command prints `Memory record saved.` followed
+by `Record: PATH`, where PATH is the writer-returned work-area-relative path
+with `/` separators. Verify that exact returned path before reporting the save.
+Suppression or failure prints no locator and claims no record. In a no-save task,
+new Facts, People, Decisions, and content-bearing corrections remain suppressed;
+the request's project work, current reads, outdated marking, and forgetting stay
+available under the task retention contract.
+
 ## Correct, mark outdated, or forget
 
 Use a workspace-relative record path below `Memory/Facts/`, `Memory/People/`,

@@ -76,6 +76,13 @@ def register(subparsers: Any) -> None:
     _body_arguments(person)
     person.set_defaults(func=run, memory_action="add-person")
 
+    decision = actions.add_parser("add-decision", help="save one decision in Memory")
+    decision.add_argument("workspace", metavar="WORKSPACE")
+    decision.add_argument("--title", required=True, metavar="TEXT")
+    decision.add_argument("--date", required=True, metavar="YYYY-MM-DD")
+    _body_arguments(decision)
+    decision.set_defaults(func=run, memory_action="add-decision")
+
     sweep = actions.add_parser(
         "label", help="refresh labels in existing Memory records"
     )
@@ -142,13 +149,11 @@ def _body(args: argparse.Namespace) -> str:
         raise MemoryCommandError("provide exactly one of --body or --from-file")
     if inline is not None:
         return str(inline)
-    source = Path(str(source_value))
-    if _is_reparse_path(source):
-        raise MemoryCommandError("input file must not be a symbolic link")
-    if not source.is_file():
-        raise MemoryCommandError("input file is not a regular file")
+    source = Path(os.path.abspath(str(source_value)))
     try:
-        return source.read_bytes().decode("utf-8", errors="strict")
+        with _WorkspaceAnchor(source.parent) as input_anchor:
+            raw, _identity_value = input_anchor.read_file(source.name)
+        return raw.decode("utf-8", errors="strict")
     except (OSError, UnicodeError) as error:
         raise MemoryCommandError(
             "input file must be readable strict UTF-8 text"
@@ -329,7 +334,7 @@ def _new_record(
             "schema": records.SCHEMAS["fact"].schema_id,
             "title": cleaned["title"],
         }
-    else:
+    elif kind == "person":
         relative_folder = "Memory/People"
         filename_value = cleaned["name"]
         frontmatter = {
@@ -340,8 +345,25 @@ def _new_record(
             frontmatter["role"] = cleaned["role"]
         if "organization" in cleaned:
             frontmatter["organization"] = cleaned["organization"]
+    elif kind == "decision":
+        relative_folder = "Memory/Decisions"
+        filename_value = cleaned["title"]
+        frontmatter = {
+            "schema": records.SCHEMAS["decision"].schema_id,
+            "title": cleaned["title"],
+            "date": cleaned["date"],
+        }
+    else:
+        raise MemoryCommandError("unsupported Memory record kind")
     frontmatter = refresh_frontmatter_labels(frontmatter, labels)
-    anchor.require_directory(relative_folder)
+    try:
+        anchor.require_directory(relative_folder)
+    except OSError as error:
+        if kind == "decision":
+            raise MemoryCommandError(
+                "Memory/Decisions is missing or unsafe; repair the work area before retrying"
+            ) from error
+        raise
     stem = _slug(filename_value)
     for collision in range(1, 1_000_000):
         name = _candidate_name(stem, collision)
@@ -368,6 +390,10 @@ def _new_record(
                     _receipt_fields(findings),
                 )
                 owned_receipt.commit()
+            if not anchor.matches_owned(owned_record):
+                raise MemoryCommandError(
+                    "Memory record changed before publication completed"
+                )
         except Exception as operation_error:
             cleanup_failed = False
             if owned_receipt is not None:
@@ -688,7 +714,7 @@ def _run_anchored(
 ) -> int:
     context = context_for(anchor.workspace)
     action = getattr(args, "memory_action", None)
-    if action in {"add-fact", "add-person", "correct"}:
+    if action in {"add-fact", "add-person", "add-decision", "correct"}:
         context.require_memory_write()
     mode = _privacy_mode(anchor) if context.legacy else "standard"
     if action == "recall":
@@ -731,12 +757,36 @@ def _run_anchored(
             mode=mode,
             write=write,
         )
+    elif action == "add-decision":
+        title = str(args.title)
+        if not title.strip():
+            raise MemoryCommandError("--title must not be empty")
+        date = str(args.date)
+        try:
+            parsed_date = dt.date.fromisoformat(date)
+        except ValueError as error:
+            raise MemoryCommandError("--date must be a valid YYYY-MM-DD date") from error
+        if parsed_date.isoformat() != date:
+            raise MemoryCommandError("--date must be a valid YYYY-MM-DD date")
+        if not body.strip():
+            raise MemoryCommandError("Decision body must not be empty")
+        result = _new_record(
+            anchor,
+            kind="decision",
+            metadata={"title": title, "date": date},
+            body=body,
+            mode=mode,
+            write=write,
+        )
     else:
-        raise MemoryCommandError("choose add-fact, add-person, or label")
+        raise MemoryCommandError(
+            "choose add-fact, add-person, add-decision, recall, or label"
+        )
     if result is None:
         return 1
-    _target, findings, _labels = result
+    target, findings, _labels = result
     print("Memory record saved.")
+    print(f"Record: {target.as_posix()}")
     if findings:
         total = sum(finding.count for finding in findings)
         classes = ", ".join(finding.credential_class for finding in findings)
