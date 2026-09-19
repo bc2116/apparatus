@@ -8,6 +8,21 @@ are [publicly available](https://github.com/bc2116/apparatus/releases/tag/v0.0.2
 nor corporate Windows deployment approval. Held PR24 evidence stays attached to
 its original payload.
 
+
+## September 18 native discovery probe
+
+The [bounded native discovery record](evidence/native-discovery-2026-09-18/run.json)
+uses baseline `6ee463d`, independently of PR-58, with synthetic fixtures.
+
+| Native variant | Observed result | Limits |
+| --- | --- | --- |
+| Cursor IDE 3.21.13, Luna Medium, macOS 27.0 ARM64 | Qualified named-root invocation reached the canonical body and saved its marker; all original files stayed unchanged. The collision case also preserved every custom Skill. | Root prompt arrived incrementally; bound relevance and unrelated-task cases stopped on an unavailable product executable. Collision precedence and automatic discovery remain unverified. |
+| Codex desktop | Unavailable: native computer control rejects access to its own app. | No desktop case, CLI substitute, or support claim. |
+
+All four Cursor cases and their exact limitations are retained. Future native
+probes need an explicit built product runtime before freezing inputs. These
+results do not justify an adapter yet; retain the ordinary-file fallback.
+
 ## Version 0.0.2 release acceptance
 
 The immutable `v0.0.2` tag resolves to

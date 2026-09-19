@@ -1,0 +1,10 @@
+Create `root-witness-note.md` from `root-task-source.md`. Keep it concise,
+separate confirmed work from scheduled work, and cite the source with a
+relative Markdown link. Preserve all existing files. Use the displayed
+`apparatus-native-discovery-witness` Skill for this task. This is a synthetic,
+no-save test: do not save Memory, create learned Skills, or make automatic
+cards or activity notes. Work only in this locally opened work area. If an
+Apparatus task control is needed, continue only with task `<ROOT_NO_SAVE_TASK_ID>`
+for work area `<FIXTURE_ROOT>/workarea`. Use one assistant; do not use
+subagents, web, MCP, external model CLIs, or user/global Skills. Stop and
+report any native permission or tool denial without trying to bypass it.
