@@ -21,6 +21,11 @@ were deliberately refreshed; conformance assertions were retained. Final local
 validation passed: 1403 tests, 38 platform skips; payload build passed. The
 Windows CI selection explicitly includes both new test files.
 
+The first Linux CI run caught a stale exact Windows-selector baseline after
+those two selections were added. The baseline now includes both new files while
+retaining exact equality and the original scoped exclusion. Focused workflow
+validation passed after this correction; the subsequent CI run gates delivery.
+
 No Astra workers, AI CLI delegation, model API, or release publication
 was used. Source changes, synthetic evidence, exact migration fixtures and the
 bounded next-build prompts are the deliverables. Remaining native-platform gaps

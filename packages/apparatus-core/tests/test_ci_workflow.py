@@ -27,6 +27,7 @@ packages/apparatus-core/tests/test_library_index_sources.py
 packages/apparatus-core/tests/test_render.py
 packages/apparatus-core/tests/test_instruction_updates.py
 packages/apparatus-core/tests/test_explicit_memory_capture.py
+packages/apparatus-core/tests/test_pr58_memory_guidance.py
 packages/apparatus-core/tests/test_learned_skills.py
 packages/apparatus-core/tests/test_skills.py
 packages/apparatus-core/tests/test_skill_migration.py
@@ -39,6 +40,7 @@ conformance/test_r6_guidance.py
 packages/apparatus-core/tests/test_memory_lifecycle.py
 packages/apparatus-core/tests/test_task_retention.py
 packages/apparatus-core/tests/test_memory_profile_retention.py
+packages/apparatus-core/tests/test_verifiable_memory_saves.py
 packages/apparatus-core/tests/test_library_retention.py
 packages/apparatus-core/tests/test_receipt_retention.py
 packages/apparatus-core/tests/test_snapshot_retention.py
