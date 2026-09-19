@@ -1,0 +1,88 @@
+{
+  "schema": "apparatus/certification-evidence@v0",
+  "evidence_id": "resume-2026-09-18",
+  "captured_at": "2026-09-18",
+  "timezone": "America/Los_Angeles",
+  "overall_result": "pass",
+  "build_identity": "build-identity.json",
+  "app": {
+    "name": "Cursor IDE",
+    "version": "3.21.13",
+    "model": "GPT-5.6 Luna",
+    "reasoning": "Medium",
+    "fast": false,
+    "macOS": "27.0",
+    "architecture": "arm64"
+  },
+  "prompt_delivery": "Each normalized prompt was delivered intact as one message in a separate New Agent conversation; no task retry or follow-up reminder.",
+  "saving": {
+    "observed_local_time": "23:41",
+    "prompt": "prompts/1-saving-goal-update.txt",
+    "before": "hashes/before-saving.json",
+    "after": "hashes/after-saving.json",
+    "outcome": "Saved a readiness note, updated the existing goal next action, created a sourced current Fact, registered the brief, saved a grounded card and a managed snapshot. Unknown venue and duration remained unresolved."
+  },
+  "continuation": {
+    "observed_local_time": "23:44",
+    "prompt": "prompts/2-fresh-no-save-continuation.txt",
+    "before": "hashes/before-nosave.json",
+    "after": "hashes/after-nosave.json",
+    "delta": "hashes/nosave-delta.json",
+    "native_command": "EXECUTABLE resume WORKAREA",
+    "command_result": "partial: current goal and one available source; snapshot unavailable",
+    "outcome": "Used the updated next action and current source evidence to produce a cited preliminary handout. No obsolete venue or unrelated rehearsal content was used.",
+    "baseline_files": 132,
+    "changed_files": [],
+    "removed_files": [],
+    "added_files": [
+      "workarea/project/facilitator-handout.md"
+    ],
+    "directory_changes": [],
+    "human_reminders": 0
+  },
+  "configuration": {
+    "runtime": "Isolated built core wheel; launcher sets APPARATUS_HOME outside the work area.",
+    "git_absent": "Fresh chat launcher removes Git only from the product process PATH; host and native app PATH are unchanged.",
+    "task_controls": "Existing save/no-save tasks were created before their respective hash baselines.",
+    "native_context": "An independently bound project was opened. The assistant resolved its linked work area and invoked resume with that direct work-area path."
+  },
+  "gaps": [
+    "One Cursor IDE configuration and one synthetic task pair; no broad app support or provider trace claim.",
+    "Native resume command used the resolved work-area path, so native CLI project-dispatch behavior is not established by this chat; deterministic tests cover that route.",
+    "Git absence and cache location were declared test configurations, not default-install evidence.",
+    "The output is a useful preliminary scaffold; venue, duration and detailed exercise instructions still need author input.",
+    "Other apps, Windows native conversations, release installers and publication were not exercised."
+  ],
+  "validation": {
+    "source_review": "Independent Sol review found no source defect; missing required safety tests were added and independently re-reviewed.",
+    "focused_resume": "55 passed, 3 native Windows cases skipped on macOS; current Windows CI remains required.",
+    "full_suite": "1462 passed, 41 skipped in 544.88s; uv run pytest",
+    "windows_checkout_repair": "First Windows run found golden shim CRLF checkout drift; .gitattributes pins those byte-contract fixtures to LF without changing fixture content or weakening assertions."
+  },
+  "artifact_hashes": {
+    "build-identity.json": "8a52bb44127692f788309875bdb7c3989a6cbca82121693ad75d7d4879a7ff66",
+    "hashes/after-nosave.json": "f040bc08a05e1f90d19195e174d02d5ec3027b6d1da2e5403c9bc27cc1b32137",
+    "hashes/after-saving.json": "f6f6c4eaaefab1ab722b3ef99c48fb7587641a2af8cf6b49724af2aae5915a2f",
+    "hashes/before-nosave.json": "61c4f777fc97314a75c4a79b06fc445c1386b6db9a2d7c50a4c2458c717dbf6f",
+    "hashes/before-saving.json": "846c6dc07df92f75dfee6cbea2271169c00af2468e58613992941a7d9f3f1cd7",
+    "hashes/nosave-delta.json": "d520db9309c796b55f278afa6e8b6081a064c8ad98be268dcdfe39caa8373b3e",
+    "inputs/workarea/Goals/prepare-lantern-workshop.md": "1562b369a05d7aed7f86a61fe28124757176effd8984d857d90217d82507080f",
+    "inputs/workarea/Memory/Facts/retired-lantern-venue-proposal.md": "c83c0a97f17a43fb4e9ffe7bf67d5e8405b6ba737af8da8d0583865d0a45fbd2",
+    "inputs/workarea/Memory/Facts/unrelated-rehearsal-note.md": "3c6858782d507e02d66b130087c68c7fa6be08cf2dae9d695487bdd8e2c422be",
+    "inputs/workarea/project/brief.md": "c1b7bfc9897fabcbe70c7df8b5336fc9b3215294bacd65387e7cbcc02cf47618",
+    "inputs/workarea/project/sentinel.txt": "54215430558230117e6cd7a1608826a3bc96e7ef25da390701bd2694070511a8",
+    "observation.md": "29d6035ce8be491f034713ae8ddb64adafc03f6876457df0c0b2a357eae4d4c6",
+    "prompts/1-saving-goal-update.txt": "3cc544c7fc9196a3227823b2f1dd902bb48b1ebf8ce8d46b08752efba583100f",
+    "prompts/2-fresh-no-save-continuation.txt": "b421b917144fdeabef2dd1f15903d8e191a7176d78e128e04a0d7a3a6514361d",
+    "results/no-save/project/brief.md": "c1b7bfc9897fabcbe70c7df8b5336fc9b3215294bacd65387e7cbcc02cf47618",
+    "results/no-save/project/facilitator-handout.md": "eea82b0edbb80d72d8c05b3bafff22096d0368986139f136b47423b7935d48f1",
+    "results/no-save/project/readiness-note.md": "e8586bfc8d936d8c9cdf30aa2a2728ad43117a301d79f07e8d45535970b0788e",
+    "results/saving/Goals/prepare-lantern-workshop.md": "378d9074ff3a4ecf9a4584a52931d70deac4cbb9f5f7373053d91c410a8ecadb",
+    "results/saving/Memory/Facts/lantern-workshop-attendance-limit.md": "ca76f189016877fabb7315a46b644db91adcd52655ca0b397f63127e4666c078",
+    "results/saving/System/library/cards/24e752f8e65f0b8ae6173648081a5d8234af1f750caedb35af4088c7a2437e5d.yaml": "45c5f0fba1a289542cef1140939cb8a2c1db532b601c3de1319eeffcc96f0359",
+    "results/saving/System/library/sources/24e752f8e65f0b8ae6173648081a5d8234af1f750caedb35af4088c7a2437e5d.yaml": "8a90300f2d02160513bb9d5eddf6a00f195491a3e9be2fe2a24a8168eeba5002",
+    "results/saving/project/brief.md": "c1b7bfc9897fabcbe70c7df8b5336fc9b3215294bacd65387e7cbcc02cf47618",
+    "results/saving/project/readiness-note.md": "e8586bfc8d936d8c9cdf30aa2a2728ad43117a301d79f07e8d45535970b0788e",
+    "review.md": "f9771b98aad158415c6d904ffced4a07df36480ff6f58d06dddb02ccb989396f"
+  }
+}

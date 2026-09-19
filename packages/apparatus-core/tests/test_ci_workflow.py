@@ -28,6 +28,7 @@ packages/apparatus-core/tests/test_render.py
 packages/apparatus-core/tests/test_instruction_updates.py
 packages/apparatus-core/tests/test_explicit_memory_capture.py
 packages/apparatus-core/tests/test_pr58_memory_guidance.py
+packages/apparatus-core/tests/test_pr60_resume_guidance.py
 packages/apparatus-core/tests/test_learned_skills.py
 packages/apparatus-core/tests/test_skills.py
 packages/apparatus-core/tests/test_skill_migration.py
@@ -47,6 +48,7 @@ packages/apparatus-core/tests/test_snapshot_retention.py
 packages/apparatus-core/tests/test_workspace_layout.py
 packages/apparatus-core/tests/test_workarea_adoption.py
 packages/apparatus-core/tests/test_project_binding.py
+packages/apparatus-core/tests/test_resume.py
 packages/apparatus-core/tests/test_decision_memory.py
 packages/apparatus-core/tests/test_managed_state_recovery.py
 packages/apparatus-core/tests/test_managed_state_backup.py

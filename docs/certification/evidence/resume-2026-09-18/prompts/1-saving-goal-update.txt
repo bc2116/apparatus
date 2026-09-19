@@ -1,0 +1,14 @@
+Please review the Lantern workshop brief in `<PROJECT>` and save a short
+`readiness-note.md` explaining whether we have enough information to draft the
+facilitator handout. Keep unresolved details visible and use relative Markdown
+links for sources. Bring the existing
+workshop goal up to date with the useful next action after this review.
+Remember the current attendance limit with its source, and add `brief.md` to
+the Library so we can use it when we return.
+
+This is a saving task. Use `<EXECUTABLE>` with existing task `<TASK>` and the
+linked work area `<WORKAREA>` when an Apparatus command is needed. Follow the
+project instructions. Preserve other existing files. Work only in this synthetic
+project and its explicitly linked work area. Do not use subagents, web, MCP,
+external model CLIs, or user/global Skills. Report any native permission or tool
+denial without trying to bypass it.

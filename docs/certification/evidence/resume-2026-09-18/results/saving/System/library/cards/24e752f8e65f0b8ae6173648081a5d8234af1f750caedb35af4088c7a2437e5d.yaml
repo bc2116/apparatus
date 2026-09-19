@@ -1,0 +1,14 @@
+schema: apparatus/library-card@v0
+source: project/brief.md
+summary: The Lantern workshop brief states that the room accommodates 14 people, printed
+  handouts are needed because the projector is unreliable, and the venue and total
+  duration remain undecided.
+topics:
+- attendance limit
+- printed handouts
+- projector reliability
+- venue unresolved
+- duration unresolved
+source_sha256: c1b7bfc9897fabcbe70c7df8b5336fc9b3215294bacd65387e7cbcc02cf47618
+text_sha256: c1b7bfc9897fabcbe70c7df8b5336fc9b3215294bacd65387e7cbcc02cf47618
+extractor_version: '1'

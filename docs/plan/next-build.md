@@ -1,6 +1,6 @@
 # Next build: dependable everyday work
 
-- **Status:** Execution preparation; N2 and N1 prompts are cut. Later slices
+- **Status:** N2, N1 and N3 landed. Later slices
   remain outlines until their dependencies and early-use evidence are available.
 - **Date:** 2026-09-13
 - **Readiness review:** 2026-09-18; baseline remains `6ee463d`.
@@ -67,7 +67,7 @@ this review does not turn them into permanent exclusions.
 |---|---|---|
 | N1. Observe Skill discovery — [PR-59](PR-59-native-skill-discovery-evidence.md) | Establish what works from an actual project before choosing adapters. | Existing baseline; can run beside N2. |
 | N2. Make Memory saves verifiable — [PR-58](PR-58-verifiable-memory-saves.md) | Ordinary remember/save requests produce a confirmed Fact or Decision. | Existing baseline; first implementation. |
-| N3. Show current saved context | A fresh conversation can assemble a useful resume brief, including without Git. | Existing baseline; integrate with N2. |
+| N3. Show current saved context — [PR-60](PR-60-resume-brief.md) | A fresh conversation can assemble a useful resume brief, including without Git. | Existing baseline; integrate with N2. |
 | N4. Relink a moved Library original | Point an existing selection at its new location while preserving trustworthy source context. | Existing baseline; prioritize after the early-use trial. |
 | N5. Add only the discovery support needed | Relevant Skills are available through tested adapters and the canonical file fallback. | N1 evidence. |
 | N6. Verify the combined experience | Demonstrate the retained improvements on one integrated build and prepare accurate release evidence. | Retained N2–N5 slices, with scope deferrals and native gaps explicit. |

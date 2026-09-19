@@ -1,0 +1,13 @@
+Please pick up where we left off preparing the Lantern workshop in `<PROJECT>`.
+Use the saved context to carry out the current next action and save a useful
+`facilitator-handout.md` in this project. Cite the evidence you use with relative Markdown links and leave any
+missing details unresolved.
+
+This is a fresh, no-save continuation. Use only existing task `<TASK>` with
+`<EXECUTABLE>` and the explicitly linked work area `<WORKAREA>` when an Apparatus
+command is needed. Follow the project instructions. Preserve existing files.
+Do not save new Memory, edit a goal, add Library material or cards, create a
+learned Skill, snapshot, receipt, or activity note. Work only in this synthetic
+project and its explicitly linked work area. Do not use subagents, web, MCP,
+external model CLIs, or user/global Skills. Report any native permission or tool
+denial without trying to bypass it.

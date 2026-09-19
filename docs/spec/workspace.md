@@ -148,8 +148,8 @@ with residual project enrollment is a repair error, never silent legacy fallback
 
 ## Context selection
 
-For `backup`, `doctor`, `library`, `memory`, `profile`, `recall`, `snapshot`,
-`restore`, and all `task` actions, the CLI resolves the supplied root's exact
+For `backup`, `doctor`, `library`, `memory`, `profile`, `recall`, `resume`,
+`snapshot`, `restore`, and all `task` actions, the CLI resolves the supplied root's exact
 binding when present. Resolution precedes task-context enforcement, with or without
 `--task`. No binding means the supplied root itself, subject to its ordinary
 validation. A selected root is frozen for that invocation: a later link edit cannot
@@ -165,6 +165,23 @@ handlers own project selection. Special handlers reuse the context selected by
 the CLI, so rebinding between selection and execution fails before another area's
 engine is called. Init still rejects a project selected at invocation entry if
 its link subsequently disappears.
+
+## Read-only resume brief
+
+`apparatus resume WORKSPACE` reads one explicitly selected work area and reports
+active or waiting Goals, selected-source availability, and the latest snapshot.
+It accepts a direct work area or the exact work area from a validated project
+binding. The brief does not infer project ownership or task history, read source
+content, create a receipt, repair state, initialize Git, or write any workspace
+file. A no-save task may use the brief because it creates no managed content.
+
+Goals and selected sources are sorted and capped at 20 displayed entries per
+section with an exact remaining count. Any unsafe or invalid Goals collection is
+reported unavailable as a whole. Source availability describes only whether the
+registered original can currently be read safely; it is not evidence of extraction,
+indexing, card freshness, citation support, or unchanged content. An unavailable
+section produces a partial brief while preserving readable sections. A changed
+retained root or project context invalidates the whole result before output.
 
 ## Canon, app pointers, render and check
 
