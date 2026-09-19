@@ -24,3 +24,9 @@ preservation tests. CI retains its exact selector equality and scoped exclusion.
 Independent evidence review verified all artifact and source hashes, exact prompt
 normalization, the immutable no-save baseline, portable links and bounded claims.
 No unresolved finding remained.
+
+The first Windows learned-Skills CI run exposed a checkout-policy gap: golden
+shim fixtures used CRLF while the raw-byte payload contract uses LF. Pinning
+`conformance/golden/shims/*` to LF in `.gitattributes` preserves the exact-byte
+assertion and all fixture contents. The payload and native-tested source did
+not change. The subsequent current-head CI remains the merge gate.

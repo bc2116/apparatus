@@ -56,7 +56,8 @@
   "validation": {
     "source_review": "Independent Sol review found no source defect; missing required safety tests were added and independently re-reviewed.",
     "focused_resume": "55 passed, 3 native Windows cases skipped on macOS; current Windows CI remains required.",
-    "full_suite": "1462 passed, 41 skipped in 544.88s; uv run pytest"
+    "full_suite": "1462 passed, 41 skipped in 544.88s; uv run pytest",
+    "windows_checkout_repair": "First Windows run found golden shim CRLF checkout drift; .gitattributes pins those byte-contract fixtures to LF without changing fixture content or weakening assertions."
   },
   "artifact_hashes": {
     "build-identity.json": "8a52bb44127692f788309875bdb7c3989a6cbca82121693ad75d7d4879a7ff66",
@@ -82,6 +83,6 @@
     "results/saving/System/library/sources/24e752f8e65f0b8ae6173648081a5d8234af1f750caedb35af4088c7a2437e5d.yaml": "8a90300f2d02160513bb9d5eddf6a00f195491a3e9be2fe2a24a8168eeba5002",
     "results/saving/project/brief.md": "c1b7bfc9897fabcbe70c7df8b5336fc9b3215294bacd65387e7cbcc02cf47618",
     "results/saving/project/readiness-note.md": "e8586bfc8d936d8c9cdf30aa2a2728ad43117a301d79f07e8d45535970b0788e",
-    "review.md": "e385ee3f20d1d1f38be78a01a1dd47153775c93021a6e1dbaf34768c74c84fdf"
+    "review.md": "f9771b98aad158415c6d904ffced4a07df36480ff6f58d06dddb02ccb989396f"
   }
 }
