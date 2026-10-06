@@ -1,0 +1,77 @@
+schema: apparatus/mailbox-survey@v1
+action: none
+scope:
+  source: sample
+  description: Eight supplied fictional messages dated 2026-09-03 through 2026-09-10; no live mailbox queried.
+  coverage: sample
+inventory:
+  total: 8
+  reviewed: 8
+  unavailable: 0
+  skipped: 0
+  unassessed: 0
+items:
+  - id: msg-001
+    source: sample-mailbox.yaml#msg-001
+    summary: Order ZX-1042 is confirmed for $18.00; a carrier label is not yet reported as created.
+  - id: msg-002
+    source: sample-mailbox.yaml#msg-002
+    summary: Tracking for order ZX-1042 reports delivery at the front desk.
+  - id: msg-003
+    source: sample-mailbox.yaml#msg-003
+    summary: Public September reading list with an editor's note.
+  - id: msg-004
+    source: sample-mailbox.yaml#msg-004
+    summary: A friend asks to confirm a Sunday lunch and offers to bring bread.
+  - id: msg-005
+    source: sample-mailbox.yaml#msg-005
+    summary: Teammate says Project Cedar draft is ready for review, with focus on its timeline.
+  - id: msg-006
+    source: sample-mailbox.yaml#msg-006
+    summary: Digest of new music releases selected by an editorial team.
+  - id: msg-007
+    source: sample-mailbox.yaml#msg-007
+    summary: Account notice reports settings were updated; the excerpt gives no detail about which settings.
+  - id: msg-008
+    source: sample-mailbox.yaml#msg-008
+    summary: Appointment is next week, but its day and type are unspecified.
+categories:
+  - id: purchase-receipt
+    name: Purchase or receipt
+    description: Order confirmations or purchase records with transaction details.
+    examples:
+      - msg-001
+  - id: delivery
+    name: Delivery
+    description: Shipment or delivery status for an order.
+    examples:
+      - msg-002
+  - id: newsletter
+    name: Newsletter or digest
+    description: Editorial reading or listening selections.
+    examples:
+      - msg-003
+      - msg-006
+  - id: personal-correspondence
+    name: Personal correspondence
+    description: Direct personal coordination or conversation.
+    examples:
+      - msg-004
+  - id: work-project
+    name: Work or project
+    description: Team communication about a named project or work product.
+    examples:
+      - msg-005
+  - id: account-notice
+    name: Account notice
+    description: Notice of an account change or status update.
+    examples:
+      - msg-007
+uncategorized:
+  - msg-008
+coverage_gaps:
+  - This report covers only the eight supplied synthetic sample messages; it does not represent mailbox-wide coverage.
+  - No attachments or context outside the supplied excerpts were available for review.
+next_steps:
+  - No mailbox action was taken; categories are advisory proposals only.
+  - Confirm the appointment details from an authorized source before assigning a more specific category.

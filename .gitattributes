@@ -10,6 +10,7 @@ conformance/golden/shims/* text eol=lf
 # Preserve exact captured evidence bytes, including their recorded line endings.
 docs/certification/evidence/integrated-next-build-2026-09-19/** -text
 docs/certification/evidence/mailbox-survey-2026-10-06/** -text
+docs/certification/evidence/mailbox-module-install-2026-10-06/** -text
 packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/resources/** text eol=lf
 
 # Native wrapper builds embed or execute these exact tracked bytes. Pin each

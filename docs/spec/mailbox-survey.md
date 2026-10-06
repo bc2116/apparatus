@@ -39,6 +39,16 @@ durable deployed version, or qualify automatic AI-app discovery; the assistant
 can read the deployed Skill explicitly. Samples and example reports remain
 package resources and are not deployed into the work area.
 
+Deployment uses retained core filesystem and layout primitives. Its POSIX
+anchor supplies a bounded, nonblocking reader for enrollment, verification and
+cleanup, without changing the shared core package or patching global methods.
+These internal interfaces were qualified against released core 0.0.2; repeat
+that check before widening compatibility. Windows retains core's handle and
+sharing protections. Work-area paths must pass the physical-directory boundary;
+commands do not resolve symlink aliases automatically. See the
+[installation acceptance](../certification/mailbox-module-install-2026-10-06.md)
+for tested paths and remaining qualification limits.
+
 ## Report v1
 
 A requested project deliverable is UTF-8 YAML with exactly the following fields.
