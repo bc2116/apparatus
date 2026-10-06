@@ -29,6 +29,7 @@ packages/apparatus-core/tests/test_instruction_updates.py
 packages/apparatus-core/tests/test_explicit_memory_capture.py
 packages/apparatus-core/tests/test_pr58_memory_guidance.py
 packages/apparatus-core/tests/test_pr60_resume_guidance.py
+packages/apparatus-mailbox-survey/tests
 packages/apparatus-core/tests/test_learned_skills.py
 packages/apparatus-core/tests/test_skills.py
 packages/apparatus-core/tests/test_skill_migration.py
