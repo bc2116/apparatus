@@ -1,9 +1,43 @@
 # Mailbox Survey prototype
 
 The optional `apparatus-mailbox-survey` package provides an editable portable
-Skill and a read-only validator. It does not fetch mail, call a model, modify
-mailboxes or deploy itself into a work area. The current assistant produces
-the requested report using authorized sources. See [ADR-0007](../adr/ADR-0007-optional-mailbox-module.md).
+Skill and a read-only validator. It does not fetch mail, call a model, or modify
+mailboxes. Explicit lifecycle commands can deploy only the packaged Skill assets
+to an enrolled work area; they do not install automatically. The current
+assistant produces the requested report using authorized sources. See [ADR-0007](../adr/ADR-0007-optional-mailbox-module.md).
+
+## Optional module installation
+
+The separate package can validate reports without Apparatus Core. Its optional
+`lifecycle` dependency supplies compatible Core support for deployment. After
+the package is separately released, an installation may request
+`pip install 'apparatus-mailbox-survey[lifecycle]'`; this documents the extra,
+not current public availability of version 0.1.1.
+
+The commands are `python -m apparatus_mailbox_survey status WORKAREA`,
+`install WORKAREA`, and `repair WORKAREA`. Use an explicitly enrolled work-area
+root; a bound-project root is rejected. Status is read-only and reports package
+identity/version, each fixed Skill asset's missing/current/modified state, and
+an absent/current/partial/conflict aggregate. The package version is not a
+persistent deployed-version record.
+
+Install and repair are idempotent, create-only operations. They validate all
+packaged and destination assets before publishing. Exact packaged bytes remain
+untouched; missing files can be created. Modified, foreign, malformed, linked,
+or unsafe occupants cause a conflict or failure before writes. Preserve user
+changes and unrelated files. On publication failure, cleanup is limited to exact
+files and directories created by that invocation; concurrent substitutions
+remain preserved. The two owned candidates are the Skill body and its
+`references/report-format.md` companion under
+`.agents/skills/apparatus-mailbox-survey/`.
+
+These commands create generic shipped guidance only. They do not create task
+data, source archives, Memory, Library entries, ownership markers, snapshots, or
+receipts, and are permitted under no-save. The module files are outside core
+managed recovery. This slice does not update or remove deployed files, record a
+durable deployed version, or qualify automatic AI-app discovery; the assistant
+can read the deployed Skill explicitly. Samples and example reports remain
+package resources and are not deployed into the work area.
 
 ## Report v1
 

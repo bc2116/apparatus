@@ -1,0 +1,298 @@
+"""Explicit, create-only deployment of the released Mailbox Survey Skill."""
+
+from contextlib import ExitStack
+from importlib import resources
+import os
+from pathlib import Path
+import stat
+from types import SimpleNamespace
+
+from . import __version__
+
+PACKAGE_ID = "apparatus-mailbox-survey"
+SKILL_ROOT = ".agents/skills/apparatus-mailbox-survey"
+ASSETS = {
+    f"{SKILL_ROOT}/SKILL.md": "skills/apparatus-mailbox-survey/SKILL.md",
+    f"{SKILL_ROOT}/references/report-format.md": "skills/apparatus-mailbox-survey/references/report-format.md",
+}
+MAX_ASSET_BYTES = 1024 * 1024
+
+
+class DeploymentError(ValueError):
+    """A fixed, content-free explanation and command exit status."""
+
+    def __init__(self, message, code=2):
+        super().__init__(message)
+        self.code = code
+
+
+def _core():
+    """Load lifecycle-only dependencies; validation never reaches this function."""
+    try:
+        from apparatus_core.fs_transactions import WorkspaceAnchor, PosixIdentity
+        from apparatus_core.skills import validate_skill
+        from apparatus_core.workspace_layout import ManagedLayout, _parse, _root_identity
+    except ImportError as error:
+        raise DeploymentError(
+            "Lifecycle commands require the lifecycle extra with compatible apparatus-core; install it explicitly."
+        ) from error
+    anchor_type = WorkspaceAnchor
+    if os.name == "posix":
+        class BoundedAnchor(WorkspaceAnchor):
+            @staticmethod
+            def _read_at(parent, name):
+                # Core's reads, ownership checks and compensation dispatch
+                # through this hook. No base anchor or global patch is used.
+                descriptor = os.open(name, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW, dir_fd=parent)
+                try:
+                    before = os.fstat(descriptor)
+                    if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_ASSET_BYTES:
+                        raise OSError("Asset is unsafe or oversized")
+                    chunks = []
+                    remaining = MAX_ASSET_BYTES + 1
+                    while remaining:
+                        chunk = os.read(descriptor, min(65_536, remaining))
+                        if not chunk:
+                            break
+                        chunks.append(chunk)
+                        remaining -= len(chunk)
+                    after = os.fstat(descriptor)
+                    identity = PosixIdentity(after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                    initial = PosixIdentity(before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+                    content = b"".join(chunks)
+                    if identity != initial or len(content) != after.st_size or len(content) > MAX_ASSET_BYTES:
+                        raise OSError("Asset changed or exceeded the read limit")
+                    return content, identity
+                finally:
+                    os.close(descriptor)
+        anchor_type = BoundedAnchor
+    return SimpleNamespace(anchor=anchor_type, child=_anchor_child,
+                           validate_skill=validate_skill, layout=ManagedLayout,
+                           parse_layout=_parse, root_identity=_root_identity)
+
+
+def _anchor_child(parent, parent_path, name):
+    """Create/select one child, retaining the same reader adapter at handoff."""
+    owned = None
+    child = None
+    handle = None
+    try:
+        try:
+            owned = parent.create_directory(name)
+        except FileExistsError:
+            pass
+        handle = parent.open_directory(name, shares_delete=owned is not None)
+        child = type(parent)(parent_path / name,
+                             ancestor_shares_delete=parent.child_ancestor_shares_delete(),
+                             root_shares_delete=owned is not None)
+        if not child.matches_root_handle(handle) or not child.root_is_current() or not parent.root_is_current():
+            raise OSError("Child changed during retained handoff")
+        parent.close_directory(handle)
+        handle = None
+        return child, owned, owned is not None
+    except Exception as failure:
+        if handle is not None:
+            parent.close_directory(handle)
+        if child is not None:
+            child.close()
+        if owned is not None:
+            try:
+                parent.remove_owned_directory(owned)
+            except Exception as cleanup:
+                raise OSError("Child handoff cleanup is incomplete") from cleanup
+            finally:
+                owned.close()
+        raise failure
+
+
+def _sources(core):
+    root = resources.files("apparatus_mailbox_survey").joinpath("resources")
+    result = {destination: root.joinpath(*source.split("/")).read_bytes()
+              for destination, source in ASSETS.items()}
+    if any(not content or len(content) > MAX_ASSET_BYTES for content in result.values()):
+        raise DeploymentError("Packaged assets are invalid; reinstall the released module package.")
+    if core.validate_skill(result[f"{SKILL_ROOT}/SKILL.md"], PACKAGE_ID):
+        raise DeploymentError("Packaged Skill is invalid; reinstall the released module package.")
+    for content in result.values():
+        content.decode("utf-8", errors="strict")
+    return result
+
+
+def _existing_child(core, parent, name):
+    """Retain an existing immediate directory without creating anything."""
+    handle = parent.open_directory(name)
+    child = None
+    try:
+        child = core.anchor(parent.workspace / name,
+                            ancestor_shares_delete=parent.child_ancestor_shares_delete())
+        if not child.matches_root_handle(handle) or not parent.root_is_current() or not child.root_is_current():
+            raise OSError("Directory changed during handoff")
+        return child
+    except Exception:
+        if child is not None:
+            child.close()
+        raise
+    finally:
+        parent.close_directory(handle)
+
+
+def _capture(parent, name):
+    """Reject nonregular, linked and oversized endpoints before reading."""
+    if os.name == "posix":
+        status = os.stat(name, dir_fd=parent._root, follow_symlinks=False)
+    else:
+        status = os.lstat(parent.workspace / name)
+    if (not stat.S_ISREG(status.st_mode)
+            or getattr(status, "st_file_attributes", 0) & 0x400
+            or status.st_size > MAX_ASSET_BYTES):
+        raise OSError("Asset is unsafe or oversized")
+    return parent.capture_file(name, publication_compatible=True)
+
+
+def _summary(states):
+    values = set(states.values())
+    aggregate = ("conflict" if "modified" in values else "current" if values == {"current"}
+                 else "absent" if values == {"missing"} else "partial")
+    return {"package": PACKAGE_ID, "version": __version__, "state": aggregate, "assets": states}
+
+
+def operate(workarea: str | Path, action: str = "status") -> dict:
+    """Inspect or create only exact missing released assets in an enrolled root.
+
+    Existing files are never overwritten or removed. Cleanup on a failed
+    publication applies only to exact invocation-owned objects. This creates
+    generic released guidance, independent of task retention or provider access.
+    """
+    if action not in {"status", "install", "repair"}:
+        raise DeploymentError("Choose status, install, or repair with an explicit enrolled work-area root.")
+    core = _core()
+    parents = {}
+    reads = []
+    writes = []
+    directories = []
+    missing_parents = set()
+    states = {}
+    try:
+        sources = _sources(core)
+        root_path = Path(os.path.abspath(os.fspath(workarea)))
+        with ExitStack() as stack:
+            root = stack.enter_context(core.anchor(root_path))
+            parents[Path(".")] = root
+            if root.entry_exists(".apparatus"):
+                raise DeploymentError("Use the explicitly enrolled work-area root, not a bound project.")
+            system = _existing_child(core, root, "System")
+            parents[Path("System")] = system
+            stack.callback(system.close)
+            enrollment = _capture(system, "workspace.yaml")
+            reads.append((system, enrollment))
+            stack.callback(enrollment.close)
+            # Require the fixed marker and reuse core's parser/identity/layout
+            # validator with this invocation's safe retained root reader.
+            layout = core.layout(root_path, core.parse_layout(enrollment.content), enrollment.content,
+                                 enrollment.identity, core.root_identity(root))
+            layout.validate(root)
+
+            def validate():
+                layout.validate(root)
+                if root.entry_exists(".apparatus"):
+                    raise OSError("Project control appeared during deployment")
+                if any(not parent.root_is_current() for parent in parents.values()):
+                    raise OSError("Retained parent changed")
+                if any(not parent.matches_owned(proof) for parent, proof in reads + writes):
+                    raise OSError("Retained asset changed")
+                for relative in missing_parents:
+                    if relative.parent in parents and parents[relative.parent].entry_exists(relative.name):
+                        raise OSError("Missing directory became occupied")
+                for destination, state in states.items():
+                    relative = Path(destination)
+                    if state == "missing" and relative.parent in parents and parents[relative.parent].entry_exists(relative.name):
+                        raise OSError("Missing destination became occupied")
+
+            # Read-only preflight of every fixed directory and asset.
+            for destination, expected in sources.items():
+                relative = Path(destination)
+                current = Path(".")
+                for component in relative.parts[:-1]:
+                    following = current / component
+                    if following not in parents and following not in missing_parents:
+                        if current in parents:
+                            try:
+                                child = _existing_child(core, parents[current], component)
+                            except FileNotFoundError:
+                                missing_parents.add(following)
+                            else:
+                                parents[following] = child
+                                stack.callback(child.close)
+                        else:
+                            missing_parents.add(following)
+                    current = following
+                if current not in parents:
+                    states[destination] = "missing"
+                else:
+                    try:
+                        proof = _capture(parents[current], relative.name)
+                    except FileNotFoundError:
+                        states[destination] = "missing"
+                    else:
+                        reads.append((parents[current], proof))
+                        stack.callback(proof.close)
+                        states[destination] = "current" if proof.content == expected else "modified"
+            validate()
+            result = _summary(dict(states))
+            if action == "status":
+                return result
+            if result["state"] == "conflict":
+                raise DeploymentError("Module assets are modified or foreign; preserve them and resolve the conflict before repair.", 1)
+
+            try:
+                # No creation occurs until the complete preflight above succeeds.
+                for relative in sorted(missing_parents, key=lambda value: (len(value.parts), value.as_posix())):
+                    validate()
+                    parent = parents[relative.parent]
+                    child, owned, _ = core.child(parent, parent.workspace, relative.name)
+                    parents[relative] = child
+                    stack.callback(child.close)
+                    if owned is not None:
+                        directories.append((parent, owned, child))
+                        stack.callback(owned.close)
+                    else:
+                        raise OSError("Missing directory changed during publication")
+                    missing_parents.remove(relative)
+                    validate()
+                for destination, expected in sources.items():
+                    if states[destination] == "current":
+                        continue
+                    validate()
+                    relative = Path(destination)
+                    parent = parents[relative.parent]
+                    proof = parent.create_file(relative.name, expected)
+                    writes.append((parent, proof))
+                    stack.callback(proof.close)
+                    states[destination] = "current"
+                    validate()
+                validate()
+                return _summary(dict(states))
+            except Exception as failure:
+                incomplete = False
+                for parent, proof in reversed(writes):
+                    try:
+                        parent.unlink_owned_if_present(proof)
+                    except Exception:
+                        incomplete = True
+                    finally:
+                        proof.close()
+                for parent, owned, child in reversed(directories):
+                    child.close()
+                    try:
+                        parent.remove_owned_directory(owned)
+                    except Exception:
+                        incomplete = True
+                    finally:
+                        owned.close()
+                message = ("Deployment failed; concurrent or changed files were preserved and cleanup is incomplete. Inspect the work area before retrying."
+                           if incomplete else "Deployment failed; cleanup was limited to unchanged invocation-owned creations. Inspect the work area before retrying.")
+                raise DeploymentError(message) from failure
+    except DeploymentError:
+        raise
+    except Exception as error:
+        raise DeploymentError("Work-area enrollment, assets, or directory boundaries are unsafe or unavailable; preserve files and repair the work area.") from error

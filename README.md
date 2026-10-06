@@ -92,15 +92,18 @@ Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
 [refactor sequence](docs/plan/rework-sequence.md), and
 [development status](docs/plan/README.md).
 
-## Optional module prototype
+## Optional Mailbox Survey module
 
 [Mailbox Survey](packages/apparatus-mailbox-survey/README.md) is a separate
 development package with a portable Skill, synthetic sample and read-only
 category-report validator. It helps the assistant propose useful categories
 with evidence and coverage limits. It does not acquire messages, call models,
-change mailboxes or install its Skill into your work area. The
-[module sequence](docs/plan/module-sequence.md) tracks installation and update
-work separately; the core installer and seven built-in Skills are unchanged.
+change mailboxes. With its optional lifecycle dependency, explicit commands
+inspect deployment and create missing Skill assets in an enrolled work area.
+Any edited asset is preserved and blocks repair until its conflict is resolved.
+Update and removal remain
+in the [module sequence](docs/plan/module-sequence.md); the core installer and
+seven built-in Skills are unchanged. No new package release is claimed.
 
 ## Repository layout
 
