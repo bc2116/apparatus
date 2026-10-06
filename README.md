@@ -92,11 +92,22 @@ Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
 [refactor sequence](docs/plan/rework-sequence.md), and
 [development status](docs/plan/README.md).
 
+## Optional module prototype
+
+[Mailbox Survey](packages/apparatus-mailbox-survey/README.md) is a separate
+development package with a portable Skill, synthetic sample and read-only
+category-report validator. It helps the assistant propose useful categories
+with evidence and coverage limits. It does not acquire messages, call models,
+change mailboxes or install its Skill into your work area. The
+[module sequence](docs/plan/module-sequence.md) tracks installation and update
+work separately; the core installer and seven built-in Skills are unchanged.
+
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
 | `packages/apparatus-core/` | CLI, file validation, Memory, Library, recovery, and embedded payload |
+| `packages/apparatus-mailbox-survey/` | Optional Mailbox Survey prototype and report validator |
 | `starter/` | Canonical workspace payload and current profile overlays |
 | `conformance/` | Fixtures and tests pinning implemented behavior |
 | `docs/` | Design, ADRs, implementation specs, and focused PR plans |

@@ -1,8 +1,9 @@
 # Apparatus Design Brief
 
-- **Status:** v0.2 — approved target, not completed implementation
-- **Date:** 2026-09-05
-- **Authority:** [ADR-0006](../adr/ADR-0006-lean-workspace-and-skills.md),
+- **Status:** v0.3 — approved target, not completed implementation
+- **Date:** 2026-10-06
+- **Authority:** [ADR-0007](../adr/ADR-0007-optional-mailbox-module.md) for the
+  first optional module, [ADR-0006](../adr/ADR-0006-lean-workspace-and-skills.md),
   with its preserved provisions of ADR-0001 through ADR-0005
 
 ## 1. Purpose and audience
@@ -195,6 +196,7 @@ Current implementation constraints remain until deliberately changed:
 
 | Capability | Decision |
 |---|---|
+| Mailbox Survey | First optional module: portable Skill and read-only category report. Native authorized connectors are optional; explicitly supplied samples are the fallback. Lifecycle and installed integration follow focused prompts. |
 | Day Journal | Later optional module for broader activity collection and journaling, separate from core history and requested weekly review. |
 | Personal voice learning | Later module/Skill from approved writing samples; ordinary tone preferences already fit Memory. |
 | Cloud Library | Later module for multi-machine access and shared multiuser/team libraries. |
@@ -204,9 +206,13 @@ Current implementation constraints remain until deliberately changed:
 | Cross-CLI orchestration | Later advanced consideration, outside core and this refactor. |
 | Per-install model benchmarking | Excluded; reviewed guidance comes from centralized development. |
 
-Module interfaces should be reusable by other products. Existing extension
-mechanisms are sufficient for planning. Do not build a catalog, marketplace,
-licensing tiers, or a speculative module platform before a real module.
+Module interfaces should be reusable by other products. Mailbox Survey is the
+first concrete consumer for a minimal module contract under ADR-0007. Its
+prototype is separate from the core payload, with no acquisition, model API or
+mailbox action path. Report validation establishes structure, not evidence
+truth or quality. Keep installation, ownership, user-edit preservation and
+recovery claims explicit in their implementation slices. Do not build a catalog,
+marketplace, licensing tiers or a general module platform around this prototype.
 
 ## 8. Delivery and acceptance
 
