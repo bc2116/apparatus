@@ -87,6 +87,13 @@ def _anchor_child(parent, parent_path, name):
                              root_shares_delete=owned is not None)
         if not child.matches_root_handle(handle) or not child.root_is_current() or not parent.root_is_current():
             raise OSError("Child changed during retained handoff")
+        if owned is not None:
+            current = child._root_identity
+            actual = current if os.name == "posix" else (current.volume, current.index)
+            expected = ((owned.device, owned.inode) if os.name == "posix"
+                        else (owned.identity.volume, owned.identity.index))
+            if actual != expected:
+                raise OSError("Created directory was substituted before handoff")
         parent.close_directory(handle)
         handle = None
         return child, owned, owned is not None

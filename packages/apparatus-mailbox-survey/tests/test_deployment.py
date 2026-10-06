@@ -487,3 +487,26 @@ def test_root_substitution_preserves_foreign_root_and_compensates_detached_asset
     assert tree(area) == {"foreign": b"Foreign root content"}
     assert not (detached / ".agents").exists()
     assert (detached / "System/workspace.yaml").is_file()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Windows retains directory ownership handles")
+def test_created_directory_substitution_before_handoff_never_receives_assets(area, monkeypatch):
+    original = WorkspaceAnchor.create_directory
+    leaf = area / deploy.SKILL_ROOT
+    detached = leaf.with_name("detached-created-directory")
+
+    def substitute(self, name, *args, **kwargs):
+        proof = original(self, name, *args, **kwargs)
+        if str(name) == "apparatus-mailbox-survey":
+            leaf.rename(detached)
+            leaf.mkdir()
+            (leaf / "foreign").write_bytes(b"Concurrent foreign directory")
+        return proof
+
+    monkeypatch.setattr(WorkspaceAnchor, "create_directory", substitute)
+    with pytest.raises(deploy.DeploymentError) as failure:
+        deploy.operate(area, "install")
+    assert failure.value.code == 2
+    assert "cleanup is incomplete" in str(failure.value)
+    assert tree(leaf) == {"foreign": b"Concurrent foreign directory"}
+    assert not list(detached.iterdir())
