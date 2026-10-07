@@ -16,6 +16,11 @@ ASSETS = {
     f"{SKILL_ROOT}/references/report-format.md": "skills/apparatus-mailbox-survey/references/report-format.md",
 }
 MAX_ASSET_BYTES = 1024 * 1024
+PARTIAL_INSTALL_GUIDANCE = (
+    "Installation may be partial. Inspect with status; use repair only when "
+    "remaining assets match the package. Review and preserve conflicting edits. "
+    "Do not use the Skill until status reports current."
+)
 
 
 class DeploymentError(ValueError):
@@ -29,7 +34,7 @@ class DeploymentError(ValueError):
 def _core():
     """Load lifecycle-only dependencies; validation never reaches this function."""
     try:
-        from apparatus_core.fs_transactions import WorkspaceAnchor, PosixIdentity
+        from apparatus_core.fs_transactions import WorkspaceAnchor, PosixIdentity, PosixOwnedFile, PosixOwnedDirectory
         from apparatus_core.skills import validate_skill
         from apparatus_core.workspace_layout import ManagedLayout, _parse, _root_identity
     except ImportError as error:
@@ -51,8 +56,74 @@ def _core():
     if os.name == "posix":
         class BoundedAnchor(LifecycleAnchor):
             @staticmethod
+            def _write_at(parent, name, content, mode):
+                # Exclusive creation can leave partial bytes on failure. Never
+                # remove by pathname after a separate identity/content check.
+                descriptor = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                                     mode, dir_fd=parent)
+                try:
+                    view = memoryview(content)
+                    written = 0
+                    while written < len(view):
+                        count = os.write(descriptor, view[written:])
+                        if count <= 0:
+                            raise OSError("Asset write did not complete")
+                        written += count
+                    os.fsync(descriptor)
+                    status = os.fstat(descriptor)
+                    return PosixIdentity(status.st_dev, status.st_ino, status.st_size, status.st_mtime_ns)
+                finally:
+                    os.close(descriptor)
+
+            def create_file(self, relative, content, mode=0o600, *, owned_parent=None):
+                if not self.root_is_current():
+                    raise OSError("Workspace root changed")
+                parent, name = self._parent(relative)
+                try:
+                    if not self._parent_is_current(Path(relative), parent):
+                        raise OSError("Asset parent changed")
+                    if owned_parent is not None:
+                        status = os.fstat(parent)
+                        if (Path(relative).parent != owned_parent.relative
+                                or owned_parent.parent < 0
+                                or not self._parent_is_current(owned_parent.relative, owned_parent.parent)
+                                or (status.st_dev, status.st_ino) != (owned_parent.device, owned_parent.inode)):
+                            raise OSError("Owned asset parent changed")
+                    identity = self._write_at(parent, name, content, mode)
+                    if (not self._parent_is_current(Path(relative), parent)
+                            or not self._matches(parent, name, identity, content)):
+                        raise OSError("Asset or parent changed during creation")
+                    return PosixOwnedFile(Path(relative), parent, name, identity, content)
+                except Exception:
+                    # The created object may have moved or acquired an editor.
+                    # Preserve all bytes; only release this retained descriptor.
+                    os.close(parent)
+                    raise
+
+            def create_directory(self, relative):
+                if not self.root_is_current():
+                    raise OSError("Workspace root changed")
+                parent, name = self._parent(relative)
+                try:
+                    if not self._parent_is_current(Path(relative), parent):
+                        raise OSError("Directory parent changed")
+                    os.mkdir(name, 0o700, dir_fd=parent)
+                    descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+                    try:
+                        status = os.fstat(descriptor)
+                    finally:
+                        os.close(descriptor)
+                    if not self._parent_is_current(Path(relative), parent):
+                        raise OSError("Directory parent changed during creation")
+                    return PosixOwnedDirectory(Path(relative), parent, name, status.st_dev, status.st_ino)
+                except Exception:
+                    # Missing or detached directories remain for inspection.
+                    os.close(parent)
+                    raise
+
+            @staticmethod
             def _read_at(parent, name):
-                # Core's reads, ownership checks and compensation dispatch
+                # Core's reads and ownership checks dispatch
                 # through this hook. No base anchor or global patch is used.
                 descriptor = os.open(name, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW, dir_fd=parent)
                 try:
@@ -114,12 +185,7 @@ def _anchor_child(parent, parent_path, name):
         if child is not None:
             child.close()
         if owned is not None:
-            try:
-                parent.remove_owned_directory(owned)
-            except Exception as cleanup:
-                raise OSError("Child handoff cleanup is incomplete") from cleanup
-            finally:
-                owned.close()
+            owned.close()
         raise failure
 
 
@@ -177,8 +243,8 @@ def _summary(states):
 def operate(workarea: str | Path, action: str = "status") -> dict:
     """Inspect or create only exact missing released assets in an enrolled root.
 
-    Existing files are never overwritten or removed. Cleanup on a failed
-    publication applies only to exact invocation-owned objects. This creates
+    Existing files are never overwritten or removed. Failed publication leaves
+    partial files and directories in place for inspection. This creates
     generic released guidance, independent of task retention or provider access.
     """
     if action not in {"status", "install", "repair"}:
@@ -187,7 +253,6 @@ def operate(workarea: str | Path, action: str = "status") -> dict:
     parents = {}
     reads = []
     writes = []
-    directories = []
     missing_parents = set()
     states = {}
     try:
@@ -271,7 +336,6 @@ def operate(workarea: str | Path, action: str = "status") -> dict:
                     parents[relative] = child
                     stack.callback(child.close)
                     if owned is not None:
-                        directories.append((parent, owned, child))
                         stack.callback(owned.close)
                     else:
                         raise OSError("Missing directory changed during publication")
@@ -291,25 +355,10 @@ def operate(workarea: str | Path, action: str = "status") -> dict:
                 validate()
                 return _summary(dict(states))
             except Exception as failure:
-                incomplete = False
-                for parent, proof in reversed(writes):
-                    try:
-                        parent.unlink_owned_if_present(proof)
-                    except Exception:
-                        incomplete = True
-                    finally:
-                        proof.close()
-                for parent, owned, child in reversed(directories):
-                    child.close()
-                    try:
-                        parent.remove_owned_directory(owned)
-                    except Exception:
-                        incomplete = True
-                    finally:
-                        owned.close()
-                message = ("Deployment failed; concurrent or changed files were preserved and cleanup is incomplete. Inspect the work area before retrying."
-                           if incomplete else "Deployment failed; cleanup was limited to unchanged invocation-owned creations. Inspect the work area before retrying.")
-                raise DeploymentError(message) from failure
+                # ExitStack releases every retained file/directory proof. Do
+                # not remove even unchanged creations: pathname deletion has
+                # a substitution window after its last identity check.
+                raise DeploymentError(PARTIAL_INSTALL_GUIDANCE) from failure
     except DeploymentError:
         raise
     except Exception as error:
