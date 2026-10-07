@@ -10,6 +10,7 @@ delivery evidence; synthetic success is not live mailbox qualification.
 | [PR-63](PR-63-mailbox-module-prototype.md) | Separate portable Skill, supplied-sample exercise, strict read-only report validator and module boundary. | Executable prompt; status is in the plan index. |
 | [PR-64](PR-64-mailbox-module-install.md) | Optional lifecycle dependency and explicit status/install/repair commands. Create only missing exact packaged Skill assets in an enrolled work area; preserve conflicts and unrelated files. | Executable prompt; create-only deployment, not a full lifecycle. |
 | [PR-66](PR-66-module-failure-preservation.md) | Preserve partial installations after failures, including low-level POSIX write and directory handoff errors. | Hardening prerequisite; supersedes the earlier compensation contract. |
+| [PR-67](PR-67-mailbox-report-summary.md) | Read a concise summary of an existing report's coverage, categories and gaps. | Read-only value from the existing report contract; no mailbox access or Core dependency. |
 | Release recognition and update | Recognize exact historical asset content, report matching versions without asserting an installed-version record, and conditionally replace reviewed older bytes. | Next focused slice; requires all-destination preflight and explicit mixed-state/interruption behavior. |
 | Removal | Define safe withdrawal, retained edits and unresolved discoverable files. | Separate slice; check-then-pathname deletion is not sufficient on POSIX. |
 | Installed integration | Prove package resources, core upgrade/repair preservation, user flow and one actually tested input path. | Separate slice after lifecycle behavior is defined. Automatic app discovery remains unqualified. |
@@ -38,6 +39,9 @@ package versions. Unknown content must block the entire operation before any
 write. Define conditional replacement, Windows proof sharing, partial progress,
 retained backup handling and safe compensation before cutting the prompt; a
 successful synthetic trial alone cannot establish every interruption boundary.
+The shipped Skill resources are currently identical across module versions.
+Cut update implementation alongside the first deliberate guidance revision so
+the lifecycle work delivers a real content change.
 
 Defer catalog UI, marketplace, arbitrary remote plugin loading, billing tiers,
 scheduling and model routing. Automatic discovery remains unverified; the

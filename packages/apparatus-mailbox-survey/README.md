@@ -1,7 +1,7 @@
 # Apparatus Mailbox Survey
 
 This separately packaged module provides a portable Skill and a read-only
-validator for requested, evidence-based mailbox category reports. It can use an
+validator and summary for requested, evidence-based mailbox category reports. It can use an
 explicitly supplied sample when an authorized native mailbox reader is
 unavailable. It does not connect to a mailbox, acquire credentials, call a
 model, or change mail.
@@ -13,13 +13,27 @@ core package and the deployed Skill are separate. The module is not covered by
 core managed recovery, and automatic discovery by an AI app has not been
 verified. The assistant can read the deployed Skill explicitly.
 
-## Validate a report
+## Validate or summarize a report
 
-Validation does not require Apparatus Core. From this development workspace run:
+Report validation and summaries do not require Apparatus Core. From this development workspace run:
 
 ```sh
 uv run --package apparatus-mailbox-survey python -m apparatus_mailbox_survey validate REPORT.yaml
+uv run --package apparatus-mailbox-survey python -m apparatus_mailbox_survey summary REPORT.yaml
 ```
+
+`summary` reads an existing report and prints its declared scope and coverage,
+inventory, category example counts, uncategorized count and coverage gaps.
+Categories can overlap; their counts are reviewed examples, not mailbox-wide
+totals. Unknown totals remain unknown. The summary reflects report claims and
+does not verify evidence, authority or actual coverage.
+
+Invalid reports produce validation findings without a partial summary. The
+command leaves the report unchanged, excludes individual message details and
+proposed actions, and shows at most 20 categories and 20 gaps. Long display
+strings stop at 240 characters with a truncation marker; omitted entries are
+counted. Control characters are escaped. Review the original report when more
+detail is needed.
 
 After the module is separately released and available from the configured
 package index, install the lifecycle extra to use its deployment commands:
@@ -29,9 +43,9 @@ pip install 'apparatus-mailbox-survey[lifecycle]'
 ```
 
 This is an installation instruction for a future released package; it does not
-claim that version 0.1.2 is currently published. The `lifecycle` extra supplies
+claim that version 0.1.3 is currently published. The `lifecycle` extra supplies
 the compatible Apparatus Core dependency required for deployment. Without it,
-standalone report validation remains available, while `status`, `install`, and
+standalone report validation and summaries remain available, while `status`, `install`, and
 `repair` report the missing lifecycle dependency.
 
 ## Inspect and deploy the Skill
