@@ -144,6 +144,7 @@ later slices remain planned.
 | 62 | [Verify integrated source-build readiness](PR-62-integrated-readiness.md) | Next build N6 | ✅ landed | 58, 59, 60, 61 |
 | 63 | [Establish a Mailbox Survey module prototype](PR-63-mailbox-module-prototype.md) | Modules | ✅ landed | 62 |
 | 64 | [Install and repair the Mailbox Survey Skill](PR-64-mailbox-module-install.md) | Modules | ✅ landed | 63 |
+| 65 | [Require the patched PDF dependency](PR-65-pdf-security-floor.md) | Maintenance | ✅ landed | 64 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
