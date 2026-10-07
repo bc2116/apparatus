@@ -15,8 +15,8 @@
   },
   "sample_sha256": "9059d55896361280879444e5dde95a1f1faad50ce99ec24a271a1eedd5de47f3",
   "platform": "macOS POSIX",
-  "python": "3.12",
-  "implementation_commit": "711c944",
-  "wheel_sha256": "8b33f4e65120d413bb80dc334733b7548f3432c2ce06c736dc185816d70abe61",
+  "python": "3.12.4",
+  "implementation_commit": "5cfd714ca1ab8f413a28206f20b86533a7246c73",
+  "wheel_sha256": "63577b1d0cb2805636f91db3aa09f7bddb38d25acaa2daf442d075336a7dae2d",
   "validation_scope": "Local isolated wheel with published core, synthetic work area and explicit native Skill read; not automatic discovery or live mailbox qualification."
 }
