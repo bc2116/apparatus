@@ -1,6 +1,7 @@
 """Read-only report validation command."""
 
 import os
+import json
 import stat
 import sys
 
@@ -9,9 +10,18 @@ from .report import MAX_BYTES, validate_report
 
 def main(argv=None):
     args = sys.argv[1:] if argv is None else argv
-    if len(args) != 2 or args[0] != "validate":
-        print("Usage: apparatus-mailbox-survey validate PATH", file=sys.stderr)
+    if len(args) != 2 or args[0] not in {"validate", "status", "install", "repair"}:
+        print("Usage: apparatus-mailbox-survey validate REPORT | status WORKAREA | install WORKAREA | repair WORKAREA", file=sys.stderr)
         return 2
+    if args[0] != "validate":
+        from .deployment import DeploymentError, operate
+        try:
+            result = operate(args[1], args[0])
+        except DeploymentError as error:
+            print(f"module: {error}", file=sys.stderr)
+            return error.code
+        print(json.dumps(result))
+        return 0
     descriptor = None
     try:
         descriptor = os.open(args[1], os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0))

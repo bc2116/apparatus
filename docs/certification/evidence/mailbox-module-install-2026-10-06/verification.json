@@ -1,0 +1,22 @@
+{
+  "core": "0.0.2",
+  "module": "0.1.1",
+  "checks": [
+    "absent-status",
+    "install",
+    "idempotence",
+    "missing-reference-repair",
+    "released-core-init-preservation",
+    "edited-conflict-no-partial-write"
+  ],
+  "asset_sha256": {
+    ".agents/skills/apparatus-mailbox-survey/SKILL.md": "503d534ef301667716023960984483d152760e7f70ac029fcc8ae33ff95ef266",
+    ".agents/skills/apparatus-mailbox-survey/references/report-format.md": "555e6036b38b774cc8e30ea1844c60cd58668f59ff08e31e8315be25c67e80f3"
+  },
+  "sample_sha256": "9059d55896361280879444e5dde95a1f1faad50ce99ec24a271a1eedd5de47f3",
+  "platform": "macOS POSIX",
+  "python": "3.12.4",
+  "implementation_commit": "5cfd714ca1ab8f413a28206f20b86533a7246c73",
+  "wheel_sha256": "63577b1d0cb2805636f91db3aa09f7bddb38d25acaa2daf442d075336a7dae2d",
+  "validation_scope": "Local isolated wheel with published core, synthetic work area and explicit native Skill read; not automatic discovery or live mailbox qualification."
+}

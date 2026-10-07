@@ -22,9 +22,13 @@ def resources():
 
 def test_metadata_and_independent_dependencies():
     metadata = importlib.metadata.metadata("apparatus-mailbox-survey")
-    assert metadata["Version"] == __version__ == "0.1.0"
+    assert metadata["Version"] == __version__ == "0.1.1"
     assert metadata["Requires-Python"] == ">=3.10"
-    assert importlib.metadata.requires("apparatus-mailbox-survey") == ["pyyaml>=6.0"]
+    requirements = importlib.metadata.requires("apparatus-mailbox-survey")
+    assert [entry for entry in requirements if ";" not in entry] == ["pyyaml>=6.0"]
+    assert metadata.get_all("Provides-Extra") == ["lifecycle"]
+    assert any("apparatus-core<0.1,>=0.0.2" in entry and 'extra == "lifecycle"' in entry.replace("'", '"')
+               for entry in requirements)
 
 
 def test_resources_are_available_and_example_valid():

@@ -2,9 +2,10 @@
 
 **First optional module:** [PR-63](PR-63-mailbox-module-prototype.md) establishes
 the separate Mailbox Survey Skill/report prototype and its source-level
-validation. The [module sequence](module-sequence.md) keeps lifecycle and
-installed integration distinct. No mailbox access, native discovery or new
-public release follows from the prototype.
+validation. [PR-64](PR-64-mailbox-module-install.md) adds explicit deployment
+status and create-only installation/repair. The [module sequence](module-sequence.md)
+keeps update/removal and installed integration distinct. No mailbox access,
+native discovery or new public release follows from these slices.
 
 Executable work is pre-cut into focused PRs with self-contained prompts.
 The [approved rework sequence](rework-sequence.md) also contains explicitly
@@ -142,6 +143,7 @@ later slices remain planned.
 | 61 | [Accept safe backup path aliases](PR-61-backup-path-aliases.md) | Next build spare repair | ✅ landed | 60 |
 | 62 | [Verify integrated source-build readiness](PR-62-integrated-readiness.md) | Next build N6 | ✅ landed | 58, 59, 60, 61 |
 | 63 | [Establish a Mailbox Survey module prototype](PR-63-mailbox-module-prototype.md) | Modules | ✅ landed | 62 |
+| 64 | [Install and repair the Mailbox Survey Skill](PR-64-mailbox-module-install.md) | Modules | ✅ landed | 63 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

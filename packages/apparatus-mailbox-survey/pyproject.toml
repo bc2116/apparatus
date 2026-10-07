@@ -1,11 +1,17 @@
 [project]
 name = "apparatus-mailbox-survey"
-version = "0.1.0"
+version = "0.1.1"
 description = "Portable Mailbox Survey Skill and read-only report validator."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+lifecycle = ["apparatus-core>=0.0.2,<0.1"]
+
+[tool.uv.sources]
+apparatus-core = { workspace = true }
 
 [project.scripts]
 apparatus-mailbox-survey = "apparatus_mailbox_survey.__main__:main"
