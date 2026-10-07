@@ -12,7 +12,7 @@ The separate package can validate reports without Apparatus Core. Its optional
 `lifecycle` dependency supplies compatible Core support for deployment. After
 the package is separately released, an installation may request
 `pip install 'apparatus-mailbox-survey[lifecycle]'`; this documents the extra,
-not current public availability of version 0.1.1.
+not current public availability of version 0.1.2.
 
 The commands are `python -m apparatus_mailbox_survey status WORKAREA`,
 `install WORKAREA`, and `repair WORKAREA`. Use an explicitly enrolled work-area
@@ -25,9 +25,13 @@ Install and repair are idempotent, create-only operations. They validate all
 packaged and destination assets before publishing. Exact packaged bytes remain
 untouched; missing files can be created. Modified, foreign, malformed, linked,
 or unsafe occupants cause a conflict or failure before writes. Preserve user
-changes and unrelated files. On publication failure, cleanup is limited to exact
-files and directories created by that invocation; concurrent substitutions
-remain preserved. The two owned candidates are the Skill body and its
+changes and unrelated files. After publication failure, close retained resources
+and preserve partial files and directories. Report that installation may be
+partial: inspect with `status`, use `repair` only when remaining assets match
+the package, and review and preserve conflicting edits. Do not use the Skill
+until status reports `current`; an incomplete body could remain discoverable.
+There is no atomic pair publication or rollback guarantee. The two owned
+candidates are the Skill body and its
 `references/report-format.md` companion under
 `.agents/skills/apparatus-mailbox-survey/`.
 
@@ -40,14 +44,22 @@ can read the deployed Skill explicitly. Samples and example reports remain
 package resources and are not deployed into the work area.
 
 Deployment uses retained core filesystem and layout primitives. Its POSIX
-anchor supplies a bounded, nonblocking reader for enrollment, verification and
-cleanup, without changing the shared core package or patching global methods.
+anchor supplies bounded, nonblocking readers and exclusive descriptor-relative
+creation for enrollment and assets, without changing the shared core package or
+patching global methods. Its write, file-creation, directory-creation and child
+handoff failure paths close resources without pathname deletion. Partial bytes
+from short writes, sync errors or detached parents remain for inspection; exact
+partial installations can be repaired, while conflicting bytes block all writes.
 These internal interfaces were qualified against released core 0.0.2; repeat
 that check before widening compatibility. Windows retains core's handle and
-sharing protections. Work-area paths must pass the physical-directory boundary;
+sharing protections for low-level failures; module-level failures preserve
+partial state on both platforms. Work-area paths must pass the physical-directory boundary;
 commands do not resolve symlink aliases automatically. See the
 [installation acceptance](../certification/mailbox-module-install-2026-10-06.md)
-for tested paths and remaining qualification limits.
+for historical tested paths and remaining qualification limits. Module 0.1.2
+supersedes that earlier acceptance's failed-publication cleanup behavior with
+preservation-first failure handling. Safe update/removal and process-interruption
+recovery still require their own contracts.
 
 ## Report v1
 

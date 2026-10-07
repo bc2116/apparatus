@@ -26,6 +26,13 @@ def area(tmp_path):
     return root
 
 
+def creation_anchor(monkeypatch):
+    """Patch this operation's adapter, including POSIX creation overrides."""
+    core = deploy._core()
+    monkeypatch.setattr(deploy, "_core", lambda: core)
+    return core.anchor
+
+
 def assets(root):
     return {relative: (root / relative).read_bytes() for relative in deploy.ASSETS if (root / relative).is_file()}
 
@@ -39,7 +46,7 @@ def test_absent_status_is_readonly(area):
     before = tree(area)
     result = deploy.operate(area)
     assert result["package"] == "apparatus-mailbox-survey"
-    assert result["version"] == "0.1.1"
+    assert result["version"] == "0.1.2"
     assert result["state"] == "absent"
     assert set(result["assets"].values()) == {"missing"}
     assert tree(area) == before
@@ -184,9 +191,10 @@ def test_fifo_final_asset_rejected_without_blocking(area):
     assert not (path.parent / "references").exists()
 
 
-def test_injected_file_failure_compensates_own_files_and_directories(area, monkeypatch):
+def test_injected_file_failure_preserves_exact_partial_and_repairs(area, monkeypatch):
     before = tree(area)
-    original = WorkspaceAnchor.create_file
+    anchor = creation_anchor(monkeypatch)
+    original = anchor.create_file
     count = 0
     def fail(self, *args, **kwargs):
         nonlocal count
@@ -194,17 +202,23 @@ def test_injected_file_failure_compensates_own_files_and_directories(area, monke
         if count == 2:
             raise OSError("Injected second file failure")
         return original(self, *args, **kwargs)
-    monkeypatch.setattr(WorkspaceAnchor, "create_file", fail)
+    monkeypatch.setattr(anchor, "create_file", fail)
     with pytest.raises(deploy.DeploymentError) as failure:
         deploy.operate(area, "install")
-    assert "unchanged invocation-owned creations" in str(failure.value)
-    assert tree(area) == before
-    assert not (area / ".agents").exists()
+    assert "Installation may be partial" in str(failure.value)
+    expected = deploy._sources(deploy._core())
+    body = f"{deploy.SKILL_ROOT}/SKILL.md"
+    assert tree(area) == {**before, body: expected[body]}
+    assert (area / f"{deploy.SKILL_ROOT}/references").is_dir()
+    assert deploy.operate(area)["state"] == "partial"
+    monkeypatch.setattr(anchor, "create_file", original)
+    assert deploy.operate(area, "repair")["state"] == "current"
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Windows retains write/name locks")
 def test_concurrent_substitution_preserves_foreign_file_and_reports_incomplete(area, monkeypatch):
-    original = WorkspaceAnchor.create_file
+    anchor = creation_anchor(monkeypatch)
+    original = anchor.create_file
     count = 0
     foreign_path = area / f"{deploy.SKILL_ROOT}/SKILL.md"
     def substitute(self, *args, **kwargs):
@@ -215,26 +229,29 @@ def test_concurrent_substitution_preserves_foreign_file_and_reports_incomplete(a
             foreign_path.write_bytes(b"Concurrent foreign file")
             raise OSError("Injected substitution")
         return original(self, *args, **kwargs)
-    monkeypatch.setattr(WorkspaceAnchor, "create_file", substitute)
+    monkeypatch.setattr(anchor, "create_file", substitute)
     with pytest.raises(deploy.DeploymentError) as failure:
         deploy.operate(area, "install")
     assert failure.value.code == 2
-    assert "cleanup is incomplete" in str(failure.value)
+    assert "Installation may be partial" in str(failure.value)
     assert foreign_path.read_bytes() == b"Concurrent foreign file"
     assert not (foreign_path.parent / "references/report-format.md").exists()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Windows retains enrollment write locks")
-def test_enrollment_edit_during_publication_is_failure_and_compensated(area, monkeypatch):
-    original = WorkspaceAnchor.create_file
+def test_enrollment_edit_during_publication_preserves_partial(area, monkeypatch):
+    anchor = creation_anchor(monkeypatch)
+    original = anchor.create_file
     def change(self, *args, **kwargs):
         proof = original(self, *args, **kwargs)
         (area / "System/workspace.yaml").write_bytes(new_layout_bytes())
         return proof
-    monkeypatch.setattr(WorkspaceAnchor, "create_file", change)
+    monkeypatch.setattr(anchor, "create_file", change)
     with pytest.raises(deploy.DeploymentError):
         deploy.operate(area, "install")
-    assert not (area / ".agents").exists()
+    body = f"{deploy.SKILL_ROOT}/SKILL.md"
+    assert (area / body).read_bytes() == deploy._sources(deploy._core())[body]
+    assert not (area / f"{deploy.SKILL_ROOT}/references/report-format.md").exists()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Windows retains directory name locks")
@@ -336,7 +353,7 @@ def test_enrollment_fifo_rejected_without_blocking(area):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX FIFO substitutions; Windows locks names")
-@pytest.mark.parametrize("stage", ["capture", "validate", "cleanup"])
+@pytest.mark.parametrize("stage", ["capture", "validate", "failure"])
 def test_fifo_substitution_during_operation_is_nonblocking_and_preserved(area, stage):
     if stage == "capture":
         deploy.operate(area, "install")
@@ -345,45 +362,38 @@ import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
-from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_mailbox_survey.__main__ import main
 from apparatus_mailbox_survey import deployment as deployment
 root = Path(sys.argv[1])
 stage = sys.argv[2]
 path = root / deployment.SKILL_ROOT / "SKILL.md"
+core = deployment._core()
+anchor = core.anchor
+deployment._core = lambda: core
 
 def substitute():
     path.unlink()
     os.mkfifo(path)
 
 if stage == "capture":
-    original = WorkspaceAnchor.capture_file
+    original = anchor.capture_file
     def intercept(self, name, *args, **kwargs):
         if str(name) == "SKILL.md":
             substitute()
         return original(self, name, *args, **kwargs)
-    with patch.object(WorkspaceAnchor, "capture_file", intercept):
+    with patch.object(anchor, "capture_file", intercept):
         code = main(["repair", str(root)])
-elif stage == "validate":
-    original = WorkspaceAnchor.create_file
+else:
+    original = anchor.create_file
     def intercept(self, name, *args, **kwargs):
+        if stage == "failure" and str(name) == "report-format.md":
+            substitute()
+            raise OSError("Injected publication failure")
         proof = original(self, name, *args, **kwargs)
-        if str(name) == "SKILL.md":
+        if stage == "validate" and str(name) == "SKILL.md":
             substitute()
         return proof
-    with patch.object(WorkspaceAnchor, "create_file", intercept):
-        code = main(["install", str(root)])
-else:
-    original_create = WorkspaceAnchor.create_file
-    original_cleanup = WorkspaceAnchor.unlink_owned_if_present
-    def fail(self, name, *args, **kwargs):
-        if str(name) == "report-format.md":
-            raise OSError("Injected publication failure")
-        return original_create(self, name, *args, **kwargs)
-    def intercept(self, proof):
-        substitute()
-        return original_cleanup(self, proof)
-    with patch.object(WorkspaceAnchor, "create_file", fail), patch.object(WorkspaceAnchor, "unlink_owned_if_present", intercept):
+    with patch.object(anchor, "create_file", intercept):
         code = main(["install", str(root)])
 assert code == 2
 assert path.exists()
@@ -396,7 +406,7 @@ raise SystemExit(code)
     import stat
     assert stat.S_ISFIFO(path.lstat().st_mode)
     if stage != "capture":
-        assert "cleanup is incomplete" in result.stderr
+        assert "Installation may be partial" in result.stderr
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX bounded reader adapter")
@@ -469,25 +479,27 @@ def test_reader_closes_on_unsafe_type(area, monkeypatch):
 
 @pytest.mark.skipif(os.name != "posix", reason="Windows keeps parent name locks")
 def test_foreign_directory_during_creation_handoff_preserved(area, monkeypatch):
-    original = WorkspaceAnchor.create_directory
+    anchor = creation_anchor(monkeypatch)
+    original = anchor.create_directory
     leaf = area / deploy.SKILL_ROOT
     def foreign(self, name, *args, **kwargs):
         if str(name) == "apparatus-mailbox-survey":
             leaf.mkdir()
             (leaf / "foreign").write_bytes(b"Foreign directory content")
         return original(self, name, *args, **kwargs)
-    monkeypatch.setattr(WorkspaceAnchor, "create_directory", foreign)
+    monkeypatch.setattr(anchor, "create_directory", foreign)
     with pytest.raises(deploy.DeploymentError) as failure:
         deploy.operate(area, "install")
     assert failure.value.code == 2
-    assert "cleanup is incomplete" in str(failure.value)
+    assert "Installation may be partial" in str(failure.value)
     assert (leaf / "foreign").read_bytes() == b"Foreign directory content"
     assert not (leaf / "SKILL.md").exists()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Windows keeps root name locks")
-def test_root_substitution_preserves_foreign_root_and_compensates_detached_assets(area, tmp_path, monkeypatch):
-    original = WorkspaceAnchor.create_file
+def test_root_substitution_preserves_foreign_root_and_detached_assets(area, tmp_path, monkeypatch):
+    anchor = creation_anchor(monkeypatch)
+    original = anchor.create_file
     detached = tmp_path / "detached-area"
     swapped = False
     def foreign(self, *args, **kwargs):
@@ -499,17 +511,19 @@ def test_root_substitution_preserves_foreign_root_and_compensates_detached_asset
             area.mkdir()
             (area / "foreign").write_bytes(b"Foreign root content")
         return proof
-    monkeypatch.setattr(WorkspaceAnchor, "create_file", foreign)
+    monkeypatch.setattr(anchor, "create_file", foreign)
     with pytest.raises(deploy.DeploymentError):
         deploy.operate(area, "install")
     assert tree(area) == {"foreign": b"Foreign root content"}
-    assert not (detached / ".agents").exists()
+    body = f"{deploy.SKILL_ROOT}/SKILL.md"
+    assert (detached / body).read_bytes() == deploy._sources(deploy._core())[body]
     assert (detached / "System/workspace.yaml").is_file()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Windows retains directory ownership handles")
 def test_created_directory_substitution_before_handoff_never_receives_assets(area, monkeypatch):
-    original = WorkspaceAnchor.create_directory
+    anchor = creation_anchor(monkeypatch)
+    original = anchor.create_directory
     leaf = area / deploy.SKILL_ROOT
     detached = leaf.with_name("detached-created-directory")
 
@@ -521,10 +535,157 @@ def test_created_directory_substitution_before_handoff_never_receives_assets(are
             (leaf / "foreign").write_bytes(b"Concurrent foreign directory")
         return proof
 
-    monkeypatch.setattr(WorkspaceAnchor, "create_directory", substitute)
+    monkeypatch.setattr(anchor, "create_directory", substitute)
     with pytest.raises(deploy.DeploymentError) as failure:
         deploy.operate(area, "install")
     assert failure.value.code == 2
-    assert "cleanup is incomplete" in str(failure.value)
+    assert "Installation may be partial" in str(failure.value)
     assert tree(leaf) == {"foreign": b"Concurrent foreign directory"}
     assert not list(detached.iterdir())
+
+
+def test_former_final_unlink_boundary_is_never_reached(area, monkeypatch, capsys):
+    anchor = creation_anchor(monkeypatch)
+    original_create = anchor.create_file
+    original_unlink = os.unlink
+    body = area / deploy.SKILL_ROOT / "SKILL.md"
+    deletions = []
+    def fail(self, name, *args, **kwargs):
+        if str(name) == "report-format.md":
+            raise OSError("Injected second asset failure")
+        return original_create(self, name, *args, **kwargs)
+    def raced_unlink(name, *args, **kwargs):
+        deletions.append(str(name))
+        if str(name) == "SKILL.md":
+            # This recreates the former last-check-to-unlink substitution gap.
+            # The hardened module must never enter this boundary on failure.
+            substitute = body.with_name("foreign.tmp")
+            substitute.write_bytes(b"Concurrent foreign replacement")
+            os.replace(substitute, body)
+        return original_unlink(name, *args, **kwargs)
+    monkeypatch.setattr(anchor, "create_file", fail)
+    monkeypatch.setattr(os, "unlink", raced_unlink)
+    # Preserve core's capability inventory while intercepting the syscall.
+    monkeypatch.setattr(os, "supports_dir_fd", os.supports_dir_fd | {raced_unlink})
+    assert main(["install", str(area)]) == 2
+    assert deletions == []
+    expected = deploy._sources(deploy._core())[f"{deploy.SKILL_ROOT}/SKILL.md"]
+    assert body.read_bytes() == expected
+    output = capsys.readouterr().err
+    assert "Installation may be partial" in output
+    assert "Do not use the Skill until status reports current" in output
+    assert not any(word in output.lower() for word in ("rollback", "cleanup", "atomic"))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Module POSIX write adapter")
+@pytest.mark.parametrize("fault", ["partial-write", "zero-write", "sync"])
+def test_low_level_write_failure_preserves_bytes_and_retry_contract(area, monkeypatch, capsys, fault):
+    creation_anchor(monkeypatch)
+    original_write = os.write
+    original_sync = os.fsync
+    written = False
+    body = area / deploy.SKILL_ROOT / "SKILL.md"
+    expected = deploy._sources(deploy._core())[f"{deploy.SKILL_ROOT}/SKILL.md"]
+    def fail_write(descriptor, content):
+        nonlocal written
+        if fault == "zero-write":
+            return 0
+        if fault == "partial-write":
+            if written:
+                raise OSError("Injected partial write failure")
+            written = True
+            return original_write(descriptor, content[:12])
+        return original_write(descriptor, content)
+    def fail_sync(descriptor):
+        if fault == "sync":
+            raise OSError("Injected sync failure")
+        return original_sync(descriptor)
+    def no_deletion(*args, **kwargs):
+        raise AssertionError("Failed module installation attempted deletion")
+    monkeypatch.setattr(os, "write", fail_write)
+    monkeypatch.setattr(os, "fsync", fail_sync)
+    monkeypatch.setattr(os, "unlink", no_deletion)
+    monkeypatch.setattr(os, "rmdir", no_deletion)
+    monkeypatch.setattr(os, "supports_dir_fd", os.supports_dir_fd | {no_deletion})
+    assert main(["install", str(area)]) == 2
+    assert "Installation may be partial" in capsys.readouterr().err
+    retained = body.read_bytes()
+    assert retained == (expected if fault == "sync" else b"" if fault == "zero-write" else expected[:12])
+    assert (body.parent / "references").is_dir()
+    before = body.stat().st_mtime_ns
+    monkeypatch.setattr(os, "write", original_write)
+    monkeypatch.setattr(os, "fsync", original_sync)
+    if fault == "sync":
+        assert deploy.operate(area)["state"] == "partial"
+        assert main(["repair", str(area)]) == 0
+    else:
+        assert deploy.operate(area)["state"] == "conflict"
+        assert main(["repair", str(area)]) == 1
+        assert body.read_bytes() == retained
+    assert body.stat().st_mtime_ns == before
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained-parent substitution")
+def test_low_level_detached_file_parent_preserves_both_occupants(area, monkeypatch, capsys):
+    anchor = creation_anchor(monkeypatch)
+    original = anchor._write_at
+    leaf = area / deploy.SKILL_ROOT
+    detached = leaf.with_name("detached-written-leaf")
+    def detach(parent, name, content, mode):
+        identity = original(parent, name, content, mode)
+        if str(name) == "SKILL.md":
+            leaf.rename(detached)
+            leaf.mkdir()
+            (leaf / "SKILL.md").write_bytes(b"Concurrent foreign replacement")
+        return identity
+    monkeypatch.setattr(anchor, "_write_at", staticmethod(detach))
+    assert main(["install", str(area)]) == 2
+    assert "Installation may be partial" in capsys.readouterr().err
+    assert (leaf / "SKILL.md").read_bytes() == b"Concurrent foreign replacement"
+    expected = deploy._sources(deploy._core())[f"{deploy.SKILL_ROOT}/SKILL.md"]
+    assert (detached / "SKILL.md").read_bytes() == expected
+    assert not (detached / "references/report-format.md").exists()
+    assert deploy.operate(area)["state"] == "conflict"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained-parent substitution")
+def test_low_level_detached_directory_parent_preserves_created_directory(area, monkeypatch, capsys):
+    creation_anchor(monkeypatch)
+    original = os.mkdir
+    leaf = area / deploy.SKILL_ROOT
+    detached = leaf.with_name("detached-directory-parent")
+    def detach(name, *args, **kwargs):
+        original(name, *args, **kwargs)
+        if str(name) == "references":
+            leaf.rename(detached)
+            leaf.mkdir()
+            (leaf / "foreign").write_bytes(b"Concurrent foreign directory")
+    monkeypatch.setattr(os, "mkdir", detach)
+    assert main(["install", str(area)]) == 2
+    assert "Installation may be partial" in capsys.readouterr().err
+    assert tree(leaf) == {"foreign": b"Concurrent foreign directory"}
+    assert (detached / "references").is_dir()
+    assert not list((detached / "references").iterdir())
+    assert not (detached / "SKILL.md").exists()
+
+
+def test_failed_child_handoff_leaves_new_directory_for_retry(area, monkeypatch, capsys):
+    anchor = creation_anchor(monkeypatch)
+    original = anchor.open_directory
+    failed = False
+    def fail(self, relative, **kwargs):
+        nonlocal failed
+        if str(relative) == "apparatus-mailbox-survey" and not failed:
+            failed = True
+            raise OSError("Injected handoff failure")
+        return original(self, relative, **kwargs)
+    monkeypatch.setattr(anchor, "open_directory", fail)
+    assert main(["install", str(area)]) == 2
+    assert "Installation may be partial" in capsys.readouterr().err
+    leaf = area / deploy.SKILL_ROOT
+    assert leaf.is_dir()
+    assert not list(leaf.iterdir())
+    assert deploy.operate(area)["state"] == "absent"
+    monkeypatch.setattr(anchor, "open_directory", original)
+    assert main(["repair", str(area)]) == 0
+    assert deploy.operate(area)["state"] == "current"
