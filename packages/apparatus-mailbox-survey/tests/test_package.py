@@ -22,7 +22,7 @@ def resources():
 
 def test_metadata_and_independent_dependencies():
     metadata = importlib.metadata.metadata("apparatus-mailbox-survey")
-    assert metadata["Version"] == __version__ == "0.1.2"
+    assert metadata["Version"] == __version__ == "0.1.3"
     assert metadata["Requires-Python"] == ">=3.10"
     requirements = importlib.metadata.requires("apparatus-mailbox-survey")
     assert [entry for entry in requirements if ";" not in entry] == ["pyyaml>=6.0"]

@@ -46,7 +46,7 @@ def test_absent_status_is_readonly(area):
     before = tree(area)
     result = deploy.operate(area)
     assert result["package"] == "apparatus-mailbox-survey"
-    assert result["version"] == "0.1.2"
+    assert result["version"] == "0.1.3"
     assert result["state"] == "absent"
     assert set(result["assets"].values()) == {"missing"}
     assert tree(area) == before

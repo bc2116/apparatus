@@ -1,7 +1,7 @@
 # Mailbox Survey prototype
 
 The optional `apparatus-mailbox-survey` package provides an editable portable
-Skill and a read-only validator. It does not fetch mail, call a model, or modify
+Skill, a read-only validator and a report summary. It does not fetch mail, call a model, or modify
 mailboxes. Explicit lifecycle commands can deploy only the packaged Skill assets
 to an enrolled work area; they do not install automatically. The current
 assistant produces the requested report using authorized sources. See [ADR-0007](../adr/ADR-0007-optional-mailbox-module.md).
@@ -12,7 +12,7 @@ The separate package can validate reports without Apparatus Core. Its optional
 `lifecycle` dependency supplies compatible Core support for deployment. After
 the package is separately released, an installation may request
 `pip install 'apparatus-mailbox-survey[lifecycle]'`; this documents the extra,
-not current public availability of version 0.1.2.
+not current public availability of version 0.1.3.
 
 The commands are `python -m apparatus_mailbox_survey status WORKAREA`,
 `install WORKAREA`, and `repair WORKAREA`. Use an explicitly enrolled work-area
@@ -57,8 +57,8 @@ partial state on both platforms. Work-area paths must pass the physical-director
 commands do not resolve symlink aliases automatically. See the
 [installation acceptance](../certification/mailbox-module-install-2026-10-06.md)
 for historical tested paths and remaining qualification limits. Module 0.1.2
-supersedes that earlier acceptance's failed-publication cleanup behavior with
-preservation-first failure handling. Safe update/removal and process-interruption
+introduced preservation-first failure handling in place of that earlier
+acceptance's cleanup behavior; subsequent versions retain it. Safe update/removal and process-interruption
 recovery still require their own contracts.
 
 ## Report v1
@@ -108,6 +108,7 @@ From a development checkout after `uv sync --all-packages`:
 
 ```sh
 uv run --package apparatus-mailbox-survey python -m apparatus_mailbox_survey validate REPORT.yaml
+uv run --package apparatus-mailbox-survey python -m apparatus_mailbox_survey summary REPORT.yaml
 ```
 
 When the separate package is installed, use
@@ -125,6 +126,25 @@ Passing validation does not establish truthful citations, meaningful categories,
 proper source authorization, non-mutation by the surrounding assistant or model
 quality. Those require reviewing the actual task and its evidence. No live
 connector coverage is claimed by the supplied synthetic fixtures.
+
+### Summary of an existing report
+
+`summary REPORT.yaml` uses the same bounded regular-file reader and strict
+validation, without requiring Core. It prints only a valid report's declared
+source, scope description, coverage claim, inventory, category names with
+reviewed example counts, uncategorized count and coverage gaps. Unknown totals
+stay unknown. Overlapping category counts must not be summed as distinct
+messages or extrapolated to the mailbox. Complete coverage remains an
+unverified report claim. No message IDs, source locators, item summaries,
+category descriptions or proposed actions appear in this view.
+
+Output is deterministic plain text. Each input string is limited to 240
+characters before control/format characters are escaped. At most 20 categories
+and 20 gaps are displayed, with explicit truncation and omitted-entry counts.
+Non-ASCII names are preserved where supported; restricted output encodings use
+backslash escapes. Invalid reports emit the existing value-free findings and
+no partial summary. Exit statuses match validation; the report remains
+unchanged and no provider, network or workspace write is performed.
 
 ## User flow and retention
 
