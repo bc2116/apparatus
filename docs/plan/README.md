@@ -1,5 +1,11 @@
 # Development Plan
 
+**First optional module:** [PR-63](PR-63-mailbox-module-prototype.md) establishes
+the separate Mailbox Survey Skill/report prototype and its source-level
+validation. The [module sequence](module-sequence.md) keeps lifecycle and
+installed integration distinct. No mailbox access, native discovery or new
+public release follows from the prototype.
+
 Executable work is pre-cut into focused PRs with self-contained prompts.
 The [approved rework sequence](rework-sequence.md) also contains explicitly
 uncut outlines; these are not ready-to-execute prompts.
@@ -135,6 +141,7 @@ later slices remain planned.
 | 60 | [Show a read-only resume brief](PR-60-resume-brief.md) | Next build N3 | ✅ landed | 58 |
 | 61 | [Accept safe backup path aliases](PR-61-backup-path-aliases.md) | Next build spare repair | ✅ landed | 60 |
 | 62 | [Verify integrated source-build readiness](PR-62-integrated-readiness.md) | Next build N6 | ✅ landed | 58, 59, 60, 61 |
+| 63 | [Establish a Mailbox Survey module prototype](PR-63-mailbox-module-prototype.md) | Modules | ✅ landed | 62 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
@@ -197,6 +204,11 @@ The [design brief](../design/design-brief.md#7-later-modules-and-exclusions)
 records the later-module roadmap. No module is a prerequisite for the core
 refactor, and no speculative module catalog is scheduled. Native economical
 subagent guidance and lightweight humanizer Skills are core work now.
+
+[ADR-0007](../adr/ADR-0007-optional-mailbox-module.md) selects Mailbox Survey as
+the first concrete module. Its prototype and the following lifecycle/integration
+slices are scoped by the [module sequence](module-sequence.md); ordinary core
+releases remain independently shippable.
 
 Existing-folder adoption is part of the reworked first version, alongside the
 installer. It is no longer a developer-only post-alpha promise. The existing
