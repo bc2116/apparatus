@@ -1,0 +1,24 @@
+{
+  "module_version": "0.1.2",
+  "core_version": "0.0.2",
+  "installed_from_wheels": true,
+  "failed_install_retained_first_asset": true,
+  "exact_partial_repair": true,
+  "edited_partial_preserved": true,
+  "packaged_report_valid": true,
+  "asset_sha256": {
+    ".agents/skills/apparatus-mailbox-survey/SKILL.md": "503d534ef301667716023960984483d152760e7f70ac029fcc8ae33ff95ef266",
+    ".agents/skills/apparatus-mailbox-survey/references/report-format.md": "555e6036b38b774cc8e30ea1844c60cd58668f59ff08e31e8315be25c67e80f3"
+  },
+  "implementation_commit": "ea84f5757c6ff1ac6e9206a6c93738f5f1f5842e",
+  "wheel_sha256": "dd9c7f155f18e9c10d7963339d57131c8f2d8432167866d497d1832222ed4721",
+  "isolated_tests": {
+    "passed": 231,
+    "skipped": 1
+  },
+  "limitations": [
+    "Synthetic local inputs only; no mailbox access or AI-app discovery qualification.",
+    "Module resources remain outside core managed recovery.",
+    "Partial installation is retained; no atomic publication or rollback claim."
+  ]
+}
