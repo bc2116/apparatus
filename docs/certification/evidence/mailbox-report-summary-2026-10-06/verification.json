@@ -1,0 +1,16 @@
+{
+  "module_version": "0.1.3",
+  "python": "3.12.4",
+  "installed_from_wheel": true,
+  "core_installed": false,
+  "input_unchanged": true,
+  "report_sha256": "606b5d191f1918d6768a8d5c150a9c700ec7d589f30577fb518b5d46baafc192",
+  "summary_sha256": "c4f25e2033349b4532543f5e6a374cda0c5758b2f59a23f0243a93f3c0d55d60",
+  "status": 0,
+  "implementation_commit": "dcc679c9bf907a25cb6bdfe480f2d529bf67f2cd",
+  "wheel_sha256": "07c736009008165ea01a7913cdf94a8043505d5ec18974ae8b2fae3d397ba508",
+  "limitations": [
+    "Supplied synthetic report only; no mailbox acquisition or evidence verification.",
+    "No lifecycle operation, workspace persistence or public release."
+  ]
+}
