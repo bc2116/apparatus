@@ -7,8 +7,10 @@ the distributable core package as well as resolving 6.19.0 in `uv.lock`.
 A repository lockfile alone does not constrain an installed wheel's dependency
 resolver. Preserve existing extraction behavior, package version and payload.
 
-The eight currently open PDF dependency advisories are fixed across releases
-6.17.0 through 6.19.0. Relevant maintainer sources are the
+The eight open PDF dependency alerts reported for this repository on
+2026-10-06 are fixed across releases 6.17.0 through 6.19.0. This is the
+repository's observed alert set, not the total upstream advisory count.
+Relevant maintainer sources are the
 [release notes](https://github.com/py-pdf/pypdf/releases/tag/6.19.0) and
 [security advisories](https://github.com/py-pdf/pypdf/security/advisories).
 Apparatus uses the reader, pages and text extraction APIs; it does not override
