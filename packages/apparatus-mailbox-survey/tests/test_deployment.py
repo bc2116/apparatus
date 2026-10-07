@@ -46,6 +46,24 @@ def test_absent_status_is_readonly(area):
     assert not (area / ".agents").exists()
 
 
+def test_enrollment_rereads_coexist_with_retained_publication_proof(area, monkeypatch):
+    original = WorkspaceAnchor.capture_file
+    rereads = []
+
+    def require_compatible_read(self, relative, **kwargs):
+        if str(relative).replace("\\", "/") == "System/workspace.yaml":
+            # Windows rejects DELETE access while the first enrollment proof
+            # pins its name; this contract must hold on every reread.
+            if kwargs.get("publication_compatible") is not True:
+                raise PermissionError("Simulated Windows sharing violation")
+            rereads.append(relative)
+        return original(self, relative, **kwargs)
+
+    monkeypatch.setattr(WorkspaceAnchor, "capture_file", require_compatible_read)
+    assert deploy.operate(area, "install")["state"] == "current"
+    assert len(rereads) > 1
+
+
 def test_install_only_exact_assets_and_repeat_untouched(area):
     before = tree(area)
     assert deploy.operate(area, "install")["state"] == "current"

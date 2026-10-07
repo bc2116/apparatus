@@ -36,9 +36,20 @@ def _core():
         raise DeploymentError(
             "Lifecycle commands require the lifecycle extra with compatible apparatus-core; install it explicitly."
         ) from error
-    anchor_type = WorkspaceAnchor
+    class LifecycleAnchor(WorkspaceAnchor):
+        def read_file(self, relative):
+            # Enrollment validation rereads a file whose publication proof
+            # remains open. Read-only sharing must coexist with that proof on
+            # Windows; the default core reader also requests DELETE access.
+            proof = self.capture_file(relative, publication_compatible=True)
+            try:
+                return proof.content, proof.identity
+            finally:
+                proof.close()
+
+    anchor_type = LifecycleAnchor
     if os.name == "posix":
-        class BoundedAnchor(WorkspaceAnchor):
+        class BoundedAnchor(LifecycleAnchor):
             @staticmethod
             def _read_at(parent, name):
                 # Core's reads, ownership checks and compensation dispatch
