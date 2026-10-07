@@ -29,7 +29,7 @@ pip install 'apparatus-mailbox-survey[lifecycle]'
 ```
 
 This is an installation instruction for a future released package; it does not
-claim that version 0.1.1 is currently published. The `lifecycle` extra supplies
+claim that version 0.1.2 is currently published. The `lifecycle` extra supplies
 the compatible Apparatus Core dependency required for deployment. Without it,
 standalone report validation remains available, while `status`, `install`, and
 `repair` report the missing lifecycle dependency.
@@ -51,6 +51,13 @@ modified, foreign, malformed, linked, or unsafe occupants stop the operation
 before publication. These commands never overwrite or remove existing files.
 Use the enrolled work-area root, not a bound project directory. Resolve reported
 conflicts by reviewing and preserving user changes before retrying.
+
+If installation fails after creation starts, it may leave partial files and
+directories. Inspect with `status`; use `repair` when the remaining assets match
+the package. Review and preserve conflicting edits or incomplete bytes before
+retrying. Do not use the Skill until status reports `current`. Failed
+installation preserves partial state rather than deleting it; publication of
+the two files is not atomic and no rollback is promised.
 
 This is a create-only installation slice, not the full module lifecycle. It has
 no deployed-version record and does not update or remove deployed files. The
