@@ -52,29 +52,29 @@ def _preflight(text):
             stack.pop()
 
 
-def validate_report(content: bytes | str) -> list[str]:
-    """Return value-free field findings; an empty list means structurally valid.
+def _validate_report_data(content: bytes | str):
+    """Return a validated report mapping and value-free findings.
 
     Input is limited to 1 MiB of UTF-8, 10,000 entries per collection, and
     64 nested collections. Findings stop after 50 with a truncation marker.
-    No files, network, or workspace state are accessed.
-    This does not establish evidence quality or authority.
+    No files, network, or workspace state are accessed. This does not establish
+    evidence quality or authority.
     """
     if not isinstance(content, (bytes, str)):
-        return ["report: expected UTF-8 bytes or text"]
+        return None, ["report: expected UTF-8 bytes or text"]
     try:
         raw = content if isinstance(content, bytes) else content.encode("utf-8")
         if len(raw) > MAX_BYTES:
-            return ["report: exceeds 1 MiB limit"]
+            return None, ["report: exceeds 1 MiB limit"]
         text = raw.decode("utf-8")
     except UnicodeError:
-        return ["report: invalid UTF-8"]
+        return None, ["report: invalid UTF-8"]
     try:
         _preflight(text)
         report = yaml.load(text, Loader=_StrictLoader)
     except (yaml.YAMLError, ValueError, TypeError, KeyError, AttributeError,
             RecursionError, OverflowError):
-        return ["report: invalid YAML or unsupported keys, anchors, aliases, tags, or limits"]
+        return None, ["report: invalid YAML or unsupported keys, anchors, aliases, tags, or limits"]
     findings = []
 
     def error(path, message):
@@ -107,7 +107,7 @@ def validate_report(content: bytes | str) -> list[str]:
     top = ("schema", "action", "scope", "inventory", "items", "categories",
            "uncategorized", "coverage_gaps", "next_steps")
     if not fields(report, top, "report"):
-        return findings
+        return None, findings
     if report["schema"] != SCHEMA:
         error("schema", "unsupported schema")
     if report["action"] != "none":
@@ -216,4 +216,15 @@ def validate_report(content: bytes | str) -> list[str]:
             counts["total"] is None or any(counts[name] for name in count_names[2:])))
         if gaps_required and not report["coverage_gaps"]:
             error("coverage_gaps", "requires coverage explanations")
+    return (report if not findings else None), findings
+
+
+def validate_report(content: bytes | str) -> list[str]:
+    """Return value-free findings; an empty list means structurally valid."""
+    _, findings = _validate_report_data(content)
     return findings
+
+
+def validated_report(content: bytes | str):
+    """Return a parsed report only when it passes the strict report contract."""
+    return _validate_report_data(content)
