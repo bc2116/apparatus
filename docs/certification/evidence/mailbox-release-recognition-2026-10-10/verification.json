@@ -1,0 +1,212 @@
+{
+  "date": "2026-10-10",
+  "scope": "Local macOS source-build and isolated installed-wheel verification; synthetic inputs only.",
+  "reviewed_base_commit": "ad9096a2992e810a9fe3f9bae95475b401bc4ba2",
+  "source_files_sha256": {
+    "packages/apparatus-mailbox-survey/pyproject.toml": "8502aa29b5381b9d714b9d9674b2be4dbb4274e79de1e48b6e2356038f55d1b8",
+    "packages/apparatus-mailbox-survey/README.md": "09d7a9c9792b8fd842d386d06366aa5c1b2cc703a6b03a6ab09c42154b4f14c3",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/__init__.py": "958c1b1a1b7859eada48dec41e1f998dc5b59b5d911005a3104daa8d28230fb3",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/__main__.py": "cb976e84e5bb88ac4d16b7eee0d6cf4de2e5e4dc565e6250fc94a655cf234ccf",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/deployment.py": "e9b33c56fba374f38f5d3d74c4404275e2c16ed4edb5196141c64fef0ae74479",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/releases.py": "9996caa522a1d1c65812a55d08ab4b7c11a67798f5c6f92177dae7faf1d74a0a",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/report.py": "ab236409527e107b0b285982ffb4b067decdff4f1b2bc03a19b54cfc15411267",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/resources/releases.json": "d23165a8269822aa68025ac57baf8beed5bd5ccfd4bf80c5d79925fcf813a8b6",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/resources/report-example.yaml": "606b5d191f1918d6768a8d5c150a9c700ec7d589f30577fb518b5d46baafc192",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/resources/sample-mailbox.yaml": "9059d55896361280879444e5dde95a1f1faad50ce99ec24a271a1eedd5de47f3",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/resources/skills/apparatus-mailbox-survey/SKILL.md": "913cc8bd0da45b1d11e38fac4815a63c3f5218ef40cbc2849ef11c107be1a1b7",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/resources/skills/apparatus-mailbox-survey/references/report-format.md": "555e6036b38b774cc8e30ea1844c60cd58668f59ff08e31e8315be25c67e80f3",
+    "packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/summary.py": "7e886b0de19783b196955e5941dcf0dd5ab3f8947aec3740b62d337c85aaf023"
+  },
+  "source_module_tests": {
+    "passed": 323,
+    "skipped": 1,
+    "skip": "Windows junction case on macOS"
+  },
+  "standalone_wheel": {
+    "module_version": "0.1.4",
+    "python": "3.14.7",
+    "installed_from_wheel": true,
+    "imports_from_isolated_environment": true,
+    "core_installed": false,
+    "core_version": null,
+    "wheel_sha256": "1eeedd2296771241a34b27c85984794d0482d927867f2a4ec8c55152d3ac6d06",
+    "wheel_resources_match_source": true,
+    "manifest_sha256": "d23165a8269822aa68025ac57baf8beed5bd5ccfd4bf80c5d79925fcf813a8b6",
+    "report_commands_exit_codes": [
+      0,
+      0
+    ],
+    "report_input_unchanged": true
+  },
+  "standalone_wheel_tests": {
+    "passed": 198,
+    "skipped": 0,
+    "scope": "test_report.py, test_summary.py, test_package.py"
+  },
+  "lifecycle_wheel": {
+    "module_version": "0.1.4",
+    "python": "3.14.7",
+    "installed_from_wheel": true,
+    "imports_from_isolated_environment": true,
+    "core_installed": true,
+    "core_version": "0.0.2",
+    "wheel_sha256": "1eeedd2296771241a34b27c85984794d0482d927867f2a4ec8c55152d3ac6d06",
+    "wheel_resources_match_source": true,
+    "manifest_sha256": "d23165a8269822aa68025ac57baf8beed5bd5ccfd4bf80c5d79925fcf813a8b6",
+    "report_commands_exit_codes": [
+      0,
+      0
+    ],
+    "report_input_unchanged": true,
+    "current_install": {
+      "package": "apparatus-mailbox-survey",
+      "version": "0.1.4",
+      "state": "current",
+      "assets": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": "current",
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": "current"
+      },
+      "release_matches": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": [
+          "0.1.4"
+        ],
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": [
+          "0.1.0",
+          "0.1.1",
+          "0.1.2",
+          "0.1.3",
+          "0.1.4"
+        ]
+      },
+      "complete_release_matches": [
+        "0.1.4"
+      ]
+    },
+    "historical_status": {
+      "package": "apparatus-mailbox-survey",
+      "version": "0.1.4",
+      "state": "conflict",
+      "assets": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": "modified",
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": "current"
+      },
+      "release_matches": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": [
+          "0.1.0",
+          "0.1.1",
+          "0.1.2",
+          "0.1.3"
+        ],
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": [
+          "0.1.0",
+          "0.1.1",
+          "0.1.2",
+          "0.1.3",
+          "0.1.4"
+        ]
+      },
+      "complete_release_matches": [
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.1.3"
+      ]
+    },
+    "historical_repair_exit_code": 1,
+    "historical_skill_unchanged": true
+  },
+  "lifecycle_wheel_tests": {
+    "passed": 323,
+    "skipped": 1,
+    "scope": "Complete module test directory"
+  },
+  "core_init_preservation": {
+    "core_version": "0.0.2",
+    "module_version": "0.1.4",
+    "synthetic_work_area": true,
+    "cases": [
+      {
+        "case": "current",
+        "module_files_unchanged": true,
+        "core_init_exit_code": 0,
+        "module_state": "current",
+        "present_assets": [
+          ".agents/skills/apparatus-mailbox-survey/SKILL.md",
+          ".agents/skills/apparatus-mailbox-survey/references/report-format.md"
+        ],
+        "complete_release_matches": [
+          "0.1.4"
+        ]
+      },
+      {
+        "case": "missing-reference",
+        "module_files_unchanged": true,
+        "core_init_exit_code": 0,
+        "module_state": "partial",
+        "present_assets": [
+          ".agents/skills/apparatus-mailbox-survey/SKILL.md"
+        ],
+        "complete_release_matches": [],
+        "module_repair_exit_code": 0,
+        "state_after_module_repair": "current"
+      },
+      {
+        "case": "historical",
+        "module_files_unchanged": true,
+        "core_init_exit_code": 0,
+        "module_state": "conflict",
+        "present_assets": [
+          ".agents/skills/apparatus-mailbox-survey/SKILL.md",
+          ".agents/skills/apparatus-mailbox-survey/references/report-format.md"
+        ],
+        "complete_release_matches": [
+          "0.1.0",
+          "0.1.1",
+          "0.1.2",
+          "0.1.3"
+        ]
+      },
+      {
+        "case": "edited",
+        "module_files_unchanged": true,
+        "core_init_exit_code": 0,
+        "module_state": "conflict",
+        "present_assets": [
+          ".agents/skills/apparatus-mailbox-survey/SKILL.md",
+          ".agents/skills/apparatus-mailbox-survey/references/report-format.md"
+        ],
+        "complete_release_matches": [],
+        "module_repair_exit_code": 1,
+        "module_files_unchanged_after_refused_repair": true
+      }
+    ]
+  },
+  "historical_fixture_windows_checkout": {
+    "core_autocrlf": true,
+    "text": "set",
+    "eol": "lf",
+    "length": 3102,
+    "sha256": "503d534ef301667716023960984483d152760e7f70ac029fcc8ae33ff95ef266",
+    "matches_source": true,
+    "contains_crlf": false
+  },
+  "independent_review": {
+    "specification": "No material findings.",
+    "implementation": "No material findings; focused checkout fix reviewed separately."
+  },
+  "limitations": [
+    "Content matches do not establish installed-version ownership, provenance or authenticity.",
+    "No automatic update, removal or process-interruption recovery is implemented.",
+    "Core preservation exercise covers repeated init with published Core 0.0.2, not an upgrade to a different Core version.",
+    "No real mailbox access, provider qualification, automatic Skill discovery or public package release.",
+    "Local filesystem acceptance is macOS only; current-head Windows CI is required before merge."
+  ],
+  "full_suite": {
+    "command": "uv run pytest",
+    "python": "3.12.4",
+    "passed": 1792,
+    "skipped": 43,
+    "duration_seconds": 571.7,
+    "exit_code": 0
+  }
+}

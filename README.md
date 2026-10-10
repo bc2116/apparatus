@@ -101,7 +101,10 @@ with evidence and coverage limits. It does not acquire messages, call models,
 change mailboxes. With its optional lifecycle dependency, explicit commands
 inspect deployment and create missing Skill assets in an enrolled work area.
 Any edited asset is preserved and blocks repair until its conflict is resolved.
-Update and removal remain
+Status also reports exact matches to accepted source versions, including a
+complete match only when both assets match the same version. These matches do
+not establish an installed-version record; older differing assets still block
+repair. Update and removal remain
 in the [module sequence](docs/plan/module-sequence.md); the core installer and
 seven built-in Skills are unchanged. No new package release is claimed.
 

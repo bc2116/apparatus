@@ -150,6 +150,7 @@ later slices remain planned.
 | 65 | [Require the patched PDF dependency](PR-65-pdf-security-floor.md) | Maintenance | ✅ landed | 64 |
 | 66 | [Preserve partial module installation on failure](PR-66-module-failure-preservation.md) | Modules | ✅ landed | 64 |
 | 67 | [Read a concise Mailbox Survey summary](PR-67-mailbox-report-summary.md) | Modules | ✅ landed | 66 |
+| 68 | [Recognize released module content](PR-68-module-release-recognition.md) | Modules | ✅ landed | 67 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

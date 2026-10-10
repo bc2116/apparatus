@@ -43,7 +43,7 @@ pip install 'apparatus-mailbox-survey[lifecycle]'
 ```
 
 This is an installation instruction for a future released package; it does not
-claim that version 0.1.3 is currently published. The `lifecycle` extra supplies
+claim that version 0.1.4 is currently published. The `lifecycle` extra supplies
 the compatible Apparatus Core dependency required for deployment. Without it,
 standalone report validation and summaries remain available, while `status`, `install`, and
 `repair` report the missing lifecycle dependency.
@@ -65,6 +65,21 @@ modified, foreign, malformed, linked, or unsafe occupants stop the operation
 before publication. These commands never overwrite or remove existing files.
 Use the enrolled work-area root, not a bound project directory. Resolve reported
 conflicts by reviewing and preserving user changes before retrying.
+
+Successful lifecycle output also includes `release_matches` for each fixed
+asset and `complete_release_matches` for their intersection. Matching requires
+both exact byte length and SHA-256. The packaged historical manifest records
+accepted source versions 0.1.0 through 0.1.3 and their source commits; current
+0.1.4 matches come from this package's validated resources. Identical files may
+match several versions. A complete match requires both files to match the same
+version. Missing or unrecognized files have no matches.
+
+These are content matches, not proof of origin, authenticity, package presence,
+or a durable installed-version record. `version` identifies the executing
+package. Older recognized content remains `modified` when it differs from the
+current package, so it still blocks install and repair. Status reads existing
+captured bytes and leaves files unchanged; this release does not update them.
+An invalid packaged manifest stops lifecycle commands before any creation.
 
 If installation fails after creation starts, it may leave partial files and
 directories. Inspect with `status`; use `repair` when the remaining assets match

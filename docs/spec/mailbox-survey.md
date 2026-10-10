@@ -12,7 +12,7 @@ The separate package can validate reports without Apparatus Core. Its optional
 `lifecycle` dependency supplies compatible Core support for deployment. After
 the package is separately released, an installation may request
 `pip install 'apparatus-mailbox-survey[lifecycle]'`; this documents the extra,
-not current public availability of version 0.1.3.
+not current public availability of version 0.1.4.
 
 The commands are `python -m apparatus_mailbox_survey status WORKAREA`,
 `install WORKAREA`, and `repair WORKAREA`. Use an explicitly enrolled work-area
@@ -20,6 +20,34 @@ root; a bound-project root is rejected. Status is read-only and reports package
 identity/version, each fixed Skill asset's missing/current/modified state, and
 an absent/current/partial/conflict aggregate. The package version is not a
 persistent deployed-version record.
+
+Successful lifecycle JSON also contains `release_matches`, mapping each fixed
+asset path to the numerically sorted versions with the exact captured byte
+length and SHA-256, and `complete_release_matches`, the sorted intersection of
+both lists. Missing or unknown assets have empty lists. Identical resources may
+match multiple versions; mixed per-file matches without an intersection are
+never reported as one complete version. These fields establish content matches
+only, not origin, authenticity, package presence or a durable installed version.
+Existing states and exit codes remain authoritative: historical bytes that
+differ from the current package are still modified and block create-only repair.
+
+The packaged `resources/releases.json` records the two fixed asset fingerprints
+and full source commits for accepted source versions 0.1.0 through 0.1.3. These
+are source-version records, not publication claims. Their package metadata and
+version constants were checked against each recorded commit. Current 0.1.4
+fingerprints derive from the executing version and validated packaged bytes;
+no eventual commit identity is embedded for the current package.
+
+The manifest has a closed JSON schema, a 65,536-byte read bound, 1–32 historical
+entries, unique mapping keys and versions, canonical three-part numeric
+versions of at most 32 characters, lowercase 40-character source commit IDs,
+the exact two-path allowlist, lowercase SHA-256 values, and positive non-boolean
+integer lengths no greater than the existing 1 MiB asset bound. The complete
+manifest is checked before any lifecycle creation; invalid package data returns
+exit 2 and a bounded content-free package diagnostic. It never adds paths to
+inspect or deploy. Matching reuses captured bytes and retained identity checks;
+successful install/repair results describe the final validated state. Report
+validation and summary do not load the manifest or require Core.
 
 Install and repair are idempotent, create-only operations. They validate all
 packaged and destination assets before publishing. Exact packaged bytes remain
