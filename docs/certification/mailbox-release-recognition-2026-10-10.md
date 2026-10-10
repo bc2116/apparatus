@@ -56,9 +56,15 @@ current-head platform CI; the local exercises used macOS.
 ## Review and remaining scope
 
 Independent specification and implementation review found no material issue.
-Lead review added the exact fixture line-ending rule before delivery. Full-suite
-and current-head cross-platform results are recorded on the pull request; the
-verification record retains the completed local full-suite result.
+Lead review added the exact fixture line-ending rule before delivery. The first
+Windows run exposed a test-setup limit: an automatically generated parameter ID
+embedded the oversized manifest input and exceeded the environment-variable
+limit. Short descriptive IDs preserve all 23 byte-identical payloads and 69
+action combinations. The focused suite again passed 323 tests with one skip;
+independent review confirmed no coverage reduction. Application source and
+fixture bytes did not change. The local full-suite result predates this ID-only
+repair; final current-head cross-platform results are recorded on the pull
+request, with the completed local result retained in the verification record.
 
 Automatic update is deferred: the current POSIX name exchange cannot bind its
 mutation atomically to the expected preimage. Preserving a displaced foreign

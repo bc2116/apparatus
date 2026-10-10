@@ -207,6 +207,22 @@
     "passed": 1792,
     "skipped": 43,
     "duration_seconds": 571.7,
-    "exit_code": 0
+    "exit_code": 0,
+    "note": "Completed before the test-ID-only repair. Application source and fixture bytes are unchanged; current-head CI exercises the final test identifiers."
+  },
+  "test_id_repair": {
+    "reason": "Automatic pytest ID embedded oversized input and exceeded the Windows PYTEST_CURRENT_TEST environment-variable limit during setup/teardown.",
+    "change": "Explicit short descriptive parameter IDs only; no payload or assertion change.",
+    "payloads_compared_byte_for_byte": 23,
+    "invalid_manifest_action_cases": 69,
+    "total_module_cases": 324,
+    "maximum_module_node_id_characters_before": 65670,
+    "maximum_module_node_id_characters_after": 228,
+    "maximum_invalid_manifest_node_id_characters_after": 156,
+    "focused_passed_after_repair": 323,
+    "focused_skipped_after_repair": 1,
+    "focused_duration_seconds_after_repair": 8.71,
+    "source_hashes_unchanged": true,
+    "independent_review": "No findings; fresh current-head Windows CI required."
   }
 }

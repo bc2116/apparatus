@@ -176,7 +176,13 @@ def bad_manifests():
         yield json.dumps(data).encode()
 
 
-@pytest.mark.parametrize("content", list(bad_manifests()))
+@pytest.mark.parametrize("content", list(bad_manifests()), ids=[
+    "malformed-json", "oversized-manifest", "excessive-nesting", "duplicate-key", "non-json-number",
+    "unknown-root-key", "unknown-schema", "empty-releases", "too-many-releases", "duplicate-version",
+    "unknown-release-key", "noncanonical-version", "current-version", "short-source-commit",
+    "uppercase-source-commit", "unknown-asset-path", "missing-asset", "boolean-length", "zero-length",
+    "oversized-asset-length", "uppercase-digest", "short-digest", "unknown-asset-key",
+])
 @pytest.mark.parametrize("action", ["status", "install", "repair"])
 def test_invalid_manifest_is_bounded_content_free_and_prevents_writes(area, monkeypatch, capsys, content, action):
     inject_manifest(monkeypatch, content)
