@@ -1,0 +1,14 @@
+[
+  {
+    "action": "validate",
+    "exit": 0,
+    "stdout": "Report is structurally valid; evidence and authority are unverified.\n",
+    "stderr": ""
+  },
+  {
+    "action": "summary",
+    "exit": 0,
+    "stdout": "Mailbox Survey summary\nSource: sample\nScope: Eight supplied synthetic Inbox message excerpts dated 2026-09-03 through 2026-09-10 in sample-mailbox.yaml; no live mailbox queried.\nCoverage claim: sample\nInventory: total 8; reviewed 8; unavailable 0; skipped 0; unassessed 0\nCategories (reviewed examples; categories can overlap):\n- Purchases and order follow-up: 2\n- Delivery planning and notices: 2\n- Editorial newsletters and digests: 2\n- Personal correspondence: 1\n- Project work and review requests: 1\n- Account notices: 1\nUncategorized reviewed items: 1\nCoverage gaps:\n- All eight supplied records were reviewed, but the known total describes only this synthetic sample; live mailbox totals and representativeness are unknown.\n- Coverage is limited to supplied Inbox excerpts dated 2026-09-03 through 2026-09-10; other dates, folders, threads, and full message bodies were not supplied or accessed.\n- Attachments and linked content were not supplied or reviewed; their existence and contents are unknown. No live pagination was performed.\n- Delivery receipt, account identity and authenticity, lunch confirmation, and the appointment's exact date and type cannot be established from these excerpts.\nThis summary reflects report claims; it does not verify evidence, authority, or actual mailbox coverage.\n",
+    "stderr": ""
+  }
+]
