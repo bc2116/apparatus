@@ -56,13 +56,3 @@ python -m apparatus_mailbox_survey validate REPORT
 
 Report the validator outcome accurately. Structural validity is not proof of
 factual support or completeness.
-
-When the summary command is available, optionally read a concise view with:
-
-```sh
-python -m apparatus_mailbox_survey summary REPORT
-```
-
-This summarizes declared claims; it does not verify evidence, authority, category
-quality, or actual mailbox coverage. When the package or command is unavailable,
-read the report and its coverage gaps directly.

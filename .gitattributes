@@ -13,6 +13,9 @@ docs/certification/evidence/mailbox-survey-2026-10-06/** -text
 docs/certification/evidence/mailbox-module-install-2026-10-06/** -text
 packages/apparatus-mailbox-survey/src/apparatus_mailbox_survey/resources/** text eol=lf
 
+# Historical Skill fingerprints require the exact accepted LF source bytes.
+packages/apparatus-mailbox-survey/tests/fixtures/skill-0.1.0.md text eol=lf
+
 # Native wrapper builds embed or execute these exact tracked bytes. Pin each
 # current text input explicitly so checkout policy cannot introduce byte drift.
 installer/windows/bootstrap-apparatus.ps1 text eol=lf

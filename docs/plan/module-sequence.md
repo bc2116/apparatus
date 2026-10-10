@@ -11,7 +11,8 @@ delivery evidence; synthetic success is not live mailbox qualification.
 | [PR-64](PR-64-mailbox-module-install.md) | Optional lifecycle dependency and explicit status/install/repair commands. Create only missing exact packaged Skill assets in an enrolled work area; preserve conflicts and unrelated files. | Executable prompt; create-only deployment, not a full lifecycle. |
 | [PR-66](PR-66-module-failure-preservation.md) | Preserve partial installations after failures, including low-level POSIX write and directory handoff errors. | Hardening prerequisite; supersedes the earlier compensation contract. |
 | [PR-67](PR-67-mailbox-report-summary.md) | Read a concise summary of an existing report's coverage, categories and gaps. | Read-only value from the existing report contract; no mailbox access or Core dependency. |
-| Release recognition and update | Recognize exact historical asset content, report matching versions without asserting an installed-version record, and conditionally replace reviewed older bytes. | Next focused slice; requires all-destination preflight and explicit mixed-state/interruption behavior. |
+| [PR-68](PR-68-module-release-recognition.md) | Recognize exact historical asset content and report matching versions without asserting an installed-version record. | Read-only content recognition; older differing bytes still block create-only repair. |
+| Update | Conditionally replace reviewed older bytes. | Deferred pending an exact-preimage replacement contract and mechanism; recognition alone does not authorize replacement. |
 | Removal | Define safe withdrawal, retained edits and unresolved discoverable files. | Separate slice; check-then-pathname deletion is not sufficient on POSIX. |
 | Installed integration | Prove package resources, core upgrade/repair preservation, user flow and one actually tested input path. | Separate slice after lifecycle behavior is defined. Automatic app discovery remains unqualified. |
 | Optional assessment engine | Qualified, versioned judgment behind the same evidence/report boundary. | Later; no provider or action integration in the first prototype. |
@@ -39,9 +40,22 @@ package versions. Unknown content must block the entire operation before any
 write. Define conditional replacement, Windows proof sharing, partial progress,
 retained backup handling and safe compensation before cutting the prompt; a
 successful synthetic trial alone cannot establish every interruption boundary.
-The shipped Skill resources are currently identical across module versions.
-Cut update implementation alongside the first deliberate guidance revision so
-the lifecycle work delivers a real content change.
+The historical manifest covers accepted source versions 0.1.0–0.1.3, whose Skill
+resources are identical. Module 0.1.4 adds optional guidance for the existing
+report summary; its reference stays unchanged. Recognition reports every exact
+per-file match and only their intersection as complete matches. It does not
+replace older guidance. The later update slice can use this concrete revision
+while defining and testing the replacement and interruption boundaries.
+
+The current POSIX name-exchange primitive cannot condition its mutation on an
+expected file identity. A concurrent foreign file could therefore be moved to a
+backup before a later check detects the conflict. Retaining that backup avoids
+byte loss but does not meet ADR-0007's exact-owned-preimage requirement. Do not
+build automatic update by accepting this behavior implicitly. A future prompt
+needs a compatible mechanism or an explicit product decision about replacement
+and interruption semantics, plus separate Windows proof-handoff validation.
+Existing create-only behavior can still receive installed-wheel qualification
+without commissioning replacement or removal.
 
 Defer catalog UI, marketplace, arbitrary remote plugin loading, billing tiers,
 scheduling and model routing. Automatic discovery remains unverified; the

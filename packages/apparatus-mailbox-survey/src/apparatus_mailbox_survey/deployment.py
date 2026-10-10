@@ -8,6 +8,7 @@ import stat
 from types import SimpleNamespace
 
 from . import __version__
+from .releases import ReleaseManifestError, load_releases, matching_releases
 
 PACKAGE_ID = "apparatus-mailbox-survey"
 SKILL_ROOT = ".agents/skills/apparatus-mailbox-survey"
@@ -233,11 +234,14 @@ def _capture(parent, name):
     return parent.capture_file(name, publication_compatible=True)
 
 
-def _summary(states):
+def _summary(states, matches):
     values = set(states.values())
     aggregate = ("conflict" if "modified" in values else "current" if values == {"current"}
                  else "absent" if values == {"missing"} else "partial")
-    return {"package": PACKAGE_ID, "version": __version__, "state": aggregate, "assets": states}
+    complete = set.intersection(*(set(versions) for versions in matches.values()))
+    return {"package": PACKAGE_ID, "version": __version__, "state": aggregate, "assets": states,
+            "release_matches": dict(matches),
+            "complete_release_matches": sorted(complete, key=lambda version: tuple(map(int, version.split("."))))}
 
 
 def operate(workarea: str | Path, action: str = "status") -> dict:
@@ -255,8 +259,13 @@ def operate(workarea: str | Path, action: str = "status") -> dict:
     writes = []
     missing_parents = set()
     states = {}
+    matches = {destination: [] for destination in ASSETS}
     try:
         sources = _sources(core)
+        try:
+            releases = load_releases(sources, __version__, MAX_ASSET_BYTES)
+        except ReleaseManifestError as error:
+            raise DeploymentError(str(error)) from error
         root_path = Path(os.path.abspath(os.fspath(workarea)))
         with ExitStack() as stack:
             root = stack.enter_context(core.anchor(root_path))
@@ -320,8 +329,9 @@ def operate(workarea: str | Path, action: str = "status") -> dict:
                         reads.append((parents[current], proof))
                         stack.callback(proof.close)
                         states[destination] = "current" if proof.content == expected else "modified"
+                        matches[destination] = matching_releases(releases, destination, proof.content)
             validate()
-            result = _summary(dict(states))
+            result = _summary(dict(states), matches)
             if action == "status":
                 return result
             if result["state"] == "conflict":
@@ -351,9 +361,10 @@ def operate(workarea: str | Path, action: str = "status") -> dict:
                     writes.append((parent, proof))
                     stack.callback(proof.close)
                     states[destination] = "current"
+                    matches[destination] = matching_releases(releases, destination, expected)
                     validate()
                 validate()
-                return _summary(dict(states))
+                return _summary(dict(states), matches)
             except Exception as failure:
                 # ExitStack releases every retained file/directory proof. Do
                 # not remove even unchanged creations: pathname deletion has

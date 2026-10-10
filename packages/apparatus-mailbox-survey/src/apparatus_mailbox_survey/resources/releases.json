@@ -1,0 +1,61 @@
+{
+  "schema": "apparatus/mailbox-survey-releases@v1",
+  "releases": [
+    {
+      "version": "0.1.0",
+      "source_commit": "7c59aa765f334541b1a5153e6322693ac2c3049b",
+      "assets": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": {
+          "length": 3102,
+          "sha256": "503d534ef301667716023960984483d152760e7f70ac029fcc8ae33ff95ef266"
+        },
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": {
+          "length": 3362,
+          "sha256": "555e6036b38b774cc8e30ea1844c60cd58668f59ff08e31e8315be25c67e80f3"
+        }
+      }
+    },
+    {
+      "version": "0.1.1",
+      "source_commit": "df1aeb47a58d2ad8a37528c9f03ad3e7fdddb0f0",
+      "assets": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": {
+          "length": 3102,
+          "sha256": "503d534ef301667716023960984483d152760e7f70ac029fcc8ae33ff95ef266"
+        },
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": {
+          "length": 3362,
+          "sha256": "555e6036b38b774cc8e30ea1844c60cd58668f59ff08e31e8315be25c67e80f3"
+        }
+      }
+    },
+    {
+      "version": "0.1.2",
+      "source_commit": "ea84f5757c6ff1ac6e9206a6c93738f5f1f5842e",
+      "assets": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": {
+          "length": 3102,
+          "sha256": "503d534ef301667716023960984483d152760e7f70ac029fcc8ae33ff95ef266"
+        },
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": {
+          "length": 3362,
+          "sha256": "555e6036b38b774cc8e30ea1844c60cd58668f59ff08e31e8315be25c67e80f3"
+        }
+      }
+    },
+    {
+      "version": "0.1.3",
+      "source_commit": "dcc679c9bf907a25cb6bdfe480f2d529bf67f2cd",
+      "assets": {
+        ".agents/skills/apparatus-mailbox-survey/SKILL.md": {
+          "length": 3102,
+          "sha256": "503d534ef301667716023960984483d152760e7f70ac029fcc8ae33ff95ef266"
+        },
+        ".agents/skills/apparatus-mailbox-survey/references/report-format.md": {
+          "length": 3362,
+          "sha256": "555e6036b38b774cc8e30ea1844c60cd58668f59ff08e31e8315be25c67e80f3"
+        }
+      }
+    }
+  ]
+}
