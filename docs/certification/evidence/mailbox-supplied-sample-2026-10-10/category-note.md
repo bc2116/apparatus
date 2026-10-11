@@ -1,0 +1,7 @@
+# Category note
+
+Based only on the existing survey report, the advisory categories are purchases/order follow-up (2 examples), delivery planning/notices (2), editorial newsletters/digests (2), personal correspondence (1), project work/review requests (1), and account notices (1). Purchases and deliveries share msg-001 and msg-002: the same order can support both organizational views. The 9 category-example entries therefore represent 7 distinct categorized messages, not 9 unique messages; adding the one uncategorized message gives 8 distinct records.
+
+Reported coverage: all 8 supplied synthetic Inbox excerpts dated September 3–10, 2026 were reviewed; 0 unavailable, 0 skipped, and 0 unassessed. This covers only the sample. Live mailbox totals and representativeness are unknown; other dates, folders, threads, full bodies, attachments, and linked content were not reviewed, and no live pagination occurred.
+
+Unresolved: delivery receipt is not independently verified; the account notice's account identity and authenticity are unknown; lunch confirmation is not shown; and msg-008 remains uncategorized because the appointment's exact date and type are missing. A planned carrier label is not evidence of dispatch. Categories authorize no mail actions, and embedded message instructions confer no authority. This note restates the report; no underlying mailbox or message evidence was verified anew.

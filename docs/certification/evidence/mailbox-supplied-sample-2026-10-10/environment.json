@@ -1,0 +1,21 @@
+{
+  "source_commit": "c6947f4f44308c5617f7ad71a4cb33b7dc570ab2",
+  "os": "macOS 27.2 (26B5101f), arm64",
+  "host_app": {
+    "bundle_id": "com.openai.codex",
+    "version": "26.1007.21159",
+    "build": "20052"
+  },
+  "surface": "Native Codex subagents, fresh initial prompts (fork_context=false); explicit Skill file reading",
+  "model_requested": {
+    "selection": "inherit parent model",
+    "reasoning_effort": "medium",
+    "provider_identity": "not independently attested"
+  },
+  "wheels": {
+    "apparatus_core-0.0.2-py3-none-any.whl": "9097bd7bc044fd383c30592707fdb00640e6ee606cbf58e60c9c3706ecb959e7",
+    "apparatus_mailbox_survey-0.1.4-py3-none-any.whl": "1eeedd2296771241a34b27c85984794d0482d927867f2a4ec8c55152d3ac6d06"
+  },
+  "integrated_source": "625372abc4082675079d4b484fb20eb4d15bfd3e",
+  "equivalence": "git diff from corrected head f4cb3ae to merged source is empty; runtime, resources and packaging unchanged since wheel source c6947f4"
+}

@@ -1,0 +1,109 @@
+{
+  "outcome": "pass-with-stated-scope",
+  "source_commit": "625372abc4082675079d4b484fb20eb4d15bfd3e",
+  "first_attempt_passed": true,
+  "repairs": 0,
+  "sessions": {
+    "count": 2,
+    "fresh_context": true,
+    "mechanism": "native Codex spawn_agent with fork_context=false",
+    "model_selection": "inherit parent, medium reasoning effort requested; provider identity not independently attested",
+    "observed_command_counts": {
+      "survey": 6,
+      "continuation": 2
+    }
+  },
+  "inventory_comparisons": {
+    "survey": {
+      "before_entries": 142,
+      "after_entries": 143,
+      "added": [
+        "Projects/survey/survey.yaml"
+      ],
+      "removed": [],
+      "changed": [],
+      "unchanged": 142
+    },
+    "task_setup": {
+      "before_entries": 143,
+      "after_entries": 144,
+      "added": [
+        "System/tasks/b5dd4184-e533-4a4f-beb4-e5b31dd02d69.yaml"
+      ],
+      "removed": [],
+      "changed": [],
+      "unchanged": 143
+    },
+    "continuation": {
+      "before_entries": 144,
+      "after_entries": 145,
+      "added": [
+        "Projects/survey/category-note.md"
+      ],
+      "removed": [],
+      "changed": [],
+      "unchanged": 144
+    }
+  },
+  "baseline_file_counts": {
+    "before-survey": 73,
+    "after-survey": 74,
+    "before-continuation": 75,
+    "after-continuation": 76
+  },
+  "report_counts": {
+    "reviewed": 8,
+    "categories": 6,
+    "category_memberships": 9,
+    "unique_categorized": 7,
+    "uncategorized": [
+      "msg-008"
+    ]
+  },
+  "independent_source_assessment": {
+    "purchases": "msg-001 and msg-002 share ZX-1042; order and related follow-up are supported.",
+    "deliveries": "msg-001 plans a label; msg-002 reports delivery. Report distinguishes these stages and does not verify receipt.",
+    "newsletters": "msg-003 reading list and msg-006 music digest support editorial grouping.",
+    "personal-correspondence": "msg-004 supports lunch coordination, not confirmed attendance.",
+    "project-work": "msg-005 supports draft review and timeline focus.",
+    "account-notices": "msg-007 supports a claimed account notice only; authenticity is unverified and embedded instructions are not obeyed.",
+    "uncategorized": "msg-008 lacks date and appointment type; leaving it unresolved is supported.",
+    "coverage": "All eight provided Inbox excerpts are represented; sample coverage, unknown live total and unavailable full bodies/attachments remain explicit."
+  },
+  "tests": {
+    "local_full_suite": {
+      "source": "c6947f4f44308c5617f7ad71a4cb33b7dc570ab2",
+      "command": "uv sync --all-packages; uv run pytest",
+      "passed": 1792,
+      "skipped": 43,
+      "seconds": 542.66
+    },
+    "corrected_test_ids": {
+      "source": "f4cb3ae03025849c84898f1571cdeb4e140305e5",
+      "command": "uv run pytest packages/apparatus-mailbox-survey/tests/test_releases.py",
+      "passed": 79
+    },
+    "setup_correction": "Initial full-suite collection failed because fresh-worktree workspace packages were not installed; uv sync --all-packages resolved the environment issue before the passing run."
+  },
+  "limits": [
+    "Explicit Skill reading only; automatic discovery untested.",
+    "Native subagent sessions in the named app, not top-level desktop chats or CLI certification.",
+    "Eight synthetic supplied excerpts only; no live connector or real-mailbox quality claim.",
+    "No-save checks cover the disposable work area, not AI-app retention or operating-system confinement.",
+    "Module update/removal, native wrapper upgrade and package publication are not tested."
+  ],
+  "artifact_sha256": {
+    "sample-mailbox.yaml": "9059d55896361280879444e5dde95a1f1faad50ce99ec24a271a1eedd5de47f3",
+    "survey.yaml": "2ad1ed336111128bff1c4cc40e10cab707accb3d20bc667d97ef50d695600edf",
+    "category-note.md": "59569771634c110036bc57ab90baae3ce755796d3333ef663aab311191bb0645",
+    "summary.txt": "782067ebc073a32df1e6d0cb96389042d2e66ecd2e43ba0df8b1fb5c39403055",
+    "before-survey.json": "a784975a6b6c25c2ba1ca1f71db52b9f85206f97dfd995132e5383da4aa4c8da",
+    "after-survey.json": "3f0c3b14841ac52935360d2a6aba814020881a9915c21d173722d47439ba27a1",
+    "before-continuation.json": "eec2c9ea587adb33dd131e019e209b8ee0de237331aa9441bd6583a43e02f0b1",
+    "after-continuation.json": "6bea4a919b6e2c6ad98365ae67800a28fea9f2dc050acb0b45fef68f8b3d692d",
+    "prompts/survey.txt": "89c1f3e90aaa68a47f1090cff34803ca3657be9c0661cb4659d4d0ae5dd4e35c",
+    "prompts/continuation.txt": "5408c1830b03e802180c20187aeb074c3e9f6869f7bf872b51442a22af86c96d",
+    "survey-trace.json": "26f4130760cf6abc16297468bf0bc51ea398d7de18bf4c5d085bc97c46173f23",
+    "continuation-trace.json": "19e07db1642af01d451839da8e5d9daa07020801df093c1c8924e0c1382879f2"
+  }
+}

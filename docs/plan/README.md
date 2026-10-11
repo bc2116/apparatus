@@ -7,7 +7,9 @@ status and create-only installation/repair. [PR-66](PR-66-module-failure-preserv
 preserves partial installations after errors. The [module sequence](module-sequence.md)
 keeps release recognition/update, removal and installed integration distinct.
 [PR-67](PR-67-mailbox-report-summary.md) adds a read-only summary of supplied
-reports. No mailbox access,
+reports. [PR-69](PR-69-mailbox-supplied-sample.md) records two fresh native
+subagent sessions using the installed Skill and synthetic supplied messages,
+including a no-save continuation. No mailbox access,
 native discovery or new public release follows from these slices.
 
 Executable work is pre-cut into focused PRs with self-contained prompts.
@@ -151,6 +153,7 @@ later slices remain planned.
 | 66 | [Preserve partial module installation on failure](PR-66-module-failure-preservation.md) | Modules | ✅ landed | 64 |
 | 67 | [Read a concise Mailbox Survey summary](PR-67-mailbox-report-summary.md) | Modules | ✅ landed | 66 |
 | 68 | [Recognize released module content](PR-68-module-release-recognition.md) | Modules | ✅ landed | 67 |
+| 69 | [Exercise the installed Mailbox Survey with supplied messages](PR-69-mailbox-supplied-sample.md) | Modules | ✅ landed | 68 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

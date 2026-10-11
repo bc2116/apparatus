@@ -9,6 +9,19 @@ nor corporate Windows deployment approval. Held PR24 evidence stays attached to
 its original payload.
 
 
+## October 10 installed module supplied-sample observation
+
+The [Mailbox Survey exercise](mailbox-supplied-sample-2026-10-10.md) passed in
+two fresh native Codex subagent sessions hosted by app 26.1007.21159 on macOS
+27.2 ARM64. Explicit Skill reading produced a supported eight-message report
+and a useful no-save continuation. Only the two requested project artifacts
+were added; existing content stayed unchanged, with the deliberately created
+task control accounted for before the second baseline. Model selection was
+inherited with medium effort requested; provider identity was not independently
+attested. This does not extend the top-level app-chat certification below or
+establish automatic discovery, live-mailbox quality, module update/removal,
+AI-app retention or a new public release.
+
 ## September 18 native discovery probe
 
 The [bounded native discovery record](evidence/native-discovery-2026-09-18/run.json)
