@@ -5,6 +5,15 @@ The first consumer is Mailbox Survey, governed by
 independently shippable. Each implementation owns its tests, review and exact
 delivery evidence; synthetic success is not live mailbox qualification.
 
+**Planning change, 2026-10-12:** Further email testing and Mailbox Survey feature
+expansion are deferred beyond the next release cycle. Do not schedule new
+live-mail, connector or supplied-message test campaigns for that release.
+Preserve the existing regression tests and dated synthetic evidence. A defect
+that affects a retained release surface still warrants a focused repair.
+The [next-release feature proposal](next-release-features.md) evaluates other
+work; it does not approve another module or change this module's contract.
+Core release preparation does not depend on a mailbox pilot.
+
 | Slice | Outcome | Readiness |
 |---|---|---|
 | [PR-63](PR-63-mailbox-module-prototype.md) | Separate portable Skill, supplied-sample exercise, strict read-only report validator and module boundary. | Executable prompt; status is in the plan index. |

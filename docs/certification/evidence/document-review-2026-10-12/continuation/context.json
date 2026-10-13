@@ -1,0 +1,19 @@
+{
+  "task_id": "71846276-4494-4886-ae14-9f6963ab52ba",
+  "arm": "current",
+  "selected_report": "reports/08-case-02-current-r1.md",
+  "selection": "Existing Skills pass material criteria; tie favors existing behavior. First current-arm report for authority/conflict case.",
+  "source_commit": "1eee87a6e7a1104446099a023f1b93cd42819e07",
+  "execution": "source .venv, not isolated installed-wheel qualification",
+  "requested_model": "gpt-6-luna",
+  "requested_effort": "medium",
+  "prompt_substitutions": {
+    "$RUN": "disposable external evaluation directory",
+    "$SOURCE": "reviewed source checkout"
+  },
+  "allowed_additions": [
+    "Projects/review/correction-note.md"
+  ],
+  "file_mtime_mode_size_bytes_compared": true,
+  "directory_mtimes": "excluded; parent changes when requested deliverable is added"
+}

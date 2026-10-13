@@ -1,0 +1,80 @@
+[
+  {
+    "argv": [
+      "$SOURCE/.venv/bin/apparatus",
+      "init",
+      "$RUN/workarea"
+    ],
+    "exit": 0,
+    "stdout": "Workspace created.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "$SOURCE/.venv/bin/apparatus",
+      "project",
+      "bind",
+      "$RUN/workarea/Projects/review",
+      "--workspace",
+      "$RUN/workarea"
+    ],
+    "exit": 0,
+    "stdout": "Project linked to its work area.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "$SOURCE/.venv/bin/apparatus",
+      "task",
+      "start",
+      "$RUN/workarea",
+      "--save-memory"
+    ],
+    "exit": 0,
+    "stdout": "{\"task_id\": \"e56f7cfa-41fc-4e0b-8ef5-52708289dfed\", \"memory\": \"save\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "$SOURCE/.venv/bin/apparatus",
+      "--task",
+      "e56f7cfa-41fc-4e0b-8ef5-52708289dfed",
+      "memory",
+      "add-fact",
+      "$RUN/workarea",
+      "--title",
+      "Synthetic preservation sentinel",
+      "--body",
+      "The fictional workshop uses blue notebooks. Preserve this setup record."
+    ],
+    "exit": 0,
+    "stdout": "Memory record saved.\nRecord: Memory/Facts/synthetic-preservation-sentinel.md\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "$SOURCE/.venv/bin/apparatus",
+      "--task",
+      "e56f7cfa-41fc-4e0b-8ef5-52708289dfed",
+      "library",
+      "add",
+      "$RUN/workarea",
+      "Projects/review/background.md"
+    ],
+    "exit": 0,
+    "stdout": "Registration: added Projects/review/background.md\nExtraction: scanned=1, ignored=0, extracted=1, unchanged=0, no_text=0, unsupported=0, error=0\nCard: absent; card generation requires the current assistant.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "$SOURCE/.venv/bin/apparatus",
+      "task",
+      "start",
+      "$RUN/workarea",
+      "--no-memory"
+    ],
+    "exit": 0,
+    "stdout": "{\"task_id\": \"71846276-4494-4886-ae14-9f6963ab52ba\", \"memory\": \"no-save\"}\n",
+    "stderr": ""
+  }
+]

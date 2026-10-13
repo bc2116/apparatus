@@ -1,0 +1,13 @@
+{
+  "source_commit": "1eee87a6e7a1104446099a023f1b93cd42819e07",
+  "production_changes": false,
+  "pytest_command": "uv run pytest",
+  "pytest_result": {
+    "passed": 1792,
+    "skipped": 43,
+    "seconds": 560.99
+  },
+  "skip_scope": "Platform-conditional and declared unavailable lanes remain skipped; no unexecuted platform claim.",
+  "continuation_review": "Lead checked the note against all supplied authority/conflict sources. All four corrections and both supported claims are accurate; both unresolved decisions remain open.",
+  "evaluation_date": "2026-10-12"
+}
