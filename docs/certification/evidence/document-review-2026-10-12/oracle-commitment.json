@@ -1,0 +1,17 @@
+{
+  "oracle_sha256": "ff726a6c9e754ebc68f8c447bfcad7c68bc56af2b1143251452f62d5d0ddf5b1",
+  "freeze_order": "cases and oracle frozen before experimental guidance",
+  "oracle_location": "outside repository during execution; not included in participant packets",
+  "blinding": "input-hidden; native tool-root isolation unavailable, so enforced blinding is not claimed",
+  "cases": {
+    "cases/case-01/draft.md": "4e9682f34ea1ffa9b1e8a887a0349184d1caf7da66273a1833d417b9770dd138",
+    "cases/case-01/pilot.md": "6f653b8638579668f8738a70abc7d492b7b1f2b473cc140de27c35bc2ce45461",
+    "cases/case-02/amendment.md": "b9cfc57d23c8bce645ce065392af57267a60348a8151e4c0a7bc846acefeec6f",
+    "cases/case-02/decision.md": "3442979e6b02065888c2398f2f6944fa9c5ee312d68556ad3624f3e8950e9307",
+    "cases/case-02/draft.md": "6c408e485a0105b3bd09d7208b56f549f6ea638f0a6343bdbfab43984f330ec8",
+    "cases/case-02/operations.md": "5767dca30643bf14472fd8bac6385bbb3411f97c609fc91e4dc2e48ae21f49c7",
+    "cases/case-02/supplier.md": "d50c4be44d951e4f7002fef842b4fb434b96f6567f613e4a0011cf5482498034",
+    "cases/case-03/draft.md": "a5d19ba15ae0c0b41414f6908f264b7d9895026a9e313a955037897c53ec502a",
+    "cases/case-03/study.md": "5bf8c116fba4cfc85469aeabb50ebd331d420ec39afb992c3acc60ded4dcfcac"
+  }
+}

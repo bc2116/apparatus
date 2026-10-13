@@ -1,5 +1,16 @@
 # Development Plan
 
+**Current build priority (2026-10-12):** Further email testing is deferred.
+The [next-release plan](next-release-features.md) retains current Skills after
+the supplied-document comparison found no material advantage for a new feature.
+Library relinking remains deferred by default. Core acceptance is unconditional;
+two PRs are the default and four the ceiling, including conditional delivery.
+The owner authorized autonomous execution; [PR-70](PR-70-document-review-comparison.md)
+records A1 and its [results](../certification/document-review-comparison-2026-10-12.md).
+A2 is omitted; C remains the next required slice.
+Existing mailbox regression coverage remains; the proposed release covers core
+and its payload/installers, with optional module publication deferred.
+
 **First optional module:** [PR-63](PR-63-mailbox-module-prototype.md) establishes
 the separate Mailbox Survey Skill/report prototype and its source-level
 validation. [PR-64](PR-64-mailbox-module-install.md) adds explicit deployment
@@ -20,8 +31,9 @@ uncut outlines; these are not ready-to-execute prompts.
 saves, native Skill-discovery evidence, a read-only resume brief, a bounded
 backup repair and [integrated source-build acceptance](../certification/next-build-readiness-2026-09-19.md).
 The [bounded next-build plan](next-build.md) records five focused PRs within its
-eight-PR ceiling. Library relinking, discovery adapters and the optional writing
-pilot remain explicitly deferred. A new public release is not claimed.
+eight-PR ceiling. That cycle deferred Library relinking, discovery adapters and
+the optional writing pilot. The new proposal conditionally reconsiders relinking;
+it does not change their implementation status. A new public release is not claimed.
 
 **Implemented rework:** PR-32 removes the sharing gate. PR-33 implements R2a:
 Memory correction, outdated status, forgetting, and current-record recall.
@@ -154,6 +166,7 @@ later slices remain planned.
 | 67 | [Read a concise Mailbox Survey summary](PR-67-mailbox-report-summary.md) | Modules | ✅ landed | 66 |
 | 68 | [Recognize released module content](PR-68-module-release-recognition.md) | Modules | ✅ landed | 67 |
 | 69 | [Exercise the installed Mailbox Survey with supplied messages](PR-69-mailbox-supplied-sample.md) | Modules | ✅ landed | 68 |
+| 70 | [Compare supplied-document review approaches](PR-70-document-review-comparison.md) | Next release A1 | ✅ landed | 69 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
