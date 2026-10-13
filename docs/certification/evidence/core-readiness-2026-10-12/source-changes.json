@@ -1,0 +1,17 @@
+{
+  "previous_source": "6d05582",
+  "candidate_source": "bfb18de0205cdc45480c33da60b3dbdb80399e03",
+  "changed_retained_paths": [
+    "packages/apparatus-core/pyproject.toml",
+    "packages/apparatus-core/tests/test_ci_workflow.py",
+    "uv.lock"
+  ],
+  "assessment": {
+    "packages/apparatus-core/pyproject.toml": "PDF dependency minimum raised to 6.19.0; requires current installed-wheel evidence.",
+    "packages/apparatus-core/tests/test_ci_workflow.py": "Windows safety matrix test declaration; no runtime behavior change.",
+    "uv.lock": "PDF dependency update and optional-module workspace package metadata. Optional module publication remains excluded."
+  },
+  "active_payload_changed": false,
+  "core_runtime_code_changed": false,
+  "candidate_scope": "core and payload; source-build acceptance only"
+}

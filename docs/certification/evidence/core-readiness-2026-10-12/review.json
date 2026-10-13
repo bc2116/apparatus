@@ -1,0 +1,22 @@
+{
+  "requested_reviewer": "gpt-6.1-sol",
+  "requested_effort": "high",
+  "verdict": "Conditional approval; no material findings.",
+  "independent_checks": [
+    "All 263 source-input hashes match committed source.",
+    "All 81 wheel package files form exact source set; installed core hashes agree.",
+    "Retained change inventory since PR-62 agrees.",
+    "PR-70 native candidate core runtime, starter and dependency metadata match this candidate.",
+    "Captured CLI errors/outcomes, no-save deltas, backup exclusions and project Git preservation agree.",
+    "Relative links and diff whitespace pass."
+  ],
+  "completion_gates": [
+    "Finalize manifest and pass offline checker.",
+    "Record full suite outcome.",
+    "Verify PR-70 remote merge and source parity.",
+    "Set completed proposed PR-71 row landed.",
+    "Require current-head CI and verify remote merge."
+  ],
+  "lead_disposition": "Accept review; complete recorded verification and delivery gates.",
+  "reviewer_reran_builds_or_full_suite": false
+}

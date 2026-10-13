@@ -7,7 +7,8 @@ Library relinking remains deferred by default. Core acceptance is unconditional;
 two PRs are the default and four the ceiling, including conditional delivery.
 The owner authorized autonomous execution; [PR-70](PR-70-document-review-comparison.md)
 records A1 and its [results](../certification/document-review-comparison-2026-10-12.md).
-A2 is omitted; C remains the next required slice.
+A2 is omitted; [PR-71](PR-71-final-core-acceptance.md) records [final core source-build acceptance](../certification/core-readiness-2026-10-12.md).
+The bounded cycle adds no new product surface; release preparation is separate.
 Existing mailbox regression coverage remains; the proposed release covers core
 and its payload/installers, with optional module publication deferred.
 
@@ -167,6 +168,7 @@ later slices remain planned.
 | 68 | [Recognize released module content](PR-68-module-release-recognition.md) | Modules | ✅ landed | 67 |
 | 69 | [Exercise the installed Mailbox Survey with supplied messages](PR-69-mailbox-supplied-sample.md) | Modules | ✅ landed | 68 |
 | 70 | [Compare supplied-document review approaches](PR-70-document-review-comparison.md) | Next release A1 | ✅ landed | 69 |
+| 71 | [Verify retained core source-build readiness](PR-71-final-core-acceptance.md) | Next release C | ✅ landed | 70 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

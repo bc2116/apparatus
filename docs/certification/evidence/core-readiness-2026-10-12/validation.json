@@ -1,0 +1,15 @@
+{
+  "pytest_command": "uv run pytest",
+  "passed": 1792,
+  "skipped": 43,
+  "seconds": 542.69,
+  "locked_environment_pypdf": "6.19.0",
+  "isolated_environment_pypdf": "6.20.1",
+  "review": "Independent review: no material findings; remaining delivery gates are explicit.",
+  "remaining_delivery_gates": [
+    "PR-70 remote merge and retained source parity",
+    "Current-head PR-71 CI",
+    "PR-71 remote merge verification"
+  ],
+  "scope": "Docs/evidence only; no retained product source changed."
+}

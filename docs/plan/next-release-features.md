@@ -1,6 +1,6 @@
 # Next release: useful document work
 
-- **Status:** Autonomous execution authorized on 2026-10-12; A1 completed in PR-70; C remains.
+- **Status:** Autonomous execution authorized on 2026-10-12; Completed through PR-70 and PR-71; release preparation remains separate.
 - **Planning/review date:** 2026-10-12.
 - **Source baseline:** `1eee87a` on `main`, through landed PR-69.
 - **Owner direction:** Defer further email testing, assess other useful additions,
@@ -15,7 +15,9 @@ The [completed comparison](../certification/document-review-comparison-2026-10-1
 found all material issues in every arm. Specialized guidance improved formatting
 but did not establish a material advantage over current Skills. The lead selects
 **stop at existing Skills** under the delegated placement authority: omit A2,
-keep B deferred, and proceed to C. No new module, active Skill or checklist
+keep B deferred, and complete C in [PR-71](PR-71-final-core-acceptance.md).
+The [core readiness record](../certification/core-readiness-2026-10-12.md) captures
+the retained source-build checks and explicit delivery/publication boundaries. No new module, active Skill or checklist
 product is added. The sections below preserve the accepted experiment and
 conditional scope so the result can be assessed against its original criteria.
 
