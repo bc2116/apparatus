@@ -1,0 +1,16 @@
+{
+  "executor": "Lead-executed deterministic Python runner prepared by a separate GPT-6.1 reviewer/worker. No model calls inside runner.",
+  "requested_worker_model": "gpt-6.1-sol",
+  "requested_worker_effort": "high",
+  "host": {
+    "bootstrap_python": "3.14.7",
+    "machine": "arm64",
+    "system": "Darwin"
+  },
+  "dependency_resolution": "Fresh wheel requirements; repository lock is hashed but does not constrain isolated resolution.",
+  "resolved_pypdf": "6.20.1",
+  "builds": "Two identical core wheels and two identical payload archives; SOURCE_DATE_EPOCH=315532800.",
+  "scope": "Synthetic installed CLI boundaries; no native assistant or public-release qualification.",
+  "native_complement": "PR-70 fresh native continuation uses identical retained core runtime and payload, under its own recorded source identity.",
+  "external_paths": "Captured commands use portable $SOURCE, $RUN, $EVIDENCE, $HOME, $UV and $BOOTSTRAP_PYTHON aliases."
+}
