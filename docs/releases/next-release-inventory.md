@@ -81,11 +81,11 @@ protected workflow to succeed. No secrets or signing material were inspected.
   and payload parity, run full tests/current CI and isolated installed checks.
 - [x] PR-73: refresh affected first-task/continuation checks on actual available
   AI-app surfaces; record unavailable variants without claiming their support.
-- [ ] Nominate the exact merged PR-73 commit as immutable candidate. Later
+- [x] Nominate the exact merged PR-73 commit as immutable candidate. Later
   documentation commits must not move the release source.
-- [ ] PR-74: dispatch a signed dry-run while main still names that candidate;
+- [x] PR-74: dispatch a signed dry-run while main still names that candidate;
   verify source SHA, seven distributables, notes, checksums and both signatures.
-- [ ] Confirm rehearsal changed neither PyPI nor GitHub Releases.
+- [x] Confirm rehearsal changed neither PyPI nor GitHub Releases.
 - [ ] Present exact candidate/evidence for final publication approval.
 - [ ] PR-75 operational delivery: publish the new candidate tag through the
   protected package job, then run native install/repair on Windows and macOS.
@@ -94,6 +94,9 @@ protected workflow to succeed. No secrets or signing material were inspected.
 - [ ] Record final delivery and support limits, or a precise unpublished handoff.
 
 The [release runbook](../release-runbook.md) controls sequencing and cleanup.
+The [signed rehearsal](../certification/release-rehearsal-0.0.3.md) fixes the
+candidate at `5890838696157a9139d91903f029b7114f1412b5` and records the verified
+artifact/signature results. Publication is explicitly withheld.
 The [0.0.3 source qualification](../certification/release-candidate-0.0.3.md)
 records PR-73's bounded results and remaining native-surface gaps; the checked
 PR-73 rows take effect with its green, verified remote merge.

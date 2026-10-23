@@ -1,0 +1,18 @@
+{
+  "files": {
+    "SHA256SUMS": "e902354c431f59d24802a75015103596ba9e533ce5a288af4cc08837bac5b70f",
+    "artifacts.json": "66f56c895bc697b3cd06745f3bc0f18dddeb40de15fcc482b436535a8fdc1c29",
+    "candidate-merge.json": "4f03d5d2c15d5341a187b61a9305862c81369cedecac5b44a8f16eb1d2508d03",
+    "capture_artifacts.py": "5285600d816039df4d462c4dfc0690f5c85f0486614de01a4914a74a967ae14d",
+    "capture_signatures.py": "993603c284391d88a7ab33c5bccdff651ae0c34a9a07cd20f6ee28a993e06292",
+    "preflight.json": "9227105f55988301f2c1916766b97d4c20aaf5ea0b04e938d4bf43ddea50d07f",
+    "publication-check.json": "327af02577169a5ac92aa1fd485561330a0d518ad4c6bbae973fc1898d18bda4",
+    "release-notes.md": "b43a8a627a7d2bb403bb094fac0a29528f5ed4093a428f182ba9129a8d25cdf1",
+    "run.json": "22c87e33d0f5633d6697d1b03414b1f00260c525282d0a35d5b68de796151388",
+    "signatures-and-tools.json": "93b485c4c16a4c8fef54245cbc155414f844a12c069b62db3568bf27d862de9b",
+    "signing-approval.json": "d5f1d182b9be983f55b629c4e5814525b6b26ebb66b2db656dc604652641f8a9",
+    "validation.json": "3472d326df772f35596b86df2945797880f1b779f49f291e48871270d6c7e17d",
+    "verification.json": "78de6a2b16178409093b36b85e20bd5309e6f06c915aebe611f1f392522ee745",
+    "verify_evidence.py": "08a5a86b3945991201154c1eaed92a39f78735e8efe342dc0894db1f35207866"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "candidate_payload_equal": true,
+  "candidate_wheel_members_equal": true,
+  "distributables": {
+    "apparatus-installer.exe": "f7e5e2356df4917afbf90206b88cd08ea5910334e7480ef6778111654749e969",
+    "apparatus-installer.pkg": "73692c091486d3361247a25ceb999b38f48b1eecf375a539b6d9c090488fca61",
+    "apparatus-payload-0.0.3.zip": "3fb3d3e0400ecc35cd8e25e98b3294de671c16892392d67e1bd4011678d11f4d",
+    "apparatus_core-0.0.3-py3-none-any.whl": "c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa",
+    "apparatus_core-0.0.3.tar.gz": "a1e3daf2867b973b362cdb5d16b7329e838c4620c6feb0c83dadd17fca10e949",
+    "bootstrap-apparatus.ps1": "88421184286589c42b31336ade4d91b912e4fe131012a27303a037344690c133",
+    "bootstrap-apparatus.sh": "7d7115e77b267fa59ba1135e9c33985c50850813c89a5a4f7cce037d7b300431"
+  },
+  "inputs_match_final": true,
+  "result": "pass",
+  "seven_checksums_verified": true,
+  "signed_upload_bytes_match_final": true
+}

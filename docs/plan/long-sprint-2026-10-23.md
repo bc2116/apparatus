@@ -1,7 +1,7 @@
 # Long sprint: finish and qualify the next release
 
-- **Status:** Execution selected by the owner on 2026-10-23. S1 is landed; S3 qualifies the versioned core;
-  final publication awaits approval of the qualified candidate.
+- **Status:** Execution selected by the owner on 2026-10-23. S1 and S3 are landed;
+  S4 records the successful signed rehearsal. Publication is held for approval.
 - **Verified starting source:** `1e8df7debc0aeb25062ad74fa13b54efe5591568`.
 - **Starting delivery state:** public core version `0.0.2`; the completed
   [prior cycle](next-release-features.md) established source-build acceptance.
@@ -16,6 +16,11 @@ running an example comparison or admitting a new feature. S1 records that scope
 decision. The retained sequence is PR-72 inventory, PR-73 candidate, PR-74 signed
 rehearsal and PR-75 delivery. The original eight-PR ceiling remains binding;
 account observations stay outside the repository.
+
+After the reserve checkpoint, the owner explicitly authorized using the reserve
+to merge GitHub PR #74 and run the signed rehearsal. This bounded continuation
+covers S3 merge and S4 verification/delivery. S5 publication remains withheld;
+it does not reopen optional work or authorize a release tag.
 
 ## What moves the product forward
 

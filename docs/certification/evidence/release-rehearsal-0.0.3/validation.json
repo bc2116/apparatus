@@ -1,0 +1,40 @@
+{
+  "environment_repair": {
+    "command": "uv sync --all-packages",
+    "result": "pass",
+    "source_changes": false
+  },
+  "evidence_checks": {
+    "artifact_capture": "pass",
+    "git_diff_check": "pass",
+    "local_doc_links": "pass",
+    "offline_integrity": "pass",
+    "signature_capture": "pass"
+  },
+  "first_local_suite": {
+    "cause": "Fresh worktree did not have workspace packages installed; imports of apparatus_core and its dependencies failed.",
+    "command": "uv run pytest",
+    "errors": 70,
+    "result": "collection failed"
+  },
+  "full_suite": {
+    "command": "uv run pytest",
+    "passed": 1792,
+    "result": "pass",
+    "seconds": 547.0,
+    "skipped": 43
+  },
+  "independent_review": {
+    "limits": "Reviewer did not rerun the full suite, signing, or public-state network observations.",
+    "result": "approved without blockers",
+    "verified": [
+      "Four actual artifact ZIP digests and contents",
+      "Seven distributable checksums and notes",
+      "Signed installer uploads match final bytes",
+      "Accepted candidate wheel/package/payload parity",
+      "All 263 source-input hashes",
+      "Offline capsule integrity",
+      "Scope and signature claim limits"
+    ]
+  }
+}
