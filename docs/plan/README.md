@@ -6,7 +6,8 @@ defines the [release inventory](../releases/next-release-inventory.md), followed
 by candidate qualification, signed rehearsal and delivery. Optional S2/C1 work
 is omitted under the capacity policy; email testing remains deferred. Four
 required PRs remain within the original eight-PR maximum. Final publication
-awaits approval of the exact qualified candidate.
+awaits approval of the exact qualified candidate. The [0.0.3 signed rehearsal](../certification/release-rehearsal-0.0.3.md)
+records candidate `5890838`; publication remains on hold.
 
 **Current build priority (2026-10-12):** Further email testing is deferred.
 The [next-release plan](next-release-features.md) retains current Skills after
@@ -179,7 +180,7 @@ later slices remain planned.
 | 71 | [Verify retained core source-build readiness](PR-71-final-core-acceptance.md) | Next release C | ✅ landed | 70 |
 | 72 | [Define the next core release](PR-72-release-inventory.md) | Release S1 | ✅ landed | 71 |
 | 73 | [Freeze and qualify the core candidate](PR-73-release-candidate.md) | Release S3 | ✅ landed | 72 |
-| 74 | [Verify signed rehearsal](PR-74-signed-rehearsal.md) | Release S4 | ready | 73 |
+| 74 | [Verify signed rehearsal](PR-74-signed-rehearsal.md) | Release S4 | ✅ landed | 73 |
 | 75 | [Deliver the qualified release](PR-75-release-delivery.md) | Release S5 | ready | 74, final publication approval |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),

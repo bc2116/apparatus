@@ -1,0 +1,30 @@
+{
+  "dispatch_returned_success": true,
+  "observed_at": "2026-10-23T17:25:33.710667+00:00",
+  "signing": {
+    "branch_policies": [
+      {
+        "name": "main",
+        "type": "branch"
+      },
+      {
+        "name": "v*",
+        "type": "tag"
+      }
+    ],
+    "prevent_self_review": [
+      false
+    ],
+    "rule_types": [
+      "required_reviewers",
+      "branch_policy"
+    ]
+  },
+  "source_sha": "5890838696157a9139d91903f029b7114f1412b5",
+  "variables": {
+    "APPARATUS_RELEASE_MODE": null,
+    "APPARATUS_SIGN_MACOS": "enabled",
+    "APPARATUS_SIGN_WINDOWS": "enabled",
+    "APPARATUS_WINDOWS_SIGNING_PROVIDER": "azure-artifact-signing"
+  }
+}

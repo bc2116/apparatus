@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-10-23T17:27:07.165257+00:00",
+  "run_id": 39994962103,
+  "source_sha": "5890838696157a9139d91903f029b7114f1412b5",
+  "environment": "signing",
+  "normal_required_reviewer_path": true,
+  "approved": true,
+  "authorization": "Explicit owner request to run signed rehearsal; publication held."
+}
