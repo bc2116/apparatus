@@ -1,6 +1,6 @@
 # Long sprint: finish and qualify the next release
 
-- **Status:** Execution selected by the owner on 2026-10-23. S1 is underway;
+- **Status:** Execution selected by the owner on 2026-10-23. S1 is landed; S3 qualifies the versioned core;
   final publication awaits approval of the qualified candidate.
 - **Verified starting source:** `1e8df7debc0aeb25062ad74fa13b54efe5591568`.
 - **Starting delivery state:** public core version `0.0.2`; the completed

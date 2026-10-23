@@ -10,6 +10,8 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
+## v0.0.3
+
 - Save Decisions explicitly in Memory and report the exact saved record path
   for Facts, People and Decisions so the assistant can verify the result.
 - Show a read-only resume brief with goals, next actions, selected-source

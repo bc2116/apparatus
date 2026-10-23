@@ -1,0 +1,113 @@
+{
+  "cases": {
+    "adoption": {
+      "custom_instructions_and_project_preserved": true,
+      "implicit_attempt_zero_changes": true
+    }
+  },
+  "commands": [
+    {
+      "argv": [
+        "init",
+        "$RUN/runtime/extended-area"
+      ],
+      "exit": 2,
+      "label": "reject-implicit-adoption",
+      "stderr": "",
+      "stdout": "init: existing unmarked folder requires --adopt; its files and repositories will stay in place\n"
+    },
+    {
+      "argv": [
+        "init",
+        "$RUN/runtime/extended-area",
+        "--adopt"
+      ],
+      "exit": 0,
+      "label": "explicit-adoption",
+      "stderr": "",
+      "stdout": "Workspace created.\n"
+    },
+    {
+      "argv": [
+        "init",
+        "$RUN/runtime/extended-area"
+      ],
+      "exit": 0,
+      "label": "adoption-rerun",
+      "stderr": "",
+      "stdout": "Work area is already up to date.\nManaged snapshot unchanged; no new snapshot was needed.\n"
+    },
+    {
+      "argv": [
+        "task",
+        "start",
+        "$RUN/runtime/extended-area",
+        "--save-memory"
+      ],
+      "exit": 0,
+      "label": "saving-task",
+      "stderr": "",
+      "stdout": "{\"task_id\": \"2154a99f-dbfa-4591-a1c9-fd41610367c3\", \"memory\": \"save\"}\n"
+    },
+    {
+      "argv": [
+        "--task",
+        "2154a99f-dbfa-4591-a1c9-fd41610367c3",
+        "memory",
+        "add-decision",
+        "$RUN/runtime/extended-area",
+        "--title",
+        "Synthetic room selection",
+        "--date",
+        "2026-10-23",
+        "--body",
+        "Use the cobalt room. Source: project/original.txt."
+      ],
+      "exit": 0,
+      "label": "decision-save",
+      "stderr": "",
+      "stdout": "Memory record saved.\nRecord: Memory/Decisions/synthetic-room-selection.md\n"
+    },
+    {
+      "argv": [
+        "memory",
+        "recall",
+        "$RUN/runtime/extended-area",
+        "cobalt"
+      ],
+      "exit": 0,
+      "label": "decision-recall",
+      "stderr": "",
+      "stdout": "{\"status\": \"matched\", \"results\": [{\"source\": \"Memory/Decisions/synthetic-room-selection.md\", \"text\": \"---\\nschema: apparatus/decision@v0\\ntitle: Synthetic room selection\\ndate: '2026-10-23'\\n---\\nUse the cobalt room. Source: project/original.txt.\"}], \"truncated\": false}\n"
+    },
+    {
+      "argv": [
+        "--task",
+        "2154a99f-dbfa-4591-a1c9-fd41610367c3",
+        "snapshot",
+        "$RUN/runtime/extended-area",
+        "--label",
+        "Synthetic candidate state"
+      ],
+      "exit": 0,
+      "label": "snapshot",
+      "stderr": "",
+      "stdout": "Snapshot saved. Snapshot id: a83ed31828f5\nSaved Apparatus Memory, goals and settings. Project files and Library originals are not included.\n"
+    },
+    {
+      "argv": [
+        "task",
+        "start",
+        "$RUN/runtime/extended-area",
+        "--no-save-memory"
+      ],
+      "exit": 2,
+      "label": "no-save-task",
+      "stderr": "usage: apparatus [-h] [--version] [--task ID]\n                 {backup,check,doctor,init,library,memory,profile,project,recall,render,restore,resume,skill,snapshot,task}\n                 ...\napparatus: error: unrecognized arguments: --no-save-memory\n",
+      "stdout": ""
+    }
+  ],
+  "failure": "no-save-task",
+  "result": "failed",
+  "scope": "Synthetic installed CLI checks on POSIX"
+}

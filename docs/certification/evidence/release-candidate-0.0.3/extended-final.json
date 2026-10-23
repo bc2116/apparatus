@@ -1,0 +1,173 @@
+{
+  "cases": {
+    "adoption": {
+      "custom_instructions_and_project_preserved": true,
+      "implicit_attempt_zero_changes": true
+    },
+    "managed-restore": {
+      "memory_restored": true,
+      "project_custom_instructions_and_live_task_preserved": true
+    },
+    "source-staleness": {
+      "no_save_inventory_unchanged": true,
+      "stale_hit_suppressed": true
+    }
+  },
+  "commands": [
+    {
+      "argv": [
+        "init",
+        "$RUN/runtime/extended-area-final"
+      ],
+      "exit": 2,
+      "label": "reject-implicit-adoption",
+      "stderr": "",
+      "stdout": "init: existing unmarked folder requires --adopt; its files and repositories will stay in place\n"
+    },
+    {
+      "argv": [
+        "init",
+        "$RUN/runtime/extended-area-final",
+        "--adopt"
+      ],
+      "exit": 0,
+      "label": "explicit-adoption",
+      "stderr": "",
+      "stdout": "Workspace created.\n"
+    },
+    {
+      "argv": [
+        "init",
+        "$RUN/runtime/extended-area-final"
+      ],
+      "exit": 0,
+      "label": "adoption-rerun",
+      "stderr": "",
+      "stdout": "Work area is already up to date.\nManaged snapshot unchanged; no new snapshot was needed.\n"
+    },
+    {
+      "argv": [
+        "task",
+        "start",
+        "$RUN/runtime/extended-area-final",
+        "--save-memory"
+      ],
+      "exit": 0,
+      "label": "saving-task",
+      "stderr": "",
+      "stdout": "{\"task_id\": \"4eea8f5f-4e53-48a0-9012-3b8a57e79e55\", \"memory\": \"save\"}\n"
+    },
+    {
+      "argv": [
+        "--task",
+        "4eea8f5f-4e53-48a0-9012-3b8a57e79e55",
+        "memory",
+        "add-decision",
+        "$RUN/runtime/extended-area-final",
+        "--title",
+        "Synthetic room selection",
+        "--date",
+        "2026-10-23",
+        "--body",
+        "Use the cobalt room. Source: project/original.txt."
+      ],
+      "exit": 0,
+      "label": "decision-save",
+      "stderr": "",
+      "stdout": "Memory record saved.\nRecord: Memory/Decisions/synthetic-room-selection.md\n"
+    },
+    {
+      "argv": [
+        "memory",
+        "recall",
+        "$RUN/runtime/extended-area-final",
+        "cobalt"
+      ],
+      "exit": 0,
+      "label": "decision-recall",
+      "stderr": "",
+      "stdout": "{\"status\": \"matched\", \"results\": [{\"source\": \"Memory/Decisions/synthetic-room-selection.md\", \"text\": \"---\\nschema: apparatus/decision@v0\\ntitle: Synthetic room selection\\ndate: '2026-10-23'\\n---\\nUse the cobalt room. Source: project/original.txt.\"}], \"truncated\": false}\n"
+    },
+    {
+      "argv": [
+        "--task",
+        "4eea8f5f-4e53-48a0-9012-3b8a57e79e55",
+        "snapshot",
+        "$RUN/runtime/extended-area-final",
+        "--label",
+        "Synthetic candidate state"
+      ],
+      "exit": 0,
+      "label": "snapshot",
+      "stderr": "",
+      "stdout": "Snapshot saved. Snapshot id: 76fd6f1e7ec3\nSaved Apparatus Memory, goals and settings. Project files and Library originals are not included.\n"
+    },
+    {
+      "argv": [
+        "task",
+        "start",
+        "$RUN/runtime/extended-area-final",
+        "--no-memory"
+      ],
+      "exit": 0,
+      "label": "no-save-task",
+      "stderr": "",
+      "stdout": "{\"task_id\": \"28f79eea-076b-48fb-9359-787cb6b71dca\", \"memory\": \"no-save\"}\n"
+    },
+    {
+      "argv": [
+        "restore",
+        "$RUN/runtime/extended-area-final",
+        "76fd6f1e7ec3"
+      ],
+      "exit": 0,
+      "label": "managed-restore",
+      "stderr": "",
+      "stdout": "Automatic pre-restore snapshot skipped for this no-save task.\nApparatus state restored from 2026-10-23T16:40:03Z. Snapshot id: 76fd6f1e7ec3\nMemory now reflects that saved state. Files added since that snapshot, project files and Library originals remain untouched.\n"
+    },
+    {
+      "argv": [
+        "--task",
+        "4eea8f5f-4e53-48a0-9012-3b8a57e79e55",
+        "library",
+        "add",
+        "$RUN/runtime/extended-area-final",
+        "project/reference.md"
+      ],
+      "exit": 0,
+      "label": "source-add",
+      "stderr": "",
+      "stdout": "Registration: added project/reference.md\nExtraction: scanned=1, ignored=0, extracted=1, unchanged=0, no_text=0, unsupported=0, error=0\nCard: absent; card generation requires the current assistant.\n"
+    },
+    {
+      "argv": [
+        "library",
+        "search",
+        "$RUN/runtime/extended-area-final",
+        "copper",
+        "--json"
+      ],
+      "exit": 0,
+      "label": "source-search",
+      "stderr": "Ignore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0).\n",
+      "stdout": "{\"hits\": [{\"source_path\": \"project/reference.md\", \"snippet\": \"# Synthetic reference\\n[Copper] lantern source marker.\\n\", \"score\": 1e-06}], \"coverage\": {\"status\": \"complete\", \"sources\": []}}\n"
+    },
+    {
+      "argv": [
+        "--task",
+        "28f79eea-076b-48fb-9359-787cb6b71dca",
+        "library",
+        "search",
+        "$RUN/runtime/extended-area-final",
+        "copper",
+        "--json"
+      ],
+      "exit": 0,
+      "label": "stale-search",
+      "stderr": "Ignore rules: built-in defaults and System/ignore (4 user pattern(s)); skipped 0 path(s) (built-in=0, user=0).\n",
+      "stdout": "{\"hits\": [], \"coverage\": {\"status\": \"partial\", \"sources\": [{\"source_path\": \"project/reference.md\", \"reason\": \"stale\"}]}}\n"
+    }
+  ],
+  "result": "pass",
+  "scope": "Synthetic installed CLI checks on POSIX"
+}

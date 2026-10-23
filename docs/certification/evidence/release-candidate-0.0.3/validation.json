@@ -1,0 +1,31 @@
+{
+  "commands": [
+    {
+      "command": "uv run python docs/certification/evidence/core-readiness-2026-10-12/run.py --source-root \"$SOURCE\" --source-sha 768b7594bb6946ae5e5f3f615613c82061939170 --run-dir \"$RUN\" --evidence-dir \"$EVIDENCE\"",
+      "exit_code": 0
+    },
+    {
+      "command": "uv build --package apparatus-core --out-dir dist/packages",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run python tools/build_payload.py",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run python docs/certification/evidence/release-candidate-0.0.3/extended.py --run-root \"$RUN\" --output \"$EVIDENCE/extended-final.json\" --case-name extended-area-final",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run python docs/certification/evidence/release-candidate-0.0.3/native.py --run-root \"$NATIVE_RUN\" --installed-bin \"$RUN/venv/bin\" --output \"$EVIDENCE/native-results.json\"",
+      "exit_code": 0
+    }
+  ],
+  "full_suite": {
+    "command": "uv run pytest",
+    "passed": 1792,
+    "seconds": 550.23,
+    "skipped": 43
+  },
+  "limits": "Command aliases remove machine-specific paths. Full suite was run before the evidence-only edits and dependency merge; unchanged source-input hashes are checked separately. CI and remote merge are later gates."
+}

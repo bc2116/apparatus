@@ -1,0 +1,1053 @@
+{
+  ".": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365177377060,
+    "size": 160
+  },
+  "area": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773365177317060,
+    "size": 448
+  },
+  "area/.agents": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361123825537,
+    "size": 96
+  },
+  "area/.agents/skills": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361140125059,
+    "size": 288
+  },
+  "area/.agents/skills/apparatus-economizer": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361152687242,
+    "size": 96
+  },
+  "area/.agents/skills/apparatus-economizer/SKILL.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361152735700,
+    "sha256": "e9f6bd8961053592bd8f45826e13966c8fdf03a58893fe1496c48d47a34ac8af",
+    "size": 4601
+  },
+  "area/.agents/skills/apparatus-humanizer": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361153263492,
+    "size": 96
+  },
+  "area/.agents/skills/apparatus-humanizer/SKILL.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361153304242,
+    "sha256": "547dd19f651e591d03100da942db48d101368cae3166510e133b606ed60aa74a",
+    "size": 2100
+  },
+  "area/.agents/skills/apparatus-produce-deliverable": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361150360739,
+    "size": 96
+  },
+  "area/.agents/skills/apparatus-produce-deliverable/SKILL.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361150396197,
+    "sha256": "bbf09304eb6b015869017fbd0a495de6f3cf357970227e621fe06921092183be",
+    "size": 2187
+  },
+  "area/.agents/skills/apparatus-research-and-summarize": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361150957573,
+    "size": 96
+  },
+  "area/.agents/skills/apparatus-research-and-summarize/SKILL.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361150999656,
+    "sha256": "9ec46a37f5c127a20a3320fb13f25e16ee4f2131b6c13a2145c89943a164f2a7",
+    "size": 2466
+  },
+  "area/.agents/skills/apparatus-review-against-checklist": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361151540949,
+    "size": 96
+  },
+  "area/.agents/skills/apparatus-review-against-checklist/SKILL.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361151574074,
+    "sha256": "de70f44a9ea56223fe4b1aa5745fcef5af7b7d8a83ec6bd06fcc3c7c25671401",
+    "size": 1840
+  },
+  "area/.agents/skills/apparatus-weekly-review": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361152116199,
+    "size": 96
+  },
+  "area/.agents/skills/apparatus-weekly-review/SKILL.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361152150033,
+    "sha256": "a9cdb5d9cd0e93fa1fe71678614265b736fc6478c4981ebc61e854ca589fc82d",
+    "size": 1979
+  },
+  "area/.agents/skills/apparatus-welcome": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361149770280,
+    "size": 96
+  },
+  "area/.agents/skills/apparatus-welcome/SKILL.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361149810655,
+    "sha256": "689dc8fd3373d55b01391fa43e3a8604808733b03225663ada0524104295e9e8",
+    "size": 2657
+  },
+  "area/.cursor": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361125049997,
+    "size": 96
+  },
+  "area/.cursor/rules": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361154288452,
+    "size": 96
+  },
+  "area/.cursor/rules/apparatus.mdc": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361154324410,
+    "sha256": "161d97319c80d584fd3ed83873517a1574d6e09f088875ad8e2d547a87a2d695",
+    "size": 260
+  },
+  "area/.github": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361154796703,
+    "size": 96
+  },
+  "area/.github/copilot-instructions.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361154838786,
+    "sha256": "e543b50e9b830c6e20cde5afdc722956917681af1d5e6b1f8ad4d99b20c74fef",
+    "size": 237
+  },
+  "area/AGENTS.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361145090732,
+    "sha256": "a98927cfb2ff766a8dbfb3d5d4595e98b62a0b13c8a72aa1c8dd3353b18864bd",
+    "size": 14501
+  },
+  "area/CLAUDE.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361153812035,
+    "sha256": "6867e97931a7a04615d0340ecff34edce2c0973686f277c577e345070c78700d",
+    "size": 197
+  },
+  "area/Goals": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361118989198,
+    "size": 64
+  },
+  "area/Library": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773365177110977,
+    "size": 96
+  },
+  "area/Library/original.txt": {
+    "kind": "file",
+    "mode": 420,
+    "mtime_ns": 1792773365177151852,
+    "sha256": "2c6406edf133ba7f2b233ed4ef2b14be3b0cc09dddefe7b2f98f8844f038deb6",
+    "size": 38
+  },
+  "area/Memory": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361128537752,
+    "size": 160
+  },
+  "area/Memory/Decisions": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361126207624,
+    "size": 64
+  },
+  "area/Memory/Facts": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361127351334,
+    "size": 64
+  },
+  "area/Memory/People": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361128534877,
+    "size": 64
+  },
+  "area/System": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361243013692,
+    "size": 320
+  },
+  "area/System/README.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361145863983,
+    "sha256": "d44926de0f7557cc5d27af9060813195dd0ffb5677172ac35f7965f577e693e7",
+    "size": 2385
+  },
+  "area/System/guidance": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361146729067,
+    "size": 96
+  },
+  "area/System/guidance/model-guidance.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361146783526,
+    "sha256": "1c821b61229fcc82749a381e030b53f59c5c70885d27995aad86d8d96c996ff3",
+    "size": 1117
+  },
+  "area/System/ignore": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361147491360,
+    "sha256": "27c4c2af0db7006ea64eb9e4670e91edb21d57f8b34e7c910beb2119e8988bcf",
+    "size": 880
+  },
+  "area/System/policy": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361149180195,
+    "size": 128
+  },
+  "area/System/policy/private.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361149220237,
+    "sha256": "f3472ceaacef9b1dd1091ed56aa56c9aad3b79b2109e79199223e13a84dd2576",
+    "size": 2828
+  },
+  "area/System/policy/standard.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361148656612,
+    "sha256": "41e7804882adb2ad4544634028841fcedd2422394ee6d44071654b64621b4613",
+    "size": 2631
+  },
+  "area/System/profile.yaml": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361155453162,
+    "sha256": "2da43081eca7c559e7a9d085a179249e0b5da8dcfd989532fd9be7b14fc260e2",
+    "size": 180
+  },
+  "area/System/receipts": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773364968384455,
+    "size": 128
+  },
+  "area/System/receipts/2026-10-23-163601-init.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361183088073,
+    "sha256": "234ff8765197eb39060bd3aadf486be0d65ff73d98af5b7652f8d6b56365accb",
+    "size": 1680
+  },
+  "area/System/receipts/2026-10-23-163604-snapshot.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773364561579842,
+    "sha256": "1d19fef4babab911df5ff6bb44443bfd77cd74fa69d16a4d7376a3d9265143dd",
+    "size": 302
+  },
+  "area/System/recovery": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361244527777,
+    "size": 96
+  },
+  "area/System/recovery/store": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361252409745,
+    "size": 224
+  },
+  "area/System/recovery/store/HEAD": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361251989953,
+    "sha256": "52d899a7058ab57f66277bb3d119b5a23e4bd08be1b3218974b3b79aec51d283",
+    "size": 24
+  },
+  "area/System/recovery/store/apparatus-owner.json": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361252455121,
+    "sha256": "75c956cf0526b86dd80bc058ba90eaed6b40b828ab72f8f918292457fcfde1e9",
+    "size": 104
+  },
+  "area/System/recovery/store/config": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361251422036,
+    "sha256": "583e3939cc50830531b229f4cedc2565e444b5b94c16fb6635ecd5d98e9dcbc3",
+    "size": 49
+  },
+  "area/System/recovery/store/objects": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773364470484432,
+    "size": 1184
+  },
+  "area/System/recovery/store/objects/01": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361340851444,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/01/05a5ff20848772650855d0ff08271fc6867d07": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361340900277,
+    "sha256": "90a8016b0f9429a631fe37a6e3fc6626f4774a6446245d1ca45d83fe2c27ab53",
+    "size": 1091
+  },
+  "area/System/recovery/store/objects/07": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361477923872,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/07/7202dbd9475189d410b2e4e9ae3674648e8d4a": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361477982581,
+    "sha256": "26453e076785a37435802ba24063870486545e1e5aee12d2b7acdaec9ac8f378",
+    "size": 512
+  },
+  "area/System/recovery/store/objects/1b": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361403666651,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/1b/eb4adbac5d9ff45d51941adc56a6bc34eef92e": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361403723276,
+    "sha256": "f9164388f90f1e54844c050b220ea778e359dcd08d11fbc1f66684fe450878f7",
+    "size": 48
+  },
+  "area/System/recovery/store/objects/4a": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361445864956,
+    "size": 128
+  },
+  "area/System/recovery/store/objects/4a/2dfeb3060902d25a4acf36778fb6ea04fbb7d1": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361446265665,
+    "sha256": "a345247a10c79fbf361d19ab4819c503360bf3b71b57ad8b5bc4768759f392bf",
+    "size": 529
+  },
+  "area/System/recovery/store/objects/4a/f7080684252f99275c53992a4934e901be2701": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361379285952,
+    "sha256": "f377eb41337b138d5020dcf62518f1974d0cf4720a86a03afa67f589a8ea786f",
+    "size": 1317
+  },
+  "area/System/recovery/store/objects/4c": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361407527406,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/4c/fd50f8134b0e66f476628c38ae57963ae16f33": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361407575239,
+    "sha256": "b98c12644eaf16748435167aa367ee741f82e09c64ff75a43e35b825e05b3b7a",
+    "size": 197
+  },
+  "area/System/recovery/store/objects/58": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361395759515,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/58/af7dfe7f4376c3f45fe6e4f54531f306adf056": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361395809724,
+    "sha256": "45a125229e10bed0934c5826224aeb05ee02f2799f48962dd78bad5e07f5d2c0",
+    "size": 211
+  },
+  "area/System/recovery/store/objects/5b": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361321948794,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/5b/1604ff20b13a5cff709083b284232a1c03cba2": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361322023045,
+    "sha256": "f689b76b85c0051f2d1f8731b2b23ff2d0f447143dbdd0d9e8a21b1ee3a2323c",
+    "size": 2188
+  },
+  "area/System/recovery/store/objects/61": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361499103608,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/61/a21a4c7ad7f9eebf620749149a7368c39533c8": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361499155525,
+    "sha256": "d7e93902bd8e46e22374c77195090522bbe43b49c4345ad8ea07d5bfd70ab0ff",
+    "size": 288
+  },
+  "area/System/recovery/store/objects/6f": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361344985158,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/6f/8812394b08eadebb85e26238273485a6fe0a6c": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361345043408,
+    "sha256": "55a2565a855892aa0208cb8603ad8cf62724880c4bde5a88ac756ff96d582acd",
+    "size": 52
+  },
+  "area/System/recovery/store/objects/74": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361391997927,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/74/cc60d2dc7f3a5318a1a29a589259dcc948c453": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361392047302,
+    "sha256": "3c2d7630d11bbb44a4cd9e0f91c428966f981354b459fbfd8dd7b41151ae7b08",
+    "size": 48
+  },
+  "area/System/recovery/store/objects/75": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361359745594,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/75/18eacfa8f3fe0a30361c44719b1a314b3ad1a3": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361359787094,
+    "sha256": "d779d9afd3a9dbb2c0e53e87059cf388d9528959e7cf550d8a29873bdad1c02a",
+    "size": 935
+  },
+  "area/System/recovery/store/objects/7d": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773364472194476,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/7d/4d983913f1389bbbb6681802eec6cde1b4d95d": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773364472272518,
+    "sha256": "4fc8745a507b3e9bf91ac848a89b16391131516c0f3a52a1483b41ac40a3fcd6",
+    "size": 135
+  },
+  "area/System/recovery/store/objects/7f": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361326295467,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/7f/39643084a0b2b9f9fa1797262e86c7da3fe045": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361326359050,
+    "sha256": "54593f2a97c3418506875a8952e81b17c0ab900a85e14f0a9f209178d89b0cf0",
+    "size": 53
+  },
+  "area/System/recovery/store/objects/80": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361486150258,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/80/64ac07f18fd0a2337e10ce8c1e5f0164ad2366": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361486212091,
+    "sha256": "8811c9783e275e23e691c007b96e7ff60f37e7dffecf1dbeac0fbe43a857767c",
+    "size": 219
+  },
+  "area/System/recovery/store/objects/82": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361462409477,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/82/9485d8ab95d1c7fdd0896c0d0be58a1f95d4de": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361462466811,
+    "sha256": "13f7ff65fd180e3de9a99530c1e61d16de70f9877312726455ac0279729526d7",
+    "size": 1377
+  },
+  "area/System/recovery/store/objects/95": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361354127128,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/95/e903e09b4b49a2866385579ac1bedcf257deaa": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361354167795,
+    "sha256": "824591905a3a56810b1010eaef6431895660429e1cae5d99f057355a3d115d8c",
+    "size": 53
+  },
+  "area/System/recovery/store/objects/99": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361336371230,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/99/87015fc96e26d29d9d0e5114fec33204f189cc": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361336422105,
+    "sha256": "a7b2b82a31c35cf25a97c823c8c2659386b7c7faa65e981febe9df7562dea3da",
+    "size": 53
+  },
+  "area/System/recovery/store/objects/9f": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361473277366,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/9f/cb3c5ea0b86568ef2f6b9a7cbd302941a0f1cd": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361473331325,
+    "sha256": "9035bc1fe3b5bc4aa6d619ad86d3c6052955740804d671a4bbe25321db587f7f",
+    "size": 153
+  },
+  "area/System/recovery/store/objects/a0": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361330345722,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/a0/bcb15e4aa7a7433a3633d8899660b0ac8404fd": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361330402014,
+    "sha256": "c007ec686c73bbcc09bf88a621162ebda4da1b2afab5d09ee9e52f0790041b01",
+    "size": 1113
+  },
+  "area/System/recovery/store/objects/a3": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361490425889,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/a3/01e100270a3d9be430720cd5702992d53992be": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361490484680,
+    "sha256": "068ee70f74b176bfaa9da38004d5f08a1eda513083b08b727931aa07d0fba792",
+    "size": 1928
+  },
+  "area/System/recovery/store/objects/a5": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361456290136,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/a5/bbf9f1b53f251f2589ea0d849f06b789331e61": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361456386969,
+    "sha256": "afa32c84340bc6ed5686736fa577fd10e20fe64b5417d7a9bfb76fec26fadfef",
+    "size": 1443
+  },
+  "area/System/recovery/store/objects/a9": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361373707528,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/a9/0cc3bebf2a03bbd088d0bf3231c76233d3c678": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361373749945,
+    "sha256": "785ff52ccb3bd401bece6e878b998e48bc0549af39704118fca8c923fc3f9859",
+    "size": 53
+  },
+  "area/System/recovery/store/objects/b6": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361369375481,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/b6/34aaf37a8a8eef7704112d5739223dc9f0eabd": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361369410939,
+    "sha256": "7cef2faa84d880d3b07486358cbd2017bc3ffc92f217455af4cef4cbc74966e2",
+    "size": 1010
+  },
+  "area/System/recovery/store/objects/b7": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361350205414,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/b7/75eb5fc151a285217cbedb2cb11a09bca8a56e": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361350250415,
+    "sha256": "b14c46d5c324ce18b12072285ee6b600801958376ee42d481d4d2bc3f26ac59b",
+    "size": 1229
+  },
+  "area/System/recovery/store/objects/c3": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361388298881,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/c3/10b5eb450d635e6635c7362797b100f2c3feb8": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361388377506,
+    "sha256": "50e6bd26b859063d258ee6d81563c632f6c91ec10d5957ab36a81eea97de1eed",
+    "size": 290
+  },
+  "area/System/recovery/store/objects/c9": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361415955958,
+    "size": 128
+  },
+  "area/System/recovery/store/objects/c9/054f80981b56b0bf26837ace2865a5d0213852": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361416031459,
+    "sha256": "bae7751036fb82b64055f8d358bb670bdf86ce311614d9055adcc619669db5ee",
+    "size": 5765
+  },
+  "area/System/recovery/store/objects/c9/544ea07cc5244eec835cde56267136115b5bf8": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361411758661,
+    "sha256": "cac7c3c941dc3c9e6c9fd9da2fff3f3e84d9dcd793a1fa1cc333f87b3542b438",
+    "size": 67
+  },
+  "area/System/recovery/store/objects/d0": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361433784940,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/d0/892ebab546e3a08a7ddc6f02acbf07b586571c": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361433843857,
+    "sha256": "73e099c81df2b3731af6b2ddd947c52343f9ed93d95b5f0afab5f52c7345cfdb",
+    "size": 604
+  },
+  "area/System/recovery/store/objects/d2": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361384360334,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/d2/7bde03819b4118193a22cf49d1dd9d9cc19fd1": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361384425459,
+    "sha256": "d855e28039bb774f280d091505981677df3625e832fe41f05c7d6f5618ce577f",
+    "size": 52
+  },
+  "area/System/recovery/store/objects/da": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361363693932,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/da/40ef638a95706902beaa78cb2c319e68720dc2": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361363743099,
+    "sha256": "857f297a068137049c797d436fda2fb962c232699e5a786b06795f8354b7d7ea",
+    "size": 53
+  },
+  "area/System/recovery/store/objects/de": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361399853604,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/de/ef3cd6d4b0249ca9f8367633563ca29d7fb7d5": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361399914771,
+    "sha256": "57d05e9bd97db62b3308c8f65598ce2fe42cc84f3b2fb9fb64871e4bae1b6a01",
+    "size": 58
+  },
+  "area/System/recovery/store/objects/e5": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361420131464,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/e5/c48e0d34c3a9a6bec929431aaf3fd74d93d74f": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361420186631,
+    "sha256": "d3d13ee9d5ea17e4b5de848b883fe594e96afae7d6019d5f9fedfbcc08126313",
+    "size": 166
+  },
+  "area/System/recovery/store/objects/e6": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361467497151,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/e6/6d1af1c4935ccb219a87db9fd708a7a0633504": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361467566276,
+    "sha256": "ebae2e18a5c512508426df86423d7f10f8659f05b7e3a020ad28679356c99db5",
+    "size": 88
+  },
+  "area/System/recovery/store/objects/eb": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361482019794,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/eb/2473b7efffe8d22004768f1edac193b71f0bfc": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361482086044,
+    "sha256": "01b3a2e8b2bd02e301d546032a9564a52f55a08869df7584ab39f9dd06a21c6d",
+    "size": 70
+  },
+  "area/System/recovery/store/objects/f3": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361494647477,
+    "size": 96
+  },
+  "area/System/recovery/store/objects/f3/da8edc6fae7d03fe3c369f81871f5635f0a3c0": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361494747978,
+    "sha256": "9b5f3f88b143bb35f8e6eefc9d4c87bc40401dc7bf3c73a06b360020987a75d6",
+    "size": 1231
+  },
+  "area/System/recovery/store/objects/f4": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361440674949,
+    "size": 128
+  },
+  "area/System/recovery/store/objects/f4/e51e429280712a2f17236958f9e87f0812ab54": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361440746949,
+    "sha256": "48d27dc2c6b98fb6cb20b3716082ede91bb6abe3532349972dade0b899be3610",
+    "size": 62
+  },
+  "area/System/recovery/store/objects/f4/fed7e137a69beebcef8000bb8c1dcfacce0d98": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361428914767,
+    "sha256": "0ca6c2413f566818f106e3626735e21b5500a17b15b60f60f2085ec23e0764df",
+    "size": 1242
+  },
+  "area/System/recovery/store/refs": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773361249244741,
+    "size": 96
+  },
+  "area/System/recovery/store/refs/heads": {
+    "kind": "dir",
+    "mode": 448,
+    "mtime_ns": 1792773364801984113,
+    "size": 96
+  },
+  "area/System/recovery/store/refs/heads/managed": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773364802088280,
+    "sha256": "96e8d4780de2d63d15cfe7def2892e3c6a959cf4e993f2ef29f1b0f310646315",
+    "size": 41
+  },
+  "area/System/workspace.yaml": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361156998956,
+    "sha256": "4f1a99fb237932b7c5ba1b47cce69d1db8d777100fb453d1eb83594a9f3e4449",
+    "size": 121
+  },
+  "area/Welcome.md": {
+    "kind": "file",
+    "mode": 384,
+    "mtime_ns": 1792773361148047569,
+    "sha256": "a2d4b26fddd5bc23a709f5e6c756476f0b5d6d86772774757dbaab09dda3eee8",
+    "size": 4091
+  },
+  "area/inside-exports": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365177308852,
+    "size": 64
+  },
+  "area/project": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365176971018,
+    "size": 128
+  },
+  "area/project/.git": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365174824015,
+    "size": 288
+  },
+  "area/project/.git/HEAD": {
+    "kind": "file",
+    "mode": 420,
+    "mtime_ns": 1792773365174728974,
+    "sha256": "f6f2b945f6c411b02ba3da9c7ace88dcf71b6af65ba2e0d89aa82900042b5a10",
+    "size": 23
+  },
+  "area/project/.git/config": {
+    "kind": "file",
+    "mode": 420,
+    "mtime_ns": 1792773365174340598,
+    "sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+    "size": 137
+  },
+  "area/project/.git/description": {
+    "kind": "file",
+    "mode": 420,
+    "mtime_ns": 1792773365170878844,
+    "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee",
+    "size": 73
+  },
+  "area/project/.git/hooks": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365172720554,
+    "size": 512
+  },
+  "area/project/.git/hooks/applypatch-msg.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171584803,
+    "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+    "size": 478
+  },
+  "area/project/.git/hooks/commit-msg.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171114719,
+    "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+    "size": 896
+  },
+  "area/project/.git/hooks/fsmonitor-watchman.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171709012,
+    "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+    "size": 4726
+  },
+  "area/project/.git/hooks/post-update.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365172048595,
+    "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+    "size": 189
+  },
+  "area/project/.git/hooks/pre-applypatch.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365172343262,
+    "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+    "size": 424
+  },
+  "area/project/.git/hooks/pre-commit.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171473636,
+    "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+    "size": 1649
+  },
+  "area/project/.git/hooks/pre-merge-commit.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365172206137,
+    "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+    "size": 416
+  },
+  "area/project/.git/hooks/pre-push.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365172511179,
+    "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+    "size": 1374
+  },
+  "area/project/.git/hooks/pre-rebase.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171245636,
+    "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+    "size": 4898
+  },
+  "area/project/.git/hooks/pre-receive.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171822303,
+    "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+    "size": 544
+  },
+  "area/project/.git/hooks/prepare-commit-msg.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171939220,
+    "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+    "size": 1492
+  },
+  "area/project/.git/hooks/push-to-checkout.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365172765929,
+    "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+    "size": 2783
+  },
+  "area/project/.git/hooks/sendemail-validate.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365171360886,
+    "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+    "size": 2308
+  },
+  "area/project/.git/hooks/update.sample": {
+    "kind": "file",
+    "mode": 493,
+    "mtime_ns": 1792773365172636679,
+    "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106",
+    "size": 3650
+  },
+  "area/project/.git/info": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365170663760,
+    "size": 96
+  },
+  "area/project/.git/info/exclude": {
+    "kind": "file",
+    "mode": 420,
+    "mtime_ns": 1792773365170723510,
+    "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1",
+    "size": 240
+  },
+  "area/project/.git/objects": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365174898599,
+    "size": 128
+  },
+  "area/project/.git/objects/info": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365174897099,
+    "size": 64
+  },
+  "area/project/.git/objects/pack": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365174860099,
+    "size": 64
+  },
+  "area/project/.git/refs": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365174627849,
+    "size": 128
+  },
+  "area/project/.git/refs/heads": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365174587182,
+    "size": 64
+  },
+  "area/project/.git/refs/tags": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365174626474,
+    "size": 64
+  },
+  "area/project/sentinel.txt": {
+    "kind": "file",
+    "mode": 420,
+    "mtime_ns": 1792773365177031352,
+    "sha256": "791c640a468bf80c1575ecb1c7e6ee677325fd02dd31e1564fd1a2aead45d877",
+    "size": 38
+  },
+  "exports": {
+    "kind": "dir",
+    "mode": 493,
+    "mtime_ns": 1792773365177206727,
+    "size": 96
+  },
+  "exports/sentinel.txt": {
+    "kind": "file",
+    "mode": 420,
+    "mtime_ns": 1792773365177245810,
+    "sha256": "787102ce1e9fadcecb87327ed301b45dd9d291bc73749afb77e7b470228de755",
+    "size": 29
+  },
+  "inside-ancestor-alias": {
+    "kind": "link",
+    "mode": 493,
+    "mtime_ns": 1792773365177370686,
+    "size": 106,
+    "target": "$RUN/runtime/backup-alias-inside/area"
+  }
+}

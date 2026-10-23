@@ -28,3 +28,4 @@ installer/macos/package-scripts/postinstall text eol=lf
 
 docs/certification/evidence/document-review-2026-10-12/** -text
 docs/certification/evidence/core-readiness-2026-10-12/** -text
+docs/certification/evidence/release-candidate-0.0.3/** -text

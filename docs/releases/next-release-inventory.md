@@ -77,9 +77,9 @@ protected workflow to succeed. No secrets or signing material were inspected.
 - [x] Inventory source/public identities and classify the delta.
 - [x] Select core-only scope and omit optional experiments.
 - [x] Draft Unreleased notes and focused implementation prompts.
-- [ ] PR-73: recheck version availability, version the candidate, verify package
+- [x] PR-73: recheck version availability, version the candidate, verify package
   and payload parity, run full tests/current CI and isolated installed checks.
-- [ ] PR-73: refresh affected first-task/continuation checks on actual available
+- [x] PR-73: refresh affected first-task/continuation checks on actual available
   AI-app surfaces; record unavailable variants without claiming their support.
 - [ ] Nominate the exact merged PR-73 commit as immutable candidate. Later
   documentation commits must not move the release source.
@@ -94,5 +94,8 @@ protected workflow to succeed. No secrets or signing material were inspected.
 - [ ] Record final delivery and support limits, or a precise unpublished handoff.
 
 The [release runbook](../release-runbook.md) controls sequencing and cleanup.
+The [0.0.3 source qualification](../certification/release-candidate-0.0.3.md)
+records PR-73's bounded results and remaining native-surface gaps; the checked
+PR-73 rows take effect with its green, verified remote merge.
 If candidate inputs change, repeat affected acceptance and rehearsal. A package
 version published to PyPI cannot be removed from history or reused.
