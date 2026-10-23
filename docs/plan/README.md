@@ -178,7 +178,7 @@ later slices remain planned.
 | 70 | [Compare supplied-document review approaches](PR-70-document-review-comparison.md) | Next release A1 | ✅ landed | 69 |
 | 71 | [Verify retained core source-build readiness](PR-71-final-core-acceptance.md) | Next release C | ✅ landed | 70 |
 | 72 | [Define the next core release](PR-72-release-inventory.md) | Release S1 | ✅ landed | 71 |
-| 73 | [Freeze and qualify the core candidate](PR-73-release-candidate.md) | Release S3 | ready | 72 |
+| 73 | [Freeze and qualify the core candidate](PR-73-release-candidate.md) | Release S3 | ✅ landed | 72 |
 | 74 | [Verify signed rehearsal](PR-74-signed-rehearsal.md) | Release S4 | ready | 73 |
 | 75 | [Deliver the qualified release](PR-75-release-delivery.md) | Release S5 | ready | 74, final publication approval |
 

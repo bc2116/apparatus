@@ -1,0 +1,15 @@
+{
+  "result": "pass",
+  "identity": {
+    "version": "0.0.3",
+    "runtime_version": "0.0.3",
+    "module": "$INSTALLED/lib/python3.12/site-packages/apparatus_core/__init__.py"
+  },
+  "wheel_sha256": "c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa",
+  "dependency_source": "same captured offline dependency wheelhouse as installed-core probes",
+  "fresh_init": {
+    "exit_code": 0,
+    "stdout": "Workspace created.\n",
+    "stderr": ""
+  }
+}

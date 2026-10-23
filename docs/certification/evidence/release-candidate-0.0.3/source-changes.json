@@ -1,0 +1,16 @@
+{
+  "candidate_source": "768b7594bb6946ae5e5f3f615613c82061939170",
+  "inventory_base": "1e8df7debc0aeb25062ad74fa13b54efe5591568",
+  "versioned_inputs": [
+    "packages/apparatus-core/pyproject.toml",
+    "packages/apparatus-core/src/apparatus_core/__init__.py",
+    "uv.lock"
+  ],
+  "version": "0.0.3",
+  "scope": "Version-only core candidate; evidence and changelog changes do not add runtime behavior.",
+  "artifacts": {
+    "apparatus-payload-0.0.3.zip": "3fb3d3e0400ecc35cd8e25e98b3294de671c16892392d67e1bd4011678d11f4d",
+    "apparatus_core-0.0.3.tar.gz": "a1e3daf2867b973b362cdb5d16b7329e838c4620c6feb0c83dadd17fca10e949",
+    "apparatus_core-0.0.3-py3-none-any.whl": "c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa"
+  }
+}
