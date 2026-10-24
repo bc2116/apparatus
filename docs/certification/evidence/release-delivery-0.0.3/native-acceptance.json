@@ -1,0 +1,555 @@
+{
+  "artifacts": {
+    "macos-15": {
+      "created_at": "2026-10-24T03:19:20Z",
+      "digest": "sha256:ce7a1e31a1658aa454dc6d46a411f4b975da8889dafa1ee99495772f68d695d2",
+      "download_digest_verified": true,
+      "expires_at": "2027-01-22T03:18:37Z",
+      "id": 12545802447,
+      "name": "apparatus-native-acceptance-macos-15-40057773383-1",
+      "receipt": "macos-15-receipt.json",
+      "receipt_sha256": "dd9e857d0daeee6557c62ca4dbc887598d7ca8904aee992c8ad2a0d060d1498f",
+      "run_id": 40057773383,
+      "size_in_bytes": 1268
+    },
+    "windows-2025": {
+      "created_at": "2026-10-24T03:18:09Z",
+      "digest": "sha256:d1f8b450295934f1c3a457b0c24a680edb2636ee8e49cdf38bd5c71fac39e298",
+      "download_digest_verified": true,
+      "expires_at": "2027-01-22T03:16:30Z",
+      "id": 12546027975,
+      "name": "apparatus-native-acceptance-windows-2025-40057627691-1",
+      "receipt": "windows-2025-receipt.json",
+      "receipt_sha256": "c9f8e1226b4e698f1137de56edf1e05081164703fdc44f14360b2fe26862aa3f",
+      "run_id": 40057627691,
+      "size_in_bytes": 1313
+    }
+  },
+  "failed_observations": [
+    {
+      "artifact_digest": "sha256:20a08da5d3858c0c488ccf596c4d9be221ae0fb6aaf9c95b2768b9c7776201c3",
+      "artifact_id": 12545519527,
+      "download_digest_verified": true,
+      "receipt": "macos-first-failed-receipt.json",
+      "receipt_sha256": "c62f8cc62b15872bc9deedc0945ab289b2f94eebf47a73dc2a97dcc1d2c4ce2c",
+      "run_id": 40057627691
+    }
+  ],
+  "head_branch": "v0.0.3",
+  "head_sha": "5890838696157a9139d91903f029b7114f1412b5",
+  "result": "pass",
+  "runs": {
+    "40057627691": {
+      "conclusion": "failure",
+      "created_at": "2026-10-24T03:16:29Z",
+      "event": "workflow_dispatch",
+      "head_branch": "v0.0.3",
+      "head_sha": "5890838696157a9139d91903f029b7114f1412b5",
+      "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691",
+      "id": 40057627691,
+      "jobs": [
+        {
+          "completed_at": "2026-10-24T03:16:40Z",
+          "conclusion": "success",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764009188",
+          "id": 120764009188,
+          "name": "Validate published acceptance source",
+          "started_at": "2026-10-24T03:16:34Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-24T03:16:35Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "started_at": "2026-10-24T03:16:34Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:36Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "started_at": "2026-10-24T03:16:35Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:38Z",
+              "conclusion": "success",
+              "name": "Validate exact tagged run and publication",
+              "number": 3,
+              "started_at": "2026-10-24T03:16:36Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 6,
+              "started_at": "2026-10-24T03:16:38Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:38Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "started_at": "2026-10-24T03:16:38Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764010201",
+          "id": 120764010201,
+          "name": "Build Windows installer wrapper",
+          "started_at": "2026-10-24T03:16:30Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764010225",
+          "id": 120764010225,
+          "name": "Build release files",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764010261",
+          "id": 120764010261,
+          "name": "Sign Windows installer",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764010341",
+          "id": 120764010341,
+          "name": "Sign and notarize macOS installer",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764010451",
+          "id": 120764010451,
+          "name": "Build macOS installer wrapper",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764010765",
+          "id": 120764010765,
+          "name": "Sign Windows installer with Azure Artifact Signing",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764010827",
+          "id": 120764010827,
+          "name": "Publish apparatus-core to PyPI",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764011313",
+          "id": 120764011313,
+          "name": "Assemble release files and checksums",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:16:30Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764011766",
+          "id": 120764011766,
+          "name": "Create GitHub Release",
+          "started_at": "2026-10-24T03:16:31Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:12Z",
+          "conclusion": "success",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764043285",
+          "id": 120764043285,
+          "name": "Native install and repair (windows-2025)",
+          "started_at": "2026-10-24T03:16:43Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-24T03:16:46Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "started_at": "2026-10-24T03:16:44Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:54Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "started_at": "2026-10-24T03:16:46Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:55Z",
+              "conclusion": "success",
+              "name": "Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+              "number": 3,
+              "started_at": "2026-10-24T03:16:54Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:08Z",
+              "conclusion": "success",
+              "name": "Verify published bytes and run unchanged native installer twice",
+              "number": 4,
+              "started_at": "2026-10-24T03:16:55Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:09Z",
+              "conclusion": "success",
+              "name": "Upload acceptance receipt",
+              "number": 5,
+              "started_at": "2026-10-24T03:18:08Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:11Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 10,
+              "started_at": "2026-10-24T03:18:09Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:11Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "started_at": "2026-10-24T03:18:11Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-24T03:17:08Z",
+          "conclusion": "failure",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057627691/job/120764043312",
+          "id": 120764043312,
+          "name": "Native install and repair (macos-15)",
+          "started_at": "2026-10-24T03:16:43Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-24T03:16:47Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "started_at": "2026-10-24T03:16:45Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:51Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "started_at": "2026-10-24T03:16:47Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:16:53Z",
+              "conclusion": "success",
+              "name": "Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+              "number": 3,
+              "started_at": "2026-10-24T03:16:51Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:17:03Z",
+              "conclusion": "failure",
+              "name": "Verify published bytes and run unchanged native installer twice",
+              "number": 4,
+              "started_at": "2026-10-24T03:16:53Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:17:05Z",
+              "conclusion": "success",
+              "name": "Upload acceptance receipt",
+              "number": 5,
+              "started_at": "2026-10-24T03:17:03Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:17:05Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 10,
+              "started_at": "2026-10-24T03:17:05Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:17:06Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "started_at": "2026-10-24T03:17:05Z",
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-10-24T03:18:13Z"
+    },
+    "40057773383": {
+      "conclusion": "success",
+      "created_at": "2026-10-24T03:18:36Z",
+      "event": "workflow_dispatch",
+      "head_branch": "v0.0.3",
+      "head_sha": "5890838696157a9139d91903f029b7114f1412b5",
+      "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383",
+      "id": 40057773383,
+      "jobs": [
+        {
+          "completed_at": "2026-10-24T03:18:45Z",
+          "conclusion": "success",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764456790",
+          "id": 120764456790,
+          "name": "Validate published acceptance source",
+          "started_at": "2026-10-24T03:18:39Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-24T03:18:40Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "started_at": "2026-10-24T03:18:39Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:41Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "started_at": "2026-10-24T03:18:40Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:43Z",
+              "conclusion": "success",
+              "name": "Validate exact tagged run and publication",
+              "number": 3,
+              "started_at": "2026-10-24T03:18:41Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:43Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 6,
+              "started_at": "2026-10-24T03:18:43Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:43Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "started_at": "2026-10-24T03:18:43Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764457442",
+          "id": 120764457442,
+          "name": "Build release files",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764457805",
+          "id": 120764457805,
+          "name": "Sign and notarize macOS installer",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764457830",
+          "id": 120764457830,
+          "name": "Sign Windows installer with Azure Artifact Signing",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764457909",
+          "id": 120764457909,
+          "name": "Build macOS installer wrapper",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764457934",
+          "id": 120764457934,
+          "name": "Build Windows installer wrapper",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764458021",
+          "id": 120764458021,
+          "name": "Sign Windows installer",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764458157",
+          "id": 120764458157,
+          "name": "Assemble release files and checksums",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764458547",
+          "id": 120764458547,
+          "name": "Create GitHub Release",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:18:37Z",
+          "conclusion": "skipped",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764458614",
+          "id": 120764458614,
+          "name": "Publish apparatus-core to PyPI",
+          "started_at": "2026-10-24T03:18:37Z",
+          "status": "completed",
+          "steps": []
+        },
+        {
+          "completed_at": "2026-10-24T03:19:22Z",
+          "conclusion": "success",
+          "html_url": "https://github.com/bc2116/apparatus/actions/runs/40057773383/job/120764483856",
+          "id": 120764483856,
+          "name": "Native install and repair (macos-15)",
+          "started_at": "2026-10-24T03:18:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-24T03:18:49Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "started_at": "2026-10-24T03:18:48Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "started_at": "2026-10-24T03:18:49Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:18:53Z",
+              "conclusion": "success",
+              "name": "Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+              "number": 3,
+              "started_at": "2026-10-24T03:18:52Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:19:19Z",
+              "conclusion": "success",
+              "name": "Verify published bytes and run unchanged native installer twice",
+              "number": 4,
+              "started_at": "2026-10-24T03:18:53Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:19:20Z",
+              "conclusion": "success",
+              "name": "Upload acceptance receipt",
+              "number": 5,
+              "started_at": "2026-10-24T03:19:19Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:19:21Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 10,
+              "started_at": "2026-10-24T03:19:20Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-24T03:19:21Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "started_at": "2026-10-24T03:19:21Z",
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-10-24T03:19:23Z"
+    }
+  },
+  "updated_at": "2026-10-24T03:19:23Z"
+}

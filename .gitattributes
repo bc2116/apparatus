@@ -30,3 +30,6 @@ docs/certification/evidence/document-review-2026-10-12/** -text
 docs/certification/evidence/core-readiness-2026-10-12/** -text
 docs/certification/evidence/release-candidate-0.0.3/** -text
 docs/certification/evidence/release-rehearsal-0.0.3/** -text
+docs/certification/evidence/release-delivery-0.0.3/** -text
+# The native Windows receipt retains its original CRLF bytes for digest checks.
+docs/certification/evidence/release-delivery-0.0.3/windows-2025-receipt.json whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

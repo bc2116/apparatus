@@ -1,0 +1,8 @@
+{
+  "source_run": 40057337396,
+  "ref": "v0.0.3",
+  "acceptance_platform": "macos",
+  "timestamp_utc": "2026-10-24T03:18:36.342017+00:00",
+  "github_release_gate": "withheld",
+  "reason": "First Mac run returned stapler validate exit68 before install; exact package bytes validate successfully on operator Mac. Preserve Windows pass and retry unchanged Mac acceptance once."
+}

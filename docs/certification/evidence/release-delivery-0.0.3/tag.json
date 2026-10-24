@@ -1,0 +1,9 @@
+{
+  "ref": "refs/tags/v0.0.3",
+  "url": "https://api.github.com/repos/bc2116/apparatus/git/refs/tags/v0.0.3",
+  "object": {
+    "sha": "5890838696157a9139d91903f029b7114f1412b5",
+    "type": "commit",
+    "url": "https://api.github.com/repos/bc2116/apparatus/git/commits/5890838696157a9139d91903f029b7114f1412b5"
+  }
+}

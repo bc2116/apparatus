@@ -1,0 +1,7 @@
+{
+  "command": "xcrun stapler validate apparatus-installer.pkg",
+  "exit_code": 0,
+  "output": "Processing: apparatus-installer.pkg\nThe validate action worked!\n",
+  "package_sha256": "2839564fa1f85660446a347f062d72aa34433d8dd1c6c2bc0a4711e9d1206fcb",
+  "purpose": "Read-only ticket verification on the operator Mac; not native installation acceptance."
+}

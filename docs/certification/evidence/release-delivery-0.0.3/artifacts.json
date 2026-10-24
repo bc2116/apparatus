@@ -1,0 +1,63 @@
+{
+  "apparatus-azure-signed-windows-installer-0.0.3": {
+    "created_at": "2026-10-24T03:15:16Z",
+    "digest": "sha256:99674fd9d284692848a58f5fc972e0aa91a08ab84a5ce66aaa2c2ac6727f2a2f",
+    "download_digest_verified": true,
+    "expires_at": "2027-01-22T03:12:13Z",
+    "id": 12546082512,
+    "members": {
+      "apparatus-installer.exe": "9477739b35ba522a7f266f725bf7a99a8ab5a75181a9e8ad6826a3b4c1f107d3"
+    },
+    "name": "apparatus-azure-signed-windows-installer-0.0.3",
+    "size_in_bytes": 1559704
+  },
+  "apparatus-release-0.0.3": {
+    "created_at": "2026-10-24T03:15:28Z",
+    "digest": "sha256:c714c96babeb527df1802c5f1d5022ef8210bddb36dc75b8b170330510ba329d",
+    "download_digest_verified": true,
+    "expires_at": "2027-01-22T03:12:13Z",
+    "id": 12546007689,
+    "members": {
+      "SHA256SUMS": "21d292fbd092d3d9d1590aaaeebf2b559102dddca7f8121259cc8e329c112be1",
+      "apparatus-installer.exe": "9477739b35ba522a7f266f725bf7a99a8ab5a75181a9e8ad6826a3b4c1f107d3",
+      "apparatus-installer.pkg": "2839564fa1f85660446a347f062d72aa34433d8dd1c6c2bc0a4711e9d1206fcb",
+      "apparatus-payload-0.0.3.zip": "3fb3d3e0400ecc35cd8e25e98b3294de671c16892392d67e1bd4011678d11f4d",
+      "apparatus_core-0.0.3-py3-none-any.whl": "c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa",
+      "apparatus_core-0.0.3.tar.gz": "a1e3daf2867b973b362cdb5d16b7329e838c4620c6feb0c83dadd17fca10e949",
+      "bootstrap-apparatus.ps1": "88421184286589c42b31336ade4d91b912e4fe131012a27303a037344690c133",
+      "bootstrap-apparatus.sh": "7d7115e77b267fa59ba1135e9c33985c50850813c89a5a4f7cce037d7b300431",
+      "release-notes.md": "cb2ad36e8f72caf09e93a32924064e4ad09e90c43828b6027bf975644cba4b6f"
+    },
+    "name": "apparatus-release-0.0.3",
+    "size_in_bytes": 2024805
+  },
+  "apparatus-release-inputs-0.0.3": {
+    "created_at": "2026-10-24T03:12:25Z",
+    "digest": "sha256:9d6089f9b58fcb7c6d548d56eeb763e53f73111ecf6b5e7bf53e15c02199e17a",
+    "download_digest_verified": true,
+    "expires_at": "2027-01-22T03:12:13Z",
+    "id": 12545751858,
+    "members": {
+      "apparatus-payload-0.0.3.zip": "3fb3d3e0400ecc35cd8e25e98b3294de671c16892392d67e1bd4011678d11f4d",
+      "installer/macos/bootstrap-apparatus.sh": "7d7115e77b267fa59ba1135e9c33985c50850813c89a5a4f7cce037d7b300431",
+      "installer/windows/bootstrap-apparatus.ps1": "88421184286589c42b31336ade4d91b912e4fe131012a27303a037344690c133",
+      "packages/apparatus_core-0.0.3-py3-none-any.whl": "c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa",
+      "packages/apparatus_core-0.0.3.tar.gz": "a1e3daf2867b973b362cdb5d16b7329e838c4620c6feb0c83dadd17fca10e949",
+      "release-notes.md": "cb2ad36e8f72caf09e93a32924064e4ad09e90c43828b6027bf975644cba4b6f"
+    },
+    "name": "apparatus-release-inputs-0.0.3",
+    "size_in_bytes": 448576
+  },
+  "apparatus-signed-macos-installer-0.0.3": {
+    "created_at": "2026-10-24T03:13:43Z",
+    "digest": "sha256:3984a19cfc63de11f31cdcd083037af533a3f9412b125f725b103fd6d8ef0769",
+    "download_digest_verified": true,
+    "expires_at": "2027-01-22T03:12:13Z",
+    "id": 12545841738,
+    "members": {
+      "apparatus-installer.pkg": "2839564fa1f85660446a347f062d72aa34433d8dd1c6c2bc0a4711e9d1206fcb"
+    },
+    "name": "apparatus-signed-macos-installer-0.0.3",
+    "size_in_bytes": 16187
+  }
+}

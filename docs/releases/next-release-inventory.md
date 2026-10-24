@@ -1,6 +1,8 @@
 # Next core release inventory
 
-Observed 2026-10-23. This is release preparation, not release acceptance.
+Observed 2026-10-23. The inventory below preserves the preparation baseline.
+[0.0.3 delivery](../certification/release-delivery-0.0.3.md) now records the
+approved publication, native installation/repair and public-file verification.
 
 ## Identity and selected scope
 
@@ -86,17 +88,18 @@ protected workflow to succeed. No secrets or signing material were inspected.
 - [x] PR-74: dispatch a signed dry-run while main still names that candidate;
   verify source SHA, seven distributables, notes, checksums and both signatures.
 - [x] Confirm rehearsal changed neither PyPI nor GitHub Releases.
-- [ ] Present exact candidate/evidence for final publication approval.
-- [ ] PR-75 operational delivery: publish the new candidate tag through the
+- [x] Present exact candidate/evidence for final publication approval.
+- [x] PR-75 operational delivery: publish the new candidate tag through the
   protected package job, then run native install/repair on Windows and macOS.
-- [ ] Approve GitHub Release only after native acceptance succeeds; verify
+- [x] Approve GitHub Release only after native acceptance succeeds; verify
   attachments/hashes/notes and return publish mode to unset.
-- [ ] Record final delivery and support limits, or a precise unpublished handoff.
+- [x] Record final delivery and support limits, or a precise unpublished handoff.
 
 The [release runbook](../release-runbook.md) controls sequencing and cleanup.
 The [signed rehearsal](../certification/release-rehearsal-0.0.3.md) fixes the
 candidate at `5890838696157a9139d91903f029b7114f1412b5` and records the verified
-artifact/signature results. Publication is explicitly withheld.
+artifact/signature results. The owner subsequently approved publication; the
+delivery record preserves the exact tagged run and later acceptance evidence.
 The [0.0.3 source qualification](../certification/release-candidate-0.0.3.md)
 records PR-73's bounded results and remaining native-surface gaps; the checked
 PR-73 rows take effect with its green, verified remote merge.

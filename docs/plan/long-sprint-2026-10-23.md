@@ -1,7 +1,8 @@
 # Long sprint: finish and qualify the next release
 
-- **Status:** Execution selected by the owner on 2026-10-23. S1 and S3 are landed;
-  S4 records the successful signed rehearsal. Publication is held for approval.
+- **Status:** The retained S1/S3/S4/S5 sequence is complete. The owner approved
+  publication; [0.0.3 delivery](../certification/release-delivery-0.0.3.md) records
+  signed installers, native installation/repair acceptance and verified public files.
 - **Verified starting source:** `1e8df7debc0aeb25062ad74fa13b54efe5591568`.
 - **Starting delivery state:** public core version `0.0.2`; the completed
   [prior cycle](next-release-features.md) established source-build acceptance.
@@ -19,8 +20,10 @@ account observations stay outside the repository.
 
 After the reserve checkpoint, the owner explicitly authorized using the reserve
 to merge GitHub PR #74 and run the signed rehearsal. This bounded continuation
-covers S3 merge and S4 verification/delivery. S5 publication remains withheld;
-it does not reopen optional work or authorize a release tag.
+covered S3 merge and S4 verification/delivery, with S5 initially withheld.
+The owner subsequently approved staged publication of frozen candidate `5890838`.
+That approval completed S5 through the existing protected gates; it did not
+reopen optional work. Publish mode was returned to unset.
 
 ## What moves the product forward
 

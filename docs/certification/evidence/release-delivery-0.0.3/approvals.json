@@ -1,0 +1,44 @@
+[
+  {
+    "run_id": 40057337396,
+    "environment": "signing",
+    "environment_ids": [
+      19710983338
+    ],
+    "state": "approved",
+    "timestamp_utc": "2026-10-24T03:13:11.216023+00:00",
+    "normal_required_reviewer_path": true
+  },
+  {
+    "run_id": 40057337396,
+    "environment": "signing",
+    "environment_ids": [
+      19710983338
+    ],
+    "state": "approved",
+    "timestamp_utc": "2026-10-24T03:14:16.182563+00:00",
+    "normal_required_reviewer_path": true,
+    "stage": "Windows signing"
+  },
+  {
+    "run_id": 40057337396,
+    "environment": "pypi",
+    "environment_ids": [
+      19710983851
+    ],
+    "state": "approved",
+    "timestamp_utc": "2026-10-24T03:15:45.534919+00:00",
+    "normal_required_reviewer_path": true
+  },
+  {
+    "run_id": 40057337396,
+    "environment": "release",
+    "environment_ids": [
+      21442723014
+    ],
+    "state": "approved",
+    "timestamp_utc": "2026-10-24T03:20:48.423335+00:00",
+    "normal_required_reviewer_path": true,
+    "native_gate_independently_reviewed": true
+  }
+]
