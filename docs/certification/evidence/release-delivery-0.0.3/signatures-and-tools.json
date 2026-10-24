@@ -1,0 +1,87 @@
+{
+  "assertion_basis": "Successful exact-source workflow steps plus bounded observed output; no credential-bearing command/setup text retained.",
+  "inno_setup": {
+    "assertion": "Successful install step verifies pinned download digest, publisher signature and compiler major/architecture banner.",
+    "pinned_download_sha256": "2b8734490a83f1ed074022b85d46c5ce9c3e2fbe9b63a45c28a74b478ac3a94f",
+    "pinned_version": "7.0.2"
+  },
+  "normalization": "Hosted Windows executable path replaced with basename; certificate subject and account identity output omitted. Command echoes are excluded.",
+  "result": "pass",
+  "run_id": 40057337396,
+  "runner_images": {
+    "Build Windows installer wrapper": [
+      "Image: windows-2025-vs2026",
+      "Version: 20261021.278.1"
+    ],
+    "Build macOS installer wrapper": [
+      "Image: macos-15-arm64",
+      "Version: 20260907.0337.1"
+    ],
+    "Build release files": [
+      "Image: ubuntu-24.04",
+      "Version: 20261012.334.1"
+    ],
+    "Sign Windows installer with Azure Artifact Signing": [
+      "Image: windows-2025-vs2026",
+      "Version: 20261021.278.1"
+    ],
+    "Sign and notarize macOS installer": [
+      "Image: macos-15-arm64",
+      "Version: 20260907.0337.1"
+    ]
+  },
+  "selected_outputs": {
+    "macos_build": {
+      "log_member": "Build macOS installer wrapper/3_Build and verify macOS installer.txt",
+      "selected_output": [
+        "ProductName:\t\tmacOS",
+        "ProductVersion:\t\t15.7.9",
+        "BuildVersion:\t\t24G830",
+        "aeb329f33f1b37f6719356d720d72db935d5b9456ebc0d64b07688be5d9abc52  /usr/bin/pkgbuild",
+        "b34ab9dff218da96a38132b620c7e8d39b0da1a1c3c47c24e6c2a7bf34073bf0  /usr/bin/productbuild",
+        "macOS package payload and launcher verified."
+      ]
+    },
+    "macos_payload": {
+      "log_member": "Sign and notarize macOS installer/5_Re-verify signed macOS package payload.txt",
+      "selected_output": [
+        "macOS package payload and launcher verified."
+      ]
+    },
+    "macos_sign": {
+      "log_member": "Sign and notarize macOS installer/4_Sign, notarize, and staple installer package.txt",
+      "selected_output": [
+        "Current status: Accepted.....Processing complete",
+        "status: Accepted",
+        "The staple and validate action worked!",
+        "Status: signed by a developer certificate issued by Apple for distribution",
+        "source=Notarized Developer ID",
+        "The validate action worked!"
+      ]
+    },
+    "windows_build": {
+      "log_member": "Build Windows installer wrapper/3_Install pinned Inno Setup.txt",
+      "selected_output": [
+        "Inno Setup 7 (32-bit) Command-Line Compiler"
+      ]
+    },
+    "windows_verify": {
+      "log_member": "Sign Windows installer with Azure Artifact Signing/7_Verify Azure-signed Windows installer.txt",
+      "selected_output": [
+        "Successfully verified: apparatus-installer.exe"
+      ]
+    }
+  },
+  "tool_version_gaps": [
+    "Exact signtool executable version not emitted",
+    "Exact productsign, notarytool and stapler versions not emitted"
+  ],
+  "windows_assertions": [
+    "signtool verify /pa /tw succeeded",
+    "Authenticode status Valid",
+    "protected publisher subject matched",
+    "code-signing EKU accepted",
+    "signer and timestamp certificate validity checked",
+    "signed installer dry-run exercised embedded bootstrap"
+  ]
+}

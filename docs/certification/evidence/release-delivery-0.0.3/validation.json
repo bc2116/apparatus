@@ -1,0 +1,37 @@
+{
+  "evidence_checks": {
+    "candidate_checker": "pass",
+    "git_diff_check": "pass; original Windows CRLF retained",
+    "local_document_links": 203,
+    "offline_delivery_checker": "pass",
+    "rehearsal_checker": "pass"
+  },
+  "full_suite": {
+    "command": "uv sync --all-packages; uv run pytest",
+    "passed": 1792,
+    "result": "pass",
+    "seconds": 556.95,
+    "skipped": 43
+  },
+  "independent_final_review": {
+    "limits": "Reviewer did not repeat full suite, native installation, signing or public downloads; execution evidence and collectors were reviewed.",
+    "minor_cleanup": "Plan index now describes completed four-PR sequence.",
+    "result": "approved without blockers",
+    "verified": [
+      "Four downloaded archive digests, seven distributables and signed-upload equality",
+      "All 263 source inputs and wheel-member equality",
+      "Captured 8 GitHub and 2 PyPI hashes/sizes against actual bundle",
+      "Native receipts, preserved failure/retry, approval ordering and cleanup",
+      "Capsule integrity, staged whitespace and targeted privacy scan"
+    ]
+  },
+  "independent_native_gate_review": {
+    "basis": [
+      "Both retained native receipts and artifact identity",
+      "Exact shipped Skill restoration and sentinel preservation",
+      "Initial Mac failure preserved; root cause not established"
+    ],
+    "mode": "read-only; inherited model/effort; authoring tier",
+    "result": "approved without blockers"
+  }
+}

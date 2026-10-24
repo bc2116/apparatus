@@ -1,0 +1,52 @@
+{
+  "source": {
+    "run_id": "40057337396",
+    "run_attempt": 1,
+    "tag": "v0.0.3",
+    "head_sha": "5890838696157a9139d91903f029b7114f1412b5",
+    "version": "0.0.3",
+    "repository": "bc2116/apparatus",
+    "artifact_id": 12546007689,
+    "artifact_digest": "sha256:c714c96babeb527df1802c5f1d5022ef8210bddb36dc75b8b170330510ba329d"
+  },
+  "result": "failed",
+  "commands": [
+    {
+      "stage": "console lookup",
+      "exit_code": 0
+    },
+    {
+      "stage": "real console session",
+      "exit_code": 0
+    },
+    {
+      "stage": "package signature",
+      "exit_code": 0
+    },
+    {
+      "stage": "Gatekeeper assessment",
+      "exit_code": 0
+    },
+    {
+      "stage": "notarization ticket",
+      "exit_code": 68
+    }
+  ],
+  "limitations": [
+    "Native command-line Installer/wrapper execution; interactive GUI presentation not tested.",
+    "Fresh hosted runner includes preinstalled tools; this is not a bare operating-system image."
+  ],
+  "hashes": {
+    "apparatus-payload-0.0.3.zip": "3fb3d3e0400ecc35cd8e25e98b3294de671c16892392d67e1bd4011678d11f4d",
+    "apparatus_core-0.0.3.tar.gz": "a1e3daf2867b973b362cdb5d16b7329e838c4620c6feb0c83dadd17fca10e949",
+    "apparatus_core-0.0.3-py3-none-any.whl": "c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa",
+    "bootstrap-apparatus.ps1": "88421184286589c42b31336ade4d91b912e4fe131012a27303a037344690c133",
+    "bootstrap-apparatus.sh": "7d7115e77b267fa59ba1135e9c33985c50850813c89a5a4f7cce037d7b300431",
+    "apparatus-installer.exe": "9477739b35ba522a7f266f725bf7a99a8ab5a75181a9e8ad6826a3b4c1f107d3",
+    "apparatus-installer.pkg": "2839564fa1f85660446a347f062d72aa34433d8dd1c6c2bc0a4711e9d1206fcb"
+  },
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "os_version": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "reason": "notarization ticket failed"
+}

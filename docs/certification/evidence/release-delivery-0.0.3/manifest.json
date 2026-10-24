@@ -1,0 +1,29 @@
+{
+  "files": {
+    "SHA256SUMS": "21d292fbd092d3d9d1590aaaeebf2b559102dddca7f8121259cc8e329c112be1",
+    "acceptance-dispatch.json": "856d67721e7d1a6b216510762c9819bcaf8d27b6524d1d684c882e7903428b3f",
+    "approvals.json": "f05bb4ca172d1f2b58e8c71da6f38daba0df9c17ec7771924488c5dcac88ce67",
+    "artifacts.json": "bbdb1b4ddb32eefeb00a7ffd703f6be559bf00fb499f8e379c2c30b5b84c9968",
+    "capture_acceptance.py": "574e41578471973fc8e69bb1734bc126febf081100b1950f986f2d818dd23b19",
+    "capture_artifacts.py": "df6730c62ebf6296d1a6cf1810541b8cbc563e249da4153dce6d8b9295e1bae6",
+    "capture_public.py": "ac3300ca176ec27e61a71ea9f3118d92cb9a85dcbab1ce2d24b628d334c127c0",
+    "capture_signatures.py": "5300da57f030949fda44a8e7d99388f4cb4fdecbb4245beb7e3fdc880c2387a1",
+    "cleanup.json": "d32edb0996e168a268931255a5ef9df9d25f52bfedb34a6ca70e681ce57d5413",
+    "macos-15-receipt.json": "dd9e857d0daeee6557c62ca4dbc887598d7ca8904aee992c8ad2a0d060d1498f",
+    "macos-first-failed-receipt.json": "c62f8cc62b15872bc9deedc0945ab289b2f94eebf47a73dc2a97dcc1d2c4ce2c",
+    "macos-local-ticket-check.json": "6ffe70d06f33aa831725a0913cf48538b2f74c08178744107b686b26ee3fdaca",
+    "macos-retry-dispatch.json": "299779f4929650a7e548edd809dbbb67aff7cf1e30a909dd03ec089d49bffa59",
+    "native-acceptance.json": "af0bc180ca3a99bbc4f66f50d97fc5adbcb87c5f5d539cb6025b9a4940d8bf90",
+    "preflight.json": "0397dc6387cd5ef4d03facdb5859d78988a92438f34ad24ac1348dbb10c91999",
+    "public-delivery.json": "1994d0a2dcf60da71e29fe73c02beab537eef284c15b96cde49e96ed189b6c06",
+    "release-notes.md": "cb2ad36e8f72caf09e93a32924064e4ad09e90c43828b6027bf975644cba4b6f",
+    "run.json": "14a9f056129511bf52e728110b25697f8ae7950155aeb57ebd87087b9a3a68c3",
+    "signatures-and-tools.json": "c68c1f63cdc02362f944b5cafff34a73b7d04b5ec01f3ba12addd8f6d7200852",
+    "source-parity.json": "0ea73afdd6befd05569dc0a9da531c039cb8bcd34dca9dc1f3f6343aa75da64f",
+    "tag.json": "eb7c18bdbac1bde06fd4ba7f03f6f34c3dda046c028cdaeac78add76a8822f40",
+    "validation.json": "1a793cbfdafb005cef56dda1e6698c998dbabb13f3ce3090a5ac883a3c13a497",
+    "verification.json": "479bf2bdc12c9a6223eb6e67af5e6bb6e953c4792a70dce1dd6018dd8e30062d",
+    "verify_evidence.py": "0718ed38f0a0028466493fa7527b95bbc21b94990add6b2ef2b58c4042bb9e39",
+    "windows-2025-receipt.json": "c9f8e1226b4e698f1137de56edf1e05081164703fdc44f14360b2fe26862aa3f"
+  }
+}

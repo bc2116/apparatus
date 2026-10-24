@@ -1,0 +1,66 @@
+{
+  "timestamp_utc": "2026-10-24T03:12:00.405770+00:00",
+  "candidate": "5890838696157a9139d91903f029b7114f1412b5",
+  "version": "0.0.3",
+  "approval": "Owner approved staged publication after explicit explanation of PyPI and native acceptance sequence.",
+  "rehearsal_run": 39994962103,
+  "tag_available": true,
+  "pypi_version_available": true,
+  "variables": {
+    "APPARATUS_RELEASE_MODE": null,
+    "APPARATUS_SIGN_WINDOWS": "enabled",
+    "APPARATUS_SIGN_MACOS": "enabled",
+    "APPARATUS_WINDOWS_SIGNING_PROVIDER": "azure-artifact-signing"
+  },
+  "environments": {
+    "signing": {
+      "id": 19710983338,
+      "required_reviewers": true,
+      "prevent_self_review": false,
+      "branch_policy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "allowed_refs": [
+        {
+          "name": "main",
+          "type": "branch"
+        },
+        {
+          "name": "v*",
+          "type": "tag"
+        }
+      ]
+    },
+    "pypi": {
+      "id": 19710983851,
+      "required_reviewers": true,
+      "prevent_self_review": false,
+      "branch_policy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "allowed_refs": [
+        {
+          "name": "v*",
+          "type": "tag"
+        }
+      ]
+    },
+    "release": {
+      "id": 21442723014,
+      "required_reviewers": true,
+      "prevent_self_review": false,
+      "branch_policy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "allowed_refs": [
+        {
+          "name": "v*",
+          "type": "tag"
+        }
+      ]
+    }
+  }
+}

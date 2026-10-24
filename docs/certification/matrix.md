@@ -1,12 +1,39 @@
 # Certification matrix — focused release evidence
 
-Updated 2026-09-08. The focused app-chat gate passed for the three named
-configurations below. Version `0.0.2` is published on PyPI; both native wrappers
-are signed and the Mac package is notarized. Mac native install and repair
-passed, as did Windows x64 native install and repair. The signed installers
-are [publicly available](https://github.com/bc2116/apparatus/releases/tag/v0.0.2). These bounded observations establish neither broad app certification
-nor corporate Windows deployment approval. Held PR24 evidence stays attached to
-its original payload.
+Updated 2026-10-23 (America/Los_Angeles). Version `0.0.3` is published on
+[PyPI](https://pypi.org/project/apparatus-core/0.0.3/) and
+[GitHub](https://github.com/bc2116/apparatus/releases/tag/v0.0.3). Both native
+wrappers are signed; the Mac package is notarized and stapled. Installation and
+repair passed on hosted Windows x64 and Mac ARM64. These bounded observations
+establish neither broad app certification nor corporate deployment approval.
+Historical app results and held PR24 evidence retain their original payloads.
+
+## Version 0.0.3 release acceptance
+
+The immutable tag names `5890838696157a9139d91903f029b7114f1412b5`.
+The [delivery record](release-delivery-0.0.3.md) links the tagged build/signing
+run, seven verified distributable hashes, eight matching GitHub attachments and
+two matching PyPI downloads. Only the native wrappers carry the installer
+signatures; the other distributables have verified checksums.
+
+| Native acceptance | Result | Boundary |
+|---|---|---|
+| [Windows Server 2025 hosted x64](evidence/release-delivery-0.0.3/windows-2025-receipt.json) | Valid signer/timestamp; actual EXE install, version 0.0.3, workspace checks, shipped Skill repair and project preservation passed | Hosted runner; standard-user corporate policy and interactive installer UI untested |
+| [macOS 15.7.9 hosted ARM64](evidence/release-delivery-0.0.3/macos-15-receipt.json) | Package signature, Gatekeeper and ticket validation; actual package install, version 0.0.3, workspace checks, shipped Skill repair and project preservation passed | Actual console session; Mac Intel and interactive installer UI untested |
+
+The first Mac run stopped at ticket validation with exit 68, before installation.
+Its signature and Gatekeeper checks passed. The same bytes passed local ticket
+validation and a fresh Mac-only hosted retry; the failed receipt remains in the
+capsule. No source, workflow or artifact changed. A transient verification issue
+is plausible, but its cause was not established.
+
+The [0.0.3 candidate record](release-candidate-0.0.3.md) separately records two
+conversations each in Codex CLI 0.158.0-alpha.2 (Luna Medium requested; actual
+model identity unavailable) and Claude Code CLI 2.1.296 (Sonnet Medium requested;
+reported `claude-sonnet-5-5`). File-change checks and no-save continuation passed;
+Claude's unconfirmed-readiness wording limitation remains. Cursor IDE was
+unavailable and Codex desktop was not exercised. The earlier three-app gate below
+is historical and is not relabeled as a new 0.0.3 observation.
 
 
 ## October 10 installed module supplied-sample observation

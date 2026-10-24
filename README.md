@@ -79,12 +79,14 @@ Codex CLI with Terra, and Claude Code CLI with Sonnet. The
 settings, preserved failures and variant limits; these results are not broad
 support certification or evidence for untested desktop/CLI variants.
 
-[Version 0.0.2](https://github.com/bc2116/apparatus/releases/tag/v0.0.2) is public
-with signed Windows and signed, notarized macOS installers. Actual install and
-repair passed on hosted Windows x64 and Mac ARM64. The release preserves the
-app-tested core and payload behavior apart from the version constant; the
-[matrix](docs/certification/matrix.md) records exact source and artifact identity,
-app settings, and remaining coverage limits. Start with the short
+[Version 0.0.3](https://github.com/bc2116/apparatus/releases/tag/v0.0.3) is public
+with signed Windows and signed, notarized macOS installers. Actual installation
+and repair passed on hosted Windows x64 and Mac ARM64. The release includes
+verified Memory saves, a read-only resume brief and backup improvements.
+The [delivery record](docs/certification/release-delivery-0.0.3.md) verifies public
+file hashes and records the Mac acceptance retry. The
+[matrix](docs/certification/matrix.md) distinguishes native installer acceptance
+from the dated app observations and remaining coverage limits. Start with the short
 [Codex](docs/quickstarts/codex.md), [Claude Code](docs/quickstarts/claude-code.md),
 or [Cursor](docs/quickstarts/cursor.md) guide.
 

@@ -1,0 +1,97 @@
+{
+  "anonymous_downloads_verified": 10,
+  "assets": [
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/apparatus-installer.exe",
+      "digest": "sha256:9477739b35ba522a7f266f725bf7a99a8ab5a75181a9e8ad6826a3b4c1f107d3",
+      "id": 671139258,
+      "name": "apparatus-installer.exe",
+      "size": 2111072
+    },
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/apparatus-installer.pkg",
+      "digest": "sha256:2839564fa1f85660446a347f062d72aa34433d8dd1c6c2bc0a4711e9d1206fcb",
+      "id": 671139262,
+      "name": "apparatus-installer.pkg",
+      "size": 21108
+    },
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/apparatus-payload-0.0.3.zip",
+      "digest": "sha256:3fb3d3e0400ecc35cd8e25e98b3294de671c16892392d67e1bd4011678d11f4d",
+      "id": 671139251,
+      "name": "apparatus-payload-0.0.3.zip",
+      "size": 58856
+    },
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/apparatus_core-0.0.3-py3-none-any.whl",
+      "digest": "sha256:c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa",
+      "id": 671139247,
+      "name": "apparatus_core-0.0.3-py3-none-any.whl",
+      "size": 237284
+    },
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/apparatus_core-0.0.3.tar.gz",
+      "digest": "sha256:a1e3daf2867b973b362cdb5d16b7329e838c4620c6feb0c83dadd17fca10e949",
+      "id": 671139252,
+      "name": "apparatus_core-0.0.3.tar.gz",
+      "size": 189818
+    },
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/bootstrap-apparatus.ps1",
+      "digest": "sha256:88421184286589c42b31336ade4d91b912e4fe131012a27303a037344690c133",
+      "id": 671139243,
+      "name": "bootstrap-apparatus.ps1",
+      "size": 17113
+    },
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/bootstrap-apparatus.sh",
+      "digest": "sha256:7d7115e77b267fa59ba1135e9c33985c50850813c89a5a4f7cce037d7b300431",
+      "id": 671139245,
+      "name": "bootstrap-apparatus.sh",
+      "size": 12829
+    },
+    {
+      "browser_download_url": "https://github.com/bc2116/apparatus/releases/download/v0.0.3/SHA256SUMS",
+      "digest": "sha256:21d292fbd092d3d9d1590aaaeebf2b559102dddca7f8121259cc8e329c112be1",
+      "id": 671139261,
+      "name": "SHA256SUMS",
+      "size": 651
+    }
+  ],
+  "candidate": "5890838696157a9139d91903f029b7114f1412b5",
+  "draft": false,
+  "html_url": "https://github.com/bc2116/apparatus/releases/tag/v0.0.3",
+  "id": 422487699,
+  "name": "v0.0.3",
+  "notes_equal": true,
+  "prerelease": false,
+  "published_at": "2026-10-24T03:20:58Z",
+  "pypi": [
+    {
+      "digests": {
+        "blake2b_256": "4c5a6a768341bc38ef105ff77b2f0612987bb75936b59df4f0420ccea620dab5",
+        "md5": "89277627ad6ae10a2bb07bf8da3b90fc",
+        "sha256": "c2d765d45cff226d89c94509dce6c1ba45b226defb40a27e276aba5bece7f0fa"
+      },
+      "filename": "apparatus_core-0.0.3-py3-none-any.whl",
+      "size": 237284,
+      "upload_time_iso_8601": "2026-10-24T03:16:00.929267Z",
+      "url": "https://files.pythonhosted.org/packages/4c/5a/6a768341bc38ef105ff77b2f0612987bb75936b59df4f0420ccea620dab5/apparatus_core-0.0.3-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "digests": {
+        "blake2b_256": "2d68af9d53d21cbd2f63e73486e546a484ba5f1f2a99f192dd7e1d6a166ab59d",
+        "md5": "023207dba05695b5a87d47ddf4729f38",
+        "sha256": "a1e3daf2867b973b362cdb5d16b7329e838c4620c6feb0c83dadd17fca10e949"
+      },
+      "filename": "apparatus_core-0.0.3.tar.gz",
+      "size": 189818,
+      "upload_time_iso_8601": "2026-10-24T03:16:02.534194Z",
+      "url": "https://files.pythonhosted.org/packages/2d/68/af9d53d21cbd2f63e73486e546a484ba5f1f2a99f192dd7e1d6a166ab59d/apparatus_core-0.0.3.tar.gz",
+      "yanked": false
+    }
+  ],
+  "result": "pass",
+  "tag_name": "v0.0.3"
+}

@@ -2,8 +2,10 @@
 
 The signed rehearsal passed. Both selected signing jobs succeeded, all seven
 distributable checksums verified, and the final installers match the signed
-job uploads exactly. **Publication is withheld at the owner's direction.**
-No 0.0.3 tag, PyPI version or GitHub Release was created.
+job uploads exactly. **At this rehearsal checkpoint, publication was withheld
+at the owner's direction.** No 0.0.3 tag, PyPI version or GitHub Release was
+created by the rehearsal. The owner later approved
+[0.0.3 delivery](release-delivery-0.0.3.md); the historical evidence below is unchanged.
 
 ## Immutable candidate and run
 
