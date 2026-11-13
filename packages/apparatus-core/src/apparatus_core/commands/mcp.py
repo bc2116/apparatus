@@ -102,7 +102,7 @@ def _build_tools(
         try:
             library_on = feature_enabled(workspace, "library_indexing")
         except FeatureProfileError as error:
-            raise ToolExecutionError(str(error)) from error
+            raise ToolExecutionError("work-area profile is invalid or unsafe") from error
         if not library_on:
             validate_session()
             return {
@@ -159,8 +159,14 @@ def _build_tools(
                 "question": question,
                 "message": "Library full-text search is unavailable in this environment.",
             }
-        except (TaskRetentionError, index.IndexError, OSError, ValueError) as error:
-            raise ToolExecutionError(str(error)) from error
+        except TaskRetentionError as error:
+            raise ToolExecutionError("work-area retention state could not be verified") from error
+        except index.IndexError as error:
+            raise ToolExecutionError("Library index is unavailable or unsafe") from error
+        except (OSError, ValueError) as error:
+            raise ToolExecutionError(
+                "Library recall failed because work-area or cache files could not be read safely"
+            ) from error
 
         validate_session()
         payload: dict[str, Any] = dict(envelope)
@@ -184,7 +190,9 @@ def _build_tools(
                 "message": "Memory records could not be read cleanly.",
             }
         except (OSError, ValueError) as error:
-            raise ToolExecutionError(str(error)) from error
+            raise ToolExecutionError(
+                "Memory recall failed because work-area files could not be read safely"
+            ) from error
         validate_session()
         return {
             "status": result["status"],
@@ -207,7 +215,9 @@ def _build_tools(
             ResumeContractError,
             ValueError,
         ) as error:
-            raise ToolExecutionError(str(error)) from error
+            raise ToolExecutionError(
+                "resume brief failed because the selected work area changed, is unsafe, or is invalid"
+            ) from error
         validate_session()
         return {
             "status": brief.status,
@@ -325,8 +335,29 @@ def run(args: argparse.Namespace) -> int:
                 )
                 return 2
             layout.validate(anchor)
-        except (BindingError, LayoutError, PayloadError, OSError, ValueError) as error:
-            print(f"mcp: {error}", file=sys.stderr)
+        except BindingError:
+            print(
+                "mcp: selected project binding is missing, mismatched, or unsafe",
+                file=sys.stderr,
+            )
+            return 2
+        except LayoutError:
+            print(
+                "mcp: selected work-area enrollment is invalid or changed",
+                file=sys.stderr,
+            )
+            return 2
+        except PayloadError:
+            print(
+                "mcp: selected work area path is unsafe or invalid",
+                file=sys.stderr,
+            )
+            return 2
+        except (OSError, ValueError):
+            print(
+                "mcp: selected work area is missing, changed, or invalid",
+                file=sys.stderr,
+            )
             return 2
 
         server = McpServer(

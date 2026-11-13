@@ -649,3 +649,63 @@ def test_stdout_print_redirected_to_stderr(tmp_path: Path) -> None:
     assert len(lines) == 2
     assert lines[1]["result"]["structuredContent"] == {"ok": True}
     assert "accidental print" in captured_err.getvalue()
+
+
+def test_raw_exception_text_and_paths_do_not_leak(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    env = _make_env(tmp_path)
+    workspace = tmp_path / "workspace"
+    assert _run_cli(["init", str(workspace)], env=env).returncode == 0
+    monkeypatch.setenv("APPARATUS_HOME", env["APPARATUS_HOME"])
+
+    secret_token = "SECRET_ERRNO_SQLITE_YAML_TEXT"
+    secret_path = "/private/secret/host/path/file.db"
+
+    # 1. Startup OSError must not leak errno text or absolute paths to stderr.
+    monkeypatch.setattr(
+        mcp_command,
+        "read_layout",
+        lambda _ws: (_ for _ in ()).throw(OSError(13, secret_token, secret_path)),
+    )
+    assert mcp_command.run(argparse.Namespace(workspace=str(workspace), task=None)) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert secret_token not in captured.err
+    assert secret_path not in captured.err
+    monkeypatch.undo()
+
+    # 2. Tool execution OSError/ValueError must not leak into JSON-RPC tool error payloads.
+    monkeypatch.setenv("APPARATUS_HOME", env["APPARATUS_HOME"])
+    monkeypatch.setattr(
+        mcp_command.recall_engine,
+        "recall",
+        lambda *_a, **_kw: (_ for _ in ()).throw(OSError(2, secret_token, secret_path)),
+    )
+    monkeypatch.setattr(
+        mcp_command,
+        "recall_memory",
+        lambda *_a, **_kw: (_ for _ in ()).throw(ValueError(f"{secret_token}:{secret_path}")),
+    )
+    monkeypatch.setattr(
+        mcp_command,
+        "assemble_brief",
+        lambda *_a, **_kw: (_ for _ in ()).throw(OSError(5, secret_token, secret_path)),
+    )
+    stdin = io.BytesIO(
+        _rpc("initialize", 1, _init_params())
+        + _rpc("tools/call", 2, {"name": "library_recall", "arguments": {"question": "x"}})
+        + _rpc("tools/call", 3, {"name": "memory_recall", "arguments": {"query": "x"}})
+        + _rpc("tools/call", 4, {"name": "resume_brief", "arguments": {}})
+    )
+    stdout = io.BytesIO()
+    monkeypatch.setattr(sys, "stdin", SimpleNamespace(buffer=stdin))
+    monkeypatch.setattr(sys, "stdout", SimpleNamespace(buffer=stdout))
+    assert mcp_command.run(argparse.Namespace(workspace=str(workspace), task=None)) == 0
+    captured = capsys.readouterr()
+    raw_out = stdout.getvalue().decode("utf-8")
+    assert secret_token not in raw_out and secret_path not in raw_out
+    assert secret_token not in captured.err and secret_path not in captured.err
+    responses = _decode_lines(stdout.getvalue())
+    for idx in (1, 2, 3):
+        assert responses[idx]["result"]["isError"] is True
