@@ -1,5 +1,17 @@
 # Development Plan
 
+**Owner direction (2026-11-12) — Native reach (post-0.0.3):** Following the
+completed [0.0.3 release](../certification/release-delivery-0.0.3.md) (PR-72
+through PR-75), add optional native reach across three focused PRs.
+[PR-76](PR-76-local-tool-server.md) adds an optional read-only local tool
+server for AI apps that support it; [PR-77](PR-77-native-skill-adapters.md)
+renders native Skill adapters in the work area and bound projects; and
+[PR-78](PR-78-memory-save-tools.md) adds opt-in Memory save tools to that
+server. These three prompts are cut and ready. Cutting them establishes no
+implementation, release or support claim, and they record an owner priority
+decision, not measured demand. Evidence for PR-76 to PR-78 is deterministic
+tests plus dated matrix rows, without a per-PR evidence directory.
+
 **Active release sprint (2026-10-23):** The owner selected execution of the
 [long sprint](long-sprint-2026-10-23.md). [PR-72](PR-72-release-inventory.md)
 defines the [release inventory](../releases/next-release-inventory.md), followed
@@ -184,6 +196,9 @@ later slices remain planned.
 | 73 | [Freeze and qualify the core candidate](PR-73-release-candidate.md) | Release S3 | ✅ landed | 72 |
 | 74 | [Verify signed rehearsal](PR-74-signed-rehearsal.md) | Release S4 | ✅ landed | 73 |
 | 75 | [Deliver the qualified release](PR-75-release-delivery.md) | Release S5 | ✅ landed | 74, final publication approval |
+| 76 | [Optional local tool server, read-only](PR-76-local-tool-server.md) | Native reach | ready | 75 |
+| 77 | [Native Skill adapters](PR-77-native-skill-adapters.md) | Native reach | ready | 75 |
+| 78 | [Opt-in Memory save tools for the local tool server](PR-78-memory-save-tools.md) | Native reach | ready | 76 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines
