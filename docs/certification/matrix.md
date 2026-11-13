@@ -63,6 +63,18 @@ All four Cursor cases and their exact limitations are retained. Future native
 probes need an explicit built product runtime before freezing inputs. These
 results do not justify an adapter yet; retain the ordinary-file fallback.
 
+## Native Skill pointer-adapter observation
+
+The [PR-77 verification note](../notes/pr-77-verification.md) records isolated
+bound-project CLI probes of generated native Skill pointer adapters on macOS
+27.2.1 (`arm64`):
+
+| Native variant | Observed result | Limits |
+| --- | --- | --- |
+| Codex CLI (`0.166.0`, `--ephemeral --sandbox read-only`) | **Pass** — discovered the adapted learned Skill at `PROJECT/.agents/skills/learned-marker-probe/SKILL.md`, read the canonical body in the work area, and returned the verification token verbatim. | Single non-interactive bound-project probe; no desktop GUI coverage. |
+| Claude Code CLI (`2.1.321`, `claude -p`) | **Unavailable** — `claude auth status` reported `"loggedIn": false` (`OAuth session expired and could not be refreshed`). | Adapter following in Claude Code remains unverified here. |
+| Cursor IDE | **Unavailable** — GUI-only desktop app; not probed headlessly. | No GUI session or broad support claim. |
+
 ## Version 0.0.2 release acceptance
 
 The immutable `v0.0.2` tag resolves to

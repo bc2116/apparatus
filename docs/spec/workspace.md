@@ -109,8 +109,9 @@ recovery. A no-save task grants no automatic snapshot or Memory exception.
 ## Explicit project bindings
 
 `apparatus project bind PROJECT --workspace WORKAREA` connects an existing project
-to an enrolled ancestor work area. It creates only a project control and a portable
-instruction pointer. The project must be distinct from the work area's managed
+to an enrolled ancestor work area. It creates a project control, a portable
+instruction pointer, and generated native Skill pointer adapters for qualifying
+Skills. The project must be distinct from the work area's managed
 roots; no directory scan discovers or registers other projects.
 Git metadata and known app/control-directory components are rejected at every
 depth before binding writes, without inspecting repository configuration.
@@ -156,9 +157,10 @@ validation. A selected root is frozen for that invocation: a later link edit can
 redirect a running operation or change its task decision.
 
 `init` and `project bind` retain their explicit destinations. `check PROJECT`
-validates the binding and exact pointer before checking the selected area;
-`render PROJECT` repairs only its project pointer. Neither traverses ordinary
-project content. The resolver does not add discovery behavior to individual engine
+validates the binding and exact pointer before checking the selected area and
+inspecting the project's native Skill adapters when at least one owned adapter
+is present; `render PROJECT` repairs its project pointer and refreshes its
+native Skill pointer adapters. Neither traverses ordinary project content. The resolver does not add discovery behavior to individual engine
 APIs or automatically reroute extension commands. Check and render engines accept
 an explicit work area and reject a directly supplied bound project; their command
 handlers own project selection. Special handlers reuse the context selected by
@@ -188,8 +190,10 @@ retained root or project context invalidates the whole result before output.
 The existing work-area pointer registry contains `CLAUDE.md`,
 `.cursor/rules/apparatus.mdc` and `.github/copilot-instructions.md`. These point to
 root `AGENTS.md`; they are not separate canons. Their presence is not a claim of
-verified support by any particular app/version. File reading and approved commands
-remain the portable fallback; project binding adds no new app-specific paths.
+verified support by any particular app/version. Work-area `.claude/skills/` and
+bound-project `.agents/skills/` and `.claude/skills/` hold generated native Skill
+pointer adapters for qualifying Skills without copying canonical Skill bodies; file
+reading and approved commands remain the portable fallback.
 
 Init chooses the final actual canon before rendering pointers. It preserves custom
 canon bytes and replaces canon only when exact recognized shipped bytes establish
@@ -202,8 +206,9 @@ Conflicting custom pointers stop the plan with reconciliation guidance.
 preflights all targets and publishes through retained preimage checks. It validates
 canon and marker preimages as well as pointer files, preserving concurrent edits
 and compensating owned writes on failure. It never rewrites work-area canon.
-`render PROJECT` uses only the binding/pointer transaction and does not regenerate
-the area's app pointers or overwrite custom project instructions.
+`render PROJECT` uses the binding/pointer transaction and refreshes the project's
+native Skill pointer adapters without regenerating the area's app pointers,
+overwriting custom project instructions, or overwriting unrecognized adapter occupants.
 
 `check` validates the applicable required layout, record schemas and exact pointer
 content. Enrolled areas require `Memory/Decisions`, but not Projects, central

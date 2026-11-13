@@ -260,17 +260,29 @@ class BindingResult:
     project: Path
     workspace: Path
     changed: bool
+    pointer_changed: bool = False
+    adapter_written: tuple[str, ...] = ()
+    adapter_unchanged: tuple[str, ...] = ()
+    adapter_removed: tuple[str, ...] = ()
+    adapter_conflicts: tuple[str, ...] = ()
 
 
 def bind_project(project: str | Path, workspace: str | Path, *, replace: bool = False,
                  context: ResolvedContext | None = None) -> BindingResult:
-    """Publish only a control and pointer, compensating both until final acceptance."""
+    """Publish only a control, pointer, and native Skill adapters cleanly."""
+    from apparatus_core.skill_adapters import SkillAdapterError, preflight_adapters, sync_project_adapters
+
     project_path, workspace_path = _root(project), _root(workspace)
     if context is not None:
         context.validate()
         if (context.project, context.workspace) != (project_path, workspace_path):
             raise BindingError("Project context does not match the requested destinations.")
     relative = _relative(project_path, workspace_path)
+    try:
+        preflight_adapters(project_path, is_project=True)
+    except SkillAdapterError as error:
+        raise BindingError(str(error)) from error
+    pointer_changed = False
     try:
         layout = read_layout(workspace_path)
         if layout is None:
@@ -297,99 +309,115 @@ def bind_project(project: str | Path, workspace: str | Path, *, replace: bool = 
                 old_binding.validate(root)
                 if _read_optional(root, "AGENTS.md") != pointer_before:
                     raise BindingError("Project instructions changed during planning; retry.")
-                return BindingResult(project_path, workspace_path, False)
-            control_anchor = owned_directory = None
-            created: list[tuple[Any, Any]] = []
-            replacements: list[Any] = []
-            unchanged: list[tuple[Any, str, Any]] = []
-            completed = False
-            try:
-                control_anchor, owned_directory, _ = _anchor_child(root, project_path, CONTROL_DIRECTORY)
-                expected_names = {"workspace.yaml"} if control_before else set()
-                if _names(control_anchor) != expected_names:
-                    raise BindingError("Project control directory contains unrelated content; preserve it before binding.")
+            else:
+                control_anchor = owned_directory = None
+                created: list[tuple[Any, Any]] = []
+                replacements: list[Any] = []
+                unchanged: list[tuple[Any, str, Any]] = []
+                completed = False
+                try:
+                    control_anchor, owned_directory, _ = _anchor_child(root, project_path, CONTROL_DIRECTORY)
+                    expected_names = {"workspace.yaml"} if control_before else set()
+                    if _names(control_anchor) != expected_names:
+                        raise BindingError("Project control directory contains unrelated content; preserve it before binding.")
 
-                def publish(anchor, name, before, content):
-                    if _read_optional(anchor, name) != before:
-                        raise BindingError("Project instructions or link changed during planning; retry.")
-                    if before is None:
-                        created.append((anchor, anchor.create_file(name, content)))
-                    elif before[0] != content:
-                        replacements.append(anchor.replace_if_unchanged(name, before[1], before[0], content))
-                    else:
-                        unchanged.append((anchor, name, before))
+                    def publish(anchor, name, before, content):
+                        if _read_optional(anchor, name) != before:
+                            raise BindingError("Project instructions or link changed during planning; retry.")
+                        if before is None:
+                            created.append((anchor, anchor.create_file(name, content)))
+                        elif before[0] != content:
+                            replacements.append(anchor.replace_if_unchanged(name, before[1], before[0], content))
+                        else:
+                            unchanged.append((anchor, name, before))
 
-                layout.validate(area)
-                if context is not None:
-                    context.validate()
-                publish(control_anchor, "workspace.yaml", control_before, desired_binding)
-                publish(root, "AGENTS.md", pointer_before, pointer)
-
-                def validate():
+                    layout.validate(area)
                     if context is not None:
                         context.validate()
-                    layout.validate(area)
-                    if not root.root_is_current() or not control_anchor.root_is_current():
-                        raise BindingError("Project directory changed during binding.")
-                    names = {"workspace.yaml"}
-                    for transaction in replacements:
-                        if not transaction.finished:
-                            transaction.validate_commit()
-                            if transaction.anchor is control_anchor:
-                                # Both proofs keep relative as the original target;
-                                # the retained backup name is platform-specific.
-                                backup = transaction.backup
-                                names.add(backup.name if hasattr(backup, "name") else backup.path.name)
-                        elif not transaction.anchor.matches_owned(transaction.target):
-                            raise BindingError("Project link changed before completion.")
-                    if _names(control_anchor) != names:
-                        raise BindingError("Project control directory changed during binding.")
-                    if any(not anchor.matches_owned(owned) for anchor, owned in created):
-                        raise BindingError("Project link changed before completion.")
-                    if any(_read_optional(anchor, name) != before for anchor, name, before in unchanged):
-                        raise BindingError("Project instructions changed before completion.")
+                    publish(control_anchor, "workspace.yaml", control_before, desired_binding)
+                    publish(root, "AGENTS.md", pointer_before, pointer)
 
-                validate()
-                for transaction in replacements:
-                    transaction.commit()
-                validate()
-                completed = True
-                return BindingResult(project_path, workspace_path, True)
-            finally:
-                errors = []
-                if not completed:
-                    for transaction in reversed(replacements):
-                        try:
-                            if transaction.finished:
-                                transaction.anchor.restore_owned_if_unchanged(transaction.target, transaction.backup.content)
-                            else:
-                                transaction.rollback()
-                        except Exception as error:
-                            errors.append(error)
-                        finally:
-                            transaction.close()
-                    for anchor, owned in reversed(created):
-                        try:
-                            anchor.unlink_owned_if_present(owned)
-                        except Exception as error:
-                            errors.append(error)
-                        finally:
-                            owned.close()
-                    if owned_directory is not None:
+                    def validate():
+                        if context is not None:
+                            context.validate()
+                        layout.validate(area)
+                        if not root.root_is_current() or not control_anchor.root_is_current():
+                            raise BindingError("Project directory changed during binding.")
+                        names = {"workspace.yaml"}
+                        for transaction in replacements:
+                            if not transaction.finished:
+                                transaction.validate_commit()
+                                if transaction.anchor is control_anchor:
+                                    # Both proofs keep relative as the original target;
+                                    # the retained backup name is platform-specific.
+                                    backup = transaction.backup
+                                    names.add(backup.name if hasattr(backup, "name") else backup.path.name)
+                            elif not transaction.anchor.matches_owned(transaction.target):
+                                raise BindingError("Project link changed before completion.")
+                        if _names(control_anchor) != names:
+                            raise BindingError("Project control directory changed during binding.")
+                        if any(not anchor.matches_owned(owned) for anchor, owned in created):
+                            raise BindingError("Project link changed before completion.")
+                        if any(_read_optional(anchor, name) != before for anchor, name, before in unchanged):
+                            raise BindingError("Project instructions changed before completion.")
+
+                    validate()
+                    for transaction in replacements:
+                        transaction.commit()
+                    validate()
+                    completed = True
+                    pointer_changed = True
+                finally:
+                    errors = []
+                    if not completed:
+                        for transaction in reversed(replacements):
+                            try:
+                                if transaction.finished:
+                                    transaction.anchor.restore_owned_if_unchanged(transaction.target, transaction.backup.content)
+                                else:
+                                    transaction.rollback()
+                            except Exception as error:
+                                errors.append(error)
+                            finally:
+                                transaction.close()
+                        for anchor, owned in reversed(created):
+                            try:
+                                anchor.unlink_owned_if_present(owned)
+                            except Exception as error:
+                                errors.append(error)
+                            finally:
+                                owned.close()
+                        if owned_directory is not None:
+                            control_anchor.close()
+                            try:
+                                root.remove_owned_directory(owned_directory)
+                            except Exception as error:
+                                errors.append(error)
+                    for transaction in replacements:
+                        transaction.close()
+                    for _, owned in created:
+                        owned.close()
+                    if control_anchor is not None:
                         control_anchor.close()
-                        try:
-                            root.remove_owned_directory(owned_directory)
-                        except Exception as error:
-                            errors.append(error)
-                for transaction in replacements:
-                    transaction.close()
-                for _, owned in created:
-                    owned.close()
-                if control_anchor is not None:
-                    control_anchor.close()
-                if owned_directory is not None:
-                    owned_directory.close()
-                if errors:
-                    raise BindingError("Project binding failed; concurrent content was preserved and cleanup needs repair.") from errors[0]
+                    if owned_directory is not None:
+                        owned_directory.close()
+                    if errors:
+                        raise BindingError("Project binding failed; concurrent content was preserved and cleanup needs repair.") from errors[0]
     except (OSError, LayoutError) as error:
         raise BindingError("Project binding could not finish safely; repair the link before retrying.") from error
+
+    try:
+        adapters = sync_project_adapters(project_path, workspace_path, relative_workspace=relative)
+    except SkillAdapterError as error:
+        raise BindingError(str(error)) from error
+    adapters_changed = bool(adapters.written or adapters.removed)
+    return BindingResult(
+        project_path,
+        workspace_path,
+        pointer_changed or adapters_changed,
+        pointer_changed=pointer_changed,
+        adapter_written=adapters.written,
+        adapter_unchanged=adapters.unchanged,
+        adapter_removed=adapters.removed,
+        adapter_conflicts=adapters.conflicts,
+    )

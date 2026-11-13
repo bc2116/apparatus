@@ -350,7 +350,7 @@ def build_payload(
         _copy_tree(payload_source, staged_payload, "payload")
         _copy_tree(profiles_source, staged_profiles, "profiles")
         try:
-            rendered = render_workspace(staged_payload)
+            rendered = render_workspace(staged_payload, include_skill_adapters=False)
         except RenderError as error:
             raise PayloadBuildError(f"could not render staged payload shims: {error}") from error
 

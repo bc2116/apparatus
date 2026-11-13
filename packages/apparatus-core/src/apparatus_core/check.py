@@ -588,6 +588,12 @@ def check_workspace(
             "Make workspace instructions readable regular files before retrying the check.",
         ))
 
+    from apparatus_core.skill_adapters import check_adapter_findings
+    findings.extend(
+        Finding(item.code, item.path, item.hint)
+        for item in check_adapter_findings(root, root, excluded=rules.matches)
+    )
+
     return CheckResult(
         tuple(findings),
         records_checked,

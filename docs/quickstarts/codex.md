@@ -41,9 +41,13 @@ bound and resolved its linked work area. From a source checkout, first run
 the same read-only brief. This does not refresh the matrix's
 published installer, signing, repair, or public-release evidence.
 
-If no native Skill entry appears, ask Codex to read the selected work area's
-`AGENTS.md` and the relevant canonical `.agents/skills/NAME/SKILL.md` directly.
-Keep one body; do not create duplicate Skills or infer execution from a menu.
+`apparatus project bind` and `apparatus render` generate thin pointer adapters under
+`PROJECT/.agents/skills/NAME/SKILL.md` for built-in and adopted learned Skills,
+pointing to the single canonical `.agents/skills/NAME/SKILL.md` body in the
+work area (observed working in Codex CLI `0.166.0` on macOS 27.2.1 `arm64`). If no native
+Skill entry appears, ask Codex to read the selected work area's `AGENTS.md` and
+the relevant canonical `.agents/skills/NAME/SKILL.md` directly. Keep one body;
+do not create duplicate Skills or infer execution from a menu.
 For a task you do not want retained, say “Don't save this task to Memory”; this
 still allows its requested deliverable and does not control provider retention.
 

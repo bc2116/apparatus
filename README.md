@@ -53,9 +53,12 @@ their legacy recovery behavior until explicit adoption.
 
 The seven built-in [Skills](docs/spec/skills.md) have one editable body each under
 `.agents/skills/`. Init migrates recognized older procedures to small pointers
-and preserves valid custom Skills. Checks and managed recovery understand these
-files. Plain file reading works through the work-area link; native discovery
-adapters and app-version probes remain the next compatibility step.
+and preserves valid custom Skills. `init`, `render`, and `project bind` also
+generate deterministic native Skill pointer adapters (under `.claude/skills/` in
+work areas, and under `.agents/skills/` and `.claude/skills/` in bound projects)
+that point back to each canonical `.agents/skills/NAME/SKILL.md` body without
+copying instructions or touching unrecognized files. Plain file reading through
+the work-area link remains the portable fallback across all AI apps.
 
 Economizer supplies bounded native delegation and model/effort guidance;
 humanizer provides a selective prose pass. Both preserve task authority and

@@ -8,7 +8,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
-from apparatus_core.check import CheckResult, check_workspace
+from apparatus_core.check import CheckResult, Finding, check_workspace
 from apparatus_core.receipts import write_receipt
 
 
@@ -41,18 +41,56 @@ def run(
             if (not getattr(args, "_project_context_selected", False)
                     and read_project_binding(workspace) is not None):
                 context = stack.enter_context(resolve_project_context(workspace))
+            project_root: Path | None = None
+            relative_workspace: str | None = None
             if context is not None:
                 context.validate()
                 check_project_pointer(workspace, context=context)
+                project_root = workspace
+                relative_workspace = context.binding.relative_workspace
                 workspace = context.workspace
-            return _run_selected(args, workspace, engine, write)
+            return _run_selected(
+                args,
+                workspace,
+                engine,
+                write,
+                project_root=project_root,
+                relative_workspace=relative_workspace,
+            )
     except BindingError as error:
         print(f"check: {error}")
         return 2
 
 
-def _run_selected(args, workspace, engine, write) -> int:
+def _run_selected(
+    args,
+    workspace,
+    engine,
+    write,
+    *,
+    project_root: Path | None = None,
+    relative_workspace: str | None = None,
+) -> int:
     result = engine(workspace)
+    if project_root is not None and relative_workspace is not None:
+        from apparatus_core.ignore import load_ignore_rules
+        from apparatus_core.skill_adapters import check_adapter_findings
+        rules = load_ignore_rules(workspace, respect_feature=False)
+        project_findings = tuple(
+            Finding(item.code, item.path, item.hint)
+            for item in check_adapter_findings(
+                project_root,
+                workspace,
+                relative_workspace=relative_workspace,
+                excluded=rules.matches if rules.valid else None,
+            )
+        )
+        if project_findings:
+            result = CheckResult(
+                result.findings + project_findings,
+                result.records_checked,
+                result.ignore_report,
+            )
     for finding in result.findings:
         print(f"{finding.path}: {finding.code}: {finding.hint}")
     if result.ok:

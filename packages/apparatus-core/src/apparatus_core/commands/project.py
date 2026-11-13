@@ -22,10 +22,13 @@ def register(subparsers):
 
 
 def run(args):
+    from apparatus_core.skill_adapters import conflict_notice
     try:
         if args.project_action == "bind":
             result = bind_project(args.project, args.workspace, replace=args.replace)
             print("Project linked to its work area." if result.changed else "Project link is already current.")
+            for conflict in result.adapter_conflicts:
+                print(conflict_notice(conflict))
         else:
             selected = getattr(args, "_project_context", None)
             with (nullcontext(selected) if selected is not None else resolve_project_context(args.project)) as context:

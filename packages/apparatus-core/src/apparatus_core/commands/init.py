@@ -297,6 +297,13 @@ def _run(
         print("init: could not inspect workspace capabilities")
         return 2
 
+    from apparatus_core.skill_adapters import (
+        SkillAdapterError,
+        conflict_notice,
+        preflight_adapters,
+        sync_work_area_adapters,
+    )
+
     try:
         file_targets = (
             *(entry.relative for entry in payload_plan.files),
@@ -314,7 +321,9 @@ def _run(
             files=file_targets,
             inspect_git_store=False,
         )
-    except PayloadError as error:
+        if workspace.exists():
+            preflight_adapters(workspace, is_project=False)
+    except (PayloadError, SkillAdapterError) as error:
         print(f"init: {error}")
         return 2
     except Exception:  # pragma: no cover - filesystem failures vary by host
@@ -334,12 +343,18 @@ def _run(
                 validate_enrollment=validate_enrollment,
             )
         )
-    except (PayloadError, LayoutError, BindingError) as error:
+        adapters = sync_work_area_adapters(workspace)
+        changes.extend(adapters.written)
+        changes.extend(adapters.removed)
+    except (PayloadError, LayoutError, BindingError, SkillAdapterError) as error:
         print(f"init: could not deploy workspace: {error}")
         return 2
     except Exception:  # pragma: no cover - filesystem failures vary by host
         print("init: could not deploy workspace")
         return 2
+
+    for conflict in adapters.conflicts:
+        print(conflict_notice(conflict))
 
     if context is None:
         context = stack.enter_context(operation(workspace))

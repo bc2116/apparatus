@@ -33,13 +33,15 @@ def test_two_bound_projects_read_one_canonical_skill_without_copies(tmp_path):
         with resolve_project_context(project) as context:
             context.validate()
             targets.append(context.workspace / relative)
-        assert not (project / ".agents").exists()
+        from apparatus_core.skill_adapters import owns_adapter
+        assert owns_adapter((project / relative).read_bytes(), relative, is_project=True, expected_relative_workspace="..")
         assert not (project / "Library").exists()
         assert (project / "finished.md").read_bytes() == b"Project-owned finished work"
     assert targets == [root / relative, root / relative]
     custom = targets[0].read_bytes() + b"\nA shared custom instruction.\n"
     targets[0].write_bytes(custom)
     assert targets[1].read_bytes() == custom
+    assert (root / "alpha" / relative).read_bytes() != custom
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="actual managed history round trip")
