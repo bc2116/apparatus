@@ -94,8 +94,13 @@ from the dated app observations and remaining coverage limits. Start with the sh
 or [Cursor](docs/quickstarts/cursor.md) guide.
 
 Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
+[local tool server decision](docs/adr/ADR-0008-optional-local-tool-server.md),
 [refactor sequence](docs/plan/rework-sequence.md), and
-[development status](docs/plan/README.md).
+[development status](docs/plan/README.md). On the development branch,
+`apparatus mcp serve WORKAREA` provides an optional read-only local MCP stdio
+tool server (`library_recall`, `memory_recall`, and `resume_brief`), observed
+in Codex CLI `0.166.0` (live Claude Code CLI and Cursor IDE MCP invocations
+remain unverified here).
 
 ## Optional Mailbox Survey module
 

@@ -444,3 +444,15 @@ preserved files but initially guessed command paths. Codex desktop remained
 unavailable to the authorized native-control tool. Historical CLI rows and
 published-installer evidence are unchanged; this entry adds neither broad app
 certification nor a new public release.
+
+## November 13 optional local tool server (`apparatus mcp serve`) observation
+
+The [PR-76 verification note](../notes/pr-76-verification.md) records isolated
+local stdio MCP (`2025-11-25`) observations against a seeded temporary work area
+on macOS ARM64 without modifying user home app configurations.
+
+| App & Version | Observed Result | Limits |
+| --- | --- | --- |
+| Codex CLI `0.166.0` | Ephemeral read-only probe connected to `apparatus mcp serve .`, invoked `resume_brief`, `memory_recall`, and `library_recall` (grounded match citing `Library/calibration.md` on `"cobalt calibration"` and abstention on `"quantum marsupials"`), and left all 152 work-area and cache entries byte-for-byte unchanged. | Keyword Library query needed (`What is the cobalt calibration constant?` abstained under all-term FTS5 matching); CLI observation only, not broad app certification. |
+| Claude Code CLI `2.1.321` | Unavailable for live model turn: isolated `--strict-mcp-config` probe exited 1 with expired OAuth session (`claude mcp add --help` registration syntax verified). | Live Claude tool-call turn unverified without refreshed authentication. |
+| Cursor IDE | Unavailable in headless environment (`.cursor/mcp.json` schema verified from Cursor documentation on 2026-11-13). | Interactive Cursor IDE MCP behavior unverified. |

@@ -14,7 +14,7 @@ from apparatus_core import __version__
 from apparatus_core.project_binding import BindingError
 
 ENTRY_POINT_GROUP = "apparatus.commands"
-WORKSPACE_VERBS = {"backup", "check", "doctor", "library", "memory", "profile",
+WORKSPACE_VERBS = {"backup", "check", "doctor", "library", "mcp", "memory", "profile",
                    "recall", "render", "restore", "resume", "snapshot", "task", "skill"}
 
 
@@ -22,6 +22,10 @@ def _dispatch(parsed, handler) -> int:
     """Select an explicit project context before any task decision is resolved."""
     from apparatus_core.project_binding import read_project_binding, resolve_project_context
     from apparatus_core.retention import operation
+
+    if parsed.verb == "mcp" and parsed.task is not None:
+        print("apparatus: --task cannot be used with mcp", file=sys.stderr)
+        return 2
 
     with ExitStack() as stack:
         parsed._project_context = None

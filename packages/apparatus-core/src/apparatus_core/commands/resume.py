@@ -41,6 +41,16 @@ class GoalEntry:
     next_action: str
 
 
+@dataclass(frozen=True)
+class ResumeBrief:
+    """Rendered read-only work-area brief without printing side effects."""
+
+    text: str
+    status: str
+    partial: bool
+    selection: str
+
+
 def register(subparsers: Any) -> None:
     parser = subparsers.add_parser("resume", help="show a read-only work-area brief")
     parser.add_argument("workspace", metavar="WORKSPACE")
@@ -259,6 +269,92 @@ def _validate_probe(value: object) -> SnapshotProbe:
     )
 
 
+def assemble_brief(
+    workspace_arg: str | Path,
+    *,
+    context: ResolvedContext | None = None,
+    goal_reader: Callable[[Any], tuple[GoalEntry, ...]] = _read_goals,
+    source_reader: Callable[[Path], tuple[SourceStatus, ...]] = list_sources,
+    snapshot_reader: Callable[[Path], SnapshotProbe] = probe_latest_snapshot,
+) -> ResumeBrief:
+    """Assemble a read-only work-area brief through one retained root without printing."""
+    with ExitStack() as stack:
+        if context is not None:
+            if not isinstance(context, ResolvedContext):
+                raise ResumeContractError("invalid project context")
+            anchor = context.workspace_anchor
+            workspace = context.workspace
+            selection = "linked work area"
+        else:
+            workspace = preflight_workspace_paths(Path(workspace_arg))
+            if not workspace.is_dir():
+                raise PayloadError("workspace is not a directory")
+            anchor = stack.enter_context(WorkspaceAnchor(workspace))
+            selection = "direct work area"
+
+        def boundary() -> None:
+            if not anchor.root_is_current():
+                raise ResumeContractError("work-area root changed")
+            if context is not None:
+                context.validate()
+
+        sections_unavailable = False
+
+        boundary()
+        try:
+            goals = _validate_goals(goal_reader(anchor))
+        except GoalReadError:
+            goals = None
+            sections_unavailable = True
+        boundary()
+
+        boundary()
+        try:
+            sources = _validate_sources(source_reader(workspace))
+        except ResumeContractError:
+            raise
+        except Exception:
+            sources = None
+            sections_unavailable = True
+        boundary()
+
+        boundary()
+        try:
+            probe = _validate_probe(snapshot_reader(workspace))
+        except ResumeContractError:
+            raise
+        except Exception:
+            probe = None
+            sections_unavailable = True
+        boundary()
+
+        if probe is None or probe.status == "unavailable":
+            sections_unavailable = True
+        if sources is not None and any(source.status != "available" for source in sources):
+            sections_unavailable = True
+        result = "partial" if sections_unavailable else "complete"
+        lines = [
+            "Work-area context",
+            f"Selection: {selection}",
+            f"Result: {result}",
+            "Scope: the selected work area; no project ownership or task history is inferred.",
+            "",
+            *_goals_text(goals),
+            "",
+            *_sources_text(sources),
+            "",
+            *_snapshot_text(probe),
+        ]
+        output = "\n".join(lines)
+        boundary()
+        return ResumeBrief(
+            text=output,
+            status=result,
+            partial=sections_unavailable,
+            selection=selection,
+        )
+
+
 def run(
     args: argparse.Namespace,
     *,
@@ -267,79 +363,17 @@ def run(
     snapshot_reader: Callable[[Path], SnapshotProbe] = probe_latest_snapshot,
 ) -> int:
     """Read all sections through one retained root and print only after final validation."""
-    with ExitStack() as stack:
-        context = getattr(args, "_project_context", None)
-        try:
-            if context is not None:
-                if not isinstance(context, ResolvedContext):
-                    raise ResumeContractError("invalid project context")
-                anchor = context.workspace_anchor
-                workspace = context.workspace
-                selection = "linked work area"
-            else:
-                workspace = preflight_workspace_paths(Path(args.workspace))
-                if not workspace.is_dir():
-                    raise PayloadError("workspace is not a directory")
-                anchor = stack.enter_context(WorkspaceAnchor(workspace))
-                selection = "direct work area"
-
-            def boundary() -> None:
-                if not anchor.root_is_current():
-                    raise ResumeContractError("work-area root changed")
-                if context is not None:
-                    context.validate()
-
-            sections_unavailable = False
-
-            boundary()
-            try:
-                goals = _validate_goals(goal_reader(anchor))
-            except GoalReadError:
-                goals = None
-                sections_unavailable = True
-            boundary()
-
-            boundary()
-            try:
-                sources = _validate_sources(source_reader(workspace))
-            except ResumeContractError:
-                raise
-            except Exception:
-                sources = None
-                sections_unavailable = True
-            boundary()
-
-            boundary()
-            try:
-                probe = _validate_probe(snapshot_reader(workspace))
-            except ResumeContractError:
-                raise
-            except Exception:
-                probe = None
-                sections_unavailable = True
-            boundary()
-
-            if probe is None or probe.status == "unavailable":
-                sections_unavailable = True
-            if sources is not None and any(source.status != "available" for source in sources):
-                sections_unavailable = True
-            result = "partial" if sections_unavailable else "complete"
-            lines = [
-                "Work-area context",
-                f"Selection: {selection}",
-                f"Result: {result}",
-                "Scope: the selected work area; no project ownership or task history is inferred.",
-                "",
-                *_goals_text(goals),
-                "",
-                *_sources_text(sources),
-                "",
-                *_snapshot_text(probe),
-            ]
-            output = "\n".join(lines)
-            boundary()
-            print(output)
-            return 1 if sections_unavailable else 0
-        except (BindingError, PayloadError, OSError, ResumeContractError, ValueError):
-            print("resume: the selected work area changed, is unsafe, or is invalid")
-            return 2
+    context = getattr(args, "_project_context", None)
+    try:
+        brief = assemble_brief(
+            args.workspace,
+            context=context,
+            goal_reader=goal_reader,
+            source_reader=source_reader,
+            snapshot_reader=snapshot_reader,
+        )
+    except (BindingError, PayloadError, OSError, ResumeContractError, ValueError):
+        print("resume: the selected work area changed, is unsafe, or is invalid")
+        return 2
+    print(brief.text)
+    return 1 if brief.partial else 0
