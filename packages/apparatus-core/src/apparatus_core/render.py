@@ -45,6 +45,8 @@ class RenderResult:
     written: tuple[str, ...]
     unchanged: tuple[str, ...]
     actions: tuple[tuple[str, str], ...] = ()
+    removed: tuple[str, ...] = ()
+    conflicts: tuple[str, ...] = ()
 
 
 def normalize_target(target: str) -> Path:
@@ -256,6 +258,7 @@ def render_workspace(
     workspace: str | Path,
     *,
     registry: tuple[tuple[str, str], ...] | None = None,
+    include_skill_adapters: bool = True,
 ) -> RenderResult:
     """Write registered shims only when their expected bytes differ."""
     root = Path(workspace)
@@ -272,27 +275,47 @@ def render_workspace(
         layout = read_layout(root)
     except LayoutError as error:
         raise RenderError(str(error)) from error
-    if layout is not None:
-        return _render_enrolled(layout.workspace, layout, registry=registry)
-    rendered = rendered_shims(root, registry=registry)
-    targets = tuple((shim, _preflight_target(root, shim.target)) for shim in rendered)
-    written: list[str] = []
-    unchanged: list[str] = []
-    actions: list[tuple[str, str]] = []
-    for shim, target in targets:
+    if include_skill_adapters:
+        from apparatus_core.skill_adapters import SkillAdapterError, preflight_adapters, sync_work_area_adapters
         try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            existing = target.read_bytes() if target.is_file() else None
-            if existing == shim.content:
-                unchanged.append(shim.target)
-                actions.append(("unchanged", shim.target))
-                continue
-            _replace_target(target, shim.content)
-        except OSError as error:
-            raise RenderError(f"could not write shim {shim.target!r}") from error
-        written.append(shim.target)
-        actions.append(("written", shim.target))
-    return RenderResult(tuple(written), tuple(unchanged), tuple(actions))
+            preflight_adapters(root, is_project=False)
+        except SkillAdapterError as error:
+            raise RenderError(str(error)) from error
+    if layout is not None:
+        shim_result = _render_enrolled(layout.workspace, layout, registry=registry)
+    else:
+        rendered = rendered_shims(root, registry=registry)
+        targets = tuple((shim, _preflight_target(root, shim.target)) for shim in rendered)
+        written: list[str] = []
+        unchanged: list[str] = []
+        actions: list[tuple[str, str]] = []
+        for shim, target in targets:
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                existing = target.read_bytes() if target.is_file() else None
+                if existing == shim.content:
+                    unchanged.append(shim.target)
+                    actions.append(("unchanged", shim.target))
+                    continue
+                _replace_target(target, shim.content)
+            except OSError as error:
+                raise RenderError(f"could not write shim {shim.target!r}") from error
+            written.append(shim.target)
+            actions.append(("written", shim.target))
+        shim_result = RenderResult(tuple(written), tuple(unchanged), tuple(actions))
+    if not include_skill_adapters:
+        return shim_result
+    try:
+        adapters = sync_work_area_adapters(layout.workspace if layout is not None else root)
+    except SkillAdapterError as error:
+        raise RenderError(str(error)) from error
+    return RenderResult(
+        shim_result.written + adapters.written,
+        shim_result.unchanged + adapters.unchanged,
+        shim_result.actions + adapters.actions,
+        removed=adapters.removed,
+        conflicts=adapters.conflicts,
+    )
 
 
 def _replace_target(target: Path, content: bytes) -> None:

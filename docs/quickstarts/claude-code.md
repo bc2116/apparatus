@@ -32,11 +32,14 @@ and `/ADOPT`. Omit adoption for fresh setup. Defaults are `~/Projects` and
 flat script. Existing projects and custom instructions stay in place or produce
 a conflict requiring reconciliation.
 
-If a native Skill is not listed, ask Claude Code to read `AGENTS.md` through
-its existing instruction pointer and the chosen canonical
-`.agents/skills/NAME/SKILL.md`. This file-reading route does not require a copied
-body, symlink or successful menu discovery. A listed thin wrapper has not yet
-proved that its body pointer is followed.
+`apparatus init`, `apparatus render`, and `apparatus project bind` generate thin
+pointer adapters under `.claude/skills/NAME/SKILL.md` (in both work areas and
+bound projects) that point back to the single canonical `.agents/skills/NAME/SKILL.md`
+body. If a native Skill is not listed or cannot follow the cross-directory pointer,
+ask Claude Code to read `AGENTS.md` through its existing instruction pointer and
+the chosen canonical `.agents/skills/NAME/SKILL.md`. This file-reading route does
+not require a copied body or symlink. A listed thin wrapper has not yet proved
+that its body pointer is followed.
 
 Official launch instructions checked 2026-09-06. The passing CLI configuration
 used native auto permission mode and a restricted tool setup. Earlier permission

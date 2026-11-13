@@ -249,3 +249,9 @@ discovery adapters, broad support certification and public delivery retain their
 own acceptance requirements. No further product-choice interview is needed.
 Resolve small reversible implementation choices in their focused prompts;
 return to the owner only if evidence requires a material change to this direction.
+
+## Open questions
+
+- Should `--remove-skill-adapters` remain an explicit cleanup action reversed by a
+  later `init`, `render`, or `project bind`, or should a persisted workspace or
+  project opt-out setting prevent automatic native Skill adapter regeneration?

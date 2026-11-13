@@ -31,7 +31,11 @@ Windows wrapper). The macOS package cannot select a custom root or pass
 adoption; use the flat script. Ask for the matching path option and command
 rather than silently enrolling an existing folder.
 
-For portable Skill use, ask Agent to read the work-area `AGENTS.md` and relevant
+In a bound project, `apparatus project bind` and `apparatus render` generate thin
+pointer adapters under `PROJECT/.agents/skills/NAME/SKILL.md` pointing to the
+canonical `.agents/skills/NAME/SKILL.md` files in the work area; whether Cursor
+automatically discovers and follows those adapters remains unverified. For portable
+Skill use, ask Agent to read the work-area `AGENTS.md` and relevant
 canonical `.agents/skills/NAME/SKILL.md`. A native menu entry is not required;
 no duplicate body or symlink is needed. Existing Cursor **CLI** metadata probes
 were inconclusive and establish neither IDE discovery nor body execution.

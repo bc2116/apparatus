@@ -10,6 +10,12 @@ All notable changes to Apparatus are documented in this file.
 
 ## Unreleased
 
+- Generate deterministic regular UTF-8 native Skill pointer adapters under
+  `.claude/skills/` in work areas and `.agents/skills/` and `.claude/skills/` in
+  bound projects during `init`, `render`, and `project bind`, with
+  `--remove-skill-adapters` cleanup, conflict preservation, and
+  `skill-adapter-*` checks when owned adapters exist.
+
 ## v0.0.3
 
 - Save Decisions explicitly in Memory and report the exact saved record path

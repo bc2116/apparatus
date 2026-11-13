@@ -189,6 +189,7 @@ def run(args, *, input_stream=None, write=write_receipt):
                         learned.parse_marker(marker, ownership.content)
                         _validate(anchor, reads, (), {})
                         print(json.dumps({"status": "unchanged", "path": relative, "sha256": digest}))
+                        print("Native Skill adapters refresh on the next `apparatus render`.", file=sys.stderr)
                         return 0
                     if anchor.directory_exists(Path(relative).parent):
                         raise learned.LearnedSkillError("The native Skill directory already exists; preserve it and choose a new name.")
@@ -198,6 +199,8 @@ def run(args, *, input_stream=None, write=write_receipt):
                     raise learned.LearnedSkillError("Choose draft or adopt.")
                 print(json.dumps({"status": "drafted" if args.skill_action == "draft" else "adopted",
                                   "path": relative, "sha256": hashlib.sha256(content).hexdigest()}))
+                if args.skill_action == "adopt":
+                    print("Native Skill adapters refresh on the next `apparatus render`.", file=sys.stderr)
         return 0
     except RetentionSuppressed:
         print("skill: this task does not save learned Skills or drafts.")

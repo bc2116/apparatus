@@ -143,8 +143,10 @@ no-save receipts contain fixed operational metadata rather than task content.
 Learned Skill recovery includes the closed per-Skill ownership records under
 `System/skills/adopted/` and exactly their named `.agents/skills/NAME/SKILL.md`
 bodies. Current capture and historical manifests must contain matching valid
-pairs. Drafts under `System/skill-drafts/` and unregistered native Skills are
-excluded. Restore keeps later individual adoption records as later additions;
+pairs. Drafts under `System/skill-drafts/`, unregistered native Skills,
+work-area native Skill adapters under `.claude/skills/`, and bound-project native
+Skill adapters under `.agents/skills/` and `.claude/skills/` are excluded.
+Restore keeps later individual adoption records as later additions;
 restoring an older adopted body may revive an older workflow. No live task
 control or native action authority is restored by adoption metadata.
 

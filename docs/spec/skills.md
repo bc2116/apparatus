@@ -87,13 +87,47 @@ Restoring old procedures beside new Skill bodies produces an actionable mixed-st
 finding. Checks never delete or migrate files. Init can reconcile recognized stock
 files again while preserving custom bodies and stopping on unresolved edits.
 
-## App compatibility
+## App compatibility and native Skill adapters
 
-Ordinary file reading is the working baseline. This format migration installs no
-symlinks, global user files, native wrappers or app-specific options. Documented
-discovery paths are evidence for the next adapter cut, not proof that a particular
-app version discovers shared Skills outside its project boundary. Actual native
-discovery, duplicate-name behavior and adapter acceptance remain separate checks.
+Ordinary file reading remains the working baseline and fallback across every AI
+app. Apparatus installs no symlinks, global user-home files, or app-specific
+runtimes. For qualifying Skills, Apparatus generates deterministic UTF-8 regular
+pointer adapter files inside the workspace or bound project:
+
+- **Work area:** `.claude/skills/<NAME>/SKILL.md` only (Codex and Cursor read the
+  canonical `.agents/skills/<NAME>/SKILL.md` files directly).
+- **Bound project:** `.agents/skills/<NAME>/SKILL.md` and
+  `.claude/skills/<NAME>/SKILL.md`.
+
+Only built-in Skills from `BUILTIN_PATHS` (when present and valid) and adopted
+learned Skills with a valid pair (`System/skills/adopted/<NAME>.yaml` and
+`.agents/skills/<NAME>/SKILL.md`) qualify for adapters. Inactive drafts, legacy
+pointers, unrecognized custom Skills, and module-installed Skills never receive
+adapters. Each adapter copies the canonical `name` and `description` verbatim
+into valid portable YAML frontmatter, states that it is generated, instructs the
+assistant to read and follow the canonical Skill body via a relative
+forward-slash path (`.agents/skills/<NAME>/SKILL.md` in a work area, or built
+from the project binding's `relative_workspace` in a bound project), notes that
+the canonical body is the single editable source, and instructs the assistant to
+say so and continue without the Skill if that file cannot be read.
+
+An existing file at an adapter target is treated as Apparatus-owned only when its
+complete bytes match generated adapter output (LF or CRLF) for that target.
+`apparatus init`, `apparatus render`, and `apparatus project bind` create or
+refresh adapters and remove orphaned owned adapters (plus directories left empty);
+`apparatus skill adopt` reminds the user that adapters refresh on the next
+render. Unrecognized occupants (unowned files, symlinks, non-regular entries, or
+directories) are never overwritten or deleted: remaining targets still render,
+each conflict is reported by relative path with reconciliation guidance,
+`render` exits `1`, and `init` and `project bind` retain exit `0`.
+`apparatus render TARGET --remove-skill-adapters` removes only Apparatus-owned
+adapters and directories left empty, then stops.
+
+Only when a work area or bound project contains at least one Apparatus-owned
+native Skill adapter, `apparatus check` reports `skill-adapter-drift`,
+`skill-adapter-missing`, and `skill-adapter-orphan` findings while ignoring
+unrecognized occupants. Actual app discovery and adapter-following remain
+separate verification checks.
 
 ## Task-first everyday work
 

@@ -31,6 +31,7 @@ packages/apparatus-core/tests/test_pr58_memory_guidance.py
 packages/apparatus-core/tests/test_pr60_resume_guidance.py
 packages/apparatus-mailbox-survey/tests
 packages/apparatus-core/tests/test_learned_skills.py
+packages/apparatus-core/tests/test_skill_adapters.py
 packages/apparatus-core/tests/test_skills.py
 packages/apparatus-core/tests/test_skill_migration.py
 packages/apparatus-core/tests/test_skill_checks.py

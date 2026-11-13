@@ -375,7 +375,8 @@ def test_bound_project_cli_uses_one_adopted_body_and_no_task_text_arguments(area
                             capture_output=True, env=env)
     assert result.returncode == 0, result.stderr + result.stdout
     assert (root / learned.body_path(NAME)).is_file()
-    assert not (project / ".agents").exists()
+    assert not (project / learned.body_path(NAME)).exists()
+    assert not (project / ".claude/skills" / NAME / "SKILL.md").exists()
 
 
 @pytest.mark.parametrize("target", ["draft", "parent"])
