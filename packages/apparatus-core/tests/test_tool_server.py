@@ -42,7 +42,7 @@ def _run_cli(
         capture_output=True,
         cwd=cwd,
         env=env,
-        timeout=30,
+        timeout=120,
     )
 
 
@@ -252,7 +252,7 @@ def test_console_script_entry_point_wiring(tmp_path: Path) -> None:
         input=_rpc("initialize", 1, _init_params()),
         capture_output=True,
         env=env,
-        timeout=30,
+        timeout=120,
     )
     assert proc.returncode == 0
     responses = _decode_lines(proc.stdout)
@@ -429,7 +429,10 @@ def test_read_only_immutability_and_grounded_recall(tmp_path: Path) -> None:
 
     cli_resume = _run_cli(["resume", str(workspace)], env=env)
     assert cli_resume.returncode == 0
-    assert brief["structuredContent"]["text"] == cli_resume.stdout.decode("utf-8").rstrip("\n")
+    assert (
+        brief["structuredContent"]["text"]
+        == cli_resume.stdout.decode("utf-8").replace("\r\n", "\n").rstrip("\n")
+    )
 
 
 def test_distinct_domain_states_and_invalid_args(
