@@ -436,8 +436,8 @@ def preflight_adapters(target_root: str | Path, *, is_project: bool = False) -> 
     return root
 
 
-def _try_remove_empty_adapter_dirs(anchor: WorkspaceAnchor, removed_relatives: Iterable[str]) -> None:
-    """Remove adapter parent directories left empty after removing owned adapters."""
+def _try_remove_empty_adapter_dirs(target_root: Path, removed_relatives: Iterable[str]) -> None:
+    """Remove adapter parent directories left empty after all anchor handles close."""
     parents: set[Path] = set()
     for relative in removed_relatives:
         rel_path = Path(relative)
@@ -446,13 +446,12 @@ def _try_remove_empty_adapter_dirs(anchor: WorkspaceAnchor, removed_relatives: I
                 parents.add(parent)
     for parent in sorted(parents, key=lambda item: (len(item.parts), item.as_posix()), reverse=True):
         try:
-            if not anchor.root_is_current() or not anchor.directory_exists(parent):
+            preflight_workspace_paths(target_root)
+            if not _inspect_parent_chain(target_root, parent.parts):
                 continue
-        except OSError:
+        except (PayloadError, SkillAdapterError, OSError):
             continue
-        dir_path = anchor.workspace / parent
-        if is_reparse_path(dir_path):
-            continue
+        dir_path = target_root.joinpath(*parent.parts)
         try:
             with os.scandir(dir_path) as entries:
                 if any(True for _ in entries):
@@ -566,12 +565,16 @@ def _sync_adapters(
         )
         written = sorted([*(rel for rel, _ in to_create), *(rel for rel, _, _, _ in to_replace)])
         removed = sorted(rel for rel, _, _ in to_remove)
-        return AdapterSyncResult(
-            written=tuple(written),
-            unchanged=tuple(sorted(unchanged)),
-            removed=tuple(removed),
-            conflicts=tuple(sorted(conflicts)),
-        )
+
+    if removed:
+        _try_remove_empty_adapter_dirs(target_path, removed)
+
+    return AdapterSyncResult(
+        written=tuple(written),
+        unchanged=tuple(sorted(unchanged)),
+        removed=tuple(removed),
+        conflicts=tuple(sorted(conflicts)),
+    )
 
 
 def _publish_changes(
@@ -588,7 +591,6 @@ def _publish_changes(
     transactions: list[object] = []
     staged_removals: list[object] = []
     anchors: dict[Path, WorkspaceAnchor] = {Path("."): target_anchor}
-    committed = False
 
     with ExitStack() as stack:
         try:
@@ -647,7 +649,6 @@ def _publish_changes(
             for owned in staged_removals:
                 target_anchor.unlink_owned(owned)
                 owned.close()
-            committed = True
         except Exception as error:
             for owned in staged_removals:
                 try:
@@ -688,9 +689,6 @@ def _publish_changes(
             if isinstance(error, SkillAdapterError):
                 raise
             raise SkillAdapterError(f"could not safely publish native Skill adapters: {error}") from error
-
-    if committed and to_remove:
-        _try_remove_empty_adapter_dirs(target_anchor, (rel for rel, _, _ in to_remove))
 
 
 def sync_work_area_adapters(work_area: str | Path) -> AdapterSyncResult:
@@ -766,7 +764,7 @@ def remove_owned_adapters(
                 raise
             raise SkillAdapterError(f"could not remove owned native Skill adapters: {error}") from error
 
-        _try_remove_empty_adapter_dirs(target_anchor, (rel for rel, _, _ in to_remove))
+    _try_remove_empty_adapter_dirs(target_path, (rel for rel, _, _ in to_remove))
 
     return AdapterSyncResult(removed=tuple(sorted(rel for rel, _, _ in to_remove)))
 
