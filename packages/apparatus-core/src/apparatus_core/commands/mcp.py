@@ -1,15 +1,18 @@
-"""The optional read-only local MCP tool server (``apparatus mcp serve``)."""
+"""The optional local MCP tool server (``apparatus mcp serve``)."""
 
 from __future__ import annotations
 
 import argparse
 from contextlib import ExitStack, redirect_stdout
+import datetime as dt
 from pathlib import Path
 import sys
 from typing import Any
 
 from apparatus_core import __version__, recall as recall_engine, retention
+from apparatus_core.commands.memory import MemoryCommandError, save_memory_record
 from apparatus_core.commands.resume import ResumeContractError, assemble_brief
+from apparatus_core.commands.task import no_memory_outcome, start_task_outcome
 from apparatus_core.features import FeatureProfileError, enabled as feature_enabled
 from apparatus_core.fs_transactions import WorkspaceAnchor
 from apparatus_core.ignore import IgnoreReport
@@ -33,20 +36,43 @@ _READ_ONLY_ANNOTATIONS = {
     "idempotentHint": True,
     "openWorldHint": False,
 }
+_TASK_START_ANNOTATIONS = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": False,
+    "openWorldHint": False,
+}
+_TASK_NO_MEMORY_ANNOTATIONS = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+_MEMORY_WRITE_ANNOTATIONS = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": False,
+    "openWorldHint": False,
+}
 
 
 def register(subparsers: Any) -> None:
     """Register the optional local MCP tool server through the shared entry-point path."""
     parser = subparsers.add_parser(
         "mcp",
-        help="run the optional read-only local tool server over stdio",
+        help="run the optional local tool server over stdio",
     )
     actions = parser.add_subparsers(dest="mcp_action", required=True)
     serve_parser = actions.add_parser(
         "serve",
-        help="serve read-only Apparatus tools over MCP stdio",
+        help="serve Apparatus tools over MCP stdio (read-only by default)",
     )
     serve_parser.add_argument("workspace", metavar="WORKSPACE")
+    serve_parser.add_argument(
+        "--memory-saves",
+        action="store_true",
+        help="expose opt-in task and Memory save tools",
+    )
     serve_parser.set_defaults(func=run, mcp_action="serve")
 
 
@@ -61,15 +87,59 @@ def _parse_limit(arguments: dict[str, Any]) -> int:
     return limit
 
 
-def _parse_text_arg(arguments: dict[str, Any], *, key: str) -> str:
-    allowed = {key, "limit"}
+def _reject_unknown_args(arguments: dict[str, Any], allowed: set[str]) -> None:
     unknown = sorted(set(arguments) - allowed)
     if unknown:
-        raise ToolInputError(f"unknown argument(s): {', '.join(unknown)}")
+        shown = ", ".join(unknown[:5])
+        if len(unknown) > 5:
+            shown += ", ..."
+        raise ToolInputError(f"unknown argument(s): {shown}")
+
+
+def _require_non_empty_str(
+    arguments: dict[str, Any],
+    key: str,
+    *,
+    message: str | None = None,
+) -> str:
     value = arguments.get(key)
     if not isinstance(value, str) or not value.strip():
-        raise ToolInputError(f"{key} must be a non-empty string")
+        raise ToolInputError(message or f"{key} must be a non-empty string")
     return value
+
+
+def _require_str(arguments: dict[str, Any], key: str) -> str:
+    value = arguments.get(key)
+    if not isinstance(value, str):
+        raise ToolInputError(f"{key} must be a string")
+    return value
+
+
+def _optional_str(arguments: dict[str, Any], key: str) -> str | None:
+    if key not in arguments or arguments[key] is None:
+        return None
+    value = arguments[key]
+    if not isinstance(value, str):
+        raise ToolInputError(f"{key} must be a string")
+    return value
+
+
+def _require_iso_date(arguments: dict[str, Any], key: str = "date") -> str:
+    value = _require_non_empty_str(
+        arguments, key, message=f"{key} must be a valid YYYY-MM-DD date"
+    )
+    try:
+        parsed = dt.date.fromisoformat(value)
+    except ValueError as error:
+        raise ToolInputError(f"{key} must be a valid YYYY-MM-DD date") from error
+    if parsed.isoformat() != value:
+        raise ToolInputError(f"{key} must be a valid YYYY-MM-DD date")
+    return value
+
+
+def _parse_text_arg(arguments: dict[str, Any], *, key: str) -> str:
+    _reject_unknown_args(arguments, {key, "limit"})
+    return _require_non_empty_str(arguments, key)
 
 
 def _forbidden_write(*_args: Any, **_kwargs: Any) -> object:
@@ -81,6 +151,8 @@ def _build_tools(
     anchor: WorkspaceAnchor,
     layout: ManagedLayout,
     context: ResolvedContext | None,
+    *,
+    memory_saves: bool = False,
 ) -> list[ToolDefinition]:
     def validate_session() -> None:
         if not anchor.root_is_current():
@@ -226,7 +298,144 @@ def _build_tools(
             "text": brief.text,
         }
 
-    return [
+    def handle_task_start(arguments: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_args(arguments, {"memory"})
+        raw_memory = arguments.get("memory")
+        if raw_memory is None:
+            save_memory: bool | None = None
+        elif raw_memory == "save":
+            save_memory = True
+        elif raw_memory == "no-save":
+            save_memory = False
+        else:
+            raise ToolInputError("memory must be 'save' or 'no-save'")
+        validate_session()
+        try:
+            outcome = start_task_outcome(workspace, save_memory=save_memory)
+        except TaskRetentionError as error:
+            raise ToolExecutionError(str(error)) from error
+        except (OSError, ValueError) as error:
+            raise ToolExecutionError(
+                "task start failed because work-area controls could not be updated safely"
+            ) from error
+        validate_session()
+        return outcome
+
+    def handle_task_no_memory(arguments: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_args(arguments, {"task_id"})
+        task_id = _require_non_empty_str(arguments, "task_id")
+        validate_session()
+        try:
+            outcome = no_memory_outcome(workspace, task_id)
+        except TaskRetentionError as error:
+            raise ToolExecutionError(str(error)) from error
+        except (OSError, ValueError) as error:
+            raise ToolExecutionError(
+                "task no-memory failed because work-area controls could not be updated safely"
+            ) from error
+        validate_session()
+        return outcome
+
+    def _run_memory_save(
+        *,
+        action: str,
+        task_id: str,
+        title: str | None = None,
+        name: str | None = None,
+        role: str | None = None,
+        date: str | None = None,
+        body: str,
+    ) -> dict[str, Any]:
+        validate_session()
+        try:
+            outcome = save_memory_record(
+                anchor,
+                action=action,
+                task_id=task_id,
+                title=title,
+                name=name,
+                role=role,
+                date=date,
+                body=body,
+            )
+        except TaskRetentionError as error:
+            raise ToolExecutionError(str(error)) from error
+        except MemoryCommandError as error:
+            raise ToolExecutionError(str(error)) from error
+        except (OSError, ValueError) as error:
+            raise ToolExecutionError(
+                "Memory save failed because work-area files could not be written safely"
+            ) from error
+        validate_session()
+        if outcome.status != "saved":
+            return {
+                "status": "not_saved",
+                "reason": outcome.reason
+                or "This task does not save new Memory or setup answers.",
+            }
+        assert outcome.record_path is not None
+        try:
+            anchor.read_file(outcome.record_path)
+        except OSError as error:
+            raise ToolExecutionError(
+                "saved Memory record could not be verified on disk"
+            ) from error
+        counts = {
+            finding.credential_class: finding.count for finding in outcome.redactions
+        }
+        return {
+            "status": "saved",
+            "record_path": outcome.record_path.as_posix(),
+            "redactions": {
+                "total": sum(counts.values()),
+                "classes": sorted(counts),
+                "counts": counts,
+            },
+        }
+
+    def handle_memory_save_fact(arguments: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_args(arguments, {"task_id", "title", "body"})
+        task_id = _require_non_empty_str(arguments, "task_id")
+        title = _require_non_empty_str(arguments, "title")
+        body = _require_str(arguments, "body")
+        return _run_memory_save(
+            action="add-fact",
+            task_id=task_id,
+            title=title,
+            body=body,
+        )
+
+    def handle_memory_save_person(arguments: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_args(arguments, {"task_id", "name", "body", "role"})
+        task_id = _require_non_empty_str(arguments, "task_id")
+        name = _require_non_empty_str(arguments, "name")
+        body = _require_str(arguments, "body")
+        role = _optional_str(arguments, "role")
+        return _run_memory_save(
+            action="add-person",
+            task_id=task_id,
+            name=name,
+            role=role,
+            body=body,
+        )
+
+    def handle_memory_save_decision(arguments: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_args(arguments, {"task_id", "title", "date", "body"})
+        task_id = _require_non_empty_str(arguments, "task_id")
+        title = _require_non_empty_str(arguments, "title")
+        date = _require_iso_date(arguments, "date")
+        body = _require_non_empty_str(
+            arguments, "body", message="Decision body must not be empty"
+        )
+        return _run_memory_save(
+            action="add-decision",
+            task_id=task_id,
+            title=title,
+            date=date,
+            body=body,
+        )
+
+    tools = [
         ToolDefinition(
             name="library_recall",
             description=(
@@ -300,14 +509,184 @@ def _build_tools(
             annotations=_READ_ONLY_ANNOTATIONS,
         ),
     ]
+    if not memory_saves:
+        return tools
+
+    tools.extend(
+        [
+            ToolDefinition(
+                name="task_start",
+                description=(
+                    "Start a task in the selected work area and return its opaque "
+                    "task_id and Memory retention decision (save or no-save). Omit "
+                    "memory to use the work area's default (including a legacy private "
+                    "profile default), or pass 'no-save' when the user says not to save "
+                    "this task to Memory. The AI app must keep task_id for subsequent "
+                    "Memory save or opt-out calls."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "memory": {
+                            "type": "string",
+                            "enum": ["save", "no-save"],
+                            "description": "Optional Memory retention choice for this task.",
+                        },
+                    },
+                    "additionalProperties": False,
+                },
+                handler=handle_task_start,
+                annotations=_TASK_START_ANNOTATIONS,
+            ),
+            ToolDefinition(
+                name="task_no_memory",
+                description=(
+                    "Apply the one-way no-memory opt-out to an existing task_id so "
+                    "subsequent Memory saves in that task return not_saved without "
+                    "writing files. Previously saved records stay in place."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Opaque task_id returned by task_start.",
+                        },
+                    },
+                    "required": ["task_id"],
+                    "additionalProperties": False,
+                },
+                handler=handle_task_no_memory,
+                annotations=_TASK_NO_MEMORY_ANNOTATIONS,
+            ),
+            ToolDefinition(
+                name="memory_save_fact",
+                description=(
+                    "Save one durable Fact record in Memory for an explicit task_id. "
+                    "As an assistant, use a save tool only when the user explicitly asks "
+                    "to remember, save, or keep something; save only the requested fact, "
+                    "take sources and reasons from the request or evidence, and do not "
+                    "invent them or save unrelated conversation content. Returns saved "
+                    "with the work-area-relative record_path after verifying the file "
+                    "exists, or not_saved under a no-save task."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Opaque task_id returned by task_start.",
+                        },
+                        "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Fact title.",
+                        },
+                        "body": {
+                            "type": "string",
+                            "description": "Fact body text, keeping any known source.",
+                        },
+                    },
+                    "required": ["task_id", "title", "body"],
+                    "additionalProperties": False,
+                },
+                handler=handle_memory_save_fact,
+                annotations=_MEMORY_WRITE_ANNOTATIONS,
+            ),
+            ToolDefinition(
+                name="memory_save_person",
+                description=(
+                    "Save one durable People record in Memory for an explicit task_id. "
+                    "As an assistant, use a save tool only when the user explicitly asks "
+                    "to remember, save, or keep something; save only the requested person, "
+                    "take sources and reasons from the request or evidence, and do not "
+                    "invent them or save unrelated conversation content. Returns saved "
+                    "with the work-area-relative record_path after verifying the file "
+                    "exists, or not_saved under a no-save task."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Opaque task_id returned by task_start.",
+                        },
+                        "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Person or organization name.",
+                        },
+                        "body": {
+                            "type": "string",
+                            "description": "Durable People note text.",
+                        },
+                        "role": {
+                            "type": "string",
+                            "description": "Optional role or title.",
+                        },
+                    },
+                    "required": ["task_id", "name", "body"],
+                    "additionalProperties": False,
+                },
+                handler=handle_memory_save_person,
+                annotations=_MEMORY_WRITE_ANNOTATIONS,
+            ),
+            ToolDefinition(
+                name="memory_save_decision",
+                description=(
+                    "Save one durable Decision record in Memory for an explicit task_id. "
+                    "As an assistant, use a save tool only when the user explicitly asks "
+                    "to remember, save, or keep something; save only the requested decision "
+                    "and date (YYYY-MM-DD), take sources and reasons from the request or "
+                    "evidence, and do not invent them or save unrelated conversation content. "
+                    "Returns saved with the work-area-relative record_path after verifying "
+                    "the file exists, or not_saved under a no-save task."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Opaque task_id returned by task_start.",
+                        },
+                        "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Decision title.",
+                        },
+                        "date": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Decision date in YYYY-MM-DD format.",
+                        },
+                        "body": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Decision details and reason, with alternatives or source when known.",
+                        },
+                    },
+                    "required": ["task_id", "title", "date", "body"],
+                    "additionalProperties": False,
+                },
+                handler=handle_memory_save_decision,
+                annotations=_MEMORY_WRITE_ANNOTATIONS,
+            ),
+        ]
+    )
+    return tools
 
 
 def run(args: argparse.Namespace) -> int:
     """Resolve one work area, verify enrollment, and serve MCP stdio."""
     if getattr(args, "task", None) is not None:
-        print("mcp: --task is not supported on the read-only tool server", file=sys.stderr)
+        print("mcp: --task is not supported on the tool server", file=sys.stderr)
         return 2
 
+    memory_saves = bool(getattr(args, "memory_saves", False))
     context = getattr(args, "_project_context", None)
     with ExitStack() as stack:
         try:
@@ -363,7 +742,13 @@ def run(args: argparse.Namespace) -> int:
         server = McpServer(
             server_name="apparatus",
             server_version=__version__,
-            tools=_build_tools(workspace, anchor, layout, context),
+            tools=_build_tools(
+                workspace,
+                anchor,
+                layout,
+                context,
+                memory_saves=memory_saves,
+            ),
         )
         raw_stdin = sys.stdin.buffer
         raw_stdout = sys.stdout.buffer

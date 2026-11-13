@@ -41,7 +41,7 @@ the chosen canonical `.agents/skills/NAME/SKILL.md`. This file-reading route doe
 not require a copied body or symlink. A listed thin wrapper has not yet proved
 that its body pointer is followed.
 
-## Optional read-only local tool server
+## Optional local tool server
 
 You do not need a tool server to use Apparatus. If you want Claude Code to query
 Library evidence, Memory records, or your resume brief as native read-only tools
@@ -51,6 +51,14 @@ relative `WORKAREA` path such as `.` or `../WORKAREA`):
 
 ```sh
 claude mcp add apparatus -- apparatus mcp serve .
+```
+
+If you also want Claude Code to start tasks and save explicit Memory items
+through native tools (still gated by task retention and explicit user requests),
+pass `--memory-saves`:
+
+```sh
+claude mcp add apparatus -- apparatus mcp serve . --memory-saves
 ```
 
 Tool server registration flags checked via `claude mcp add --help` on

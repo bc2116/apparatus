@@ -41,7 +41,10 @@ with `/` separators. Verify that exact returned path before reporting the save.
 Suppression or failure prints no locator and claims no record. In a no-save task,
 new Facts, People, Decisions, and content-bearing corrections remain suppressed;
 the request's project work, current reads, outdated marking, and forgetting stay
-available under the task retention contract.
+available under the task retention contract. When the optional [local tool server](tool-server.md)
+is started with `--memory-saves`, `memory_save_fact`, `memory_save_person`, and
+`memory_save_decision` run through this exact same writer, redaction, receipt,
+and suppression path.
 
 ## Correct, mark outdated, or forget
 

@@ -50,6 +50,19 @@ class MemoryCommandError(ValueError):
 
 
 @dataclass(frozen=True)
+class MemorySaveOutcome:
+    """Structured outcome from saving or suppressing one Memory record."""
+
+    status: str
+    record_path: Path | None = None
+    reason: str | None = None
+    suppressed_by: str | None = None
+    redactions: tuple[RedactionFinding, ...] = ()
+    labels: tuple[Label, ...] = ()
+    owned_record: _OwnedFile | None = None
+
+
+@dataclass(frozen=True)
 class _SweepChange:
     relative: Path
     original: bytes
@@ -288,7 +301,7 @@ def _remove_owned_receipts(
         raise MemoryCommandError("owned receipts changed before cleanup")
 
 
-def _new_record(
+def _create_record_outcome(
     anchor: _WorkspaceAnchor,
     *,
     kind: str,
@@ -299,11 +312,7 @@ def _new_record(
     suffix_on_collision: bool = True,
     retain_ownership: bool = False,
     task_context: TaskContext | None = None,
-) -> (
-    tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]]
-    | tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...], _OwnedFile]
-    | None
-):
+) -> MemorySaveOutcome:
     context = task_context if task_context is not None else context_for(anchor.workspace)
     if context.workspace != anchor.workspace:
         raise TaskRetentionError("Task context cannot be used in another workspace.")
@@ -318,14 +327,16 @@ def _new_record(
     if mode == "private" and (labels or structural_person):
         if labels:
             names = ", ".join(label.name for label in labels)
-            print(
-                f"Private mode did not save this Memory record. Labels found: {names}."
-            )
+            reason = f"Private mode did not save this Memory record. Labels found: {names}."
         else:
-            print(
-                "Private mode did not save this People record because it contains person data."
-            )
-        return None
+            reason = "Private mode did not save this People record because it contains person data."
+        return MemorySaveOutcome(
+            status="not_saved",
+            reason=reason,
+            suppressed_by="private",
+            redactions=findings,
+            labels=labels,
+        )
 
     if kind == "fact":
         relative_folder = "Memory/Facts"
@@ -378,7 +389,7 @@ def _new_record(
             owned_record = anchor.create_file(relative, content)
         except FileExistsError:
             if not suffix_on_collision:
-                return None
+                return MemorySaveOutcome(status="not_saved")
             continue
         owned_receipt: ReceiptPublication | None = None
         try:
@@ -417,10 +428,64 @@ def _new_record(
         if owned_receipt is not None:
             owned_receipt.close()
         if retain_ownership:
-            return relative, findings, labels, owned_record
+            return MemorySaveOutcome(
+                status="saved",
+                record_path=relative,
+                redactions=findings,
+                labels=labels,
+                owned_record=owned_record,
+            )
         owned_record.close()
-        return relative, findings, labels
+        return MemorySaveOutcome(
+            status="saved",
+            record_path=relative,
+            redactions=findings,
+            labels=labels,
+        )
     raise MemoryCommandError("could not allocate a safe Memory filename")
+
+
+def _new_record(
+    anchor: _WorkspaceAnchor,
+    *,
+    kind: str,
+    metadata: dict[str, str],
+    body: str,
+    mode: str,
+    write: ReceiptWriter,
+    suffix_on_collision: bool = True,
+    retain_ownership: bool = False,
+    task_context: TaskContext | None = None,
+) -> (
+    tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...]]
+    | tuple[Path, tuple[RedactionFinding, ...], tuple[Label, ...], _OwnedFile]
+    | None
+):
+    outcome = _create_record_outcome(
+        anchor,
+        kind=kind,
+        metadata=metadata,
+        body=body,
+        mode=mode,
+        write=write,
+        suffix_on_collision=suffix_on_collision,
+        retain_ownership=retain_ownership,
+        task_context=task_context,
+    )
+    if outcome.status != "saved":
+        if outcome.reason is not None:
+            print(outcome.reason)
+        return None
+    assert outcome.record_path is not None
+    if retain_ownership:
+        assert outcome.owned_record is not None
+        return (
+            outcome.record_path,
+            outcome.redactions,
+            outcome.labels,
+            outcome.owned_record,
+        )
+    return outcome.record_path, outcome.redactions, outcome.labels
 
 
 def _redact_value(
@@ -707,6 +772,115 @@ def _lifecycle(anchor: _WorkspaceAnchor, args: argparse.Namespace,
     return 0
 
 
+def save_record_anchored(
+    anchor: _WorkspaceAnchor,
+    *,
+    action: str,
+    title: str | None = None,
+    name: str | None = None,
+    role: str | None = None,
+    date: str | None = None,
+    body: str | Callable[[], str],
+    write: ReceiptWriter = write_receipt,
+    task_context: TaskContext | None = None,
+) -> MemorySaveOutcome:
+    """Save or suppress one Fact, Person, or Decision through the shared writer without printing."""
+    context = task_context if task_context is not None else context_for(anchor.workspace)
+    if context.workspace != anchor.workspace:
+        raise TaskRetentionError("Task context cannot be used in another workspace.")
+    if action not in {"add-fact", "add-person", "add-decision"}:
+        raise MemoryCommandError(
+            "choose add-fact, add-person, add-decision, recall, or label"
+        )
+    try:
+        context.require_memory_write()
+    except RetentionSuppressed as error:
+        return MemorySaveOutcome(
+            status="not_saved",
+            reason=str(error),
+            suppressed_by="task",
+        )
+    mode = _privacy_mode(anchor) if context.legacy else "standard"
+    body_text = body() if callable(body) else body
+    if action == "add-fact":
+        title_text = "" if title is None else str(title)
+        if not title_text.strip():
+            raise MemoryCommandError("--title must not be empty")
+        return _create_record_outcome(
+            anchor,
+            kind="fact",
+            metadata={"title": title_text},
+            body=body_text,
+            mode=mode,
+            write=write,
+            task_context=context,
+        )
+    if action == "add-person":
+        name_text = "" if name is None else str(name)
+        if not name_text.strip():
+            raise MemoryCommandError("--name must not be empty")
+        metadata = {"name": name_text}
+        if role is not None:
+            metadata["role"] = str(role)
+        return _create_record_outcome(
+            anchor,
+            kind="person",
+            metadata=metadata,
+            body=body_text,
+            mode=mode,
+            write=write,
+            task_context=context,
+        )
+    title_text = "" if title is None else str(title)
+    if not title_text.strip():
+        raise MemoryCommandError("--title must not be empty")
+    date_text = "" if date is None else str(date)
+    try:
+        parsed_date = dt.date.fromisoformat(date_text)
+    except ValueError as error:
+        raise MemoryCommandError("--date must be a valid YYYY-MM-DD date") from error
+    if parsed_date.isoformat() != date_text:
+        raise MemoryCommandError("--date must be a valid YYYY-MM-DD date")
+    if not body_text.strip():
+        raise MemoryCommandError("Decision body must not be empty")
+    return _create_record_outcome(
+        anchor,
+        kind="decision",
+        metadata={"title": title_text, "date": date_text},
+        body=body_text,
+        mode=mode,
+        write=write,
+        task_context=context,
+    )
+
+
+def save_memory_record(
+    anchor: _WorkspaceAnchor,
+    *,
+    action: str,
+    task_id: str,
+    title: str | None = None,
+    name: str | None = None,
+    role: str | None = None,
+    date: str | None = None,
+    body: str,
+    write: ReceiptWriter = write_receipt,
+) -> MemorySaveOutcome:
+    """Run one task-scoped Memory save through the shared writer without printing."""
+    with operation(anchor.workspace, task_id=task_id, require_task=True) as context:
+        return save_record_anchored(
+            anchor,
+            action=action,
+            title=title,
+            name=name,
+            role=role,
+            date=date,
+            body=body,
+            write=write,
+            task_context=context,
+        )
+
+
 def _run_anchored(
     anchor: _WorkspaceAnchor,
     args: argparse.Namespace,
@@ -714,7 +888,7 @@ def _run_anchored(
 ) -> int:
     context = context_for(anchor.workspace)
     action = getattr(args, "memory_action", None)
-    if action in {"add-fact", "add-person", "add-decision", "correct"}:
+    if action == "correct":
         context.require_memory_write()
     mode = _privacy_mode(anchor) if context.legacy else "standard"
     if action == "recall":
@@ -728,68 +902,33 @@ def _run_anchored(
             f"Memory labels refreshed: {examined} record(s) checked, {changed} changed."
         )
         return 0
-    body = _body(args)
-    if action == "add-fact":
-        title = str(args.title)
-        if not title.strip():
-            raise MemoryCommandError("--title must not be empty")
-        result = _new_record(
-            anchor,
-            kind="fact",
-            metadata={"title": title},
-            body=body,
-            mode=mode,
-            write=write,
-        )
-    elif action == "add-person":
-        name = str(args.name)
-        if not name.strip():
-            raise MemoryCommandError("--name must not be empty")
-        metadata = {"name": name}
-        role = getattr(args, "role", None)
-        if role is not None:
-            metadata["role"] = str(role)
-        result = _new_record(
-            anchor,
-            kind="person",
-            metadata=metadata,
-            body=body,
-            mode=mode,
-            write=write,
-        )
-    elif action == "add-decision":
-        title = str(args.title)
-        if not title.strip():
-            raise MemoryCommandError("--title must not be empty")
-        date = str(args.date)
-        try:
-            parsed_date = dt.date.fromisoformat(date)
-        except ValueError as error:
-            raise MemoryCommandError("--date must be a valid YYYY-MM-DD date") from error
-        if parsed_date.isoformat() != date:
-            raise MemoryCommandError("--date must be a valid YYYY-MM-DD date")
-        if not body.strip():
-            raise MemoryCommandError("Decision body must not be empty")
-        result = _new_record(
-            anchor,
-            kind="decision",
-            metadata={"title": title, "date": date},
-            body=body,
-            mode=mode,
-            write=write,
-        )
-    else:
+    if action not in {"add-fact", "add-person", "add-decision"}:
         raise MemoryCommandError(
             "choose add-fact, add-person, add-decision, recall, or label"
         )
-    if result is None:
+    outcome = save_record_anchored(
+        anchor,
+        action=action,
+        title=getattr(args, "title", None),
+        name=getattr(args, "name", None),
+        role=getattr(args, "role", None),
+        date=getattr(args, "date", None),
+        body=lambda: _body(args),
+        write=write,
+        task_context=context,
+    )
+    if outcome.status != "saved":
+        if outcome.suppressed_by == "task":
+            raise RetentionSuppressed(outcome.reason or "")
+        if outcome.reason is not None:
+            print(outcome.reason)
         return 1
-    target, findings, _labels = result
+    assert outcome.record_path is not None
     print("Memory record saved.")
-    print(f"Record: {target.as_posix()}")
-    if findings:
-        total = sum(finding.count for finding in findings)
-        classes = ", ".join(finding.credential_class for finding in findings)
+    print(f"Record: {outcome.record_path.as_posix()}")
+    if outcome.redactions:
+        total = sum(finding.count for finding in outcome.redactions)
+        classes = ", ".join(finding.credential_class for finding in outcome.redactions)
         print(f"Credential floor replaced {total} value(s): {classes}.")
     return 0
 

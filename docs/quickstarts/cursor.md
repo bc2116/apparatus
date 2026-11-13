@@ -40,7 +40,7 @@ canonical `.agents/skills/NAME/SKILL.md`. A native menu entry is not required;
 no duplicate body or symlink is needed. Existing Cursor **CLI** metadata probes
 were inconclusive and establish neither IDE discovery nor body execution.
 
-## Optional read-only local tool server
+## Optional local tool server
 
 You do not need a tool server to use Apparatus. If you want Cursor to query
 Library evidence, Memory records, or your resume brief as native read-only tools
@@ -57,6 +57,10 @@ pointing to a relative `WORKAREA` path (for example `.` from the work area):
   }
 }
 ```
+
+If you also want Cursor to start tasks and save explicit Memory items through
+native tools (still gated by task retention and explicit user requests), include
+`"--memory-saves"` at the end of `"args"` (for example `["mcp", "serve", ".", "--memory-saves"]`).
 
 Cursor `.cursor/mcp.json` stdio schema checked against Cursor documentation on
 2026-11-13 (note: Cursor IDE local MCP behavior remains unverified in headless

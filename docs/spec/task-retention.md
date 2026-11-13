@@ -20,6 +20,9 @@ affects subsequent invocations; an in-flight invocation freezes its entry
 decision. It does not erase completed saves. A new explicitly saving task is
 needed to opt back in. Direct assistant writes follow the same instructions;
 core cannot intercept an AI app's native file writes or conversation history.
+When the optional [local tool server](tool-server.md) is started with `--memory-saves`,
+`task_start` and `task_no_memory` expose these same controls and require an
+explicit `task_id` on every save call.
 
 ## Control and compatibility
 

@@ -52,6 +52,7 @@ packages/apparatus-core/tests/test_workarea_adoption.py
 packages/apparatus-core/tests/test_project_binding.py
 packages/apparatus-core/tests/test_resume.py
 packages/apparatus-core/tests/test_tool_server.py
+packages/apparatus-core/tests/test_tool_server_saves.py
 packages/apparatus-core/tests/test_decision_memory.py
 packages/apparatus-core/tests/test_managed_state_recovery.py
 packages/apparatus-core/tests/test_managed_state_backup.py

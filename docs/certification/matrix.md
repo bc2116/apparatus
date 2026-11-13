@@ -456,3 +456,13 @@ on macOS ARM64 without modifying user home app configurations.
 | Codex CLI `0.166.0` | Ephemeral read-only probe connected to `apparatus mcp serve .`, invoked `resume_brief`, `memory_recall`, and `library_recall` (grounded match citing `Library/calibration.md` on `"cobalt calibration"` and abstention on `"quantum marsupials"`), and left all 152 work-area and cache entries byte-for-byte unchanged. | Keyword Library query needed (`What is the cobalt calibration constant?` abstained under all-term FTS5 matching); CLI observation only, not broad app certification. |
 | Claude Code CLI `2.1.321` | Unavailable for live model turn: isolated `--strict-mcp-config` probe exited 1 with expired OAuth session (`claude mcp add --help` registration syntax verified). | Live Claude tool-call turn unverified without refreshed authentication. |
 | Cursor IDE | Unavailable in headless environment (`.cursor/mcp.json` schema verified from Cursor documentation on 2026-11-13). | Interactive Cursor IDE MCP behavior unverified. |
+
+## November 13 opt-in Memory save tools (`--memory-saves`) observation
+
+The [PR-78 verification note](../notes/pr-78-verification.md) records an isolated
+`apparatus mcp serve . --memory-saves` observation on macOS ARM64 against a
+fresh scratch work area without modifying user home app configurations.
+
+| App & Version | Date | Observed Result | Limits |
+| --- | --- | --- | --- |
+| Codex CLI `0.166.0` | 2026-11-13 | Exposed all 8 tools in isolated probe; fresh recall turn invoked MCP `task_start` + `memory_recall` and cited `Memory/Facts/release-freeze-window.md`; fresh no-save turn invoked MCP `task_start` (`memory: "no-save"` after rejecting extra arguments) and wrote zero `Memory/` or receipt files (`System/tasks/ab6332bb-66aa-46a7-b5a1-a74e48958ac7.yaml` only). In the initial save turn, Codex located a local `.venv` CLI binary via shell and saved `Memory/Facts/release-freeze-window.md` with `apparatus memory add-fact` instead of MCP `memory_save_fact`. | Initial ordinary-language save turn chose shell CLI over MCP `memory_save_fact` once a local binary was found; MCP save writer verified by automated suite (`test_tool_server_saves.py`); Claude Code CLI and Cursor IDE remain unverified live. |
