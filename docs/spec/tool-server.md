@@ -2,7 +2,7 @@
 
 Status: Accepted (`ADR-0008`)
 
-`apparatus mcp serve WORKSPACE` provides an optional, read-only local Model Context Protocol (MCP) server over standard input and standard output so compatible AI apps can call Apparatus retrieval and brief assembly directly without modifying the work area.
+`apparatus mcp serve WORKSPACE` provides an optional local Model Context Protocol (MCP) server over standard input and standard output so compatible AI apps can call Apparatus retrieval, brief assembly, and—when explicitly enabled with `--memory-saves`—task-controlled Memory save tools directly. Without `--memory-saves`, the server is strictly read-only.
 
 ## Transport and Protocol
 
@@ -27,11 +27,12 @@ Status: Accepted (`ADR-0008`)
 - Missing subcommand (`apparatus mcp` without `serve`) exits `2` on `stderr` with zero bytes on `stdout`.
 - `WORKSPACE` may be a direct work area or a bound project directory resolved once at startup. Legacy work areas lacking `System/tasks` are refused with exit code `2` on `stderr` and guidance to rerun `apparatus init`.
 - Root identity and project binding are re-validated before and after every tool invocation; mid-session drift returns a bounded `isError: true` (`execution_error`) tool response without serving stale or redirected data.
-- Tool execution creates no files, receipts, task files, snapshots, or external cache entries. `library_recall` runs inside an explicit non-saving `TaskContext` (`save_memory=False`, `legacy=False`).
+- Tool execution creates no files, receipts, task files, snapshots, or external cache entries for read tools or when `--memory-saves` is omitted. `library_recall` runs inside an explicit non-saving `TaskContext` (`save_memory=False`, `legacy=False`) even when `--memory-saves` is enabled and a saving task exists.
+- With `--memory-saves`, only `task_start`, `task_no_memory`, and successful saves (`memory_save_fact`, `memory_save_person`, `memory_save_decision`) under a saving `task_id` modify the work area, producing the exact same record bytes and receipts as the corresponding CLI verbs. Suppressed saves (`no-save`), read calls, and rejected calls leave the work-area tree unchanged.
 
 ## Exposed Tools
 
-All three tools advertise MCP read-only annotations (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`) and return both `content` (`[{"type": "text", "text": "<json>"}]`) and `structuredContent`.
+The three default tools advertise MCP read-only annotations (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`). All tools return both `content` (`[{"type": "text", "text": "<json>"}]`) and `structuredContent`. Without `--memory-saves`, only the three read tools below are listed in `tools/list`, and calling any opt-in save or task tool returns `-32602` (`unknown tool`).
 
 ### 1. `library_recall`
 
@@ -60,3 +61,37 @@ Arguments: `{}` (no parameters accepted).
 Distinct non-error (`isError: false`) `status` outcomes:
 - `complete`: All brief sections (`Goals`, `Library`, `Snapshots`) read cleanly; returns `text` matching `apparatus resume`, `selection`, and `partial: false`.
 - `partial`: One or more sections degraded (such as unreadable goal records, incomplete Library sources, or missing/unreadable snapshot); returns `partial: true` and the degraded `text` brief.
+
+## Opt-in Task and Memory Save Tools (`--memory-saves`)
+
+When started with `apparatus mcp serve WORKSPACE --memory-saves`, the server additionally exposes five tools that invoke the existing task-retention controls and Memory writers directly without shell-command composition.
+
+- **Explicit task identity:** The server keeps no current task across calls and starts none automatically. Each `memory_save_*` call requires an explicit `task_id` returned by `task_start`; missing, malformed, or unknown `task_id` values return `isError: true` with the existing bounded retention error message and write nothing.
+- **Bound projects:** When `WORKSPACE` is a bound project, task controls and Memory records write into the linked work area and return work-area-relative `record_path` values.
+- **Product-facing rules:** Tool descriptions follow `ADR-0001` (`AI app` / `assistant`) and carry the canon capture rule: use a save tool only when the user explicitly asks to remember, save, or keep something; save only the requested fact, person, or decision; take sources and reasons from the request or evidence; do not invent them or save unrelated conversation content.
+
+### 4. `task_start`
+
+Arguments: `{"memory": optional "save" | "no-save"}`. Omitted `memory` uses the work area's existing default (including `no-save` for a legacy `private` profile). Returns `{"task_id": "<uuid>", "memory": "save" | "no-save"}`.
+
+### 5. `task_no_memory`
+
+Arguments: `{"task_id": string (required)}`. Applies the one-way opt-out for that task and returns `{"task_id": "<uuid>", "memory": "no-save"}`.
+
+### 6. `memory_save_fact`
+
+Arguments: `{"task_id": string (required), "title": string (non-empty, required), "body": string (required)}`. Runs the `memory add-fact` writer.
+
+### 7. `memory_save_person`
+
+Arguments: `{"task_id": string (required), "name": string (non-empty, required), "body": string (required), "role": optional string}`. Runs the `memory add-person` writer.
+
+### 8. `memory_save_decision`
+
+Arguments: `{"task_id": string (required), "title": string (non-empty, required), "date": string (YYYY-MM-DD, required), "body": string (non-empty, required)}`. Runs the `memory add-decision` writer.
+
+### Outcomes for `memory_save_*`
+
+- `saved` (`isError: false`): Returned only after confirming the new record file exists on disk through the retained work-area root. Payload includes `record_path` (work-area-relative path with `/` separators) and `redactions` (`{"total": int, "classes": [...], "counts": {...}}`) reporting credential-floor redaction counts and classes only—never removed secret text.
+- `not_saved` (`isError: false`): Returned under a `no-save` task (including after `task_no_memory` or a legacy `private` profile default) with `reason` (`"This task does not save new Memory or setup answers."`); writes nothing.
+- Invalid inputs (such as missing/empty/malformed/unknown `task_id`, empty `title`/`name`, invalid `date`, or empty decision `body`) return `isError: true` with a bounded path-safe message and write nothing.

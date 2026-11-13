@@ -3,8 +3,29 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from apparatus_core.retention import TaskRetentionError, context_for, set_no_memory, start_task
+
+
+def start_task_outcome(
+    workspace: str | Path, *, save_memory: bool | None = None
+) -> dict[str, str]:
+    """Start a task without printing and return its opaque ID and retention decision."""
+    context = start_task(workspace, save_memory=save_memory)
+    return {
+        "task_id": context.task_id or "",
+        "memory": "save" if context.save_memory else "no-save",
+    }
+
+
+def no_memory_outcome(workspace: str | Path, task_id: str) -> dict[str, str]:
+    """Apply the one-way no-memory opt-out without printing and return its outcome."""
+    context = set_no_memory(workspace, task_id)
+    return {
+        "task_id": context.task_id or "",
+        "memory": "save" if context.save_memory else "no-save",
+    }
 
 
 def register(subparsers):
@@ -26,13 +47,16 @@ def register(subparsers):
 def run(args):
     try:
         if args.task_action == "start":
-            context = start_task(args.workspace, save_memory=args.save_memory)
+            payload = start_task_outcome(args.workspace, save_memory=args.save_memory)
         elif args.task_action == "no-memory":
-            context = set_no_memory(args.workspace, args.task_id)
+            payload = no_memory_outcome(args.workspace, args.task_id)
         else:
             context = context_for(args.workspace, task_id=args.task_id, require_task=True)
-        print(json.dumps({"task_id": context.task_id,
-                          "memory": "save" if context.save_memory else "no-save"}))
+            payload = {
+                "task_id": context.task_id,
+                "memory": "save" if context.save_memory else "no-save",
+            }
+        print(json.dumps(payload))
         return 0
     except TaskRetentionError as error:
         print(f"task: {error}")

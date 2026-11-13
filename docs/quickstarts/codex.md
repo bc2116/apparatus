@@ -51,7 +51,7 @@ do not create duplicate Skills or infer execution from a menu.
 For a task you do not want retained, say “Don't save this task to Memory”; this
 still allows its requested deliverable and does not control provider retention.
 
-## Optional read-only local tool server
+## Optional local tool server
 
 You do not need a tool server to use Apparatus. If you want Codex CLI to query
 Library evidence, Memory records, or your resume brief as native read-only tools
@@ -61,6 +61,14 @@ local stdio using a relative `WORKAREA` path (such as `.` from the work area or
 
 ```sh
 codex mcp add apparatus -- apparatus mcp serve .
+```
+
+If you also want Codex CLI to start tasks and save explicit Memory items through
+native tools (still gated by task retention and explicit user requests), pass
+`--memory-saves`:
+
+```sh
+codex mcp add apparatus -- apparatus mcp serve . --memory-saves
 ```
 
 Tool server instructions checked via `codex mcp add --help` on 2026-11-13.

@@ -98,9 +98,10 @@ Read the [decisions](docs/adr/ADR-0006-lean-workspace-and-skills.md),
 [refactor sequence](docs/plan/rework-sequence.md), and
 [development status](docs/plan/README.md). On the development branch,
 `apparatus mcp serve WORKAREA` provides an optional read-only local MCP stdio
-tool server (`library_recall`, `memory_recall`, and `resume_brief`), observed
-in Codex CLI `0.166.0` (live Claude Code CLI and Cursor IDE MCP invocations
-remain unverified here).
+tool server (`library_recall`, `memory_recall`, and `resume_brief`), with
+opt-in `--memory-saves` adding explicit `task_*` and `memory_save_*` tools,
+observed in Codex CLI `0.166.0` (live Claude Code CLI and Cursor IDE MCP
+invocations remain unverified here).
 
 ## Optional Mailbox Survey module
 

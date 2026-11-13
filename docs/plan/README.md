@@ -198,7 +198,7 @@ later slices remain planned.
 | 75 | [Deliver the qualified release](PR-75-release-delivery.md) | Release S5 | ✅ landed | 74, final publication approval |
 | 76 | [Optional local tool server, read-only](PR-76-local-tool-server.md) | Native reach | ✅ landed | 75 |
 | 77 | [Native Skill adapters](PR-77-native-skill-adapters.md) | Native reach | ✅ landed | 75 |
-| 78 | [Opt-in Memory save tools for the local tool server](PR-78-memory-save-tools.md) | Native reach | ready | 76 |
+| 78 | [Opt-in Memory save tools for the local tool server](PR-78-memory-save-tools.md) | Native reach | ✅ landed | 76 |
 
 Statuses: `ready` (prompt complete, dependencies may still be pending),
 `in progress — <branch>`, `✅ landed`, `blocked — <reason>`. Rework outlines

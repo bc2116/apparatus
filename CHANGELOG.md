@@ -17,7 +17,10 @@ All notable changes to Apparatus are documented in this file.
   `skill-adapter-*` checks when owned adapters exist.
 - Add `apparatus mcp serve WORKAREA`, an optional, zero-dependency, read-only
   local MCP stdio tool server (`2025-11-25`) exposing `library_recall`,
-  `memory_recall`, and `resume_brief` without modifying work-area or cache state.
+  `memory_recall`, and `resume_brief` without modifying work-area or cache state,
+  plus opt-in `--memory-saves` to expose explicit `task_start`,
+  `task_no_memory`, `memory_save_fact`, `memory_save_person`, and
+  `memory_save_decision` tools routed through the single Memory writer.
 
 ## v0.0.3
 

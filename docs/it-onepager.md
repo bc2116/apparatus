@@ -38,10 +38,12 @@ Setup downloads only from `https://astral.sh/uv/install.ps1`,
 `https://pypi.org/simple`, and `https://files.pythonhosted.org` for
 `apparatus-core` and declared dependencies.
 
-For the optional read-only local tool server (`apparatus mcp serve WORKAREA`),
+For the optional local tool server (`apparatus mcp serve WORKAREA`),
 the AI app starts the process and owns its lifetime. It speaks only over
 standard input/output, opens no listening socket, makes no network call, installs
 no background service, never starts by itself, and exits when input closes.
+It can write Memory records only when started with `--memory-saves`, under the
+same task-retention and redaction controls.
 
 ## Privacy model
 
