@@ -196,7 +196,7 @@ later slices remain planned.
 | 73 | [Freeze and qualify the core candidate](PR-73-release-candidate.md) | Release S3 | ✅ landed | 72 |
 | 74 | [Verify signed rehearsal](PR-74-signed-rehearsal.md) | Release S4 | ✅ landed | 73 |
 | 75 | [Deliver the qualified release](PR-75-release-delivery.md) | Release S5 | ✅ landed | 74, final publication approval |
-| 76 | [Optional local tool server, read-only](PR-76-local-tool-server.md) | Native reach | ready | 75 |
+| 76 | [Optional local tool server, read-only](PR-76-local-tool-server.md) | Native reach | ✅ landed | 75 |
 | 77 | [Native Skill adapters](PR-77-native-skill-adapters.md) | Native reach | ✅ landed | 75 |
 | 78 | [Opt-in Memory save tools for the local tool server](PR-78-memory-save-tools.md) | Native reach | ready | 76 |
 

@@ -15,6 +15,9 @@ All notable changes to Apparatus are documented in this file.
   bound projects during `init`, `render`, and `project bind`, with
   `--remove-skill-adapters` cleanup, conflict preservation, and
   `skill-adapter-*` checks when owned adapters exist.
+- Add `apparatus mcp serve WORKAREA`, an optional, zero-dependency, read-only
+  local MCP stdio tool server (`2025-11-25`) exposing `library_recall`,
+  `memory_recall`, and `resume_brief` without modifying work-area or cache state.
 
 ## v0.0.3
 

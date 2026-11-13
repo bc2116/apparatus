@@ -2,9 +2,10 @@
 
 - **Status:** Normative for work-area enrollment, project binding and the starter
   payload. `conformance/golden/payload-manifest.txt` pins the payload inventory.
-- Governing decisions: ADR-0001, ADR-0002, ADR-0003, ADR-0004 and ADR-0006.
+- Governing decisions: ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0006 and ADR-0008.
 - Recovery coverage is specified in [managed recovery](managed-recovery.md);
-  record schemas and lifecycle rules are in [records](records.md) and [Memory](memory.md).
+  record schemas and lifecycle rules are in [records](records.md) and [Memory](memory.md);
+  the optional read-only local tool server is specified in [tool server](tool-server.md).
 
 ## Payload and deployed state
 

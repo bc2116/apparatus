@@ -162,7 +162,8 @@ current AI app actually provides those controls.
 Core requires only **read files, write files, and run approved commands**.
 Codex, Claude Code, and Cursor are the initial adapter/testing priorities.
 Other capable apps and CLIs, including future ones, should be able to use the
-plain files from day zero. Optional adapters add convenience without a
+plain files from day zero. Optional adapters — including the optional read-only
+local tool server (`apparatus mcp serve`) — add convenience without a
 different core build or proprietary runtime. This is a compatibility design
 goal, not advance certification. OpenClaw and future desktop assistants can be
 evaluated when there is a concrete environment to test.
@@ -255,3 +256,6 @@ return to the owner only if evidence requires a material change to this directio
 - Should `--remove-skill-adapters` remain an explicit cleanup action reversed by a
   later `init`, `render`, or `project bind`, or should a persisted workspace or
   project opt-out setting prevent automatic native Skill adapter regeneration?
+- **Local tool server packaging:** Should the optional local tool server
+  (`apparatus mcp serve`) remain in `apparatus-core` or move later into a
+  separate optional module once module packaging conventions settle?
